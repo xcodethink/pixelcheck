@@ -1,10 +1,21 @@
 id: 02-domain-check-flow
-name: Domain Check Core Flow
+name: Domain Check Tool + Result Page Audit
 priority: P0
 goal: |
-  Submit a real test domain through the main check-website funnel and verify
-  the threat report renders, the risk score is clear, and the localized AI
-  summary is present.
+  Audit the C-end domain check funnel end-to-end. Two phases:
+
+  PHASE 1 — Tool landing page UX (the entry point a real user sees first).
+  PHASE 2 — Direct visit to a real result URL (`/<locale>/report/google.com`).
+            This bypasses the form submission entirely and audits the
+            actual rendered report page, which is where most real bugs live
+            (i18n key exposure, score-vs-copy contradiction, score breakdown
+            consistency, SSL detection accuracy).
+
+  Phase 2 is intentionally a direct visit because Stagehand's form submit
+  often loses the navigation signal on this page (the result is rendered
+  in-place via client-side fetch, so wait_for("google.com") does not
+  reliably resolve). Direct navigation gives the critic 100% access to the
+  actual production result UI for ground-truth audit.
 
 applies_to:
   personas:
@@ -23,9 +34,7 @@ scoring_dimensions:
   - trust_signals
 
 steps:
-  # Use the dedicated check-website tool page (real path from sitemap),
-  # not the marketing homepage. The tool's main input is a known scam
-  # domain that ScamLens has labeled in its threat database.
+  # ─── PHASE 1: tool landing page ───────────────────────────────
   - id: open-check-website
     type: visit
     url: https://scamlens.org/${persona.url_locale}/check-website
@@ -41,43 +50,58 @@ steps:
       - Trust signals like "scanned X domains" or sample results are present
       - Layout is professional, not scammy
 
-  - id: type-domain
-    type: act
-    instruction: |
-      Type "google.com" into the main domain check input field. We use a
-      well-known safe domain so the funnel always returns a real report
-      (the "phishing-test.example" placeholder ScamLens shows is not a
-      valid domain and the backend silently rejects it).
-    retry: 2
+  # ─── PHASE 2: direct result page audit ────────────────────────
+  # google.com is a known-safe high-traffic domain. Visiting
+  # /<locale>/report/google.com directly forces the report page to render
+  # against ScamLens' live threat intelligence pipeline.
+  - id: open-result-page
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/report/google.com
+    wait_until: domcontentloaded
 
-  - id: submit-check
-    type: act
-    instruction: Click the check / scan / analyze button to submit the domain
-    retry: 2
-    fallback: computer_use
-
-  - id: wait-for-report
+  - id: wait-result-loaded
     type: wait_for
-    text: google.com
-    timeout: 60000
+    text: SCORE BREAKDOWN
+    timeout: 30000
 
-  - id: rate-report-page
+  - id: rate-result-page
     type: assert_visual
     critical_review: true
     dimensions:
-      - visual_polish
+      - completion
       - localization
+      - visual_polish
       - information_density
       - trust_signals
     instruction: |
-      Evaluate the resulting risk report page. Check:
-      - Risk score visible above the fold with clear color coding
-      - At least 3 threat intelligence sources listed by name (not just count)
-      - AI risk summary in ${persona.language}
-      - "Report inaccuracy" or feedback link visible
-      - Layout is professional vs benchmarks like VirusTotal / URLVoid
+      This is the actual production result page for google.com. Audit it
+      with extreme rigor. Check for:
 
-  - id: screenshot-report
+      1. RAW DATA EXPOSURE — any text matching the i18n-key pattern
+         (e.g. "report.trust_score_label", "report.risk_level_label") visible
+         to users. Flag at CRITICAL.
+
+      2. SCORE vs COPY CONSISTENCY — does the Quick Answer narrative match
+         the trust score color and label? If the score is green "Trusted"
+         but the Quick Answer says "stop interacting immediately, preserve
+         evidence", that is a CRITICAL product logic bug.
+
+      3. DATA INTERNAL CONSISTENCY — do the breakdown numbers add up?
+         For example, if Threat Intelligence shows "17/20 safe" but the
+         CONCERNS section says "3 sources flagged as suspicious", that
+         is a contradiction worth flagging.
+
+      4. SSL ACCURACY — does the page claim google.com SSL is "expired"?
+         Google's certificate auto-renews; an "expired" claim indicates a
+         broken SSL checker or stale cache.
+
+      5. LOCALIZATION — is all the copy in ${persona.language}? Section
+         titles ("QUICK ANSWER", "POSITIVE SIGNALS", "CONCERNS",
+         "SCORE BREAKDOWN") should be translated. Brand names exempt.
+
+      6. VISUAL POLISH — benchmark against VirusTotal / URLVoid quality.
+
+  - id: screenshot-result
     type: screenshot
-    label: report-page
+    label: result-page
     full_page: true

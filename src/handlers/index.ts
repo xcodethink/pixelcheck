@@ -232,16 +232,23 @@ async function handleAssertVisual(
   // Capture viewport-segmented screenshots for vision analysis. This avoids
   // the OCR hallucination caused by compressing a 6MB+ full-page screenshot
   // down to fit Anthropic's 1568px / 5MB limit.
+  //
+  // The recorder also produces a downscaled full-page thumbnail which we
+  // pass FIRST so the model has macro context (where things are roughly)
+  // before drilling into the high-res segments (exact text).
   const captured = await ctx.recorder.screenshotSegments(step.id);
   const diff = await maybeDiff(captured.full.filepath, step.id, ctx);
   const instruction = substituteTemplate(step.instruction, tplCtx(ctx));
+
+  // Send: thumbnail (macro) + N segments (micro)
+  const imageBuffers = [captured.thumbnail, ...captured.segments];
 
   const critic = await runCritic({
     model: ctx.models.critic,
     persona: ctx.persona,
     scenario: ctx.scenario,
     instruction,
-    imageBuffers: captured.segments,
+    imageBuffers,
     stepId: step.id,
   });
   ctx.criticResults.push(critic);

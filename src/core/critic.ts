@@ -65,17 +65,29 @@ export async function runCritic(opts: CriticOptions): Promise<CriticResult> {
   const systemPrompt = buildSystemPrompt(opts.persona, opts.scenario);
   const userPrompt = buildUserPrompt(opts.instruction, opts.scenario);
 
-  // Compress each segment to fit within Anthropic vision API limits
+  // Compress each image to fit within Anthropic vision API limits.
+  //
+  // Convention: when more than one image is sent, the FIRST is treated as the
+  // full-page thumbnail (macro context) and the rest are viewport segments
+  // in scroll order (micro context). Labels reflect that.
   const images = await Promise.all(
     opts.imageBuffers.map(async (buf, i) => {
       const c = await compressForVision(buf);
+      let label: string | undefined;
+      if (opts.imageBuffers.length === 1) {
+        label = undefined;
+      } else if (i === 0) {
+        label =
+          "FULL-PAGE THUMBNAIL (macro context — entire scrollable page at low resolution; use this to understand layout and locate sections; do NOT cite tiny text from this image — use the segments below for exact text):";
+      } else {
+        const segNum = i;
+        const total = opts.imageBuffers.length - 1;
+        label = `VIEWPORT SEGMENT ${segNum} of ${total} (high-res scroll snapshot, ~20% overlap with neighboring segments — use these for exact text reading):`;
+      }
       return {
         base64: c.base64,
         mediaType: c.mediaType,
-        label:
-          opts.imageBuffers.length > 1
-            ? `Viewport ${i + 1} of ${opts.imageBuffers.length} (scroll segment):`
-            : undefined,
+        label,
       };
     }),
   );
@@ -185,16 +197,35 @@ You MUST return a single valid JSON object matching this schema:
   "violations": [{ "text": string, "location": string }] (optional, for localization audits)
 }
 
-CRITICAL ANTI-HALLUCINATION RULES:
-- ONLY report text you can ACTUALLY READ in the screenshot. Never guess, never fill in "what a typical SaaS landing page would have", never list strings like "Get Started" or "Sara M." unless you literally see those exact characters rendered in the image.
-- If you are not 100% certain a string exists, OMIT it. False positives are worse than missing one issue.
-- Quote the exact rendered text in your "violations[].text" field — character for character.
-- "location" must describe a physical area you can see (e.g. "footer column 2", "top right of hero section"), NOT an inferred section name.
+CRITICAL ANTI-HALLUCINATION RULES (read carefully — false positives are worse than misses):
+- ONLY report text you can ACTUALLY READ in the high-res segment images. Never guess, never fabricate "what a typical SaaS landing page would have", never list strings like "Get Started", "Sara M.", "$29.99", "Trusted by Security Professionals" unless you literally see those exact characters rendered.
+- The FIRST image is a low-res thumbnail for macro context only. Do NOT cite tiny text from the thumbnail — only use it to understand layout. Cite text only from the segment images (image 2 onwards).
+- If you are not 100% certain a string exists, OMIT it. The cost of one missed issue is far less than the cost of one fabricated string that the dev team can't find.
+- Quote rendered text character for character in "violations[].text". Do not normalize, lowercase, or paraphrase.
+- "location" must describe a physical area you can see (e.g. "footer column 2", "top right of hero section", "viewport segment 3, lower-left card"), NOT an inferred section name from your training data.
 - If a region is too small/blurry to read, say so in your justification rather than fabricating contents.
+
+CRITICAL DATA-EXPOSURE CHECKS (always run):
+- Flag any visible text that looks like a raw i18n key, enum value, or internal identifier. Examples of patterns to flag at HIGH severity:
+  * /^[a-z_]+\\.[a-z_]+(\\.[a-z_]+)*$/ — e.g. "report.trust_score_label", "footer.cta.title"
+  * UPPER_SNAKE_CASE constants visible in the UI: "RISK_HIGH", "STATUS_ACTIVE"
+  * Database row IDs that look like UUIDs or numeric primary keys exposed in user-facing copy
+  * Source/provider keys like "src_europol", "provider_phishtank"
+- Flag any data inconsistency where two widgets on the same page disagree:
+  * Stats counter shows N but visible content shows a clearly different count
+  * Color-coded score (e.g. green "Trusted") but accompanying copy describes high risk ("stop interacting immediately")
+  * Numeric breakdown that doesn't add up (17/20 safe but "3 suspicious" elsewhere)
+- Flag any product roadmap / internal team language exposed to end users:
+  * "the biggest next step is..."
+  * "future work includes..."
+  * "TODO" / "FIXME" / "WIP" in user copy
+- Flag any UI state that contradicts the data:
+  * SSL certificate marked "expired" for a well-known domain (google.com / cloudflare.com)
+  * "0 results" stats counters when the content area clearly shows multiple items
 
 Guidelines:
 - "visual_polish" must be benchmarked against Stripe / Linear / Vercel / Notion.
-- "localization" must check for any non-${persona.language} text. Brand names ("ScamLens", "OrangeDuck"), well-known acronyms (URL, AI, API, GDPR, OFAC, USDT, KYC, DeFi), and ISO currency codes are exempt.
+- "localization" must check for any non-${persona.language} text. Brand names ("ScamLens", "OrangeDuck"), well-known acronyms (URL, AI, API, GDPR, OFAC, USDT, KYC, DeFi, SDK, SaaS, B2B, B2C, NFT), and ISO currency codes are exempt.
 - Be honest. A 7 means "good but improvable", not "passing".
 - Limit to the 10 most important issues. Group similar issues into one entry instead of listing each instance.
 - Limit "violations" to 10 most representative items. List the pattern once, don't enumerate every instance.
