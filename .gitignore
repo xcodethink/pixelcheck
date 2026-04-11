@@ -1,0 +1,11 @@
+node_modules/
+dist/
+reports/
+baselines/
+tmp/
+downloads/
+.env
+*.log
+*.har
+*.webm
+.DS_Store
