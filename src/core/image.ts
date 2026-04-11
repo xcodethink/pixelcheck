@@ -26,6 +26,21 @@ export interface CompressedImage {
 }
 
 /**
+ * Detect image format from the buffer's magic bytes.
+ * PNG starts with 89 50 4E 47, JPEG starts with FF D8 FF.
+ */
+function detectMediaType(buf: Buffer): "image/png" | "image/jpeg" {
+  if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return "image/png";
+  }
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return "image/jpeg";
+  }
+  // Default fall-through; safer to assume PNG since Playwright outputs PNG
+  return "image/png";
+}
+
+/**
  * Compress an image buffer to fit Anthropic vision constraints.
  * Strategy:
  *   1. Resize so long edge ≤ 1568 px (lossless wins)
@@ -33,15 +48,17 @@ export interface CompressedImage {
  *   3. If still > 5 MB, lower quality to 70, then 55
  *
  * Returns base64-encoded data ready to send to the vision API.
+ * Detects the actual media type from buffer magic bytes so callers can pass
+ * either PNG or JPEG inputs without mislabeling them.
  */
 export async function compressForVision(input: Buffer): Promise<CompressedImage> {
-  // If the original is already tiny, send as PNG with no work.
+  // If the original is already tiny, send as-is. Auto-detect actual format
+  // from magic bytes — the recorder may pass JPEG thumbnails OR PNG segments
+  // and Anthropic enforces the declared media_type matches the actual bytes.
   if (input.length < MAX_BYTES / 2) {
-    // still resize if dimensions are huge — but verifying dimensions costs an
-    // I/O, so just send as-is for small files.
     return {
       base64: input.toString("base64"),
-      mediaType: "image/png",
+      mediaType: detectMediaType(input),
       bytes: input.length,
     };
   }
