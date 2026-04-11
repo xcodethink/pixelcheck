@@ -1,0 +1,48 @@
+{
+  "name": "ai-browser-auditor",
+  "version": "0.1.0",
+  "description": "AI-driven post-deployment UX audit. Real browser, real personas, real scenarios, commercial-grade evaluation.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "ai-audit": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "audit": "tsx src/cli.ts",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "ai",
+    "browser",
+    "audit",
+    "ux",
+    "playwright",
+    "stagehand",
+    "claude",
+    "computer-use",
+    "e2e"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@browserbasehq/stagehand": "^2.0.0",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.0",
+    "odiff-bin": "^4.3.2",
+    "ora": "^8.1.0",
+    "p-limit": "^6.1.0",
+    "playwright": "^1.49.0",
+    "sharp": "^0.34.5",
+    "stealth-core": "file:../stealth-core",
+    "yaml": "^2.6.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

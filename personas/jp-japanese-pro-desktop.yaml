@@ -1,0 +1,28 @@
+id: jp-japanese-pro-desktop
+display_name: 田中花子 (35, 東京, 主婦, MacBook Pro)
+country: JP
+language: 日本語
+locale: ja-JP
+timezone: Asia/Tokyo
+device_class: desktop
+ua_class: macbook
+viewport:
+  width: 1440
+  height: 900
+payment_tier: pro
+proxy_env: PROXY_JP
+mental_model: |
+  35歳の東京在住の主婦。投資詐欺の被害を受けた友人から相談を受け、
+  ScamLensを試している。仮想通貨の知識は浅いが、騙されたくないという
+  意識は強い。日本語で完結する説明を求めており、英語が混じると不信感を
+  抱く。価格は円表示が望ましい。Pro プランを購入する意欲はあるが、
+  価値が明確でない限り支払わない。
+critical_concerns:
+  - 全文必ず日本語、ブランド名以外の英語混入は重大な問題
+  - 仮想通貨の専門用語は必ず日本語の説明付きで
+  - 価格表示は日本円が望ましい (USD表示は減点)
+  - GDPR/個人情報保護の説明は日本の文脈で
+  - 怪しいサイトの判定結果は素人にもわかる言葉で
+test_credentials:
+  google_account: ${TEST_GOOGLE_JP}
+  google_password: ${TEST_GOOGLE_JP_PASSWORD}

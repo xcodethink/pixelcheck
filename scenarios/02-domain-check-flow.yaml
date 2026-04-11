@@ -1,0 +1,83 @@
+id: 02-domain-check-flow
+name: Domain Check Core Flow
+priority: P0
+goal: |
+  Submit a real test domain through the main check-website funnel and verify
+  the threat report renders, the risk score is clear, and the localized AI
+  summary is present.
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+    - de-german-power-tablet
+    - cn-chinese-free-mobile
+    - br-portuguese-free-desktop
+    - sa-arabic-pro-mobile
+
+scoring_dimensions:
+  - completion
+  - localization
+  - visual_polish
+  - information_density
+  - trust_signals
+
+steps:
+  # Use the dedicated check-website tool page (real path from sitemap),
+  # not the marketing homepage. The tool's main input is a known scam
+  # domain that ScamLens has labeled in its threat database.
+  - id: open-check-website
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/check-website
+    wait_until: domcontentloaded
+
+  - id: rate-tool-page
+    type: assert_visual
+    instruction: |
+      Rate the check-website tool landing page. Check:
+      - The domain input field is visible and obvious above the fold
+      - "Check" / submit button is clear
+      - All copy is in ${persona.language} (no English mix-ins outside brand names)
+      - Trust signals like "scanned X domains" or sample results are present
+      - Layout is professional, not scammy
+
+  - id: type-domain
+    type: act
+    instruction: |
+      Type "google.com" into the main domain check input field. We use a
+      well-known safe domain so the funnel always returns a real report
+      (the "phishing-test.example" placeholder ScamLens shows is not a
+      valid domain and the backend silently rejects it).
+    retry: 2
+
+  - id: submit-check
+    type: act
+    instruction: Click the check / scan / analyze button to submit the domain
+    retry: 2
+    fallback: computer_use
+
+  - id: wait-for-report
+    type: wait_for
+    text: google.com
+    timeout: 60000
+
+  - id: rate-report-page
+    type: assert_visual
+    critical_review: true
+    dimensions:
+      - visual_polish
+      - localization
+      - information_density
+      - trust_signals
+    instruction: |
+      Evaluate the resulting risk report page. Check:
+      - Risk score visible above the fold with clear color coding
+      - At least 3 threat intelligence sources listed by name (not just count)
+      - AI risk summary in ${persona.language}
+      - "Report inaccuracy" or feedback link visible
+      - Layout is professional vs benchmarks like VirusTotal / URLVoid
+
+  - id: screenshot-report
+    type: screenshot
+    label: report-page
+    full_page: true

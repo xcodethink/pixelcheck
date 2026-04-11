@@ -1,0 +1,95 @@
+id: 06-investigation-workflow-v2
+name: Intelligence Platform + Entity Graph Discovery
+priority: P1
+goal: |
+  Discover and evaluate the public-facing intelligence platform pages
+  (the user-visible surface of the V2 investigation engine). Verifies
+  the intelligence dashboard, entity graph landing, wanted list, and
+  scam centers map.
+
+  IMPORTANT: ScamLens has built a Cloudflare Workflows V2 investigation
+  engine but it has no dedicated `/investigation` URL on the live site.
+  This scenario audits what is actually reachable by users — the
+  /intelligence/* surface — and flags the gap between the engineering
+  capability and the public discovery path.
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+
+scoring_dimensions:
+  - completion
+  - workflow_visibility
+  - output_quality
+  - time_to_value
+  - visual_polish
+
+steps:
+  - id: open-intelligence
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/intelligence
+    wait_until: domcontentloaded
+
+  - id: rate-intelligence-landing
+    type: assert_visual
+    critical_review: true
+    dimensions:
+      - workflow_visibility
+      - visual_polish
+      - output_quality
+    instruction: |
+      Rate the intelligence platform landing page. Check:
+      - Is there a clear entry point to deep investigation / V2 workflow?
+      - Are the platform's capabilities (entity graph, threat data, monitoring) made obvious?
+      - Is the layout commercial-grade, comparable to Chainalysis / Elliptic?
+      - Localization to ${persona.language}?
+      - Does a non-technical user understand what they can do here?
+
+  - id: open-entity-graph
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/intelligence/entity
+    wait_until: domcontentloaded
+
+  - id: rate-entity-graph
+    type: assert_visual
+    critical_review: true
+    dimensions:
+      - output_quality
+      - visual_polish
+      - workflow_visibility
+    instruction: |
+      Rate the entity graph page. This is where the investigation workflow's
+      output should be discoverable. Check:
+      - Is an interactive entity graph visible (Cytoscape canvas / SVG)?
+      - Are entities color-coded by risk?
+      - Can the user click into an entity for details?
+      - Is this clearly the V2 investigation surface, or just a marketing page?
+
+  - id: open-wanted
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/intelligence/wanted
+    wait_until: domcontentloaded
+
+  - id: rate-wanted
+    type: assert_visual
+    instruction: |
+      Rate the wanted/sanctions list page. Verify:
+      - Real data is shown (entries, names, addresses)
+      - Is in ${persona.language}
+      - Searchable/filterable
+      - Cited sources
+
+  - id: open-scam-centers
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/intelligence/scam-centers
+    wait_until: domcontentloaded
+
+  - id: rate-scam-centers
+    type: assert_visual
+    instruction: |
+      Rate the scam centers page. This typically uses a map. Verify:
+      - Map renders correctly
+      - Markers are present and clickable
+      - Localized labels
+      - Mobile-responsive layout
