@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
 import type { Page } from "playwright";
 import type {
   Step,
@@ -18,7 +19,7 @@ import { withRetry } from "stealth-core";
 import { waitForMessage } from "../core/email.js";
 import { diffAgainstBaseline, type DiffResult } from "../core/visual-diff.js";
 import { waitForPageStable } from "../core/page-stability.js";
-import { generateMutations } from "../core/instruction-mutator.js";
+import { generateMutations, autoDiscoverSelectors } from "../core/instruction-mutator.js";
 
 export interface StepContext {
   page: Page;
@@ -209,9 +210,9 @@ async function handleAct(
       }
     }
 
-    // ── Layer 3b: Instruction Mutation (rephrase/decompose) ──────
+    // ── Layer 3b: Instruction Mutation (LLM rewrite + local mutations) ──
     try {
-      const mutations = await generateMutations(instruction, ctx.page);
+      const mutations = await generateMutations(instruction, ctx.page, ctx.cost);
       for (const mutation of mutations) {
         for (const mutatedInstruction of mutation.instructions) {
           try {
@@ -236,11 +237,36 @@ async function handleAct(
         }
       }
     } catch {
-      // Mutation generation itself failed — continue to Layer 4
+      // Mutation generation itself failed — continue to Layer 3c
+    }
+
+    // ── Layer 3c: Auto Selector Discovery (observe → click) ─────
+    try {
+      const selectors = await autoDiscoverSelectors(instruction, ctx.stagehand);
+      for (const selector of selectors) {
+        try {
+          const el = ctx.page.locator(selector).first();
+          await el.waitFor({ state: "visible", timeout: 3000 });
+          await el.click();
+          await ctx.page.waitForTimeout(300);
+          return {
+            status: "pass",
+            output: { method: "auto_selector", selector, original: instruction },
+            execution_method: "selector_hint",
+          };
+        } catch {
+          // This selector didn't work — try next
+          continue;
+        }
+      }
+    } catch {
+      // observe() failed — continue to Layer 4
     }
 
     // ── Layer 4: Computer Use (autonomous fallback) ──────────────
-    if (step.fallback === "computer_use") {
+    // Default to computer_use for act steps unless explicitly set to "skip" or "fail"
+    const effectiveFallback = step.fallback ?? "computer_use";
+    if (effectiveFallback === "computer_use") {
       // Use lightweight Sonnet mode for non-critical steps (3 iterations),
       // full Opus mode for critical_review steps (8 iterations).
       const isCritical = step.critical || step.critical_review;
@@ -263,7 +289,7 @@ async function handleAct(
     }
 
     // ── Layer 4 (skip mode): skip step if configured ─────────────
-    if (step.fallback === "skip") {
+    if (effectiveFallback === "skip") {
       return {
         status: "skip",
         output: { skipped: true, reason: primaryError },
@@ -442,6 +468,19 @@ async function handleAssertDom(
  *   - axe-core catches WCAG rule violations (ARIA, contrast, labels, etc.)
  *   - Vision Critic catches visual accessibility issues (layout, readability)
  */
+/**
+ * Resolve axe-core path using createRequire (ESM-safe).
+ * Cached after first call.
+ */
+let _axeCorePath: string | undefined;
+function resolveAxeCorePath(): string {
+  if (!_axeCorePath) {
+    const esmRequire = createRequire(import.meta.url);
+    _axeCorePath = esmRequire.resolve("axe-core/axe.min.js");
+  }
+  return _axeCorePath;
+}
+
 async function handleAssertA11y(
   step: Extract<Step, { type: "assert_a11y" }>,
   ctx: StepContext,
@@ -449,38 +488,13 @@ async function handleAssertA11y(
   // Layer 1: Stability gate — ensure page is fully rendered before analysis
   await waitForPageStable(ctx.page, { timeout: 5000 });
 
-  // Read axe-core source from node_modules
-  const axeCorePath = require.resolve("axe-core/axe.min.js");
-  const axeSource = fs.readFileSync(axeCorePath, "utf-8");
-
-  // Build axe run options
   const standard = step.standard ?? "wcag2aa";
   const exclude = step.exclude ?? [];
   const impactFilter = step.impact_filter;
 
-  // Inject and run axe-core
-  const axeResults = await ctx.page.evaluate(
-    ([src, runOpts]) => {
-      // Inject axe-core if not already present
-      if (!(window as any).axe) {
-        const script = document.createElement("script");
-        script.textContent = src;
-        document.head.appendChild(script);
-      }
-      const axe = (window as any).axe;
-      if (!axe) throw new Error("axe-core injection failed");
-
-      return axe.run(document, {
-        runOnly: { type: "tag", values: [runOpts.standard] },
-        resultTypes: ["violations", "passes", "incomplete"],
-        rules: {},
-        ...(runOpts.exclude.length > 0
-          ? { exclude: runOpts.exclude.map((s: string) => [s]) }
-          : {}),
-      });
-    },
-    [axeSource, { standard, exclude }] as const,
-  ) as {
+  // Inject axe-core using Playwright's addScriptTag (CSP-safe — uses
+  // Playwright's CDP protocol injection, bypasses page CSP restrictions).
+  let axeResults: {
     violations: Array<{
       id: string;
       impact: "critical" | "serious" | "moderate" | "minor";
@@ -488,15 +502,62 @@ async function handleAssertA11y(
       help: string;
       helpUrl: string;
       tags: string[];
-      nodes: Array<{
-        html: string;
-        target: string[];
-        failureSummary: string;
-      }>;
+      nodes: Array<{ html: string; target: string[]; failureSummary: string }>;
     }>;
     passes: Array<{ id: string }>;
     incomplete: Array<{ id: string; impact: string }>;
   };
+
+  try {
+    // Inject axe-core via Playwright (not eval — CSP-safe)
+    const axeCorePath = resolveAxeCorePath();
+    const alreadyInjected = await ctx.page.evaluate(
+      () => typeof (window as any).axe !== "undefined",
+    );
+    if (!alreadyInjected) {
+      await ctx.page.addScriptTag({ path: axeCorePath });
+    }
+
+    // Run axe analysis
+    axeResults = await ctx.page.evaluate(
+      (runOpts) => {
+        const axe = (window as any).axe;
+        if (!axe) throw new Error("axe-core not available after injection");
+
+        return axe.run(document, {
+          runOnly: { type: "tag", values: [runOpts.standard] },
+          resultTypes: ["violations", "passes", "incomplete"],
+          ...(runOpts.exclude.length > 0
+            ? { exclude: runOpts.exclude.map((s: string) => [s]) }
+            : {}),
+        });
+      },
+      { standard, exclude },
+    );
+  } catch (err) {
+    // axe-core injection or execution failed — return diagnostic, don't crash
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      status: step.critical ? "fail" : "warn",
+      output: {
+        error: `axe-core failed: ${message}`,
+        standard,
+        total_violations: 0,
+        by_impact: { critical: 0, serious: 0, moderate: 0, minor: 0 },
+        passes: 0,
+        incomplete: 0,
+        violations: [],
+      },
+    };
+  }
+
+  // Validate result shape
+  if (!axeResults || !Array.isArray(axeResults.violations)) {
+    return {
+      status: "warn",
+      output: { error: "axe-core returned invalid result shape", standard },
+    };
+  }
 
   // Filter by impact level if specified
   let violations = axeResults.violations;
@@ -504,6 +565,12 @@ async function handleAssertA11y(
     const filterSet = new Set(impactFilter);
     violations = violations.filter((v) => filterSet.has(v.impact));
   }
+
+  // Count by severity
+  const criticalCount = violations.filter((v) => v.impact === "critical").length;
+  const seriousCount = violations.filter((v) => v.impact === "serious").length;
+  const moderateCount = violations.filter((v) => v.impact === "moderate").length;
+  const minorCount = violations.filter((v) => v.impact === "minor").length;
 
   // Convert to our Issue format
   const issues = violations.map((v) => {
@@ -534,37 +601,30 @@ async function handleAssertA11y(
     };
   });
 
-  // Push issues to the critic results accumulator for the run summary
-  if (issues.length > 0) {
-    ctx.criticResults.push({
-      verdict: { scores: [], issues: [] },
-      scores: [
-        {
-          dimension: "accessibility",
-          score: Math.max(
-            0,
-            10 - violations.length * 0.5 -
-              violations.filter((v) => v.impact === "critical").length * 2 -
-              violations.filter((v) => v.impact === "serious").length,
-          ),
-          justification: `axe-core found ${violations.length} violation(s): ${violations.filter((v) => v.impact === "critical").length} critical, ${violations.filter((v) => v.impact === "serious").length} serious, ${violations.filter((v) => v.impact === "moderate").length} moderate, ${violations.filter((v) => v.impact === "minor").length} minor`,
-        },
-      ],
-      issues,
-      costUsd: 0, // axe-core is free, no LLM cost
-      raw: undefined as any,
-    });
-  }
+  // Compute accessibility score: weighted penalty formula
+  const a11yScore = Math.max(
+    0,
+    10 - criticalCount * 2 - seriousCount * 1 - moderateCount * 0.5 - minorCount * 0.25,
+  );
+
+  // Push to critic results accumulator (consistent shape with runCritic output)
+  const a11yScores = [
+    {
+      dimension: "accessibility",
+      score: a11yScore,
+      justification: `axe-core: ${criticalCount} critical, ${seriousCount} serious, ${moderateCount} moderate, ${minorCount} minor`,
+    },
+  ];
+  ctx.criticResults.push({
+    verdict: { scores: a11yScores, issues: [] },
+    scores: a11yScores,
+    issues,
+    costUsd: 0,
+    raw: { text: "", inputTokens: 0, outputTokens: 0, costUsd: 0 },
+  });
 
   // Determine status
   const maxViolations = step.max_violations ?? 0;
-  const criticalCount = violations.filter(
-    (v) => v.impact === "critical",
-  ).length;
-  const seriousCount = violations.filter(
-    (v) => v.impact === "serious",
-  ).length;
-
   let status: StepResult["status"] = "pass";
   if (criticalCount > 0) {
     status = "fail";
@@ -577,14 +637,10 @@ async function handleAssertA11y(
     output: {
       standard,
       total_violations: violations.length,
-      by_impact: {
-        critical: criticalCount,
-        serious: seriousCount,
-        moderate: violations.filter((v) => v.impact === "moderate").length,
-        minor: violations.filter((v) => v.impact === "minor").length,
-      },
+      by_impact: { critical: criticalCount, serious: seriousCount, moderate: moderateCount, minor: minorCount },
       passes: axeResults.passes.length,
       incomplete: axeResults.incomplete.length,
+      a11y_score: a11yScore,
       violations: violations.map((v) => ({
         id: v.id,
         impact: v.impact,
