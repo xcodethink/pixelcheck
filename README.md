@@ -8,7 +8,7 @@ For the full design and rationale, read [PLAN.md](PLAN.md).
 
 ## What it does
 
-For each combination of (persona × scenario), the tool:
+For each combination of (persona x scenario), the tool:
 
 1. Launches a real Chromium with a stealth fingerprint matching the persona's device
 2. Configures locale, timezone, language, viewport, and (optional) regional proxy
@@ -20,10 +20,10 @@ For each combination of (persona × scenario), the tool:
 
 ## Key features
 
+- **Multi-project**: one tool audits all your projects. Each project provides its own `config.yaml` + `scenarios/`
 - **Hybrid AI execution**: Stagehand for the 90% common case, Computer Use for the 10% critical-review path
 - **9 real device fingerprints** with 15 anti-detection patches via [stealth-core](../stealth-core)
-- **6 personas** spanning US/JP/DE/CN/BR/SA — including RTL Arabic
-- **8 scenarios** covering OAuth, domain check, admin audit, localization, payment, investigation, email, Chrome extension
+- **6 shared personas** spanning US/JP/DE/CN/BR/SA — including RTL Arabic
 - **Failure handling**: per-step retry with exponential backoff, fingerprint rotation, automatic Computer Use fallback
 - **Concurrency control**: parallel units with same-origin throttling
 - **Budget cap**: stops new units when total cost exceeds budget
@@ -53,32 +53,99 @@ cp .env.example .env
 # Edit .env — at minimum set ANTHROPIC_API_KEY
 ```
 
+## Quick start: Add your project
+
+```bash
+# Create a project audit config for your app
+npx ai-audit init projects/my-app --name "My App" --url "https://myapp.com"
+
+# This creates:
+#   projects/my-app/config.yaml     — project settings
+#   projects/my-app/scenarios/      — your test scenarios
+#
+# Built-in personas (6) are used automatically.
+# To customize, add a personas/ dir inside your project.
+
+# Edit the generated scenario to match your app, then run:
+npx ai-audit run --project projects/my-app --dry-run
+npx ai-audit run --project projects/my-app
+```
+
 ## Usage
 
 ```bash
-# Dry run — validate config and print the matrix
-npm run audit -- --dry-run
+# Run a specific project (recommended)
+npm run audit -- --project projects/scamlens
+npm run audit -- --project projects/my-app
 
-# Run all personas and all scenarios
-npm run audit
-
-# Filter by scenario
-npm run audit -- --scenario 01-google-oauth-signup
-
-# Filter by persona
-npm run audit -- --persona jp-japanese-pro-desktop
-
-# Both filters
-npm run audit -- --scenario 01-google-oauth-signup --persona jp-japanese-pro-desktop
+# Filter by scenario or persona
+npm run audit -- --project projects/scamlens --scenario 01-google-oauth-signup
+npm run audit -- --project projects/scamlens --persona jp-japanese-pro-desktop
 
 # Visible browser for debugging
-npm run audit -- --headed --persona jp-japanese-pro-desktop
+npm run audit -- --project projects/scamlens --headed
 
 # Custom budget
-npm run audit -- --budget 1.0
+npm run audit -- --project projects/scamlens --budget 1.0
 
-# Tag the run
-npm run audit -- --tag post-deploy-2026-04-11
+# Dry run — validate config and print the matrix
+npm run audit -- --project projects/scamlens --dry-run
+
+# Legacy: direct paths (still supported)
+npm run audit -- --config config/scamlens.yaml --scenarios scenarios --personas personas
+```
+
+## Multi-project CI integration
+
+Any project can trigger an audit after deployment. Add this to your project's CI:
+
+```yaml
+# In your project's .github/workflows/ci.yml
+trigger-ai-audit:
+  needs: [deploy]
+  runs-on: ubuntu-latest
+  steps:
+    - name: Trigger AI audit
+      run: |
+        gh workflow run post-deploy-audit.yml \
+          --repo xcodethink/ai-browser-auditor \
+          --field project="scamlens" \
+          --field trigger_source="my-project-deploy"
+      env:
+        GH_TOKEN: ${{ secrets.GH_PAT }}
+```
+
+For projects that keep audit configs in their own repo:
+
+```yaml
+    - name: Trigger AI audit (external config)
+      run: |
+        gh workflow run post-deploy-audit.yml \
+          --repo xcodethink/ai-browser-auditor \
+          --field project="external" \
+          --field external_repo="xcodethink/my-other-project" \
+          --field external_path=".audit" \
+          --field trigger_source="my-other-project-deploy"
+      env:
+        GH_TOKEN: ${{ secrets.GH_PAT }}
+```
+
+## Project structure
+
+```
+ai-browser-auditor/
+├── personas/               # Shared personas (6 archetypes)
+├── projects/
+│   ├── scamlens/           # ScamLens audit config
+│   │   ├── config.yaml
+│   │   └── scenarios/
+│   └── my-app/             # Your project (ai-audit init)
+│       ├── config.yaml
+│       ├── scenarios/
+│       └── personas/       # Optional: override shared personas
+├── src/                    # Tool source code
+├── reports/                # Generated reports
+└── baselines/              # Visual regression baselines
 ```
 
 ## Reports
@@ -106,11 +173,11 @@ Open `audit.html` in any browser to see all results in one dashboard.
 
 ```
                   stealth-core (shared)
-                         │
-   ┌─────────────────────┼─────────────────────┐
-   ▼                     ▼                     ▼
+                         |
+   +-----------+---------+---------+
+   v                     v                     v
 playwright-screenshots  ai-browser-auditor  scamlens-sandbox
-(visual regression)     (AI audit — this)   (investigation)
+(visual regression)     (AI audit -- this)  (investigation)
 ```
 
 Three tools share one stealth foundation. Any future upgrade (e.g. switching to patchright for CDP-leak fixes) instantly benefits all three.
