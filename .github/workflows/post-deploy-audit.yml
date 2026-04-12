@@ -3,6 +3,22 @@ name: Post-Deploy AI Audit
 on:
   workflow_dispatch:
     inputs:
+      project:
+        description: "Project to audit (directory under projects/, or 'external')"
+        required: true
+        default: "scamlens"
+        type: choice
+        options:
+          - scamlens
+          - external
+      external_repo:
+        description: "External repo with audit config (owner/repo, only when project=external)"
+        required: false
+        default: ""
+      external_path:
+        description: "Path inside external repo to audit dir (only when project=external)"
+        required: false
+        default: ".audit"
       scenarios:
         description: "Comma-separated scenario IDs (empty = all)"
         required: false
@@ -36,6 +52,14 @@ jobs:
           path: ../stealth-core
           token: ${{ secrets.GH_PAT }}
 
+      - name: Checkout external project config
+        if: inputs.project == 'external' && inputs.external_repo != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.external_repo }}
+          path: ../external-project
+          token: ${{ secrets.GH_PAT }}
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -56,6 +80,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Resolve project path
+        id: project
+        run: |
+          if [ "${{ inputs.project }}" = "external" ]; then
+            echo "dir=../external-project/${{ inputs.external_path }}" >> $GITHUB_OUTPUT
+          else
+            echo "dir=projects/${{ inputs.project }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run audit
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -72,14 +105,14 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          ARGS="--tag ci-${{ github.run_id }} --budget ${{ github.event.inputs.budget || '3.0' }}"
-          if [ -n "${{ github.event.inputs.scenarios }}" ]; then
-            for s in $(echo "${{ github.event.inputs.scenarios }}" | tr ',' ' '); do
+          ARGS="--project ${{ steps.project.outputs.dir }} --tag ci-${{ github.run_id }} --budget ${{ inputs.budget || '3.0' }}"
+          if [ -n "${{ inputs.scenarios }}" ]; then
+            for s in $(echo "${{ inputs.scenarios }}" | tr ',' ' '); do
               ARGS="$ARGS --scenario $s"
             done
           fi
-          if [ -n "${{ github.event.inputs.personas }}" ]; then
-            for p in $(echo "${{ github.event.inputs.personas }}" | tr ',' ' '); do
+          if [ -n "${{ inputs.personas }}" ]; then
+            for p in $(echo "${{ inputs.personas }}" | tr ',' ' '); do
               ARGS="$ARGS --persona $p"
             done
           fi
@@ -89,7 +122,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: audit-report-${{ github.run_id }}
+          name: audit-report-${{ inputs.project }}-${{ github.run_id }}
           path: reports/
           retention-days: 30
 
@@ -97,7 +130,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: visual-baselines
+          name: visual-baselines-${{ inputs.project }}
           path: baselines/
           retention-days: 90
 
@@ -109,7 +142,7 @@ jobs:
             node -e "
               const r = JSON.parse(require('fs').readFileSync('${LATEST}audit.json','utf8'));
               const s = r.summary;
-              console.log('## AI Browser Audit Result');
+              console.log('## AI Browser Audit: ${{ inputs.project }}');
               console.log('');
               console.log('| Metric | Value |');
               console.log('|---|---|');
@@ -118,6 +151,6 @@ jobs:
               console.log('| Fail | ' + s.fail + ' |');
               console.log('| Critical | ' + s.critical_issues + ' |');
               console.log('| Cost | \$' + s.total_cost_usd.toFixed(3) + ' |');
-              console.log('| Trigger | ${{ github.event.inputs.trigger_source || 'manual' }} |');
+              console.log('| Trigger | ${{ inputs.trigger_source || 'manual' }} |');
             " >> $GITHUB_STEP_SUMMARY
           fi

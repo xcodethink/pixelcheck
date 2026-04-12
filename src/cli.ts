@@ -32,6 +32,10 @@ program
 program
   .command("run", { isDefault: true })
   .description("Run an audit")
+  .option(
+    "--project <dir>",
+    "Project directory containing config.yaml + scenarios/ (and optionally personas/)",
+  )
   .option("-c, --config <path>", "Project config file", "config/scamlens.yaml")
   .option(
     "-p, --personas <dir>",
@@ -70,9 +74,83 @@ program
     }
   });
 
+program
+  .command("init <dir>")
+  .description("Create a new project audit directory with template files")
+  .option("--name <name>", "Project name")
+  .option("--url <url>", "Base URL of the project")
+  .action((dir: string, initOpts: { name?: string; url?: string }) => {
+    const projectDir = path.resolve(dir);
+    const projectName = initOpts.name || path.basename(projectDir);
+    const baseUrl = initOpts.url || "https://example.com";
+
+    fs.mkdirSync(path.join(projectDir, "scenarios"), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectDir, "config.yaml"),
+      [
+        `project_name: ${projectName}`,
+        `base_url: ${baseUrl}`,
+        "",
+        "default_concurrency: 3",
+        "default_timeout_ms: 30000",
+        "",
+        "models:",
+        "  default: claude-sonnet-4-6",
+        "  critic: claude-sonnet-4-6",
+        "  computer_use: claude-opus-4-6",
+        "",
+        "budget_usd: 3.0",
+        "",
+        "redact_patterns:",
+        "  - sk-ant-",
+        "  - pk_test_",
+        "  - pk_live_",
+        "",
+        "notifications:",
+        "  slack_webhook_env: SLACK_WEBHOOK",
+        "  telegram_chat_id_env: TELEGRAM_CHAT_ID",
+        "",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      path.join(projectDir, "scenarios", "00-smoke.yaml"),
+      [
+        `id: "00-smoke"`,
+        `name: "Smoke Test"`,
+        `priority: P0`,
+        `goal: "Verify the site loads and key elements are visible"`,
+        "",
+        "applies_to:",
+        "  personas:",
+        "    - us-english-free-mobile",
+        "",
+        "scoring_dimensions:",
+        "  - completion",
+        "  - visual_polish",
+        "",
+        "steps:",
+        `  - type: visit`,
+        `    url: "${baseUrl}"`,
+        `  - type: screenshot`,
+        `    label: homepage`,
+        `  - type: assert_visual`,
+        `    instruction: "The homepage loads fully with no visible errors, broken images, or layout issues"`,
+        "",
+      ].join("\n"),
+    );
+
+    console.log(chalk.green(`\n[ai-audit] Project initialized: ${projectDir}`));
+    console.log(chalk.gray(`  config.yaml — edit base_url, project_name, budget`));
+    console.log(chalk.gray(`  scenarios/00-smoke.yaml — starter smoke test`));
+    console.log(chalk.gray(`\nRun: ai-audit run --project ${dir}`));
+    console.log(chalk.gray(`Built-in personas (6) will be used automatically.`));
+    console.log(chalk.gray(`To customize personas, create a personas/ dir inside the project.`));
+  });
+
 program.parse();
 
 interface RunOpts {
+  project?: string;
   config: string;
   personas: string;
   scenarios: string;
@@ -90,6 +168,27 @@ interface RunOpts {
 }
 
 async function runCommand(opts: RunOpts): Promise<void> {
+  // --project shorthand: resolve config/scenarios/personas from project dir
+  if (opts.project) {
+    const projectDir = path.resolve(opts.project);
+    if (!fs.existsSync(projectDir)) {
+      throw new Error(`Project directory not found: ${projectDir}`);
+    }
+    const projectConfig = path.join(projectDir, "config.yaml");
+    if (!fs.existsSync(projectConfig)) {
+      throw new Error(
+        `No config.yaml in project directory: ${projectDir}\nRun "ai-audit init <dir>" to create a project template.`,
+      );
+    }
+    opts.config = projectConfig;
+    opts.scenarios = path.join(projectDir, "scenarios");
+    // Use project personas if they exist, otherwise use built-in shared personas
+    const projectPersonas = path.join(projectDir, "personas");
+    if (fs.existsSync(projectPersonas)) {
+      opts.personas = projectPersonas;
+    }
+  }
+
   // Load config + validate env
   const config = loadProjectConfig(path.resolve(opts.config));
 

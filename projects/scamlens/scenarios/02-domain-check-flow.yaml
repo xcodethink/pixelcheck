@@ -1,0 +1,107 @@
+id: 02-domain-check-flow
+name: Domain Check Tool + Result Page Audit
+priority: P0
+goal: |
+  Audit the C-end domain check funnel end-to-end. Two phases:
+
+  PHASE 1 — Tool landing page UX (the entry point a real user sees first).
+  PHASE 2 — Direct visit to a real result URL (`/<locale>/report/google.com`).
+            This bypasses the form submission entirely and audits the
+            actual rendered report page, which is where most real bugs live
+            (i18n key exposure, score-vs-copy contradiction, score breakdown
+            consistency, SSL detection accuracy).
+
+  Phase 2 is intentionally a direct visit because Stagehand's form submit
+  often loses the navigation signal on this page (the result is rendered
+  in-place via client-side fetch, so wait_for("google.com") does not
+  reliably resolve). Direct navigation gives the critic 100% access to the
+  actual production result UI for ground-truth audit.
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+    - de-german-power-tablet
+    - cn-chinese-free-mobile
+    - br-portuguese-free-desktop
+    - sa-arabic-pro-mobile
+
+scoring_dimensions:
+  - completion
+  - localization
+  - visual_polish
+  - information_density
+  - trust_signals
+
+steps:
+  # ─── PHASE 1: tool landing page ───────────────────────────────
+  - id: open-check-website
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/check-website
+    wait_until: domcontentloaded
+
+  - id: rate-tool-page
+    type: assert_visual
+    instruction: |
+      Rate the check-website tool landing page. Check:
+      - The domain input field is visible and obvious above the fold
+      - "Check" / submit button is clear
+      - All copy is in ${persona.language} (no English mix-ins outside brand names)
+      - Trust signals like "scanned X domains" or sample results are present
+      - Layout is professional, not scammy
+
+  # ─── PHASE 2: direct result page audit ────────────────────────
+  # google.com is a known-safe high-traffic domain. Visiting
+  # /<locale>/report/google.com directly forces the report page to render
+  # against ScamLens' live threat intelligence pipeline.
+  - id: open-result-page
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/report/google.com
+    wait_until: domcontentloaded
+
+  - id: wait-result-loaded
+    type: wait_for
+    text: SCORE BREAKDOWN
+    timeout: 30000
+
+  - id: rate-result-page
+    type: assert_visual
+    critical_review: true
+    dimensions:
+      - completion
+      - localization
+      - visual_polish
+      - information_density
+      - trust_signals
+    instruction: |
+      This is the actual production result page for google.com. Audit it
+      with extreme rigor. Check for:
+
+      1. RAW DATA EXPOSURE — any text matching the i18n-key pattern
+         (e.g. "report.trust_score_label", "report.risk_level_label") visible
+         to users. Flag at CRITICAL.
+
+      2. SCORE vs COPY CONSISTENCY — does the Quick Answer narrative match
+         the trust score color and label? If the score is green "Trusted"
+         but the Quick Answer says "stop interacting immediately, preserve
+         evidence", that is a CRITICAL product logic bug.
+
+      3. DATA INTERNAL CONSISTENCY — do the breakdown numbers add up?
+         For example, if Threat Intelligence shows "17/20 safe" but the
+         CONCERNS section says "3 sources flagged as suspicious", that
+         is a contradiction worth flagging.
+
+      4. SSL ACCURACY — does the page claim google.com SSL is "expired"?
+         Google's certificate auto-renews; an "expired" claim indicates a
+         broken SSL checker or stale cache.
+
+      5. LOCALIZATION — is all the copy in ${persona.language}? Section
+         titles ("QUICK ANSWER", "POSITIVE SIGNALS", "CONCERNS",
+         "SCORE BREAKDOWN") should be translated. Brand names exempt.
+
+      6. VISUAL POLISH — benchmark against VirusTotal / URLVoid quality.
+
+  - id: screenshot-result
+    type: screenshot
+    label: result-page
+    full_page: true
