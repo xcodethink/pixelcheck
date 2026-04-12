@@ -23,7 +23,7 @@ For each combination of (persona x scenario), the tool:
 - **Multi-project**: one tool audits all your projects. Each project provides its own `config.yaml` + `scenarios/`
 - **Hybrid AI execution**: Stagehand for the 90% common case, Computer Use for the 10% critical-review path
 - **9 real device fingerprints** with 15 anti-detection patches via [stealth-core](../stealth-core)
-- **6 shared personas** spanning US/JP/DE/CN/BR/SA — including RTL Arabic
+- **18 shared personas** spanning 15 countries, 13 languages, 3 device classes, 3 payment tiers — including RTL Arabic, Indic scripts, CJK, Cyrillic, and accessibility-focused elderly user
 - **Failure handling**: per-step retry with exponential backoff, fingerprint rotation, automatic Computer Use fallback
 - **Concurrency control**: parallel units with same-origin throttling
 - **Budget cap**: stops new units when total cost exceeds budget

@@ -41,7 +41,13 @@ const BaseStepSchema = z.object({
   critical_review: z.boolean().default(false),
   retry: z.number().int().min(0).max(5).default(2),
   timeout: z.number().int().positive().optional(),
-  fallback: z.enum(["computer_use", "skip", "fail"]).optional(),
+  fallback: z.enum(["computer_use", "skip", "fail"]).default("computer_use"),
+  /**
+   * Optional CSS/XPath selector hint for Layer 3 fallback.
+   * When Stagehand semantic action fails, try direct Playwright click
+   * using this selector before escalating to Computer Use.
+   */
+  selector_hint: z.string().optional(),
 });
 
 export const VisitStepSchema = BaseStepSchema.extend({
@@ -118,6 +124,22 @@ export const ComputerUseStepSchema = BaseStepSchema.extend({
   max_iterations: z.number().int().positive().default(15),
 });
 
+export const AssertA11yStepSchema = BaseStepSchema.extend({
+  type: z.literal("assert_a11y"),
+  /** WCAG conformance level to test against. Default: wcag2aa */
+  standard: z
+    .enum(["wcag2a", "wcag2aa", "wcag2aaa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+    .default("wcag2aa"),
+  /** CSS selectors to exclude from analysis (e.g. cookie banners, third-party widgets) */
+  exclude: z.array(z.string()).default([]),
+  /** Minimum pass threshold. If violations exceed this, step fails. Default: 0 (any violation is a warn) */
+  max_violations: z.number().int().nonnegative().default(0),
+  /** Only report these impact levels. Default: all levels */
+  impact_filter: z
+    .array(z.enum(["critical", "serious", "moderate", "minor"]))
+    .optional(),
+});
+
 export const CustomStepSchema = BaseStepSchema.extend({
   type: z.literal("custom"),
   handler: z.string(),
@@ -132,6 +154,7 @@ export const StepSchema = z.discriminatedUnion("type", [
   WaitForStepSchema,
   AssertVisualStepSchema,
   AssertDomStepSchema,
+  AssertA11yStepSchema,
   CheckEmailStepSchema,
   ScreenshotStepSchema,
   ComputerUseStepSchema,
@@ -149,6 +172,7 @@ export type AssertDomStep = z.infer<typeof AssertDomStepSchema>;
 export type CheckEmailStep = z.infer<typeof CheckEmailStepSchema>;
 export type ScreenshotStep = z.infer<typeof ScreenshotStepSchema>;
 export type ComputerUseStep = z.infer<typeof ComputerUseStepSchema>;
+export type AssertA11yStep = z.infer<typeof AssertA11yStepSchema>;
 export type CustomStep = z.infer<typeof CustomStepSchema>;
 
 // ─────────────────────────────────────────────────────────────
@@ -183,6 +207,7 @@ export const ScenarioSchema = z.object({
         "ai_quality",
         "sync_reliability",
         "information_density",
+        "accessibility",
       ]),
     )
     .default(["completion", "localization", "visual_polish"]),
@@ -240,6 +265,11 @@ export interface StepResult {
   error?: string;
   console_errors?: ConsoleError[];
   retries_used: number;
+  /**
+   * Which execution method ultimately succeeded (Reliability Stack tracking).
+   * Absent = primary method (Stagehand) succeeded on first try.
+   */
+  execution_method?: "stagehand" | "selector_hint" | "instruction_mutation" | "computer_use";
 }
 
 export interface ConsoleError {
