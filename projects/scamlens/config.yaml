@@ -1,0 +1,27 @@
+project_name: ScamLens
+base_url: https://scamlens.org
+admin_url: https://scamlens.org/admin
+
+default_concurrency: 3
+default_timeout_ms: 30000
+
+models:
+  default: claude-sonnet-4-6
+  critic: claude-sonnet-4-6
+  computer_use: claude-opus-4-6
+
+# Hard cap on a single audit run. Stops new units once exceeded.
+budget_usd: 3.0
+
+# Patterns to redact from logs/reports/screenshots metadata.
+# These are matched as substrings in any string output.
+redact_patterns:
+  - sk-ant-
+  - pk_test_
+  - pk_live_
+  - "@scamlens.test"
+  - SCAMLENS_ADMIN_COOKIE
+
+notifications:
+  slack_webhook_env: SLACK_WEBHOOK
+  telegram_chat_id_env: TELEGRAM_CHAT_ID

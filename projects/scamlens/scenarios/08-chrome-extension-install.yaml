@@ -1,0 +1,68 @@
+id: 08-chrome-extension-install
+name: OrangeDuck Chrome Extension End-to-End
+priority: P2
+goal: |
+  Load the OrangeDuck Chrome extension into a persistent browser context,
+  log in, exercise core flows (add bookmark, AI summarize, classify, sync),
+  and verify cloud backup persistence across browser restart.
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+
+scoring_dimensions:
+  - completion
+  - extension_responsiveness
+  - ai_quality
+  - sync_reliability
+  - localization
+
+persistent_storage: true
+
+steps:
+  - id: install-extension
+    type: custom
+    handler: ../scenarios/handlers/install-extension.ts
+    inputs:
+      extension_path: ../../OrangeDuck/dist
+    description: |
+      Loads the OrangeDuck unpacked extension via launchPersistentContext.
+      This is a custom step because Playwright extension loading is not
+      supported by the default visit handler.
+
+  - id: open-extension-popup
+    type: act
+    instruction: Open the OrangeDuck extension popup from the browser toolbar
+    fallback: computer_use
+
+  - id: rate-popup
+    type: assert_visual
+    instruction: |
+      Rate the extension popup design. Check it is in ${persona.language},
+      the login affordance is clear, and the sizing is appropriate.
+
+  - id: visit-test-site
+    type: visit
+    url: https://en.wikipedia.org/wiki/Cryptocurrency
+    wait_until: networkidle
+
+  - id: trigger-add-bookmark
+    type: act
+    instruction: Trigger the "Add to OrangeDuck bookmarks" action via the extension
+    fallback: computer_use
+
+  - id: trigger-ai-summary
+    type: act
+    instruction: Trigger the "AI Summarize this page" action
+    fallback: computer_use
+
+  - id: rate-summary
+    type: assert_visual
+    critical_review: true
+    dimensions:
+      - ai_quality
+      - localization
+    instruction: |
+      Rate the AI summary quality. Is it accurate, in ${persona.language},
+      and useful? Is the rendering of the summary panel polished?

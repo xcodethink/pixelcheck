@@ -1,0 +1,95 @@
+id: 04-language-localization-audit
+name: 12-Language Localization Spot Audit
+priority: P0
+goal: |
+  Walk through 6 high-traffic real pages in the persona's language and detect
+  any English (or wrong-language) text mixed in. This is the enforcement
+  loop for the "no language mixing" project rule.
+
+applies_to:
+  personas:
+    - jp-japanese-pro-desktop
+    - de-german-power-tablet
+    - cn-chinese-free-mobile
+    - br-portuguese-free-desktop
+    - sa-arabic-pro-mobile
+
+scoring_dimensions:
+  - localization
+
+steps:
+  - id: home
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}
+    wait_until: domcontentloaded
+
+  - id: home-i18n-check
+    type: assert_visual
+    critical: false
+    instruction: |
+      Scan the entire visible viewport for any text that is NOT in
+      ${persona.language}. Brand names ("ScamLens", "OrangeDuck"), product
+      brand names that appear in card category labels (Binance, Coinbase,
+      PayPal, Amazon, MetaMask, Trust Wallet, Telegram, WhatsApp), and
+      well-known acronyms (URL, AI, API, GDPR, OFAC, USDT, KYC, DeFi, SDK,
+      SaaS, B2B, B2C, NFT) are exempt. Currency codes (USD, EUR, JPY) are
+      exempt. Return JSON with a "violations" array of {text, location} objects.
+
+  - id: pricing
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/pricing
+    wait_until: domcontentloaded
+
+  - id: pricing-i18n-check
+    type: assert_visual
+    critical: false
+    instruction: |
+      Same i18n check on the pricing page. Pay special attention to plan
+      tier names, feature lists, billing cycle labels, FAQ accordion items,
+      and CTA buttons. Currency display (USD vs local) is also a localization
+      issue worth flagging at HIGH severity.
+
+  - id: wallet-intel
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/wallet-intelligence
+    wait_until: domcontentloaded
+
+  - id: wallet-intel-i18n-check
+    type: assert_visual
+    instruction: |
+      Same i18n check on the wallet intelligence landing page. Watch for
+      crypto jargon untranslated and feature card titles in English.
+
+  - id: check-website
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/check-website
+    wait_until: domcontentloaded
+
+  - id: check-website-i18n-check
+    type: assert_visual
+    instruction: |
+      Same check on the check-website tool page. This is the primary
+      free C-end entry point — any English here is high-impact.
+
+  - id: scams-index
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/scams
+    wait_until: domcontentloaded
+
+  - id: scams-i18n-check
+    type: assert_visual
+    instruction: |
+      Same check on the scams index. Flag any scam category names that
+      remain in English (e.g. "Romance Scam" should be translated).
+
+  - id: blog
+    type: visit
+    url: https://scamlens.org/${persona.url_locale}/blog
+    wait_until: domcontentloaded
+
+  - id: blog-i18n-check
+    type: assert_visual
+    instruction: |
+      Same check on the blog index. If individual post titles are still
+      in English while the rest of the page is translated, that is a
+      localization gap worth flagging.
