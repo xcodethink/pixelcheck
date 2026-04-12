@@ -1,8 +1,5 @@
 name: Post-Deploy AI Audit
 
-# Trigger this workflow after a successful deployment to production.
-# Either via workflow_run from the deploy workflow, or manually.
-
 on:
   workflow_dispatch:
     inputs:
@@ -18,34 +15,37 @@ on:
         description: "Max USD budget for this run"
         required: false
         default: "3.0"
-  workflow_run:
-    workflows: ["Deploy ScamLens"]
-    types: [completed]
-    branches: [main]
+      trigger_source:
+        description: "What triggered this audit (e.g. scamlens-deploy, manual)"
+        required: false
+        default: "manual"
 
 jobs:
   audit:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
-      - name: Checkout
+      - name: Checkout ai-browser-auditor
         uses: actions/checkout@v4
+
+      - name: Checkout stealth-core
+        uses: actions/checkout@v4
+        with:
+          repository: xcodethink/stealth-core
+          path: ../stealth-core
+          token: ${{ secrets.GH_PAT }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
 
-      - name: Install stealth-core
+      - name: Build stealth-core
         working-directory: ../stealth-core
         run: |
           npm ci
           npm run build
-        # NOTE: in a monorepo this works directly. For separate repos, replace
-        # with `npm install <published-version>` or a git submodule.
 
       - name: Install dependencies
         run: npm ci
@@ -101,22 +101,23 @@ jobs:
           path: baselines/
           retention-days: 90
 
-      - name: Comment on PR (if applicable)
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const reports = fs.readdirSync('reports').filter(d => fs.statSync(path.join('reports', d)).isDirectory());
-            const latest = reports[reports.length - 1];
-            if (!latest) return;
-            const audit = JSON.parse(fs.readFileSync(`reports/${latest}/audit.json`, 'utf8'));
-            const s = audit.summary;
-            const body = `### AI Browser Audit Result\n\n| Status | Count |\n|---|---|\n| Pass | ${s.pass} |\n| Warn | ${s.pass_with_issues} |\n| Fail | ${s.fail} |\n| Critical Issues | ${s.critical_issues} |\n| Cost | $${s.total_cost_usd.toFixed(3)} |\n\nFull report uploaded as artifact \`audit-report-${{ github.run_id }}\`.`;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body,
-            });
+      - name: Summary
+        if: always()
+        run: |
+          LATEST=$(ls -td reports/*/ 2>/dev/null | head -1)
+          if [ -n "$LATEST" ] && [ -f "${LATEST}audit.json" ]; then
+            node -e "
+              const r = JSON.parse(require('fs').readFileSync('${LATEST}audit.json','utf8'));
+              const s = r.summary;
+              console.log('## AI Browser Audit Result');
+              console.log('');
+              console.log('| Metric | Value |');
+              console.log('|---|---|');
+              console.log('| Pass | ' + s.pass + ' |');
+              console.log('| Warn | ' + s.pass_with_issues + ' |');
+              console.log('| Fail | ' + s.fail + ' |');
+              console.log('| Critical | ' + s.critical_issues + ' |');
+              console.log('| Cost | \$' + s.total_cost_usd.toFixed(3) + ' |');
+              console.log('| Trigger | ${{ github.event.inputs.trigger_source || 'manual' }} |');
+            " >> $GITHUB_STEP_SUMMARY
+          fi
