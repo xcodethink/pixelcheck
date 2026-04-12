@@ -10,6 +10,10 @@ applies_to:
   personas:
     - us-english-free-mobile
     - jp-japanese-pro-desktop
+    - br-portuguese-free-desktop
+    - kr-korean-pro-desktop
+    - ru-russian-free-desktop
+    - uk-english-power-desktop
 
 scoring_dimensions:
   - completion

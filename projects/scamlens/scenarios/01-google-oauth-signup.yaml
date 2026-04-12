@@ -12,6 +12,7 @@ applies_to:
     - jp-japanese-pro-desktop
     - de-german-power-tablet
     - cn-chinese-free-mobile
+    - kr-korean-pro-desktop
 
 scoring_dimensions:
   - completion

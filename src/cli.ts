@@ -17,6 +17,7 @@ import { notifySlack, notifyTelegram } from "./core/notify.js";
 import { preflightUrls } from "./core/url-preflight.js";
 import { resolvePersonaSecrets } from "./core/persona.js";
 import { getStripeSecrets } from "./core/secrets.js";
+import { saveAuditToHistory, loadHistory, diffRuns } from "./core/history.js";
 
 dotenv.config();
 
@@ -27,7 +28,7 @@ program
   .description(
     "AI-driven post-deployment UX audit. Real browser, real personas, commercial-grade evaluation.",
   )
-  .version("0.1.0");
+  .version("0.2.0");
 
 program
   .command("run", { isDefault: true })
@@ -62,6 +63,11 @@ program
     "--no-preflight",
     "Skip URL pre-flight HEAD probe (default: probe enabled)",
   )
+  .option(
+    "--min-score <n>",
+    "Quality gate: fail with exit code 1 if overall score is below this threshold (0-10)",
+    parseFloatOpt,
+  )
   .action(async (opts) => {
     try {
       await runCommand(opts);
@@ -73,6 +79,102 @@ program
       process.exit(1);
     }
   });
+
+program
+  .command("history")
+  .description("Show audit history and quality trends")
+  .option("-o, --out <dir>", "Reports directory", "reports")
+  .option("-n, --limit <n>", "Number of recent runs to show", parseIntOpt)
+  .option("--project <name>", "Filter by project name")
+  .action((histOpts: { out: string; limit?: number; project?: string }) => {
+    const reportsDir = path.resolve(histOpts.out);
+    const entries = loadHistory(reportsDir, {
+      limit: histOpts.limit ?? 20,
+      project: histOpts.project,
+    });
+    if (entries.length === 0) {
+      console.log(chalk.yellow("No audit history found."));
+      return;
+    }
+    console.log(
+      chalk.cyan(
+        `\n[ai-audit] History (${entries.length} run${entries.length > 1 ? "s" : ""})\n`,
+      ),
+    );
+    console.log(
+      chalk.gray(
+        "  Date        | Score | Pass | Warn | Fail | Issues | Cost    | Tag",
+      ),
+    );
+    console.log(chalk.gray("  " + "-".repeat(80)));
+    for (const e of entries) {
+      const date = e.startedAt.split("T")[0] ?? e.startedAt.slice(0, 10);
+      const score =
+        e.overallScore >= 8
+          ? chalk.green(e.overallScore.toFixed(1))
+          : e.overallScore >= 5
+            ? chalk.yellow(e.overallScore.toFixed(1))
+            : chalk.red(e.overallScore.toFixed(1));
+      console.log(
+        `  ${date}  | ${score.padStart(14)}  | ${String(e.passCount).padStart(4)} | ${String(e.warnCount).padStart(4)} | ${String(e.failCount).padStart(4)} | ${String(e.totalIssues).padStart(6)} | $${e.totalCostUsd.toFixed(3).padStart(6)} | ${e.tag ?? "-"}`,
+      );
+    }
+    console.log("");
+  });
+
+program
+  .command("diff <runA> <runB>")
+  .description("Compare two audit runs")
+  .option("-o, --out <dir>", "Reports directory", "reports")
+  .action(
+    (runA: string, runB: string, diffOpts: { out: string }) => {
+      const reportsDir = path.resolve(diffOpts.out);
+      const result = diffRuns(reportsDir, runA, runB);
+      if (!result) {
+        console.log(chalk.red("One or both runs not found in history."));
+        process.exit(1);
+      }
+      console.log(chalk.cyan(`\n[ai-audit] Diff: ${runA} → ${runB}\n`));
+      const delta = (v: number, unit: string, invert = false) => {
+        const sign = v > 0 ? "+" : "";
+        const color =
+          v === 0
+            ? chalk.gray
+            : (invert ? v < 0 : v > 0)
+              ? chalk.green
+              : chalk.red;
+        return color(`${sign}${v}${unit}`);
+      };
+      console.log(`  Overall Score: ${result.runA.overallScore.toFixed(1)} → ${result.runB.overallScore.toFixed(1)} (${delta(result.scoreDelta, "")})`);
+      console.log(`  Issues:        ${result.runA.totalIssues} → ${result.runB.totalIssues} (${delta(result.issuesDelta, "", true)})`);
+      console.log(`  Cost:          $${result.runA.totalCostUsd.toFixed(3)} → $${result.runB.totalCostUsd.toFixed(3)} (${delta(result.costDelta, "", true)})`);
+      console.log(`  Duration:      ${(result.runA.durationMs / 1000).toFixed(0)}s → ${(result.runB.durationMs / 1000).toFixed(0)}s`);
+
+      if (Object.keys(result.dimensionDeltas).length > 0) {
+        console.log(chalk.gray("\n  Dimension deltas:"));
+        for (const [dim, d] of Object.entries(result.dimensionDeltas)) {
+          console.log(`    ${dim}: ${delta(d, "")}`);
+        }
+      }
+      if (result.newIssues.length > 0) {
+        console.log(chalk.red(`\n  New issues (${result.newIssues.length}):`));
+        for (const i of result.newIssues.slice(0, 10)) {
+          console.log(chalk.red(`    [${i.severity}] ${i.description.slice(0, 100)}`));
+        }
+      }
+      if (result.resolvedIssues.length > 0) {
+        console.log(
+          chalk.green(
+            `\n  Resolved issues (${result.resolvedIssues.length}):`,
+          ),
+        );
+        for (const i of result.resolvedIssues.slice(0, 10)) {
+          console.log(chalk.green(`    [${i.severity}] ${i.description.slice(0, 100)}`));
+        }
+      }
+      console.log("");
+    },
+  );
 
 program
   .command("init <dir>")
@@ -165,6 +267,7 @@ interface RunOpts {
   trace: boolean;
   dryRun: boolean;
   preflight: boolean;
+  minScore?: number;
 }
 
 async function runCommand(opts: RunOpts): Promise<void> {
@@ -321,14 +424,39 @@ async function runCommand(opts: RunOpts): Promise<void> {
   });
 
   // Persist reports
-  const runDir = path.join(path.resolve(opts.out), audit.run_id);
+  const reportsDir = path.resolve(opts.out);
+  const runDir = path.join(reportsDir, audit.run_id);
   fs.mkdirSync(runDir, { recursive: true });
+
+  // Save to history DB (before reports so trend chart includes this run)
+  try {
+    saveAuditToHistory(audit, reportsDir);
+    console.log(chalk.gray("  [history] Saved to history.db"));
+  } catch (histErr) {
+    console.warn(
+      chalk.yellow(
+        `  [history] Failed to save: ${histErr instanceof Error ? histErr.message : String(histErr)}`,
+      ),
+    );
+  }
+
   const jsonPath = writeJsonReport(audit, runDir);
-  const htmlPath = writeHtmlReport(audit, runDir);
+  const htmlPath = writeHtmlReport(audit, runDir, reportsDir);
   const mdPath = writeMarkdownSummary(audit, runDir);
 
   await notifySlack(audit);
   await notifyTelegram(audit);
+
+  // Reliability stack stats
+  const allSteps = audit.results.flatMap((r) => r.steps);
+  const methodCounts: Record<string, number> = {};
+  for (const s of allSteps) {
+    const method = s.execution_method ?? "stagehand";
+    methodCounts[method] = (methodCounts[method] ?? 0) + 1;
+  }
+  const totalActSteps = allSteps.filter(
+    (s) => s.step_type === "act" || s.step_type === "extract" || s.step_type === "observe",
+  ).length;
 
   console.log("");
   console.log(chalk.cyan("[ai-audit] Complete"));
@@ -343,7 +471,42 @@ async function runCommand(opts: RunOpts): Promise<void> {
       `(${audit.summary.critical_issues} critical issues)`,
   );
   console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
+
+  // Show reliability stack breakdown if any fallbacks were used
+  if (totalActSteps > 0) {
+    const stagehand = methodCounts["stagehand"] ?? 0;
+    const selectorHint = methodCounts["selector_hint"] ?? 0;
+    const mutation = methodCounts["instruction_mutation"] ?? 0;
+    const computerUse = methodCounts["computer_use"] ?? 0;
+    const effective = allSteps.filter(
+      (s) => s.status === "pass" || s.status === "warn",
+    ).length;
+    const total = allSteps.length;
+    const rate = total > 0 ? ((effective / total) * 100).toFixed(1) : "0";
+    console.log(
+      chalk.gray(
+        `  Reliability: ${rate}% effective (stagehand=${stagehand} selector_hint=${selectorHint} mutation=${mutation} computer_use=${computerUse})`,
+      ),
+    );
+  }
   console.log("");
+
+  // Overall score for quality gate
+  const overallScore =
+    audit.results.length > 0
+      ? audit.results.reduce((s, r) => s + r.overall_score, 0) /
+        audit.results.length
+      : 0;
+
+  // Quality gate: --min-score
+  if (opts.minScore !== undefined && overallScore < opts.minScore) {
+    console.log(
+      chalk.red(
+        `[QUALITY GATE] Overall score ${overallScore.toFixed(1)} < minimum ${opts.minScore} — failing build.`,
+      ),
+    );
+    process.exit(1);
+  }
 
   // Exit code: 0 = all pass, 1 = critical, 2 = warn
   if (audit.summary.fail > 0) process.exit(1);

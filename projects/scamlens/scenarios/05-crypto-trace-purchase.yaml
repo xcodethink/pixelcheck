@@ -14,6 +14,9 @@ applies_to:
     - us-english-free-mobile
     - jp-japanese-pro-desktop
     - de-german-power-tablet
+    - kr-korean-pro-desktop
+    - tw-chinese-pro-tablet
+    - uk-english-power-desktop
 
 scoring_dimensions:
   - completion
