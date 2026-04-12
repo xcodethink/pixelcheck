@@ -12,6 +12,9 @@ applies_to:
     - jp-japanese-pro-desktop
     - de-german-power-tablet
     - cn-chinese-free-mobile
+    - vn-vietnamese-free-mobile
+    - in-hindi-free-android
+    - fr-french-free-mobile
 
 scoring_dimensions:
   - completion

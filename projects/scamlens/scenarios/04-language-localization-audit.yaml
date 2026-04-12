@@ -13,6 +13,15 @@ applies_to:
     - cn-chinese-free-mobile
     - br-portuguese-free-desktop
     - sa-arabic-pro-mobile
+    - in-hindi-free-android
+    - kr-korean-pro-desktop
+    - vn-vietnamese-free-mobile
+    - ru-russian-free-desktop
+    - mx-spanish-free-mobile
+    - id-indonesian-free-mobile
+    - fr-french-free-mobile
+    - th-thai-free-mobile
+    - tw-chinese-pro-tablet
 
 scoring_dimensions:
   - localization

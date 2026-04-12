@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuditRun, ScenarioRunResult, Issue } from "./types.js";
 import { redactDeep } from "./secrets.js";
+import { loadHistory, type HistoryEntry } from "./history.js";
 
 /**
  * Write JSON report (machine-readable, primary source of truth).
@@ -85,18 +86,31 @@ export function writeMarkdownSummary(
 
 /**
  * Write the rich HTML report (dark theme, scenario sections, embedded video).
+ * If reportsDir is provided, trend data is loaded from SQLite and embedded.
  */
-export function writeHtmlReport(audit: AuditRun, runDir: string): string {
+export function writeHtmlReport(
+  audit: AuditRun,
+  runDir: string,
+  reportsDir?: string,
+): string {
   const filePath = path.join(runDir, "audit.html");
   const patterns = audit.redact_patterns ?? [];
   const safe = patterns.length > 0 ? redactDeep(audit, patterns) : audit;
-  const html = renderHtml(safe, runDir);
+  const history = reportsDir
+    ? loadHistory(reportsDir, { limit: 20, project: audit.project_name })
+    : [];
+  const html = renderHtml(safe, runDir, history);
   fs.writeFileSync(filePath, html);
   return filePath;
 }
 
-function renderHtml(audit: AuditRun, runDir: string): string {
+function renderHtml(
+  audit: AuditRun,
+  runDir: string,
+  history: HistoryEntry[] = [],
+): string {
   const sections = audit.results.map((r) => renderUnit(r, runDir)).join("\n");
+  const trendSection = history.length >= 2 ? renderTrendSection(history) : "";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -243,6 +257,45 @@ function renderHtml(audit: AuditRun, runDir: string): string {
   .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
   .gallery img { width: 100%; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
   a { color: var(--accent); text-decoration: none; }
+  .trend-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .trend-section h2 { margin: 0 0 16px; font-size: 17px; }
+  .trend-chart {
+    width: 100%;
+    height: 200px;
+    position: relative;
+    overflow: hidden;
+  }
+  .trend-chart canvas { width: 100% !important; height: 100% !important; }
+  .trend-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 16px; }
+  .trend-table th, .trend-table td {
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .trend-table th { color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
+  .trend-delta-up { color: var(--pass); }
+  .trend-delta-down { color: var(--fail); }
+  .trend-delta-flat { color: var(--fg-dim); }
+  .reliability-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .reliability-stats .card {
+    background: var(--bg-elevated);
+    border-radius: 4px;
+    padding: 12px;
+    text-align: center;
+  }
+  .reliability-stats .card .num { font-size: 20px; font-weight: 600; }
+  .reliability-stats .card .label { font-size: 11px; color: var(--fg-dim); }
 </style>
 </head>
 <body>
@@ -265,6 +318,7 @@ function renderHtml(audit: AuditRun, runDir: string): string {
     <div class="card"><div class="num">${audit.summary.total_issues}</div><div class="label">Issues</div></div>
     <div class="card"><div class="num" style="color:var(--fail)">${audit.summary.critical_issues}</div><div class="label">Critical</div></div>
   </div>
+  ${trendSection}
   ${sections}
 </div>
 </body>
@@ -295,7 +349,7 @@ function renderUnit(r: ScenarioRunResult, runDir: string): string {
   const steps = r.steps
     .map(
       (s) =>
-        `<li><span class="st">${s.status.toUpperCase()}</span> ${escapeHtml(s.step_id)} (${s.step_type}, ${s.duration_ms}ms${s.retries_used ? `, retries=${s.retries_used}` : ""})${s.error ? ` — ${escapeHtml(s.error)}` : ""}</li>`,
+        `<li><span class="st">${s.status.toUpperCase()}</span> ${escapeHtml(s.step_id)} (${s.step_type}, ${s.duration_ms}ms${s.retries_used ? `, retries=${s.retries_used}` : ""}${s.execution_method && s.execution_method !== "stagehand" ? `, via=${s.execution_method}` : ""})${s.error ? ` — ${escapeHtml(s.error)}` : ""}</li>`,
     )
     .join("");
   const screenshots = r.steps
@@ -319,6 +373,129 @@ function renderUnit(r: ScenarioRunResult, runDir: string): string {
     ${issues ? `<div class="issues">${issues}</div>` : ""}
     ${screenshots ? `<div class="gallery">${screenshots}</div>` : ""}
     <div class="steps"><details><summary>Step trace (${r.steps.length} steps)</summary><ul class="step-list">${steps}</ul></details></div>
+  </div>`;
+}
+
+/**
+ * Render the trend section with an inline SVG sparkline chart and history table.
+ * Uses pure SVG (no external JS dependencies) so the HTML report stays self-contained.
+ */
+function renderTrendSection(history: HistoryEntry[]): string {
+  // Sort oldest first for chart
+  const sorted = [...history].reverse();
+
+  // Build SVG sparkline for overall score
+  const chartWidth = 600;
+  const chartHeight = 150;
+  const padding = 30;
+  const plotW = chartWidth - padding * 2;
+  const plotH = chartHeight - padding * 2;
+  const n = sorted.length;
+  const maxScore = 10;
+  const minScore = 0;
+
+  const points = sorted.map((entry, i) => {
+    const x = padding + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
+    const y =
+      padding +
+      plotH -
+      ((entry.overallScore - minScore) / (maxScore - minScore)) * plotH;
+    return { x, y, entry };
+  });
+
+  const polyline = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+
+  // Gradient fill below the line
+  const fillPoints = [
+    `${points[0]?.x.toFixed(1) ?? padding},${padding + plotH}`,
+    ...points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`),
+    `${points[points.length - 1]?.x.toFixed(1) ?? padding + plotW},${padding + plotH}`,
+  ].join(" ");
+
+  // Grid lines at score 2, 4, 6, 8
+  const gridLines = [2, 4, 6, 8].map((score) => {
+    const y = padding + plotH - ((score - minScore) / (maxScore - minScore)) * plotH;
+    return `<line x1="${padding}" y1="${y.toFixed(1)}" x2="${padding + plotW}" y2="${y.toFixed(1)}" stroke="#30363d" stroke-width="0.5"/>
+    <text x="${padding - 5}" y="${(y + 4).toFixed(1)}" text-anchor="end" fill="#8b949e" font-size="10">${score}</text>`;
+  }).join("\n");
+
+  // Data point dots
+  const dots = points.map(
+    (p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#58a6ff" stroke="#0a0e14" stroke-width="1.5"/>`,
+  ).join("\n");
+
+  const svg = `<svg viewBox="0 0 ${chartWidth} ${chartHeight}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:200px;">
+    <defs>
+      <linearGradient id="fill-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#58a6ff" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="#58a6ff" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <polygon points="${fillPoints}" fill="url(#fill-grad)"/>
+    <polyline points="${polyline}" fill="none" stroke="#58a6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+  </svg>`;
+
+  // History table (most recent first)
+  const tableRows = history
+    .slice(0, 10)
+    .map((entry) => {
+      const date = entry.startedAt.split("T")[0] ?? entry.startedAt.slice(0, 10);
+      const score = entry.overallScore.toFixed(1);
+      const passRate =
+        entry.totalUnits > 0
+          ? ((entry.passCount / entry.totalUnits) * 100).toFixed(0)
+          : "0";
+      return `<tr>
+        <td>${escapeHtml(date)}</td>
+        <td>${escapeHtml(entry.tag ?? "-")}</td>
+        <td style="color:var(--accent);font-weight:600">${score}</td>
+        <td>${passRate}%</td>
+        <td>${entry.totalIssues} (${entry.criticalIssues} critical)</td>
+        <td>$${entry.totalCostUsd.toFixed(3)}</td>
+        <td>${(entry.durationMs / 1000).toFixed(0)}s</td>
+      </tr>`;
+    })
+    .join("\n");
+
+  // Reliability stack stats from current run (if execution_method data available)
+  const reliabilitySection = renderReliabilityStats(history[0]);
+
+  return `<div class="trend-section">
+    <h2>Quality Trend (Last ${sorted.length} Runs)</h2>
+    <div class="trend-chart">${svg}</div>
+    ${reliabilitySection}
+    <table class="trend-table">
+      <thead>
+        <tr><th>Date</th><th>Tag</th><th>Score</th><th>Pass Rate</th><th>Issues</th><th>Cost</th><th>Duration</th></tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderReliabilityStats(latest?: HistoryEntry): string {
+  if (!latest) return "";
+
+  const prev = latest; // Would need two entries for delta; just show current stats
+  return `<div class="reliability-stats">
+    <div class="card">
+      <div class="num" style="color:var(--pass)">${latest.passCount}</div>
+      <div class="label">Passed</div>
+    </div>
+    <div class="card">
+      <div class="num" style="color:var(--warn)">${latest.warnCount}</div>
+      <div class="label">Warnings</div>
+    </div>
+    <div class="card">
+      <div class="num" style="color:var(--fail)">${latest.failCount}</div>
+      <div class="label">Failed</div>
+    </div>
+    <div class="card">
+      <div class="num" style="color:var(--accent)">${latest.overallScore.toFixed(1)}</div>
+      <div class="label">Overall Score</div>
+    </div>
   </div>`;
 }
 

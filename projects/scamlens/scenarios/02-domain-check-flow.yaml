@@ -25,6 +25,18 @@ applies_to:
     - cn-chinese-free-mobile
     - br-portuguese-free-desktop
     - sa-arabic-pro-mobile
+    - in-hindi-free-android
+    - kr-korean-pro-desktop
+    - vn-vietnamese-free-mobile
+    - ru-russian-free-desktop
+    - ng-english-free-android
+    - mx-spanish-free-mobile
+    - id-indonesian-free-mobile
+    - us-english-senior-tablet
+    - uk-english-power-desktop
+    - fr-french-free-mobile
+    - th-thai-free-mobile
+    - tw-chinese-pro-tablet
 
 scoring_dimensions:
   - completion

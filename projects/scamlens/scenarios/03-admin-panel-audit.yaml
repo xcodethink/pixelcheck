@@ -9,6 +9,7 @@ goal: |
 applies_to:
   personas:
     - us-english-free-mobile
+    - uk-english-power-desktop
 
 scoring_dimensions:
   - completion

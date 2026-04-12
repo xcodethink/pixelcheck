@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import * as fs from "node:fs";
 import type { Page } from "playwright";
 import type {
   Step,
@@ -16,6 +17,8 @@ import { substituteTemplate } from "../core/scenario.js";
 import { withRetry } from "stealth-core";
 import { waitForMessage } from "../core/email.js";
 import { diffAgainstBaseline, type DiffResult } from "../core/visual-diff.js";
+import { waitForPageStable } from "../core/page-stability.js";
+import { generateMutations } from "../core/instruction-mutator.js";
 
 export interface StepContext {
   page: Page;
@@ -100,6 +103,7 @@ export async function executeStep(
     screenshot_sha256: result.screenshot_sha256,
     console_errors: consoleErrors,
     retries_used: retriesUsed,
+    execution_method: result.execution_method,
   };
 }
 
@@ -119,6 +123,8 @@ async function dispatch(step: Step, ctx: StepContext): Promise<Partial<StepResul
       return await handleAssertVisual(step, ctx);
     case "assert_dom":
       return await handleAssertDom(step, ctx);
+    case "assert_a11y":
+      return await handleAssertA11y(step, ctx);
     case "check_email":
       return await handleCheckEmail(step, ctx);
     case "screenshot":
@@ -154,27 +160,118 @@ async function handleVisit(
   return { status: "pass", output: { url } };
 }
 
+/**
+ * handleAct — 4-Layer Reliability Stack
+ *
+ * Layer 1: Page stability gate (waitForPageStable)
+ * Layer 2: Primary — Stagehand semantic action
+ * Layer 3a: Selector Hint — direct Playwright click if selector_hint provided
+ * Layer 3b: Instruction Mutation — rephrase/decompose/specify the instruction
+ * Layer 4: Computer Use — autonomous pixel-level fallback (Sonnet for default,
+ *          Opus for critical_review steps)
+ *
+ * Each layer only fires if the previous one failed. The execution_method
+ * field in the result tracks which layer ultimately succeeded.
+ */
 async function handleAct(
   step: Extract<Step, { type: "act" }>,
   ctx: StepContext,
 ): Promise<Partial<StepResult>> {
   const instruction = substituteTemplate(step.instruction, tplCtx(ctx));
+
+  // ── Layer 1: Page Stability Gate ─────────────────────────────────
+  await waitForPageStable(ctx.page, { timeout: 6000 });
+
+  // ── Layer 2: Stagehand Semantic Action (primary) ─────────────────
   try {
     const result = await ctx.stagehand.act({ action: instruction });
-    return { status: "pass", output: result };
-  } catch (err) {
+    return { status: "pass", output: result, execution_method: "stagehand" };
+  } catch (stagehandErr) {
+    // Primary failed — cascade through fallback layers
+    const primaryError =
+      stagehandErr instanceof Error ? stagehandErr.message : String(stagehandErr);
+
+    // ── Layer 3a: Selector Hint (direct Playwright) ──────────────
+    if (step.selector_hint) {
+      try {
+        const el = ctx.page.locator(step.selector_hint).first();
+        await el.waitFor({ state: "visible", timeout: 5000 });
+        await el.click();
+        // Brief settle after click
+        await ctx.page.waitForTimeout(300);
+        return {
+          status: "pass",
+          output: { method: "selector_hint", selector: step.selector_hint },
+          execution_method: "selector_hint",
+        };
+      } catch {
+        // Selector hint also failed — continue to Layer 3b
+      }
+    }
+
+    // ── Layer 3b: Instruction Mutation (rephrase/decompose) ──────
+    try {
+      const mutations = await generateMutations(instruction, ctx.page);
+      for (const mutation of mutations) {
+        for (const mutatedInstruction of mutation.instructions) {
+          try {
+            // Re-gate stability before each mutation attempt
+            await waitForPageStable(ctx.page, { timeout: 3000, skipNetwork: true });
+            const result = await ctx.stagehand.act({ action: mutatedInstruction });
+            return {
+              status: "pass",
+              output: {
+                method: "instruction_mutation",
+                mutation_type: mutation.type,
+                original: instruction,
+                mutated: mutatedInstruction,
+                result,
+              },
+              execution_method: "instruction_mutation",
+            };
+          } catch {
+            // This mutation also failed — try next
+            continue;
+          }
+        }
+      }
+    } catch {
+      // Mutation generation itself failed — continue to Layer 4
+    }
+
+    // ── Layer 4: Computer Use (autonomous fallback) ──────────────
     if (step.fallback === "computer_use") {
-      // Fallback to Computer Use to recover from a missed click
+      // Use lightweight Sonnet mode for non-critical steps (3 iterations),
+      // full Opus mode for critical_review steps (8 iterations).
+      const isCritical = step.critical || step.critical_review;
       const cu = await runComputerUseTask({
         page: ctx.page,
         task: instruction,
-        model: ctx.models.computerUse,
-        maxIterations: 5,
+        model: isCritical ? ctx.models.computerUse : ctx.models.default,
+        maxIterations: isCritical ? 8 : 3,
       });
       ctx.cost.value += cu.costUsd;
-      return { status: "pass", output: { fallback: "computer_use", ...cu } };
+      return {
+        status: "pass",
+        output: {
+          method: "computer_use",
+          primary_error: primaryError,
+          ...cu,
+        },
+        execution_method: "computer_use",
+      };
     }
-    throw err;
+
+    // ── Layer 4 (skip mode): skip step if configured ─────────────
+    if (step.fallback === "skip") {
+      return {
+        status: "skip",
+        output: { skipped: true, reason: primaryError },
+      };
+    }
+
+    // All layers exhausted — propagate the original error
+    throw stagehandErr;
   }
 }
 
@@ -182,6 +279,9 @@ async function handleExtract(
   step: Extract<Step, { type: "extract" }>,
   ctx: StepContext,
 ): Promise<Partial<StepResult>> {
+  // Layer 1: Stability gate
+  await waitForPageStable(ctx.page, { timeout: 5000 });
+
   const instruction = substituteTemplate(step.instruction, tplCtx(ctx));
   const data = await ctx.stagehand.extract({
     instruction,
@@ -197,6 +297,9 @@ async function handleObserve(
   step: Extract<Step, { type: "observe" }>,
   ctx: StepContext,
 ): Promise<Partial<StepResult>> {
+  // Layer 1: Stability gate
+  await waitForPageStable(ctx.page, { timeout: 5000 });
+
   const instruction = substituteTemplate(step.instruction, tplCtx(ctx));
   const observations = await ctx.stagehand.observe({ instruction });
   if (step.store_as) {
@@ -327,6 +430,170 @@ async function handleAssertDom(
     throw new Error(`assert_dom failed: ${failures.join("; ")}`);
   }
   return { status: "pass" };
+}
+
+/**
+ * handleAssertA11y — axe-core WCAG accessibility audit.
+ *
+ * Injects axe-core into the page, runs analysis against the specified
+ * WCAG standard, and converts violations to the auditor's Issue format.
+ *
+ * Complements the Vision Critic:
+ *   - axe-core catches WCAG rule violations (ARIA, contrast, labels, etc.)
+ *   - Vision Critic catches visual accessibility issues (layout, readability)
+ */
+async function handleAssertA11y(
+  step: Extract<Step, { type: "assert_a11y" }>,
+  ctx: StepContext,
+): Promise<Partial<StepResult>> {
+  // Layer 1: Stability gate — ensure page is fully rendered before analysis
+  await waitForPageStable(ctx.page, { timeout: 5000 });
+
+  // Read axe-core source from node_modules
+  const axeCorePath = require.resolve("axe-core/axe.min.js");
+  const axeSource = fs.readFileSync(axeCorePath, "utf-8");
+
+  // Build axe run options
+  const standard = step.standard ?? "wcag2aa";
+  const exclude = step.exclude ?? [];
+  const impactFilter = step.impact_filter;
+
+  // Inject and run axe-core
+  const axeResults = await ctx.page.evaluate(
+    ([src, runOpts]) => {
+      // Inject axe-core if not already present
+      if (!(window as any).axe) {
+        const script = document.createElement("script");
+        script.textContent = src;
+        document.head.appendChild(script);
+      }
+      const axe = (window as any).axe;
+      if (!axe) throw new Error("axe-core injection failed");
+
+      return axe.run(document, {
+        runOnly: { type: "tag", values: [runOpts.standard] },
+        resultTypes: ["violations", "passes", "incomplete"],
+        rules: {},
+        ...(runOpts.exclude.length > 0
+          ? { exclude: runOpts.exclude.map((s: string) => [s]) }
+          : {}),
+      });
+    },
+    [axeSource, { standard, exclude }] as const,
+  ) as {
+    violations: Array<{
+      id: string;
+      impact: "critical" | "serious" | "moderate" | "minor";
+      description: string;
+      help: string;
+      helpUrl: string;
+      tags: string[];
+      nodes: Array<{
+        html: string;
+        target: string[];
+        failureSummary: string;
+      }>;
+    }>;
+    passes: Array<{ id: string }>;
+    incomplete: Array<{ id: string; impact: string }>;
+  };
+
+  // Filter by impact level if specified
+  let violations = axeResults.violations;
+  if (impactFilter && impactFilter.length > 0) {
+    const filterSet = new Set(impactFilter);
+    violations = violations.filter((v) => filterSet.has(v.impact));
+  }
+
+  // Convert to our Issue format
+  const issues = violations.map((v) => {
+    const severity: "critical" | "high" | "medium" | "low" =
+      v.impact === "critical"
+        ? "critical"
+        : v.impact === "serious"
+          ? "high"
+          : v.impact === "moderate"
+            ? "medium"
+            : "low";
+
+    const wcagTags = v.tags.filter(
+      (t) => t.startsWith("wcag") || t.startsWith("best-practice"),
+    );
+    const instances = v.nodes.length;
+    const sampleTargets = v.nodes
+      .slice(0, 3)
+      .map((n) => n.target.join(" > "))
+      .join("; ");
+
+    return {
+      severity,
+      dimension: "accessibility" as const,
+      step_id: step.id,
+      description: `[${v.id}] ${v.description} (${instances} instance${instances > 1 ? "s" : ""}: ${sampleTargets})`,
+      recommendation: `${v.help}. ${wcagTags.length > 0 ? `WCAG: ${wcagTags.join(", ")}. ` : ""}Reference: ${v.helpUrl}`,
+    };
+  });
+
+  // Push issues to the critic results accumulator for the run summary
+  if (issues.length > 0) {
+    ctx.criticResults.push({
+      verdict: { scores: [], issues: [] },
+      scores: [
+        {
+          dimension: "accessibility",
+          score: Math.max(
+            0,
+            10 - violations.length * 0.5 -
+              violations.filter((v) => v.impact === "critical").length * 2 -
+              violations.filter((v) => v.impact === "serious").length,
+          ),
+          justification: `axe-core found ${violations.length} violation(s): ${violations.filter((v) => v.impact === "critical").length} critical, ${violations.filter((v) => v.impact === "serious").length} serious, ${violations.filter((v) => v.impact === "moderate").length} moderate, ${violations.filter((v) => v.impact === "minor").length} minor`,
+        },
+      ],
+      issues,
+      costUsd: 0, // axe-core is free, no LLM cost
+      raw: undefined as any,
+    });
+  }
+
+  // Determine status
+  const maxViolations = step.max_violations ?? 0;
+  const criticalCount = violations.filter(
+    (v) => v.impact === "critical",
+  ).length;
+  const seriousCount = violations.filter(
+    (v) => v.impact === "serious",
+  ).length;
+
+  let status: StepResult["status"] = "pass";
+  if (criticalCount > 0) {
+    status = "fail";
+  } else if (seriousCount > 0 || violations.length > maxViolations) {
+    status = "warn";
+  }
+
+  return {
+    status,
+    output: {
+      standard,
+      total_violations: violations.length,
+      by_impact: {
+        critical: criticalCount,
+        serious: seriousCount,
+        moderate: violations.filter((v) => v.impact === "moderate").length,
+        minor: violations.filter((v) => v.impact === "minor").length,
+      },
+      passes: axeResults.passes.length,
+      incomplete: axeResults.incomplete.length,
+      violations: violations.map((v) => ({
+        id: v.id,
+        impact: v.impact,
+        description: v.description,
+        instances: v.nodes.length,
+        help_url: v.helpUrl,
+      })),
+    },
+  };
 }
 
 async function handleCheckEmail(

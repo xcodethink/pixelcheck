@@ -1,0 +1,32 @@
+id: uk-english-power-desktop
+display_name: James (36, London, security analyst, ThinkPad X1 Carbon)
+country: GB
+language: English
+locale: en-GB
+timezone: Europe/London
+device_class: desktop
+ua_class: windows
+viewport:
+  width: 1920
+  height: 1080
+payment_tier: power
+proxy_env: PROXY_UK
+mental_model: |
+  36-year-old security analyst at a London-based bank's fraud team.
+  Evaluating ScamLens API for integration into the bank's internal threat
+  intelligence pipeline. Power tier buyer — will pay top dollar if the
+  API meets enterprise requirements. Judges technical documentation quality,
+  API rate limits, SLA guarantees, STIX/TAXII compatibility, and data
+  provenance. Will run a 30-day evaluation before purchase decision.
+  Extremely technical — expects raw threat data, not simplified summaries.
+critical_concerns:
+  - API documentation must be complete (endpoints, auth, rate limits, error codes)
+  - STIX 2.1 export capability
+  - Webhook reliability and retry behavior documented
+  - Data provenance — which threat intel sources feed each score
+  - UK/EU compliance (UK GDPR, FCA regulations)
+  - Uptime SLA and incident history visible
+  - en-GB spelling (colour, analyse, organisation)
+  - Enterprise SSO / SAML mentioned or available
+  - Pricing transparency — no "contact sales" for published tiers
+test_credentials: {}

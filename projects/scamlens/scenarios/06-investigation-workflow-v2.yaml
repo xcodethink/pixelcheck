@@ -17,6 +17,7 @@ applies_to:
   personas:
     - us-english-free-mobile
     - jp-japanese-pro-desktop
+    - uk-english-power-desktop
 
 scoring_dimensions:
   - completion
