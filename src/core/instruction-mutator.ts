@@ -3,17 +3,23 @@
  *
  * When a Stagehand semantic action fails, instead of retrying with the
  * identical instruction (which fails the same way), this module generates
- * mutated variants:
+ * mutated variants using two strategies:
  *
- *   1. More specific — uses visible DOM context to target the exact element
- *   2. Decomposed — breaks a complex instruction into 2-3 atomic steps
- *   3. Alternative phrasing — uses different verbs/descriptions
+ *   1. Local mutations (zero cost, instant):
+ *      - Specific — uses visible DOM context to target the exact element
+ *      - Decomposed — breaks a complex instruction into 2-3 atomic steps
+ *      - Rephrase — uses different verbs/descriptions
+ *
+ *   2. LLM rewrite (Haiku — ~$0.001/call, ~200ms):
+ *      - Sends the failed instruction + DOM context to Haiku for intelligent rewrite
+ *      - Only used when local mutations are exhausted or as a high-priority variant
  *
  * This eliminates ~20% of Stagehand failures caused by ambiguous or
  * overly broad instructions.
  */
 
 import type { Page } from "playwright";
+import { getAnthropicClient, estimateCost } from "./llm.js";
 
 /**
  * Extract a compact DOM summary of interactive elements on the current page.
@@ -213,30 +219,117 @@ function rephrase(original: string): string {
 }
 
 /**
+ * Use Haiku to intelligently rewrite a failed instruction based on DOM context.
+ * Cost: ~$0.001 per call. Latency: ~200-500ms.
+ *
+ * Returns null if LLM call fails (non-fatal — local mutations are still available).
+ */
+async function llmRewrite(
+  original: string,
+  domContext: string,
+  cost: { value: number },
+): Promise<MutationResult | null> {
+  try {
+    const client = getAnthropicClient();
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      system:
+        "You are a browser automation expert. A Stagehand semantic action failed. " +
+        "Rewrite the instruction to be more specific and actionable. " +
+        "Return ONLY the rewritten instruction, nothing else. No quotes, no explanation.",
+      messages: [
+        {
+          role: "user",
+          content: `The action "${original}" failed on a page with these interactive elements:\n\n${domContext.slice(0, 1500)}\n\nRewrite the instruction to precisely target the correct element. Be very specific about which element to interact with.`,
+        },
+      ],
+    });
+
+    cost.value += estimateCost(
+      "claude-haiku-4-5-20251001",
+      response.usage.input_tokens,
+      response.usage.output_tokens,
+    );
+
+    const text = response.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b as { type: "text"; text: string }).text)
+      .join("")
+      .trim();
+
+    if (text && text !== original) {
+      return { type: "rephrase", instructions: [text] };
+    }
+    return null;
+  } catch {
+    // LLM call failed — not fatal, local mutations are still available
+    return null;
+  }
+}
+
+/**
+ * Auto-discover candidate selectors by running Stagehand observe() on the page.
+ * Returns CSS selectors for elements matching the original instruction.
+ */
+export async function autoDiscoverSelectors(
+  original: string,
+  stagehand: {
+    observe(arg: { instruction: string }): Promise<Array<{ description?: string; selector?: string }>>;
+  },
+): Promise<string[]> {
+  try {
+    const observations = await stagehand.observe({
+      instruction: `Find all interactive elements that could match: "${original}"`,
+    });
+    return observations
+      .map((o) => o.selector)
+      .filter((s): s is string => !!s && s.length > 0)
+      .slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Generate all mutation variants for a failed instruction.
- * Returns them in priority order (specific > decompose > rephrase).
+ * Returns them in priority order: LLM rewrite > specific > decompose > rephrase.
+ *
+ * @param cost - Mutable cost accumulator for LLM rewrite tracking
  */
 export async function generateMutations(
   original: string,
   page: Page,
+  cost?: { value: number },
 ): Promise<MutationResult[]> {
   const domContext = await getInteractiveElements(page);
   const results: MutationResult[] = [];
 
-  // 1. Specific mutation (uses DOM context)
+  // 1. LLM rewrite (highest quality, ~$0.001 per call)
+  if (cost) {
+    const llmResult = await llmRewrite(original, domContext, cost);
+    if (llmResult) {
+      results.push(llmResult);
+    }
+  }
+
+  // 2. Specific mutation (uses DOM context, zero cost)
   const specific = mutateSpecific(original, domContext);
   if (specific.type === "specific") {
     results.push(specific);
   }
 
-  // 2. Decompose mutation (structural)
+  // 3. Decompose mutation (structural, zero cost)
   const decomposed = mutateDecompose(original);
   if (decomposed.type === "decompose") {
     results.push(decomposed);
   }
 
-  // 3. Rephrase mutation (always available as last resort)
-  results.push({ type: "rephrase", instructions: [rephrase(original)] });
+  // 4. Rephrase mutation (only if not already included via fallback or LLM)
+  const hasRephrase = results.some((r) => r.type === "rephrase");
+  if (!hasRephrase) {
+    results.push({ type: "rephrase", instructions: [rephrase(original)] });
+  }
 
   return results;
 }

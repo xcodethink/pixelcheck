@@ -92,8 +92,11 @@ export async function waitForPageStable(
         });
       }, phaseTimeout);
       report.domStable = settled;
-    } catch {
-      // Page may have navigated; not fatal
+    } catch (err) {
+      // Closed page/context → genuinely unstable. Other errors �� assume stable
+      // to avoid blocking the step on an unrelated evaluation failure.
+      const msg = err instanceof Error ? err.message : "";
+      report.domStable = !msg.includes("has been closed") && !msg.includes("Target closed");
     }
   }
 

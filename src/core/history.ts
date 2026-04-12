@@ -26,10 +26,11 @@ function openDb(dbPath: string): Database.Database {
   db.pragma("foreign_keys = ON");
 
   // Migrate schema
-  const userVersion = db.pragma("user_version", { simple: true }) as number;
+  const userVersion =
+    (db.pragma("user_version", { simple: true }) as number | null) ?? 0;
   if (userVersion < SCHEMA_VERSION) {
     db.exec(MIGRATIONS[0]!);
-    db.pragma(`user_version = ${SCHEMA_VERSION}`);
+    db.pragma("user_version = " + String(SCHEMA_VERSION));
   }
 
   return db;

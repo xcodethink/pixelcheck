@@ -41,7 +41,7 @@ const BaseStepSchema = z.object({
   critical_review: z.boolean().default(false),
   retry: z.number().int().min(0).max(5).default(2),
   timeout: z.number().int().positive().optional(),
-  fallback: z.enum(["computer_use", "skip", "fail"]).default("computer_use"),
+  fallback: z.enum(["computer_use", "skip", "fail"]).optional(),
   /**
    * Optional CSS/XPath selector hint for Layer 3 fallback.
    * When Stagehand semantic action fails, try direct Playwright click
