@@ -25,6 +25,7 @@ import { Recorder } from "../core/recorder.js";
 import { waitForPageStable } from "../core/page-stability.js";
 import { extractDomSummary, formatDomSummary } from "./dom-summary.js";
 import { createPlan, revisePlan, type Plan, type PlannedStep } from "./planner.js";
+import { PlanCache, computeDomSkeleton } from "./plan-cache.js";
 import { navigatorDecide, buildStepFromDecision } from "./navigator.js";
 import {
   ConvergenceTracker,
@@ -138,6 +139,11 @@ export async function runAutonomousLoop(
   // Most recent pre-action page snapshot for interaction-criterion checks.
   let preActionSnapshot: PageSnapshot | null = null;
 
+  // Plan cache state (may remain null if disabled) — hoisted so `finally` can record outcome.
+  const cacheDisabledOuter = process.env.AUDIT_PLAN_CACHE_DISABLED === "1";
+  const planCache: PlanCache | null = cacheDisabledOuter ? null : new PlanCache();
+  let activeCacheKey: string | undefined;
+
   try {
     // ── Step 1: Navigate to start URL ────────────────────────────
     const startUrl = scenario.start_url!;
@@ -148,31 +154,60 @@ export async function runAutonomousLoop(
     // ── Step 2: Initial observation ──────────────────────────────
     const screenshot = await takeScreenshotBase64(page);
     const domSummary = await extractDomSummary(page);
+    const domSummaryText = formatDomSummary(domSummary);
 
-    // ── Step 3: Create initial plan ──────────────────────────────
-    const planResult = await createPlan(
-      {
-        goal: scenario.goal,
-        success_criteria: scenario.success_criteria ?? [],
-        hints: scenario.hints ?? [],
-        persona,
-        current_url: page.url(),
-        current_screenshot_base64: screenshot,
-        dom_summary: formatDomSummary(domSummary),
-        history: [],
-        failed_plans: [],
-        remaining_budget_usd: budgetCap - cost.value,
-      },
-      models.planner,
-      cost,
-    );
+    // ── Plan cache lookup (skip planner on hit) ──────────────────
+    const cacheKeyInput = {
+      scenario_id: scenario.id,
+      persona,
+      start_url: startUrl,
+      dom_skeleton: computeDomSkeleton(domSummaryText),
+    };
 
-    let plan = planResult.plan;
-    eventBus.emitEvent("plan:created", {
-      plan_id: plan.id,
-      steps: plan.steps,
-      reasoning: plan.reasoning,
-    });
+    let plan: Plan;
+    const cachedHit = planCache?.lookup(cacheKeyInput);
+    if (cachedHit) {
+      plan = cachedHit.plan;
+      activeCacheKey = cachedHit.key;
+      eventBus.emitEvent("plan:created", {
+        plan_id: plan.id,
+        steps: plan.steps,
+        reasoning: plan.reasoning,
+        from_cache: true,
+        cache_success_count: cachedHit.success_count,
+        cache_failure_count: cachedHit.failure_count,
+      });
+    } else {
+      // ── Step 3: Create initial plan (cache miss) ───────────────
+      const planResult = await createPlan(
+        {
+          goal: scenario.goal,
+          success_criteria: scenario.success_criteria ?? [],
+          hints: scenario.hints ?? [],
+          persona,
+          current_url: page.url(),
+          current_screenshot_base64: screenshot,
+          dom_summary: domSummaryText,
+          history: [],
+          failed_plans: [],
+          remaining_budget_usd: budgetCap - cost.value,
+        },
+        models.planner,
+        cost,
+      );
+      plan = planResult.plan;
+      // Persist for future runs — outcome is recorded at loop end
+      if (planCache) {
+        planCache.store(cacheKeyInput, plan);
+        activeCacheKey = PlanCache.makeKey(cacheKeyInput);
+      }
+      eventBus.emitEvent("plan:created", {
+        plan_id: plan.id,
+        steps: plan.steps,
+        reasoning: plan.reasoning,
+        from_cache: false,
+      });
+    }
 
     let stepIndex = 0;
 
@@ -452,6 +487,18 @@ export async function runAutonomousLoop(
   } finally {
     networkCollector.stop();
     errorCollector.stop();
+    // Record plan outcome into cache (if we had a cache key)
+    if (activeCacheKey && planCache) {
+      const planSucceeded = convergenceReason === "goal_met";
+      if (planSucceeded) {
+        planCache.recordOutcome(activeCacheKey, true);
+      } else if (convergenceReason === "max_replans" || convergenceReason === "error") {
+        // Plan was abandoned — count as failure, will be retired after enough occurrences.
+        planCache.recordOutcome(activeCacheKey, false);
+      }
+      // budget_exceeded / max_actions are not conclusive either way — don't record.
+      planCache.close();
+    }
   }
 
   return {
