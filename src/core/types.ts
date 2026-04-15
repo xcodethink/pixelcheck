@@ -370,10 +370,12 @@ export const ProjectConfigSchema = z.object({
       computer_use: z.string().default("claude-opus-4-6"),
       /** Model for initial autonomous plan generation */
       planner: z.string().default("claude-opus-4-6"),
-      /** Model for per-action navigator decisions */
+      /** Model for per-action navigator decisions (strong/fallback tier) */
       navigator: z.string().default("claude-sonnet-4-6"),
       /** Model for plan revisions (cheaper than initial plan) */
       replan: z.string().default("claude-sonnet-4-6"),
+      /** Economy-tier navigator — used as primary when cost_mode='balanced'|'economy' */
+      navigator_economy: z.string().default("claude-haiku-4-5-20251001"),
     })
     .default({
       default: "claude-sonnet-4-6",
@@ -382,7 +384,16 @@ export const ProjectConfigSchema = z.object({
       planner: "claude-opus-4-6",
       navigator: "claude-sonnet-4-6",
       replan: "claude-sonnet-4-6",
+      navigator_economy: "claude-haiku-4-5-20251001",
     }),
+  /**
+   * Cost/quality tradeoff profile:
+   *   'max'       — Sonnet navigator on every action, Opus initial plan (v0.2 behavior)
+   *   'balanced'  — Haiku navigator primary, Sonnet escalation on low confidence (default)
+   *   'economy'   — Haiku navigator only, no escalation (cheapest; lower accuracy)
+   * Override per-run with AUDIT_COST_MODE=max|balanced|economy.
+   */
+  cost_mode: z.enum(["max", "balanced", "economy"]).default("balanced"),
   budget_usd: z.number().positive().default(3.0),
   redact_patterns: z.array(z.string()).default([]),
   notifications: z

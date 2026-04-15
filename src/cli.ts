@@ -302,22 +302,16 @@ program
       };
 
       const personas = loadPersonas(path.resolve("personas"));
-      const config = {
+      // Parse through the schema so defaulted fields (cost_mode, navigator_economy…)
+      // are populated. This future-proofs the `explore` command against new fields.
+      const { ProjectConfigSchema } = await import("./core/types.js");
+      const config = ProjectConfigSchema.parse({
         project_name: "explore",
         base_url: exploreOpts.url,
         default_concurrency: 1,
         default_timeout_ms: 30_000,
-        models: {
-          default: "claude-sonnet-4-6",
-          critic: "claude-sonnet-4-6",
-          computer_use: "claude-opus-4-6",
-          planner: "claude-opus-4-6",
-          navigator: "claude-sonnet-4-6",
-          replan: "claude-sonnet-4-6",
-        },
         budget_usd: exploreOpts.budget ?? 2.0,
-        redact_patterns: [],
-      };
+      });
 
       validateEnv(["ANTHROPIC_API_KEY"]);
 
