@@ -26,7 +26,11 @@ import { waitForPageStable } from "../core/page-stability.js";
 import { extractDomSummary, formatDomSummary } from "./dom-summary.js";
 import { createPlan, revisePlan, type Plan, type PlannedStep } from "./planner.js";
 import { PlanCache, computeDomSkeleton } from "./plan-cache.js";
-import { navigatorDecide, buildStepFromDecision } from "./navigator.js";
+import {
+  navigatorDecide,
+  economicNavigatorDecide,
+  buildStepFromDecision,
+} from "./navigator.js";
 import {
   ConvergenceTracker,
   initCriteriaState,
@@ -263,7 +267,7 @@ export async function runAutonomousLoop(
       const currentScreenshot = await takeScreenshotBase64(page);
       const currentDom = await extractDomSummary(page);
 
-      const decision = await navigatorDecide(
+      const decision = await runNavigator(
         {
           planned_step: plannedStep,
           persona,
@@ -272,7 +276,7 @@ export async function runAutonomousLoop(
           page_url: page.url(),
           hints: scenario.hints ?? [],
         },
-        models.navigator,
+        opts.config,
         cost,
       );
 
@@ -640,4 +644,41 @@ async function checkCriteria(
       });
     }
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Navigator dispatch — routes to economy or max tier per cost_mode
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Choose and invoke the right navigator based on ProjectConfig.cost_mode,
+ * overridable via AUDIT_COST_MODE env var for ad-hoc benchmarking.
+ *
+ *   'max'      → navigatorDecide with models.navigator (Sonnet)
+ *   'balanced' → economicNavigatorDecide (Haiku primary → Sonnet escalation)
+ *   'economy'  → economicNavigatorDecide (Haiku only, no escalation)
+ */
+async function runNavigator(
+  input: Parameters<typeof navigatorDecide>[0],
+  config: ProjectConfig,
+  cost: { value: number },
+): Promise<Awaited<ReturnType<typeof navigatorDecide>>> {
+  const envMode = process.env.AUDIT_COST_MODE as "max" | "balanced" | "economy" | undefined;
+  const mode = envMode ?? config.cost_mode ?? "balanced";
+  const strong = config.models.navigator;
+  const cheap = config.models.navigator_economy ?? "claude-haiku-4-5-20251001";
+
+  if (mode === "max") {
+    return navigatorDecide(input, strong, cost);
+  }
+
+  const decision = await economicNavigatorDecide(
+    input,
+    { primaryModel: cheap, fallbackModel: strong, primaryOnly: mode === "economy" },
+    cost,
+  );
+  // Strip the telemetry prop before handing back to caller which types against NavigatorDecision.
+  const { _telemetry, ...rest } = decision;
+  void _telemetry;
+  return rest;
 }
