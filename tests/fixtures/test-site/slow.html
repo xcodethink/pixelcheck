@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AV Fixture — Slow</title>
+</head>
+<body>
+  <h1>Slow page (LCP ~2s)</h1>
+  <div id="hero"></div>
+  <script>
+    // Delay LCP by injecting the large element after a pause
+    setTimeout(() => {
+      const img = document.createElement('div');
+      img.textContent = 'HERO';
+      img.style.cssText = 'width:80%;height:400px;background:#eef;display:flex;align-items:center;justify-content:center;font-size:4rem;';
+      document.getElementById('hero').appendChild(img);
+    }, 1800);
+  </script>
+</body>
+</html>
