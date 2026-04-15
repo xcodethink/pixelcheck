@@ -24,5 +24,5 @@ critical_concerns:
   - Android Chrome rendering on mid-range device
   - Fast page load on Indonesian mobile networks
   - Social proof from SEA region (not just Western testimonials)
-  - Payment context: GoPay/OVO/Dana relevant, not just Stripe/PayPal
+  - "Payment context: GoPay/OVO/Dana relevant, not just Stripe/PayPal"
 test_credentials: {}

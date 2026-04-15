@@ -370,9 +370,28 @@ function renderUnit(r: ScenarioRunResult, runDir: string): string {
       Fingerprint: ${escapeHtml(r.fingerprint_id)}
     </div>
     ${scores ? `<div class="scores">${scores}</div>` : ""}
+    ${r.agent_summary ? renderAgentSummary(r.agent_summary) : ""}
     ${issues ? `<div class="issues">${issues}</div>` : ""}
     ${screenshots ? `<div class="gallery">${screenshots}</div>` : ""}
     <div class="steps"><details><summary>Step trace (${r.steps.length} steps)</summary><ul class="step-list">${steps}</ul></details></div>
+  </div>`;
+}
+
+function renderAgentSummary(summary: NonNullable<ScenarioRunResult["agent_summary"]>): string {
+  const convergenceColor =
+    summary.convergence_reason === "goal_met" ? "var(--pass)" :
+    summary.convergence_reason === "budget_exceeded" || summary.convergence_reason === "max_actions" ? "var(--warn)" :
+    "var(--fail)";
+
+  return `<div class="agent-summary" style="margin:12px 0;padding:10px 14px;background:#1a1f2e;border-radius:6px;border-left:3px solid ${convergenceColor}">
+    <div style="font-weight:600;margin-bottom:6px">Agent Summary (Autonomous Mode)</div>
+    <div style="display:flex;gap:20px;font-size:13px;color:#8b949e">
+      <span>Actions: <strong style="color:#c9d1d9">${summary.total_actions}</strong></span>
+      <span>Plans: <strong style="color:#c9d1d9">${summary.plan_count}</strong></span>
+      <span>Convergence: <strong style="color:${convergenceColor}">${summary.convergence_reason}</strong></span>
+    </div>
+    ${summary.criteria_met.length > 0 ? `<div style="margin-top:6px;font-size:12px;color:var(--pass)">Criteria met: ${summary.criteria_met.map(c => escapeHtml(c)).join(", ")}</div>` : ""}
+    ${summary.criteria_missed.length > 0 ? `<div style="margin-top:4px;font-size:12px;color:var(--warn)">Criteria missed: ${summary.criteria_missed.map(c => escapeHtml(c)).join(", ")}</div>` : ""}
   </div>`;
 }
 
