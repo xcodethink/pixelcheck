@@ -45,6 +45,60 @@ describe("SuccessCriterionSchema", () => {
     const result = SuccessCriterionSchema.safeParse({ description: "test" });
     expect(result.success).toBe(false);
   });
+
+  it("validates network criterion", () => {
+    const result = SuccessCriterionSchema.safeParse({
+      id: "signup_ok",
+      description: "signup endpoint returns 2xx within 3s",
+      verification: "network",
+      expected: {
+        url_pattern: "/api/signup",
+        method: "POST",
+        status_range: [200, 299],
+        max_duration_ms: 3000,
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("validates performance criterion", () => {
+    const result = SuccessCriterionSchema.safeParse({
+      id: "core_vitals",
+      description: "Core Web Vitals pass",
+      verification: "performance",
+      expected: { lcp_max_ms: 2500, cls_max: 0.1, inp_max_ms: 200 },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("validates error criterion with ignore_patterns", () => {
+    const result = SuccessCriterionSchema.safeParse({
+      id: "no_errors",
+      description: "no uncaught errors",
+      verification: "error",
+      expected: { console_error_max: 0, pageerror_max: 0, ignore_patterns: ["Third-party"] },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("validates interaction criterion", () => {
+    const result = SuccessCriterionSchema.safeParse({
+      id: "nav_happened",
+      description: "action caused navigation",
+      verification: "interaction",
+      expected: { url_must_change: true, min_text_length_delta: 50 },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects unknown verification value", () => {
+    const result = SuccessCriterionSchema.safeParse({
+      id: "x",
+      description: "",
+      verification: "made-up-kind",
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("HintSchema", () => {
