@@ -24,7 +24,13 @@ import { runCritic, type CriticResult } from "../core/critic.js";
 import { Recorder } from "../core/recorder.js";
 import { waitForPageStable } from "../core/page-stability.js";
 import { extractDomSummary, formatDomSummary } from "./dom-summary.js";
-import { createPlan, revisePlan, type Plan, type PlannedStep } from "./planner.js";
+import {
+  createPlan,
+  revisePlan,
+  microReplan,
+  type Plan,
+  type PlannedStep,
+} from "./planner.js";
 import { PlanCache, computeDomSkeleton } from "./plan-cache.js";
 import {
   navigatorDecide,
@@ -147,6 +153,11 @@ export async function runAutonomousLoop(
   const cacheDisabledOuter = process.env.AUDIT_PLAN_CACHE_DISABLED === "1";
   const planCache: PlanCache | null = cacheDisabledOuter ? null : new PlanCache();
   let activeCacheKey: string | undefined;
+
+  // Micro-replan counter — resets after each full replan. Cap prevents a stuck
+  // failing step from chaining cheap replans forever.
+  const MAX_MICRO_REPLAN_ATTEMPTS = 2;
+  let microReplanAttempts = 0;
 
   try {
     // ── Step 1: Navigate to start URL ────────────────────────────
@@ -409,6 +420,55 @@ export async function runAutonomousLoop(
       }
 
       if (signal.type === "stuck") {
+        // Try a cheap micro-replan FIRST — rewrite just the failing step via
+        // Haiku. Only escalate to a full Sonnet replan if the micro-replan
+        // asks us to, or if its rewrite itself subsequently fails.
+        if (microReplanAttempts < MAX_MICRO_REPLAN_ATTEMPTS) {
+          const economyNav = (opts.config.cost_mode ?? "balanced") !== "max";
+          const microModel = economyNav
+            ? (opts.config.models.navigator_economy ?? "claude-haiku-4-5-20251001")
+            : models.replan;
+          const microResult = await microReplan(
+            {
+              failed_step: plannedStep,
+              failure_reason: result.error ?? "failed without error message",
+              current_url: page.url(),
+              current_screenshot_base64: await takeScreenshotBase64(page),
+              dom_summary: formatDomSummary(await extractDomSummary(page)),
+              persona,
+              hints: scenario.hints ?? [],
+            },
+            microModel,
+            cost,
+          );
+          microReplanAttempts++;
+
+          if (microResult.kind === "rewrite") {
+            // Replace the failing step in-place and retry.
+            plan.steps[stepIndex] = microResult.replacement;
+            convergence.resetFailures();
+            eventBus.emitEvent("plan:revised", {
+              plan_id: plan.id,
+              steps: plan.steps,
+              reasoning: `micro-replan rewrite: ${microResult.replacement.reasoning}`,
+              kind: "micro_rewrite",
+            });
+            continue;
+          }
+          if (microResult.kind === "skip") {
+            stepIndex++;
+            convergence.resetFailures();
+            eventBus.emitEvent("plan:revised", {
+              plan_id: plan.id,
+              steps: plan.steps,
+              reasoning: `micro-replan skip: ${microResult.reason}`,
+              kind: "micro_skip",
+            });
+            continue;
+          }
+          // kind === "escalate" — fall through to full replan
+        }
+
         if (failedPlans.length >= agentConfig.max_replans) {
           convergenceReason = "max_replans";
           break;
@@ -419,6 +479,7 @@ export async function runAutonomousLoop(
         failedPlans.push(plan);
         plan = replanResult.plan;
         stepIndex = 0;
+        microReplanAttempts = 0; // fresh plan resets the counter
         convergence.resetFailures();
         eventBus.emitEvent("plan:revised", {
           plan_id: plan.id,
