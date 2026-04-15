@@ -41,12 +41,14 @@
     "playwright": "^1.49.0",
     "sharp": "^0.34.5",
     "stealth-core": "file:../stealth-core",
+    "ws": "^8.20.0",
     "yaml": "^2.6.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.4"

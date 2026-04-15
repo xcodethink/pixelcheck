@@ -25,6 +25,11 @@ import {
 } from "./secrets.js";
 import type { CriticResult } from "./critic.js";
 import type { DiffResult } from "./visual-diff.js";
+import { AgentEventBus, attachConsoleLogger } from "../agent/events.js";
+import { ObserverServer } from "../observer/server.js";
+import { SessionStore } from "../observer/session-store.js";
+import { startScreencast, type ScreencastHandle } from "../observer/screencast.js";
+import { runAutonomousLoop } from "../agent/agent-loop.js";
 
 export interface RunnerOptions {
   config: ProjectConfig;
@@ -40,6 +45,12 @@ export interface RunnerOptions {
   baselineDir?: string;
   /** Whether to record Playwright trace for each unit */
   recordTrace?: boolean;
+  /** Enable event system (for live observer). Default: false */
+  observe?: boolean;
+  /** Observer dashboard port. Default: 3847 */
+  observerPort?: number;
+  /** Verbose event logging. Default: false */
+  verbose?: boolean;
 }
 
 /**
@@ -51,7 +62,9 @@ export interface RunnerOptions {
  *     so we don't trip rate limits / WAFs.
  *   - Budget cap stops new units from starting once exceeded.
  */
-export async function runAudit(opts: RunnerOptions): Promise<AuditRun> {
+export async function runAudit(
+  opts: RunnerOptions,
+): Promise<{ audit: AuditRun; eventBus?: AgentEventBus }> {
   const concurrency = opts.concurrency ?? opts.config.default_concurrency;
   const limit = pLimit(concurrency);
   const throttle = new OriginThrottle();
@@ -65,6 +78,28 @@ export async function runAudit(opts: RunnerOptions): Promise<AuditRun> {
 
   const stripeSecrets = getStripeSecrets();
   const redactPatterns = buildRedactPatterns(opts.config.redact_patterns);
+
+  // Create top-level event bus for the run
+  const runEventBus = opts.observe
+    ? new AgentEventBus(runId)
+    : undefined;
+  if (runEventBus) {
+    attachConsoleLogger(runEventBus, opts.verbose ?? false);
+  }
+
+  // Start observer server + session store if observe mode enabled
+  let observer: ObserverServer | undefined;
+  let sessionStore: SessionStore | undefined;
+  if (runEventBus && opts.observe) {
+    sessionStore = new SessionStore(runId, runDir);
+    sessionStore.attach(runEventBus);
+    observer = new ObserverServer({
+      port: opts.observerPort ?? 3847,
+      eventBus: runEventBus,
+      sessionStore,
+    });
+    await observer.start();
+  }
 
   console.log(
     chalk.cyan(`\n[ai-audit] Run ${runId}`),
@@ -97,6 +132,14 @@ export async function runAudit(opts: RunnerOptions): Promise<AuditRun> {
         return;
       }
       const origin = originOf(opts.config.base_url);
+      // Create per-unit event bus (child of run bus) or standalone
+      const unitBus = runEventBus
+        ? new AgentEventBus(`${runId}__${personaId}__${scenario.id}`)
+        : undefined;
+      // Forward unit events to run-level bus
+      if (unitBus && runEventBus) {
+        unitBus.on("*", (event) => runEventBus.emit("*", event));
+      }
       const result = await throttle.run(origin, () =>
         runOne({
           config: opts.config,
@@ -107,6 +150,8 @@ export async function runAudit(opts: RunnerOptions): Promise<AuditRun> {
           stripeSecrets,
           baselineDir: opts.baselineDir,
           recordTrace: opts.recordTrace ?? false,
+          eventBus: unitBus,
+          observer,
         }),
       );
       totalCost.value += result.cost_usd;
@@ -124,6 +169,14 @@ export async function runAudit(opts: RunnerOptions): Promise<AuditRun> {
   );
 
   await Promise.all(tasks);
+
+  // Shut down observer server
+  if (observer) {
+    await observer.stop().catch(() => {});
+  }
+  if (sessionStore) {
+    await sessionStore.close();
+  }
 
   const finishedAt = new Date().toISOString();
   const summary = {
@@ -163,7 +216,7 @@ export async function runAudit(opts: RunnerOptions): Promise<AuditRun> {
   }
 
   audit.redact_patterns = redactPatterns;
-  return audit;
+  return { audit, eventBus: runEventBus };
 }
 
 interface RunOneOpts {
@@ -175,6 +228,8 @@ interface RunOneOpts {
   stripeSecrets: Record<string, string>;
   baselineDir?: string;
   recordTrace: boolean;
+  eventBus?: AgentEventBus;
+  observer?: ObserverServer;
 }
 
 async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
@@ -192,18 +247,28 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
     `${opts.scenario.id} × ${opts.persona.id}`,
   );
 
+  opts.eventBus?.emitEvent("session:start", {
+    scenario_id: opts.scenario.id,
+    scenario_name: opts.scenario.name,
+    persona_id: opts.persona.id,
+    persona_display_name: opts.persona.display_name,
+  });
+
   let wrapper: Awaited<ReturnType<typeof createStagehandWrapper>> | undefined;
   let videoPath: string | undefined;
+  let screencastHandle: ScreencastHandle | undefined;
   const cost = { value: 0 };
   const stepResults: StepResult[] = [];
   const criticResults: CriticResult[] = [];
   const diffResults: DiffResult[] = [];
   const issues: Issue[] = [];
   let fingerprintId = "unknown";
+  let agentSummary: ScenarioRunResult["agent_summary"];
 
   try {
     // Build admin cookies if scenario targets admin
-    const targetsAdmin = opts.scenario.steps.some(
+    const steps = opts.scenario.steps ?? [];
+    const targetsAdmin = steps.some(
       (s) =>
         (s.type === "visit" && s.url.includes("/admin")) ||
         opts.scenario.id.includes("admin"),
@@ -229,10 +294,18 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
     });
     fingerprintId = wrapper.fingerprint.id;
 
+    // Start screencast if observer is active
+    if (opts.observer) {
+      screencastHandle = await startScreencast(
+        wrapper.page,
+        (base64Data) => opts.observer!.broadcastFrame(base64Data),
+      ).catch(() => undefined);
+    }
+
     const recorder = new Recorder(wrapper.page, unitDir);
 
-    // Some scenarios need a temp inbox (any check_email step → create inbox upfront)
-    const needsInbox = opts.scenario.steps.some((s) => s.type === "check_email");
+    // Some scenarios need a temp inbox (any check_email step -> create inbox upfront)
+    const needsInbox = steps.some((s) => s.type === "check_email");
     const tempInbox = needsInbox ? await createTempInbox() : undefined;
 
     const ctx: StepContext = {
@@ -255,16 +328,67 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
       diffResults,
     };
 
-    for (const step of opts.scenario.steps) {
-      const result = await executeStep(step, ctx);
-      stepResults.push(result);
+    // ── Mode branching: scripted vs autonomous ──────────────────
 
-      if (result.status === "fail" && step.critical) {
-        console.log(
-          chalk.red(`[CRITICAL FAIL]`),
-          `${opts.scenario.id}/${step.id}: ${result.error ?? "see logs"}`,
-        );
-        break;
+    if (opts.scenario.mode === "autonomous") {
+      // Autonomous mode: goal-driven agent loop
+      // Always need an EventBus — create one if not provided by observer
+      const loopBus = opts.eventBus ?? new AgentEventBus(
+        `${opts.persona.id}__${opts.scenario.id}`,
+      );
+      const autoResult = await runAutonomousLoop({
+        config: opts.config,
+        persona: opts.persona,
+        scenario: opts.scenario,
+        page: wrapper.page,
+        stagehand: wrapper.stagehand,
+        recorder,
+        eventBus: loopBus,
+        cost,
+        stripeSecrets: opts.stripeSecrets,
+        baselineDir: opts.baselineDir,
+      });
+      stepResults.push(...autoResult.stepResults);
+      criticResults.push(...autoResult.criticResults);
+      issues.push(...autoResult.issues);
+      agentSummary = autoResult.agent_summary;
+    } else {
+      // Scripted mode: execute steps sequentially (existing behavior)
+      for (const step of steps) {
+        opts.eventBus?.emitEvent("step:start", {
+          step_id: step.id,
+          step_type: step.type,
+          instruction: "instruction" in step ? (step as { instruction: string }).instruction : undefined,
+        });
+
+        const result = await executeStep(step, ctx);
+        stepResults.push(result);
+
+        if (result.status === "fail") {
+          opts.eventBus?.emitEvent("step:failed", {
+            step_id: step.id,
+            step_type: step.type,
+            status: result.status,
+            error: result.error,
+            duration_ms: result.duration_ms,
+          });
+        } else {
+          opts.eventBus?.emitEvent("step:complete", {
+            step_id: step.id,
+            step_type: step.type,
+            status: result.status,
+            duration_ms: result.duration_ms,
+            execution_method: result.execution_method,
+          });
+        }
+
+        if (result.status === "fail" && step.critical) {
+          console.log(
+            chalk.red(`[CRITICAL FAIL]`),
+            `${opts.scenario.id}/${step.id}: ${result.error ?? "see logs"}`,
+          );
+          break;
+        }
       }
     }
 
@@ -276,6 +400,9 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
       recommendation: "Check the logs and verify environment / credentials.",
     });
   } finally {
+    if (screencastHandle) {
+      await screencastHandle.stop().catch(() => {});
+    }
     if (wrapper) {
       try {
         videoPath = await wrapper.close();
@@ -328,6 +455,16 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
       ? "pass_with_issues"
       : "pass";
 
+  opts.eventBus?.emitEvent("session:end", {
+    scenario_id: opts.scenario.id,
+    persona_id: opts.persona.id,
+    status,
+    overall_score: overall,
+    total_actions: stepResults.length,
+    cost_usd: cost.value,
+    issues_count: issues.length,
+  });
+
   return {
     scenario_id: opts.scenario.id,
     scenario_name: opts.scenario.name,
@@ -348,6 +485,7 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
       console_log: path.join(unitDir, "console.log"),
     },
     cost_usd: cost.value,
+    agent_summary: agentSummary,
   };
 }
 

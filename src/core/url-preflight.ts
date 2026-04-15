@@ -43,7 +43,7 @@ export async function preflightUrls(
   // Collect unique (url, scenarioId, personaId, stepId) tuples
   const targets = new Map<string, UrlIssue>();
   for (const { scenario, persona } of matrix) {
-    for (const step of scenario.steps) {
+    for (const step of scenario.steps ?? []) {
       if (step.type !== "visit") continue;
       const ctx = {
         persona: persona as unknown as Record<string, unknown>,

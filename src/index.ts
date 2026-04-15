@@ -8,6 +8,8 @@ export {
   substituteTemplate,
 } from "./core/scenario.js";
 export { runAudit } from "./core/runner.js";
+export { AgentEventBus, attachConsoleLogger, type AgentEvent, type AgentEventType } from "./agent/events.js";
+export { extractDomSummary, formatDomSummary, type DomSummary } from "./agent/dom-summary.js";
 export {
   writeJsonReport,
   writeHtmlReport,
