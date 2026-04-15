@@ -33,10 +33,18 @@ import {
   checkDomCriterion,
   checkExtractCriterion,
   checkVisualCriterion,
+  checkNetworkCriterion,
+  checkPerformanceCriterion,
+  checkErrorCriterion,
+  checkInteractionCriterion,
   getDomFingerprint,
   type CriteriaState,
 } from "./convergence.js";
 import { AgentEventBus } from "./events.js";
+import { NetworkSignalCollector } from "./signals/network.js";
+import { PerformanceSignalCollector } from "./signals/performance.js";
+import { ErrorSignalCollector } from "./signals/errors.js";
+import { takeSnapshot, type PageSnapshot } from "./signals/interaction.js";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -119,11 +127,23 @@ export async function runAutonomousLoop(
     diffResults: [],
   };
 
+  // ── Signal collectors: attach BEFORE navigation so LCP/init scripts fire correctly ──
+  const networkCollector = new NetworkSignalCollector(page);
+  const errorCollector = new ErrorSignalCollector(page);
+  const performanceCollector = new PerformanceSignalCollector(page);
+  networkCollector.start();
+  errorCollector.start();
+  await performanceCollector.attach();
+
+  // Most recent pre-action page snapshot for interaction-criterion checks.
+  let preActionSnapshot: PageSnapshot | null = null;
+
   try {
     // ── Step 1: Navigate to start URL ────────────────────────────
     const startUrl = scenario.start_url!;
     await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await waitForPageStable(page, { timeout: 6000 });
+    preActionSnapshot = await takeSnapshot(page);
 
     // ── Step 2: Initial observation ──────────────────────────────
     const screenshot = await takeScreenshotBase64(page);
@@ -267,6 +287,8 @@ export async function runAutonomousLoop(
       }
 
       // ── ACT: Execute via existing handlers ─────────────────────
+      // Snapshot BEFORE the action for interaction-criterion baseline.
+      preActionSnapshot = await takeSnapshot(page);
       const step = buildStepFromDecision(decision, convergence.totalActions);
 
       eventBus.emitEvent("action:start", {
@@ -277,6 +299,20 @@ export async function runAutonomousLoop(
       });
 
       const result = await executeStep(step, ctx);
+      // Snapshot signals captured during this action and reset per-action collectors.
+      const postSnapshot = await takeSnapshot(page);
+      const interactionSignal =
+        preActionSnapshot && postSnapshot
+          ? { before: preActionSnapshot, after: postSnapshot }
+          : undefined;
+      result.signals = {
+        network: networkCollector.snapshot(),
+        errors: errorCollector.snapshot(),
+        performance: await performanceCollector.snapshot(),
+        interaction: interactionSignal,
+      };
+      networkCollector.reset();
+      errorCollector.reset();
       stepResults.push(result);
 
       const domFp = await getDomFingerprint(page);
@@ -362,6 +398,12 @@ export async function runAutonomousLoop(
         models.critic,
         cost,
         eventBus,
+        {
+          network: networkCollector,
+          errors: errorCollector,
+          performance: performanceCollector,
+          preActionSnapshot,
+        },
       );
 
       if (allCriteriaMet(criteriaState)) {
@@ -407,6 +449,9 @@ export async function runAutonomousLoop(
       description: `Autonomous loop crashed: ${errMsg}`,
       recommendation: "Check logs. This may indicate a page crash, network issue, or API quota exceeded.",
     });
+  } finally {
+    networkCollector.stop();
+    errorCollector.stop();
   }
 
   return {
@@ -478,6 +523,13 @@ async function doReplan(
   );
 }
 
+interface SignalBundle {
+  network: NetworkSignalCollector;
+  errors: ErrorSignalCollector;
+  performance: PerformanceSignalCollector;
+  preActionSnapshot: PageSnapshot | null;
+}
+
 async function checkCriteria(
   state: CriteriaState,
   page: Page,
@@ -486,6 +538,7 @@ async function checkCriteria(
   criticModel: string,
   cost: { value: number },
   eventBus: AgentEventBus,
+  signals: SignalBundle,
 ): Promise<void> {
   for (const criterion of state.criteria) {
     if (state.met.has(criterion.id)) continue;
@@ -498,6 +551,19 @@ async function checkCriteria(
         break;
       case "extract":
         met = await checkExtractCriterion(criterion, page);
+        break;
+      case "network":
+        met = checkNetworkCriterion(criterion, signals.network);
+        break;
+      case "performance":
+        met = await checkPerformanceCriterion(criterion, signals.performance);
+        break;
+      case "error":
+        met = checkErrorCriterion(criterion, signals.errors);
+        break;
+      case "interaction":
+        if (!signals.preActionSnapshot) continue;
+        met = await checkInteractionCriterion(criterion, page, signals.preActionSnapshot);
         break;
       case "visual":
         // Only check visual criteria every N actions to reduce cost
