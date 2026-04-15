@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — v0.3 development
+
+### Added — Week 1: Signal-based convergence + cost-optimized agent
+
+- **4-dimensional success criteria** — `SuccessCriterion.verification` extended with:
+  - `network` — assert HTTP request(s) matching url/method/status/duration
+  - `performance` — assert Core Web Vitals (LCP/CLS/INP/FCP/TTFB) thresholds
+  - `error` — assert bounded console errors / pageerrors / request failures (with `ignore_patterns` for known noise)
+  - `interaction` — assert an action actually changed page state (URL / title / interactive DOM / visible text / scroll / focus)
+
+  This defeats the "optimistic success" agent failure where a click reports success but nothing happened or the backend returned 500.
+- **Signal collectors** (`src/agent/signals/`) — zero-LLM-cost measurement primitives:
+  - `NetworkSignalCollector` — Playwright request/response tracking, `findMatching()` query API
+  - `PerformanceSignalCollector` — PerformanceObserver-injected web-vitals capture
+  - `ErrorSignalCollector` — console / pageerror / 4xx-5xx static resources, ignore patterns
+  - Interaction snapshot+diff functions
+  - All four attached per-action in autonomous mode; `StepResult.signals` carries per-step snapshots
+- **Plan cache** (`~/.ai-browser-auditor/plan-cache.db`) — SQLite store for reusable autonomous plans
+  - Keyed on (scenario_id, persona_class, host, dom_skeleton) — cosmetic changes don't invalidate
+  - 7-day TTL; auto-retires after ≥3 failures outweighing successes
+  - Disable with `AUDIT_PLAN_CACHE_DISABLED=1`
+  - Expected hit rate: 60–80% on repeated runs against the same site
+- **Economy navigator tier** — Haiku primary + Sonnet escalation
+  - `cost_mode: 'max' | 'balanced' | 'economy'` (default `'balanced'`) in ProjectConfig
+  - `balanced`: Haiku primary, Sonnet only when confidence < 0.6 or needs_replan
+  - `economy`: Haiku only
+  - `max`: legacy v0.2 behavior (always Sonnet)
+  - Override per-run: `AUDIT_COST_MODE=economy`
+  - Expected: ~3–5× cheaper per action at comparable success rate
+- **Micro-replan** — cheap single-step recovery before triggering a full Sonnet replan
+  - On stuck convergence, Haiku rewrites / skips / escalates the failing step
+  - ~15× cheaper than a full replan; capped at 2 attempts per plan
+- **Local fixture test site** (`tests/fixtures/test-site/`) — hermetic integration testing
+  - 5 static HTML fixtures + in-process HTTP server with canned JSON APIs
+  - Backs `tests/integration/` — full signal + convergence validation without external network
+
+### Changed
+
+- `ProjectConfig.models` adds `navigator_economy` (default Haiku 4.5)
+- `ProjectConfig` adds `cost_mode` field (default `'balanced'`)
+- `StepResult` adds optional `signals` field for per-step snapshots
+- CLI `explore` command now parses config through `ProjectConfigSchema` so defaults populate
+
+### Tests
+
+- 83 new tests across 7 new files (signals/*, convergence-signals, plan-cache, navigator-economy, micro-replan, signals-e2e, agent-loop-e2e)
+- Full suite: **174 tests pass** (up from 87 at branch start)
+- `tsc --noEmit` clean
+- No breaking changes: all new fields are additive + optional
+
 ## [0.2.0] - 2026-04-12
 
 ### Added
