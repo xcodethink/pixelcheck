@@ -93,6 +93,13 @@ export function substituteTemplate(
 }
 
 /**
+ * Check if a scenario uses autonomous mode.
+ */
+export function isAutonomous(scenario: Scenario): boolean {
+  return scenario.mode === "autonomous";
+}
+
+/**
  * Build the (persona, scenario) execution matrix, respecting applies_to.
  */
 export function buildExecutionMatrix(

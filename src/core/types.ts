@@ -176,44 +176,137 @@ export type AssertA11yStep = z.infer<typeof AssertA11yStepSchema>;
 export type CustomStep = z.infer<typeof CustomStepSchema>;
 
 // ─────────────────────────────────────────────────────────────
-// Scenario
+// Autonomous mode: Success Criteria, Hints, AgentConfig
 // ─────────────────────────────────────────────────────────────
 
-export const ScenarioSchema = z.object({
+export const SuccessCriterionSchema = z.object({
   id: z.string().min(1),
-  name: z.string(),
-  priority: z.enum(["P0", "P1", "P2", "P3"]),
-  goal: z.string(),
-  applies_to: z.object({
-    personas: z.array(z.string()).min(1),
-  }),
-  scoring_dimensions: z
-    .array(
-      z.enum([
-        "completion",
-        "localization",
-        "visual_polish",
-        "trust_signals",
-        "time_to_value",
-        "error_density",
-        "ui_consistency",
-        "data_integrity",
-        "payment_flow_clarity",
-        "workflow_visibility",
-        "output_quality",
-        "email_design",
-        "compliance",
-        "extension_responsiveness",
-        "ai_quality",
-        "sync_reliability",
-        "information_density",
-        "accessibility",
-      ]),
-    )
-    .default(["completion", "localization", "visual_polish"]),
-  steps: z.array(StepSchema).min(1),
-  persistent_storage: z.boolean().default(false),
+  description: z.string(),
+  /** How to verify: 'visual' = screenshot+LLM, 'dom' = selector check, 'extract' = data extraction */
+  verification: z.enum(["visual", "dom", "extract"]).default("visual"),
+  /** For dom verification: CSS selector to check */
+  selector: z.string().optional(),
+  /** For dom verification: expected state */
+  expected: z
+    .object({
+      visible: z.boolean().optional(),
+      text_contains: z.string().optional(),
+    })
+    .optional(),
+  /** For extract verification: instruction to extract + expected pattern */
+  extract_instruction: z.string().optional(),
+  expected_pattern: z.string().optional(), // regex
 });
+
+export type SuccessCriterion = z.infer<typeof SuccessCriterionSchema>;
+
+export const HintSchema = z.object({
+  /** When this hint applies (e.g., "when cookie banner appears") */
+  condition: z.string(),
+  /** What to do */
+  suggestion: z.string(),
+  /** Optional selector to target */
+  selector: z.string().optional(),
+});
+
+export type Hint = z.infer<typeof HintSchema>;
+
+export const AgentConfigSchema = z.object({
+  /** Max total actions before forced stop */
+  max_actions: z.number().int().positive().default(30),
+  /** Max consecutive failures before replanning */
+  replan_threshold: z.number().int().positive().default(3),
+  /** Max replans before giving up */
+  max_replans: z.number().int().positive().default(3),
+  /** Planner model override */
+  planner_model: z.string().optional(),
+  /** Navigator model override */
+  navigator_model: z.string().optional(),
+  /** Screenshot frequency: 'every_action' | 'on_decision' | 'on_failure' */
+  screenshot_frequency: z.enum(["every_action", "on_decision", "on_failure"]).default("every_action"),
+  /** Enable persona-aware reasoning (adds persona context to every LLM call) */
+  persona_reasoning: z.boolean().default(true),
+});
+
+export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// Scoring Dimensions Enum (shared)
+// ─────────────────────────────────────────────────────────────
+
+export const ScoringDimensionEnum = z.enum([
+  "completion",
+  "localization",
+  "visual_polish",
+  "trust_signals",
+  "time_to_value",
+  "error_density",
+  "ui_consistency",
+  "data_integrity",
+  "payment_flow_clarity",
+  "workflow_visibility",
+  "output_quality",
+  "email_design",
+  "compliance",
+  "extension_responsiveness",
+  "ai_quality",
+  "sync_reliability",
+  "information_density",
+  "accessibility",
+]);
+
+// ─────────────────────────────────────────────────────────────
+// Scenario (backward-compatible: supports both scripted and autonomous)
+// ─────────────────────────────────────────────────────────────
+
+export const ScenarioSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string(),
+    priority: z.enum(["P0", "P1", "P2", "P3"]),
+    goal: z.string(),
+    applies_to: z.object({
+      personas: z.array(z.string()).min(1),
+    }),
+    scoring_dimensions: z
+      .array(ScoringDimensionEnum)
+      .default(["completion", "localization", "visual_polish"]),
+
+    /** Execution mode. Default: "scripted" (backward compatible) */
+    mode: z.enum(["scripted", "autonomous"]).default("scripted"),
+
+    // Scripted mode fields
+    steps: z.array(StepSchema).optional(),
+
+    // Autonomous mode fields
+    /** Starting URL for autonomous exploration */
+    start_url: z.string().optional(),
+    /** Success criteria that the agent must satisfy */
+    success_criteria: z.array(SuccessCriterionSchema).optional(),
+    /** Hints to guide the agent */
+    hints: z.array(HintSchema).optional(),
+    /** Per-scenario agent configuration overrides */
+    agent_config: AgentConfigSchema.optional(),
+
+    persistent_storage: z.boolean().default(false),
+  })
+  .refine(
+    (s) => {
+      if (s.mode === "autonomous") {
+        return (
+          s.success_criteria !== undefined &&
+          s.success_criteria.length > 0 &&
+          s.start_url !== undefined &&
+          s.start_url.length > 0
+        );
+      }
+      return s.steps !== undefined && s.steps.length > 0;
+    },
+    {
+      message:
+        "Autonomous mode requires success_criteria[] and start_url; scripted mode requires steps[]",
+    },
+  );
 
 export type Scenario = z.infer<typeof ScenarioSchema>;
 
@@ -232,11 +325,20 @@ export const ProjectConfigSchema = z.object({
       default: z.string().default("claude-sonnet-4-6"),
       critic: z.string().default("claude-sonnet-4-6"),
       computer_use: z.string().default("claude-opus-4-6"),
+      /** Model for initial autonomous plan generation */
+      planner: z.string().default("claude-opus-4-6"),
+      /** Model for per-action navigator decisions */
+      navigator: z.string().default("claude-sonnet-4-6"),
+      /** Model for plan revisions (cheaper than initial plan) */
+      replan: z.string().default("claude-sonnet-4-6"),
     })
     .default({
       default: "claude-sonnet-4-6",
       critic: "claude-sonnet-4-6",
       computer_use: "claude-opus-4-6",
+      planner: "claude-opus-4-6",
+      navigator: "claude-sonnet-4-6",
+      replan: "claude-sonnet-4-6",
     }),
   budget_usd: z.number().positive().default(3.0),
   redact_patterns: z.array(z.string()).default([]),
@@ -244,6 +346,26 @@ export const ProjectConfigSchema = z.object({
     .object({
       slack_webhook_env: z.string().optional(),
       telegram_chat_id_env: z.string().optional(),
+    })
+    .optional(),
+  /** Default agent configuration for autonomous scenarios */
+  agent: z
+    .object({
+      default_max_actions: z.number().int().positive().default(30),
+      default_replan_threshold: z.number().int().positive().default(3),
+      default_max_replans: z.number().int().positive().default(3),
+      /** Check visual criteria every N actions (reduces LLM cost) */
+      criteria_check_interval: z.number().int().positive().default(3),
+      /** Max interactive elements in DOM summary */
+      dom_summary_max_elements: z.number().int().positive().default(50),
+    })
+    .optional(),
+  /** Observer dashboard configuration */
+  observer: z
+    .object({
+      port: z.number().int().positive().default(3847),
+      stream_fps: z.number().int().positive().default(10),
+      persist_events: z.boolean().default(true),
     })
     .optional(),
 });
@@ -315,6 +437,15 @@ export interface ScenarioRunResult {
     storage_state?: string;
   };
   cost_usd: number;
+  /** Present only for autonomous mode runs */
+  agent_summary?: {
+    mode: "autonomous";
+    plan_count: number;
+    total_actions: number;
+    criteria_met: string[];
+    criteria_missed: string[];
+    convergence_reason: "goal_met" | "budget_exceeded" | "max_actions" | "max_replans" | "error";
+  };
 }
 
 export interface AuditRun {
