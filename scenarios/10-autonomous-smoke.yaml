@@ -1,0 +1,53 @@
+id: "10-autonomous-smoke"
+name: "Autonomous Smoke Test"
+priority: P1
+mode: autonomous
+start_url: "${env.BASE_URL}"
+
+goal: |
+  Visit the homepage, explore the main navigation, and verify the site
+  is functional, accessible, and properly localized for this persona.
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+
+scoring_dimensions:
+  - completion
+  - localization
+  - visual_polish
+  - accessibility
+
+success_criteria:
+  - id: homepage-loaded
+    description: "Homepage loads fully with visible content and no error messages"
+    verification: visual
+
+  - id: nav-functional
+    description: "Main navigation has at least 3 clickable items"
+    verification: dom
+    selector: "nav a, nav button, [role='navigation'] a, header a"
+    expected:
+      visible: true
+
+  - id: no-console-errors
+    description: "No JavaScript errors in the browser console"
+    verification: extract
+    extract_instruction: "Check for JavaScript errors"
+    expected_pattern: "^0$"
+
+hints:
+  - condition: "when a cookie consent banner or popup appears"
+    suggestion: "Accept all cookies or close the banner to proceed"
+  - condition: "when the page shows a loading spinner for more than 5 seconds"
+    suggestion: "Wait a moment, then try scrolling or clicking elsewhere"
+  - condition: "when looking for navigation links"
+    suggestion: "Check the header area, hamburger menu (mobile), or sidebar"
+
+agent_config:
+  max_actions: 15
+  replan_threshold: 3
+  max_replans: 2
+  screenshot_frequency: every_action
+  persona_reasoning: true

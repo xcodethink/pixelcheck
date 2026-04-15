@@ -24,5 +24,5 @@ critical_concerns:
   - Page weight matters — budget phone on 4G, keep under 3MB initial load
   - WhatsApp share button or link copy must work (primary distribution channel)
   - Free tier must provide enough value to be shareable
-  - Date format: dd/mm/yyyy (Indian standard)
+  - "Date format: dd/mm/yyyy (Indian standard)"
 test_credentials: {}

@@ -5,6 +5,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import dotenv from "dotenv";
 import { loadProjectConfig, validateEnv } from "./core/config.js";
+import { ScenarioSchema } from "./core/types.js";
 import { loadPersonas } from "./core/persona.js";
 import { loadScenarios, buildExecutionMatrix } from "./core/scenario.js";
 import { runAudit } from "./core/runner.js";
@@ -58,6 +59,9 @@ program
   .option("--baseline <dir>", "Visual regression baseline directory", "baselines")
   .option("--no-baseline", "Disable visual regression diff")
   .option("--trace", "Record Playwright trace for each unit", false)
+  .option("--observe", "Start live observer dashboard", false)
+  .option("--observe-port <port>", "Observer dashboard port", parseIntOpt)
+  .option("--mode <mode>", "Filter scenarios by mode: scripted | autonomous")
   .option("--dry-run", "Validate config + matrix only", false)
   .option(
     "--no-preflight",
@@ -249,6 +253,169 @@ program
     console.log(chalk.gray(`To customize personas, create a personas/ dir inside the project.`));
   });
 
+// ── explore command: ad-hoc autonomous exploration ──────────────────
+
+program
+  .command("explore")
+  .description("Ad-hoc autonomous exploration without a YAML scenario")
+  .requiredOption("--url <url>", "Starting URL")
+  .requiredOption("--goal <goal>", "What the agent should achieve")
+  .option("--persona <id>", "Persona id", "us-english-free-mobile")
+  .option("--criteria <criteria...>", "Success criteria descriptions")
+  .option("--budget <usd>", "Max USD budget", parseFloatOpt)
+  .option("--observe", "Start live observer dashboard", false)
+  .option("--observe-port <port>", "Observer dashboard port", parseIntOpt)
+  .option("--headed", "Visible browser", false)
+  .option("-o, --out <dir>", "Output base dir", "reports")
+  .action(async (exploreOpts: {
+    url: string;
+    goal: string;
+    persona: string;
+    criteria?: string[];
+    budget?: number;
+    observe: boolean;
+    observePort?: number;
+    headed: boolean;
+    out: string;
+  }) => {
+    try {
+      dotenv.config();
+
+      // Build an in-memory autonomous scenario
+      const scenario = {
+        id: "explore-adhoc",
+        name: "Ad-hoc Exploration",
+        priority: "P0" as const,
+        goal: exploreOpts.goal,
+        mode: "autonomous" as const,
+        start_url: exploreOpts.url,
+        applies_to: { personas: [exploreOpts.persona] },
+        scoring_dimensions: ["completion" as const, "visual_polish" as const],
+        success_criteria: (exploreOpts.criteria ?? ["Page loads successfully"]).map(
+          (desc, i) => ({
+            id: `criterion-${i}`,
+            description: desc,
+            verification: "visual" as const,
+          }),
+        ),
+        persistent_storage: false,
+      };
+
+      const personas = loadPersonas(path.resolve("personas"));
+      const config = {
+        project_name: "explore",
+        base_url: exploreOpts.url,
+        default_concurrency: 1,
+        default_timeout_ms: 30_000,
+        models: {
+          default: "claude-sonnet-4-6",
+          critic: "claude-sonnet-4-6",
+          computer_use: "claude-opus-4-6",
+          planner: "claude-opus-4-6",
+          navigator: "claude-sonnet-4-6",
+          replan: "claude-sonnet-4-6",
+        },
+        budget_usd: exploreOpts.budget ?? 2.0,
+        redact_patterns: [],
+      };
+
+      validateEnv(["ANTHROPIC_API_KEY"]);
+
+      // Validate the in-memory scenario through Zod
+      const validated = ScenarioSchema.safeParse(scenario);
+      if (!validated.success) {
+        throw new Error(
+          `Invalid explore scenario:\n${validated.error.errors.map((e) => `  - ${e.path.join(".")}: ${e.message}`).join("\n")}`,
+        );
+      }
+      const validScenario = validated.data;
+
+      const { audit } = await runAudit({
+        config,
+        personas,
+        scenarios: [validScenario],
+        matrix: [{ scenario: validScenario, personaId: exploreOpts.persona }],
+        outputRoot: path.resolve(exploreOpts.out),
+        headless: !exploreOpts.headed,
+        tag: "explore",
+        observe: exploreOpts.observe,
+        observerPort: exploreOpts.observePort,
+      });
+
+      console.log(chalk.cyan("\n[explore] Complete"));
+      console.log(`  Score: ${audit.results[0]?.overall_score.toFixed(1) ?? "N/A"}`);
+      console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
+      if (audit.results[0]?.agent_summary) {
+        const as = audit.results[0].agent_summary;
+        console.log(`  Actions: ${as.total_actions}, Plans: ${as.plan_count}`);
+        console.log(`  Criteria met: ${as.criteria_met.join(", ") || "none"}`);
+        console.log(`  Convergence: ${as.convergence_reason}`);
+      }
+    } catch (err) {
+      console.error(chalk.red("[FATAL]"), err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+// ── replay command: replay past sessions ───────────────────────────
+
+program
+  .command("replay <run-dir>")
+  .description("Replay a past agent session in the observer dashboard")
+  .option("--port <port>", "Dashboard port", parseIntOpt)
+  .action(async (runDir: string, replayOpts: { port?: number }) => {
+    const { loadEventsFromNdjson } = await import("./observer/session-store.js");
+    const { ObserverServer } = await import("./observer/server.js");
+    const { AgentEventBus } = await import("./agent/events.js");
+    const { SessionStore } = await import("./observer/session-store.js");
+
+    const resolvedDir = path.resolve(runDir);
+    const eventsFile = path.join(resolvedDir, "events.ndjson");
+
+    if (!fs.existsSync(eventsFile)) {
+      console.error(chalk.red(`No events.ndjson found in ${resolvedDir}`));
+      process.exit(1);
+    }
+
+    const events = loadEventsFromNdjson(eventsFile);
+    if (events.length === 0) {
+      console.log(chalk.yellow(`[replay] No events found in ${eventsFile}`));
+      process.exit(0);
+    }
+    console.log(chalk.cyan(`[replay] Loaded ${events.length} events from ${eventsFile}`));
+
+    const bus = new AgentEventBus("replay");
+    const store = new SessionStore("replay");
+    store.attach(bus);
+
+    const server = new ObserverServer({
+      port: replayOpts.port ?? 3847,
+      eventBus: bus,
+      sessionStore: store,
+    });
+
+    await server.start();
+    console.log(chalk.gray("  Replaying events... (Ctrl+C to stop)"));
+
+    // Replay events with relative timing between consecutive events
+    let prevTimestamp = new Date(events[0].timestamp).getTime();
+    for (const event of events) {
+      const eventTime = new Date(event.timestamp).getTime();
+      const delay = Math.min(Math.max(0, eventTime - prevTimestamp), 500);
+      prevTimestamp = eventTime;
+      if (delay > 0) {
+        await new Promise((r) => setTimeout(r, delay));
+      }
+      store.recordEvent(event);
+      bus.emit(event.type, event);
+      bus.emit("*", event);
+    }
+
+    console.log(chalk.green("[replay] Complete. Dashboard still serving. Ctrl+C to stop."));
+    // Keep process alive
+    await new Promise(() => {});
+  });
+
 program.parse();
 
 interface RunOpts {
@@ -265,6 +432,9 @@ interface RunOpts {
   tag: string;
   baseline: string | false;
   trace: boolean;
+  observe: boolean;
+  observePort?: number;
+  mode?: string;
   dryRun: boolean;
   preflight: boolean;
   minScore?: number;
@@ -313,8 +483,10 @@ async function runCommand(opts: RunOpts): Promise<void> {
   const preview = opts.scenario.length > 0
     ? Array.from(scenarios.values()).filter((s) => selectedScenarioIds.has(s.id))
     : Array.from(scenarios.values());
-  const needsLlm = preview.some((s) =>
-    s.steps.some((step) => llmStepTypes.has(step.type)),
+  const needsLlm = preview.some(
+    (s) =>
+      s.mode === "autonomous" ||
+      (s.steps ?? []).some((step) => llmStepTypes.has(step.type)),
   );
   if (needsLlm) {
     validateEnv(["ANTHROPIC_API_KEY"]);
@@ -335,6 +507,9 @@ async function runCommand(opts: RunOpts): Promise<void> {
   let scenarioList = Array.from(scenarios.values());
   if (opts.scenario.length > 0) {
     scenarioList = scenarioList.filter((s) => opts.scenario.includes(s.id));
+  }
+  if (opts.mode) {
+    scenarioList = scenarioList.filter((s) => (s.mode ?? "scripted") === opts.mode);
   }
   let allowedPersonaIds = new Set(personas.keys());
   if (opts.persona.length > 0) {
@@ -409,7 +584,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
       ? undefined
       : path.resolve(typeof opts.baseline === "string" ? opts.baseline : "baselines");
 
-  const audit = await runAudit({
+  const { audit } = await runAudit({
     config,
     personas,
     scenarios: scenarioList,
@@ -421,6 +596,8 @@ async function runCommand(opts: RunOpts): Promise<void> {
     tag: opts.tag,
     baselineDir,
     recordTrace: opts.trace,
+    observe: opts.observe,
+    observerPort: opts.observePort,
   });
 
   // Persist reports
