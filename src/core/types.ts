@@ -179,23 +179,66 @@ export type CustomStep = z.infer<typeof CustomStepSchema>;
 // Autonomous mode: Success Criteria, Hints, AgentConfig
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Shape of the `expected` field, which varies by `verification` type.
+ * Kept as a union so authors can mix-and-match per criterion.
+ */
+const ExpectedStateSchema = z
+  .object({
+    // dom
+    visible: z.boolean().optional(),
+    text_contains: z.string().optional(),
+    // network
+    url_pattern: z.string().optional(),
+    method: z.string().optional(),
+    status_range: z.tuple([z.number().int(), z.number().int()]).optional(),
+    max_duration_ms: z.number().int().positive().optional(),
+    // performance
+    lcp_max_ms: z.number().int().positive().optional(),
+    cls_max: z.number().nonnegative().optional(),
+    inp_max_ms: z.number().int().positive().optional(),
+    fcp_max_ms: z.number().int().positive().optional(),
+    ttfb_max_ms: z.number().int().positive().optional(),
+    transfer_bytes_max: z.number().int().positive().optional(),
+    // errors
+    console_error_max: z.number().int().nonnegative().optional(),
+    console_warning_max: z.number().int().nonnegative().optional(),
+    pageerror_max: z.number().int().nonnegative().optional(),
+    request_failure_max: z.number().int().nonnegative().optional(),
+    ignore_patterns: z.array(z.string()).optional(),
+    // interaction
+    must_change: z.boolean().optional(),
+    url_must_change: z.boolean().optional(),
+    title_must_change: z.boolean().optional(),
+    interactive_must_change: z.boolean().optional(),
+    min_text_length_delta: z.number().int().optional(),
+  })
+  .partial();
+
 export const SuccessCriterionSchema = z.object({
   id: z.string().min(1),
   description: z.string(),
-  /** How to verify: 'visual' = screenshot+LLM, 'dom' = selector check, 'extract' = data extraction */
-  verification: z.enum(["visual", "dom", "extract"]).default("visual"),
+  /**
+   * How to verify:
+   * - 'visual'       — screenshot + LLM scoring
+   * - 'dom'          — selector check (visible / text_contains)
+   * - 'extract'      — data extraction + regex match
+   * - 'network'      — HTTP request(s) matching url/method/status/duration
+   * - 'performance'  — Core Web Vitals thresholds
+   * - 'error'        — zero (or bounded) console/pageerror/request failures
+   * - 'interaction'  — action must produce an observable page state change
+   */
+  verification: z
+    .enum(["visual", "dom", "extract", "network", "performance", "error", "interaction"])
+    .default("visual"),
   /** For dom verification: CSS selector to check */
   selector: z.string().optional(),
-  /** For dom verification: expected state */
-  expected: z
-    .object({
-      visible: z.boolean().optional(),
-      text_contains: z.string().optional(),
-    })
-    .optional(),
-  /** For extract verification: instruction to extract + expected pattern */
+  /** For extract verification: instruction to extract */
   extract_instruction: z.string().optional(),
-  expected_pattern: z.string().optional(), // regex
+  /** For extract verification: regex pattern */
+  expected_pattern: z.string().optional(),
+  /** Unified expectation bag (fields relevant per verification type) */
+  expected: ExpectedStateSchema.optional(),
 });
 
 export type SuccessCriterion = z.infer<typeof SuccessCriterionSchema>;
@@ -392,6 +435,17 @@ export interface StepResult {
    * Absent = primary method (Stagehand) succeeded on first try.
    */
   execution_method?: "stagehand" | "selector_hint" | "instruction_mutation" | "computer_use";
+  /**
+   * Optional signal bundle captured during the step (autonomous mode).
+   * Types are `unknown` at this layer to avoid a circular dep back into signal modules;
+   * the agent loop fills this with network/performance/error/interaction snapshots.
+   */
+  signals?: {
+    network?: unknown;
+    performance?: unknown;
+    errors?: unknown;
+    interaction?: unknown;
+  };
 }
 
 export interface ConsoleError {
