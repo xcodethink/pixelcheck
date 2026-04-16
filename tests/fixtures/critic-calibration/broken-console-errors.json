@@ -1,0 +1,27 @@
+{
+  "id": "broken-console-errors",
+  "description": "Page loads visually but has console errors and missing resources — visually ok, integrity broken",
+  "screenshot": "broken-console-errors.png",
+  "persona_id": "us-desktop",
+  "scenario_goal": "Assess whether this page renders correctly for a real user",
+  "instruction": "Evaluate error density and data integrity. Note any visual or functional issues.",
+  "labels": [
+    {
+      "dimension": "error_density",
+      "min_score": 0,
+      "max_score": 5,
+      "rationale": "Page explicitly states it has errors; broken image visible; resources failed. Should score low on error density."
+    },
+    {
+      "dimension": "data_integrity",
+      "min_score": 0,
+      "max_score": 6,
+      "rationale": "Broken image visible, so integrity is compromised but text still loads."
+    }
+  ],
+  "expected_issues": {
+    "min_critical": 0,
+    "must_flag_any_of": ["error", "broken", "missing", "fail"]
+  },
+  "tags": ["broken", "errors"]
+}

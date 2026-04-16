@@ -1,0 +1,32 @@
+{
+  "id": "home-happy",
+  "description": "Clean home page with signup form + load button — should score well on polish, completion in progress",
+  "screenshot": "home-happy.png",
+  "persona_id": "us-desktop",
+  "scenario_goal": "Assess UX quality of the fixture home page",
+  "instruction": "Evaluate the fixture home page on visual polish, UI consistency, and localization.",
+  "labels": [
+    {
+      "dimension": "visual_polish",
+      "min_score": 5,
+      "max_score": 9,
+      "rationale": "Simple but clean layout; readable; not broken. Not premium either."
+    },
+    {
+      "dimension": "localization",
+      "min_score": 7,
+      "max_score": 10,
+      "rationale": "Entirely English for an en-US persona; no translation mismatch."
+    },
+    {
+      "dimension": "ui_consistency",
+      "min_score": 6,
+      "max_score": 9,
+      "rationale": "Two cards, consistent button style, standard form inputs."
+    }
+  ],
+  "expected_issues": {
+    "max_critical": 0
+  },
+  "tags": ["clean", "home"]
+}
