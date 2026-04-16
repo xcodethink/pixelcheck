@@ -28,6 +28,7 @@ import type { DiffResult } from "./visual-diff.js";
 import { AgentEventBus, attachConsoleLogger } from "../agent/events.js";
 import { ObserverServer } from "../observer/server.js";
 import { SessionStore } from "../observer/session-store.js";
+import { SessionRegistry } from "../observer/session-registry.js";
 import { startScreencast, type ScreencastHandle } from "../observer/screencast.js";
 import { runAutonomousLoop } from "../agent/agent-loop.js";
 
@@ -90,13 +91,17 @@ export async function runAudit(
   // Start observer server + session store if observe mode enabled
   let observer: ObserverServer | undefined;
   let sessionStore: SessionStore | undefined;
+  let sessionRegistry: SessionRegistry | undefined;
   if (runEventBus && opts.observe) {
     sessionStore = new SessionStore(runId, runDir);
     sessionStore.attach(runEventBus);
+    sessionRegistry = new SessionRegistry(runId, runDir);
+    sessionRegistry.attach(runEventBus);
     observer = new ObserverServer({
       port: opts.observerPort ?? 3847,
       eventBus: runEventBus,
       sessionStore,
+      registry: sessionRegistry,
     });
     await observer.start();
   }
@@ -176,6 +181,9 @@ export async function runAudit(
   }
   if (sessionStore) {
     await sessionStore.close();
+  }
+  if (sessionRegistry) {
+    await sessionRegistry.close();
   }
 
   const finishedAt = new Date().toISOString();
