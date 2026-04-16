@@ -1,0 +1,20 @@
+{
+  "task_id": "local-001",
+  "intent": "Sign up with the email 'alice@example.com' and land on the welcome page",
+  "start_url": "{{FIXTURE_URL}}/",
+  "sites": ["local-fixture"],
+  "difficulty": "easy",
+  "tags": ["signup", "navigation"],
+  "eval": {
+    "eval_types": ["url_match", "program_html"],
+    "reference_url": "/success.html",
+    "reference_url_match": "substring",
+    "program_html": [
+      {
+        "url": "/success.html",
+        "locator": "#welcome-msg",
+        "required_contents": { "text": "account" }
+      }
+    ]
+  }
+}

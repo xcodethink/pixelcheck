@@ -410,6 +410,90 @@ program
     await new Promise(() => {});
   });
 
+// ─────────────────────────────────────────────────────────────
+// `benchmark` command — run WebArena-compatible task sets
+// ─────────────────────────────────────────────────────────────
+
+program
+  .command("benchmark")
+  .description("Run a benchmark task set through the autonomous agent and emit pass@1 metrics")
+  .requiredOption("--tasks <path>", "Task file, directory, or .jsonl")
+  .option("-p, --personas <dir>", "Personas directory", "personas")
+  .option("-o, --out <dir>", "Output directory", "reports/benchmarks")
+  .option("--tag <tag>", "Benchmark run label", "benchmark")
+  .option("--cost-mode <mode>", "max|balanced|economy", "balanced")
+  .option("--per-task-budget <usd>", "Per-task budget cap", parseFloatOpt)
+  .option("--total-budget <usd>", "Total run budget cap", parseFloatOpt)
+  .option("--limit <n>", "Cap number of tasks", parseIntOpt)
+  .option("--tags <csv>", "Filter by tag(s) (comma-separated)")
+  .option(
+    "--difficulties <csv>",
+    "Filter by difficulty (easy,medium,hard — comma-separated)",
+  )
+  .action(async (opts: BenchmarkCliOpts) => {
+    const { loadTasks } = await import("./benchmark/loader.js");
+    const { runBenchmark } = await import("./benchmark/runner.js");
+    const { ProjectConfigSchema } = await import("./core/types.js");
+
+    const difficulties = opts.difficulties
+      ? (opts.difficulties.split(",").map((s) => s.trim()) as Array<"easy" | "medium" | "hard">)
+      : undefined;
+    const tagsFilter = opts.tags ? opts.tags.split(",").map((s) => s.trim()) : undefined;
+
+    const tasks = loadTasks(opts.tasks, {
+      difficulties,
+      tags: tagsFilter,
+      limit: opts.limit,
+    });
+    if (tasks.length === 0) {
+      console.error(chalk.red("No benchmark tasks matched filters."));
+      process.exit(1);
+    }
+
+    const personas = await loadPersonas(path.resolve(opts.personas));
+    const config = ProjectConfigSchema.parse({
+      project_name: "benchmark",
+      base_url: tasks[0]!.start_url,
+      default_concurrency: 1,
+      default_timeout_ms: 30_000,
+      budget_usd: opts.totalBudget ?? 20,
+      cost_mode: opts.costMode,
+    });
+
+    validateEnv(["ANTHROPIC_API_KEY"]);
+
+    const outDir = path.join(path.resolve(opts.out), `${opts.tag}_${Date.now()}`);
+    console.log(chalk.cyan(`\n[benchmark] ${tasks.length} tasks | cost_mode=${opts.costMode} | out=${outDir}`));
+
+    // The execute() hook wires each task into the autonomous agent loop.
+    // Implementation lives in a separate module so the runner stays pure/unit-testable.
+    const { executeBenchmarkTask } = await import("./benchmark/executor.js");
+
+    const report = await runBenchmark({
+      tasks,
+      config,
+      personas,
+      perTaskBudget: opts.perTaskBudget,
+      totalBudget: opts.totalBudget,
+      outputDir: outDir,
+      tag: opts.tag,
+      execute: executeBenchmarkTask,
+      onTaskComplete: (r) => {
+        const marker = r.passed ? chalk.green("✓") : chalk.red("✗");
+        console.log(
+          `  ${marker} ${r.task_id}  $${r.cost_usd.toFixed(3)}  ${r.duration_ms}ms  ${r.convergence_reason}`,
+        );
+      },
+    });
+
+    console.log(chalk.cyan("\n[benchmark] Complete"));
+    console.log(`  pass@1:     ${(report.pass_at_1 * 100).toFixed(1)}%  (${report.passed}/${report.total_tasks})`);
+    console.log(`  total cost: $${report.total_cost_usd.toFixed(2)}`);
+    console.log(`  avg cost:   $${report.avg_cost_usd.toFixed(3)}/task`);
+    console.log(`  p50 / p95:  ${report.p50_duration_ms}ms / ${report.p95_duration_ms}ms`);
+    console.log(`  report:     ${path.join(outDir, "benchmark.md")}`);
+  });
+
 program.parse();
 
 interface RunOpts {
@@ -695,4 +779,17 @@ function parseIntOpt(value: string): number {
 
 function parseFloatOpt(value: string): number {
   return parseFloat(value);
+}
+
+interface BenchmarkCliOpts {
+  tasks: string;
+  personas: string;
+  out: string;
+  tag: string;
+  costMode: "max" | "balanced" | "economy";
+  perTaskBudget?: number;
+  totalBudget?: number;
+  limit?: number;
+  tags?: string;
+  difficulties?: string;
 }
