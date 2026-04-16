@@ -1,0 +1,23 @@
+{
+  "id": "cls-layout-shift",
+  "description": "Page explicitly documents a layout shift — visually shows a red banner pushed the heading down",
+  "screenshot": "cls-layout-shift.png",
+  "persona_id": "us-desktop",
+  "scenario_goal": "Assess visual stability and polish of a page known to have layout shift",
+  "instruction": "Evaluate visual polish and UI consistency. Note any signs of instability.",
+  "labels": [
+    {
+      "dimension": "visual_polish",
+      "min_score": 2,
+      "max_score": 7,
+      "rationale": "Banner + content look ok but the screenshot captures the post-shift state; critic may or may not perceive instability from a still."
+    },
+    {
+      "dimension": "ui_consistency",
+      "min_score": 3,
+      "max_score": 8,
+      "rationale": "Layout is simple, consistent within the page; no obvious inconsistency from a single screenshot."
+    }
+  ],
+  "tags": ["cls", "layout"]
+}

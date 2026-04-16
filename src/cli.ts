@@ -494,6 +494,65 @@ program
     console.log(`  report:     ${path.join(outDir, "benchmark.md")}`);
   });
 
+// ─────────────────────────────────────────────────────────────
+// `calibrate` command — run critic against labeled fixtures + gate
+// ─────────────────────────────────────────────────────────────
+
+program
+  .command("calibrate")
+  .description("Run critic calibration against labeled screenshot fixtures; fails if the gate regresses.")
+  .option(
+    "--fixtures <dir>",
+    "Calibration fixtures directory",
+    "tests/fixtures/critic-calibration",
+  )
+  .option("--model <id>", "Critic model override (default: claude-sonnet-4-6)", "claude-sonnet-4-6")
+  .option("--tag <tag>", "Run label", "calibrate")
+  .option("--out <dir>", "Output directory", "reports/calibration")
+  .option("--min-agreement <n>", "Minimum mean agreement (0..1)", parseFloatOpt)
+  .option("--max-distance <n>", "Maximum mean max distance (0..10)", parseFloatOpt)
+  .option("--min-fully-aligned <n>", "Minimum fully-aligned rate (0..1)", parseFloatOpt)
+  .action(async (opts: CalibrateCliOpts) => {
+    const { runCalibration, scoreReport } = await import("./calibration/runner.js");
+    validateEnv(["ANTHROPIC_API_KEY"]);
+
+    const outDir = path.join(path.resolve(opts.out), `${opts.tag}_${Date.now()}`);
+    console.log(chalk.cyan(`\n[calibrate] fixtures=${opts.fixtures} model=${opts.model}`));
+
+    const report = await runCalibration({
+      fixturesDir: path.resolve(opts.fixtures),
+      model: opts.model,
+      tag: opts.tag,
+      outputDir: outDir,
+      onSampleComplete: (s) => {
+        const marker = s.agreement_rate === 1 && s.issue_check.passed ? chalk.green("✓") : chalk.yellow("~");
+        console.log(
+          `  ${marker} ${s.sample_id}  agreement=${(s.agreement_rate * 100).toFixed(0)}%  max_dist=${s.max_distance.toFixed(1)}  $${s.cost_usd.toFixed(3)}`,
+        );
+      },
+    });
+
+    const gate = scoreReport(report, {
+      min_mean_agreement: opts.minAgreement,
+      max_mean_max_distance: opts.maxDistance,
+      min_fully_aligned_rate: opts.minFullyAligned,
+    });
+
+    console.log(chalk.cyan("\n[calibrate] Complete"));
+    console.log(`  mean agreement:      ${(gate.computed.mean_agreement * 100).toFixed(1)}%`);
+    console.log(`  mean max distance:   ${gate.computed.mean_max_distance.toFixed(2)}`);
+    console.log(`  fully aligned rate:  ${(gate.computed.fully_aligned_rate * 100).toFixed(1)}%`);
+    console.log(`  total cost:          $${report.total_cost_usd.toFixed(3)}`);
+    console.log(`  report:              ${path.join(outDir, "calibration.md")}`);
+
+    if (!gate.passed) {
+      console.log(chalk.red("\n[GATE FAILED]"));
+      for (const v of gate.violations) console.log(chalk.red(`  - ${v}`));
+      process.exit(1);
+    }
+    console.log(chalk.green("\n[GATE PASSED]"));
+  });
+
 program.parse();
 
 interface RunOpts {
@@ -792,4 +851,14 @@ interface BenchmarkCliOpts {
   limit?: number;
   tags?: string;
   difficulties?: string;
+}
+
+interface CalibrateCliOpts {
+  fixtures: string;
+  model: string;
+  tag: string;
+  out: string;
+  minAgreement?: number;
+  maxDistance?: number;
+  minFullyAligned?: number;
 }
