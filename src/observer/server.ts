@@ -10,12 +10,16 @@ import { WebSocketServer, type WebSocket } from "ws";
 import type { AgentEvent, AgentEventBus } from "../agent/events.js";
 import type { SessionStore } from "./session-store.js";
 import { getDashboardHtml } from "./dashboard.js";
+import { getGridHtml } from "./grid-dashboard.js";
 import { deriveTimeline, eventsInRange, screenshotAt } from "./session-store.js";
+import type { SessionRegistry } from "./session-registry.js";
 
 export interface ObserverServerOptions {
   port: number;
   eventBus: AgentEventBus;
   sessionStore: SessionStore;
+  /** Optional multi-session registry — when present, /grid route is enabled */
+  registry?: SessionRegistry;
 }
 
 export class ObserverServer {
@@ -24,11 +28,13 @@ export class ObserverServer {
   private _clients = new Set<WebSocket>();
   private _eventBus: AgentEventBus;
   private _sessionStore: SessionStore;
+  private _registry?: SessionRegistry;
   private _port: number;
 
   constructor(opts: ObserverServerOptions) {
     this._eventBus = opts.eventBus;
     this._sessionStore = opts.sessionStore;
+    this._registry = opts.registry;
     this._port = opts.port;
 
     // HTTP server — serves dashboard
@@ -104,6 +110,38 @@ export class ObserverServer {
     if (url === "/" || url === "/index.html") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(getDashboardHtml());
+      return;
+    }
+
+    // Multi-session grid dashboard (only enabled when registry is attached)
+    if ((url === "/grid" || url === "/grid/") && this._registry) {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(getGridHtml());
+      return;
+    }
+
+    if (url === "/api/grid" && this._registry) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(this._registry.gridSnapshot()));
+      return;
+    }
+
+    if (url.startsWith("/api/session/") && this._registry) {
+      const sid = decodeURIComponent(url.replace("/api/session/", "").split("?")[0]!);
+      const entry = this._registry.getEntry(sid);
+      if (!entry) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          state: entry.store.state,
+          timeline: deriveTimeline(entry.store.events),
+          events: entry.store.events.slice(-200),
+        }),
+      );
       return;
     }
 
