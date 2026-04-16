@@ -14,6 +14,7 @@ import {
   writeHtmlReport,
   writeMarkdownSummary,
 } from "./core/reporter.js";
+import { writeSpaReport } from "./core/reporter-spa.js";
 import { notifySlack, notifyTelegram } from "./core/notify.js";
 import { preflightUrls } from "./core/url-preflight.js";
 import { resolvePersonaSecrets } from "./core/persona.js";
@@ -757,6 +758,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   const jsonPath = writeJsonReport(audit, runDir);
   const htmlPath = writeHtmlReport(audit, runDir, reportsDir);
   const mdPath = writeMarkdownSummary(audit, runDir);
+  const spaPath = writeSpaReport(audit, runDir);
 
   await notifySlack(audit);
   await notifyTelegram(audit);
@@ -776,6 +778,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   console.log(chalk.cyan("[ai-audit] Complete"));
   console.log(`  JSON:    ${jsonPath}`);
   console.log(`  HTML:    ${htmlPath}`);
+  console.log(`  SPA:     ${spaPath}`);
   console.log(`  Summary: ${mdPath}`);
   console.log("");
   console.log(

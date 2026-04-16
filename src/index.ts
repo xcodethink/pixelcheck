@@ -15,6 +15,7 @@ export {
   writeHtmlReport,
   writeMarkdownSummary,
 } from "./core/reporter.js";
+export { writeSpaReport } from "./core/reporter-spa.js";
 export { waitForPageStable, type StabilityReport } from "./core/page-stability.js";
 export { generateMutations, type MutationResult } from "./core/instruction-mutator.js";
 export {
