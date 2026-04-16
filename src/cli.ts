@@ -30,7 +30,7 @@ program
   .description(
     "AI-driven post-deployment UX audit. Real browser, real personas, commercial-grade evaluation.",
   )
-  .version("0.3.0-rc.1");
+  .version("0.3.0");
 
 program
   .command("run", { isDefault: true })
