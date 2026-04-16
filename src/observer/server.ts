@@ -10,6 +10,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import type { AgentEvent, AgentEventBus } from "../agent/events.js";
 import type { SessionStore } from "./session-store.js";
 import { getDashboardHtml } from "./dashboard.js";
+import { deriveTimeline, eventsInRange, screenshotAt } from "./session-store.js";
 
 export interface ObserverServerOptions {
   port: number;
@@ -115,6 +116,33 @@ export class ObserverServer {
     if (url === "/api/events") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(this._sessionStore.events.slice(-100)));
+      return;
+    }
+
+    // Full event history for timeline scrubbing (bounded by MAX_EVENT_FETCH).
+    if (url.startsWith("/api/events/all")) {
+      const parsed = new URL(url, `http://127.0.0.1:${this._port}`);
+      const start = Number(parsed.searchParams.get("start") ?? "0");
+      const end = Number(parsed.searchParams.get("end") ?? String(Number.MAX_SAFE_INTEGER));
+      const events = eventsInRange(this._sessionStore.events, start, end).slice(0, 2000);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(events));
+      return;
+    }
+
+    if (url === "/api/timeline") {
+      const timeline = deriveTimeline(this._sessionStore.events);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(timeline));
+      return;
+    }
+
+    if (url.startsWith("/api/screenshot")) {
+      const parsed = new URL(url, `http://127.0.0.1:${this._port}`);
+      const seq = Number(parsed.searchParams.get("seq") ?? "0");
+      const path = screenshotAt(this._sessionStore.events, seq);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ path }));
       return;
     }
 
