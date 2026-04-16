@@ -10,11 +10,16 @@ import { WebSocketServer, type WebSocket } from "ws";
 import type { AgentEvent, AgentEventBus } from "../agent/events.js";
 import type { SessionStore } from "./session-store.js";
 import { getDashboardHtml } from "./dashboard.js";
+import { getGridHtml } from "./grid-dashboard.js";
+import { deriveTimeline, eventsInRange, screenshotAt } from "./session-store.js";
+import type { SessionRegistry } from "./session-registry.js";
 
 export interface ObserverServerOptions {
   port: number;
   eventBus: AgentEventBus;
   sessionStore: SessionStore;
+  /** Optional multi-session registry — when present, /grid route is enabled */
+  registry?: SessionRegistry;
 }
 
 export class ObserverServer {
@@ -23,11 +28,13 @@ export class ObserverServer {
   private _clients = new Set<WebSocket>();
   private _eventBus: AgentEventBus;
   private _sessionStore: SessionStore;
+  private _registry?: SessionRegistry;
   private _port: number;
 
   constructor(opts: ObserverServerOptions) {
     this._eventBus = opts.eventBus;
     this._sessionStore = opts.sessionStore;
+    this._registry = opts.registry;
     this._port = opts.port;
 
     // HTTP server — serves dashboard
@@ -106,6 +113,38 @@ export class ObserverServer {
       return;
     }
 
+    // Multi-session grid dashboard (only enabled when registry is attached)
+    if ((url === "/grid" || url === "/grid/") && this._registry) {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(getGridHtml());
+      return;
+    }
+
+    if (url === "/api/grid" && this._registry) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(this._registry.gridSnapshot()));
+      return;
+    }
+
+    if (url.startsWith("/api/session/") && this._registry) {
+      const sid = decodeURIComponent(url.replace("/api/session/", "").split("?")[0]!);
+      const entry = this._registry.getEntry(sid);
+      if (!entry) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          state: entry.store.state,
+          timeline: deriveTimeline(entry.store.events),
+          events: entry.store.events.slice(-200),
+        }),
+      );
+      return;
+    }
+
     if (url === "/api/state") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(this._sessionStore.state));
@@ -115,6 +154,33 @@ export class ObserverServer {
     if (url === "/api/events") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(this._sessionStore.events.slice(-100)));
+      return;
+    }
+
+    // Full event history for timeline scrubbing (bounded by MAX_EVENT_FETCH).
+    if (url.startsWith("/api/events/all")) {
+      const parsed = new URL(url, `http://127.0.0.1:${this._port}`);
+      const start = Number(parsed.searchParams.get("start") ?? "0");
+      const end = Number(parsed.searchParams.get("end") ?? String(Number.MAX_SAFE_INTEGER));
+      const events = eventsInRange(this._sessionStore.events, start, end).slice(0, 2000);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(events));
+      return;
+    }
+
+    if (url === "/api/timeline") {
+      const timeline = deriveTimeline(this._sessionStore.events);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(timeline));
+      return;
+    }
+
+    if (url.startsWith("/api/screenshot")) {
+      const parsed = new URL(url, `http://127.0.0.1:${this._port}`);
+      const seq = Number(parsed.searchParams.get("seq") ?? "0");
+      const path = screenshotAt(this._sessionStore.events, seq);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ path }));
       return;
     }
 

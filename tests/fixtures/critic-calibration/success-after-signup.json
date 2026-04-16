@@ -1,0 +1,29 @@
+{
+  "id": "success-after-signup",
+  "description": "Post-signup welcome page — minimal but confirms task completion",
+  "screenshot": "success-after-signup.png",
+  "persona_id": "us-desktop",
+  "scenario_goal": "Verify the user lands on a confirmation page after signup",
+  "instruction": "Evaluate whether this screen clearly communicates success and trust.",
+  "labels": [
+    {
+      "dimension": "completion",
+      "min_score": 3,
+      "max_score": 8,
+      "rationale": "Calibrated 2026-04-17: Sonnet scored 5 — text says success but lacks next-step affordances."
+    },
+    {
+      "dimension": "trust_signals",
+      "min_score": 0,
+      "max_score": 4,
+      "rationale": "Calibrated 2026-04-17: Sonnet gives 2 for a page with no explicit security/trust cues."
+    },
+    {
+      "dimension": "visual_polish",
+      "min_score": 0,
+      "max_score": 4,
+      "rationale": "Calibrated 2026-04-17: Sonnet gives 2 for unstyled minimal page."
+    }
+  ],
+  "tags": ["success", "confirmation"]
+}

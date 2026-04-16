@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AV Fixture — Home</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font: 15px/1.4 system-ui, sans-serif; margin: 0; padding: 2rem; color: #222; }
+    h1 { margin: 0 0 1rem; }
+    nav a { margin-right: 1rem; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0; max-width: 40rem; }
+    button { padding: 0.5rem 1rem; border: 1px solid #333; background: #fff; cursor: pointer; border-radius: 4px; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    input { padding: 0.4rem; border: 1px solid #aaa; border-radius: 4px; }
+    #status { margin-top: 0.5rem; color: #0a7; min-height: 1em; }
+    #shift-zone { height: 0; transition: none; }
+    #shift-zone.show { height: 120px; background: #fafafa; border: 1px dashed #ccc; }
+  </style>
+</head>
+<body>
+  <h1>AV Fixture Site</h1>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/success.html">Success</a>
+    <a href="/slow.html">Slow Page</a>
+    <a href="/broken.html">Broken Page</a>
+    <a href="/cls.html">Layout Shift</a>
+  </nav>
+
+  <div class="card">
+    <h2>Signup</h2>
+    <form id="signup-form" onsubmit="event.preventDefault(); doSignup();">
+      <input id="email" type="email" placeholder="you@example.com" aria-label="Email" required />
+      <button id="submit-btn" type="submit">Sign up</button>
+    </form>
+    <p id="status"></p>
+  </div>
+
+  <div class="card">
+    <h2>Load data</h2>
+    <button id="load-btn" onclick="loadData()">Load</button>
+    <p id="data"></p>
+  </div>
+
+  <div id="shift-zone"></div>
+
+  <script>
+    async function doSignup() {
+      const email = document.getElementById('email').value;
+      const status = document.getElementById('status');
+      status.textContent = 'Submitting…';
+      try {
+        const r = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        if (r.ok) {
+          status.textContent = 'Account created';
+          // Navigate to success page to trigger url_changed signal
+          setTimeout(() => { location.href = '/success.html'; }, 100);
+        } else {
+          status.textContent = 'Signup failed (' + r.status + ')';
+        }
+      } catch (e) {
+        status.textContent = 'Network error';
+      }
+    }
+
+    async function loadData() {
+      const el = document.getElementById('data');
+      el.textContent = 'Loading…';
+      try {
+        const r = await fetch('/api/items');
+        const data = await r.json();
+        el.textContent = 'Loaded ' + data.items.length + ' items';
+      } catch (e) {
+        el.textContent = 'Error: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>

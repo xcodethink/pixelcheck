@@ -200,8 +200,110 @@ export function getDashboardHtml(): string {
   .st-fail { color: #f85149; }
   .st-skip { color: #484f58; }
 
+  /* Timeline */
+  .timeline-panel {
+    background: #0d1117;
+    border-top: 1px solid #30363d;
+    padding: 8px 12px;
+    max-height: 180px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .timeline-panel h2 {
+    font-size: 11px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .timeline-strip {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 4px 0 8px 0;
+  }
+  .timeline-step {
+    flex: 0 0 auto;
+    min-width: 32px;
+    height: 44px;
+    border-radius: 4px;
+    border: 1px solid #30363d;
+    background: #161b22;
+    padding: 4px 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    transition: transform .08s ease;
+    font-size: 10px;
+  }
+  .timeline-step:hover { transform: translateY(-1px); border-color: #58a6ff; }
+  .timeline-step.selected { border-color: #58a6ff; box-shadow: 0 0 0 1px #58a6ff inset; }
+  .timeline-step .tl-seq { color: #8b949e; font-weight: 600; }
+  .timeline-step .tl-label { color: #c9d1d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+  .timeline-step.ok { border-left: 3px solid #3fb950; }
+  .timeline-step.warn { border-left: 3px solid #d29922; }
+  .timeline-step.fail { border-left: 3px solid #f85149; }
+  .timeline-step.pending { border-left: 3px solid #8b949e; opacity: 0.7; }
+  .timeline-step.plan { background: #1c1530; }
+  .timeline-step.criterion { background: #0d2b1a; }
+  .timeline-step.session { background: #0d1f33; }
+
+  /* Detail drawer */
+  .detail-drawer {
+    position: fixed;
+    right: 0; top: 44px; bottom: 0;
+    width: 420px;
+    background: #161b22;
+    border-left: 1px solid #30363d;
+    padding: 16px;
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform .15s ease;
+    z-index: 50;
+  }
+  .detail-drawer.open { transform: translateX(0); }
+  .detail-drawer h3 {
+    font-size: 13px;
+    color: #58a6ff;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .detail-drawer .close-btn {
+    cursor: pointer;
+    color: #8b949e;
+    background: none;
+    border: none;
+    font-size: 16px;
+  }
+  .detail-drawer pre {
+    font-size: 11px;
+    background: #0d1117;
+    padding: 8px;
+    border-radius: 4px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #c9d1d9;
+  }
+  .detail-drawer .detail-row { margin-bottom: 10px; }
+  .detail-drawer .detail-label {
+    font-size: 10px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+  }
+
   /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
 </style>
@@ -216,6 +318,7 @@ export function getDashboardHtml(): string {
   <button class="btn" id="btnResume" onclick="send('resume')" disabled>Resume</button>
   <button class="btn btn-warn" id="btnTakeover" onclick="send('takeover')">Take Over</button>
   <button class="btn btn-danger" id="btnRelease" onclick="send('release')" disabled>Release</button>
+  <a class="btn" style="text-decoration:none" href="/grid" target="_blank">Grid ▸</a>
 </div>
 
 <div class="main">
@@ -239,6 +342,24 @@ export function getDashboardHtml(): string {
       </table>
     </div>
   </div>
+</div>
+
+<div class="timeline-panel">
+  <h2>
+    <span>Timeline</span>
+    <span id="tlCount" style="color:#484f58">0 steps</span>
+    <span style="flex:1"></span>
+    <button class="btn" style="padding:2px 8px;font-size:10px" onclick="refreshTimeline()">Refresh</button>
+  </h2>
+  <div class="timeline-strip" id="timelineStrip"></div>
+</div>
+
+<div class="detail-drawer" id="detailDrawer">
+  <h3>
+    <span id="detailTitle">Step</span>
+    <button class="close-btn" onclick="closeDetail()">×</button>
+  </h3>
+  <div id="detailBody"></div>
 </div>
 
 <script>
@@ -419,6 +540,95 @@ function getEventText(evt) {
 function escapeHtml(text) {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+// ─── Timeline + step detail drawer ────────────────────────────
+let _timelineCache = [];
+let _eventsCache = [];
+
+async function refreshTimeline() {
+  try {
+    const [tRes, eRes] = await Promise.all([
+      fetch('/api/timeline'),
+      fetch('/api/events/all?start=0'),
+    ]);
+    _timelineCache = await tRes.json();
+    _eventsCache = await eRes.json();
+    renderTimeline();
+  } catch (e) { /* offline, ignore */ }
+}
+
+function renderTimeline() {
+  const strip = document.getElementById('timelineStrip');
+  document.getElementById('tlCount').textContent = _timelineCache.length + ' steps';
+  strip.innerHTML = '';
+  for (const step of _timelineCache) {
+    const el = document.createElement('div');
+    el.className = 'timeline-step ' + step.status + ' ' + step.kind;
+    el.title = step.label + '\\n' + step.timestamp;
+    el.innerHTML =
+      '<span class="tl-seq">#' + step.sequence + '</span>' +
+      '<span class="tl-label">' + escapeHtml(step.label) + '</span>';
+    el.onclick = () => showDetail(step);
+    strip.appendChild(el);
+  }
+  // Auto-scroll to the end so newest is visible
+  strip.scrollLeft = strip.scrollWidth;
+}
+
+function showDetail(step) {
+  // Mark selected
+  for (const el of document.querySelectorAll('.timeline-step')) {
+    el.classList.toggle('selected', el.title.startsWith(step.label));
+  }
+  document.getElementById('detailTitle').textContent =
+    '#' + step.sequence + ' · ' + step.kind + ' · ' + step.label;
+
+  // Pull related events from cache
+  const related = _eventsCache.filter(e => step.event_sequences.includes(e.sequence));
+  const body = document.getElementById('detailBody');
+
+  const sections = [];
+  sections.push('<div class="detail-row"><div class="detail-label">status</div><b class="st-' +
+    (step.status === 'ok' ? 'pass' : step.status) + '">' + step.status + '</b></div>');
+  if (step.timestamp) {
+    sections.push('<div class="detail-row"><div class="detail-label">timestamp</div>' + step.timestamp + '</div>');
+  }
+  if (step.meta && Object.keys(step.meta).length) {
+    sections.push('<div class="detail-row"><div class="detail-label">meta</div><pre>' +
+      escapeHtml(JSON.stringify(step.meta, null, 2)) + '</pre></div>');
+  }
+  sections.push('<div class="detail-row"><div class="detail-label">events (' + related.length + ')</div><pre>' +
+    escapeHtml(related.map(e => '[' + e.sequence + '] ' + e.type + ' ' + truncate(JSON.stringify(e.data), 400)).join('\\n')) +
+    '</pre></div>');
+  body.innerHTML = sections.join('');
+
+  document.getElementById('detailDrawer').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailDrawer').classList.remove('open');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+// Refresh timeline when a new step/plan/criterion event arrives
+const _origHandleEvent = handleEvent;
+handleEvent = function (evt) {
+  _origHandleEvent(evt);
+  if (/^(action|step|plan|criterion|convergence|session):/.test(evt.type)) {
+    // Debounce: schedule one refresh per 500ms window
+    clearTimeout(window._tlRefreshTimer);
+    window._tlRefreshTimer = setTimeout(refreshTimeline, 500);
+  }
+};
+
+// Initial timeline fetch
+setTimeout(refreshTimeline, 200);
 
 connect();
 </script>
