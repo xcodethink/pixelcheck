@@ -80,6 +80,30 @@ ai-audit run --scenario smoke --personas us-chatgpt-pro-macbook --budget 0.5
 - [ ] `reports/<runId>/audit.html` renders correctly in a browser
 - [ ] Video is playable in `reports/<runId>/<unit>/video.webm`
 
+## Benchmark smoke (local mini, ~$0.30)
+
+```bash
+ai-audit benchmark --tasks benchmarks/local-mini \
+  --cost-mode balanced --per-task-budget 0.15
+```
+
+- [ ] All 3 tasks run to completion (pass or fail, not crash)
+- [ ] `benchmark.md` emitted with `pass@1` header
+- [ ] `benchmark.json` parses as valid JSON
+- [ ] At least 1/3 tasks passes (the signup task should be reliable)
+
+## Critic calibration smoke (~$0.20)
+
+```bash
+ai-audit calibrate --fixtures tests/fixtures/critic-calibration \
+  --model claude-sonnet-4-6
+```
+
+- [ ] Exits 0 (gate passes) OR exits 1 with specific violation list
+- [ ] `calibration.md` shows per-sample + per-dimension breakdown
+- [ ] Mean agreement ≥ 0.85 on the shipped fixture set
+- [ ] No sample errors (all 5 complete)
+
 ## Rollback check
 
 - [ ] `git diff main..HEAD -- src/core/types.ts` shows only additive schema changes
