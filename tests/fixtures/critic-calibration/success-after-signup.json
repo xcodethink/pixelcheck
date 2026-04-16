@@ -1,0 +1,29 @@
+{
+  "id": "success-after-signup",
+  "description": "Post-signup welcome page — minimal but confirms task completion",
+  "screenshot": "success-after-signup.png",
+  "persona_id": "us-desktop",
+  "scenario_goal": "Verify the user lands on a confirmation page after signup",
+  "instruction": "Evaluate whether this screen clearly communicates success and trust.",
+  "labels": [
+    {
+      "dimension": "completion",
+      "min_score": 7,
+      "max_score": 10,
+      "rationale": "Page clearly states 'Welcome! Your account is ready.' — task unambiguously complete."
+    },
+    {
+      "dimension": "trust_signals",
+      "min_score": 3,
+      "max_score": 7,
+      "rationale": "Minimal content; no explicit security cues, no onboarding next steps. Neutral trust."
+    },
+    {
+      "dimension": "visual_polish",
+      "min_score": 3,
+      "max_score": 7,
+      "rationale": "Very plain — functional but spartan."
+    }
+  ],
+  "tags": ["success", "confirmation"]
+}
