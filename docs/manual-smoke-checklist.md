@@ -104,6 +104,60 @@ ai-audit calibrate --fixtures tests/fixtures/critic-calibration \
 - [ ] Mean agreement ≥ 0.85 on the shipped fixture set
 - [ ] No sample errors (all 5 complete)
 
+## Observer dashboard smoke
+
+Start any `ai-audit run` with `--observe` and verify:
+
+- [ ] `http://localhost:3847/` opens the main dashboard; live feed appears
+- [ ] Timeline strip populates as steps complete; click any step → drawer opens with meta + events
+- [ ] Pause/Resume/Takeover buttons respond (state badge transitions)
+- [ ] `http://localhost:3847/grid` shows a tile per (persona × scenario) unit
+- [ ] Tiles auto-update every 2s; new sessions appear without manual refresh
+
+## Report SPA smoke
+
+- [ ] Every run now also writes `audit-explorer.html` under `reports/<runId>/`
+- [ ] Open in browser; filter bar works (persona × scenario × status × dim × severity)
+- [ ] Per-unit cards expand; gantt bars render with per-status colors
+- [ ] `grep secret-token` on the generated HTML returns zero hits when redact_patterns is set
+
+## MCP server smoke
+
+In a Claude Code / Cursor session:
+
+```
+# Register
+cat > ~/.mcp.json <<EOF
+{
+  "mcpServers": {
+    "ai-browser-auditor": { "command": "ai-audit-mcp" }
+  }
+}
+EOF
+```
+
+- [ ] `list_personas` tool returns the expected persona list
+- [ ] `explore_url` with a known-good URL returns `convergence: goal_met`
+- [ ] `get_last_report` returns the most recent audit summary
+
+## Persona generator smoke
+
+```bash
+ai-audit persona generate --country=BR --device=mobile > /tmp/br.yaml
+ai-audit persona list-countries
+```
+
+- [ ] Output YAML parses with `yaml` tool
+- [ ] Running `ai-audit run --personas /tmp/ --scenario smoke` picks up the persona
+
+## Scenario recorder smoke
+
+- [ ] Load `extensions/scenario-recorder/` as unpacked extension in Chrome
+- [ ] Click **Start**, navigate through a flow on any site, click **Stop**
+- [ ] **Export YAML** downloads a syntactically valid scenario file
+- [ ] File parses through `ScenarioSchema` when loaded with `ai-audit run --scenario <file>`
+- [ ] Password fields were NOT captured (inspect the YAML)
+
 ## Rollback check
 
 - [ ] `git diff main..HEAD -- src/core/types.ts` shows only additive schema changes

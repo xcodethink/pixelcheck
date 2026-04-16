@@ -1,6 +1,6 @@
 {
   "name": "ai-browser-auditor",
-  "version": "0.2.0",
+  "version": "0.3.0-rc.1",
   "description": "AI-driven post-deployment UX audit. Real browser, real personas, real scenarios, commercial-grade evaluation.",
   "type": "module",
   "main": "dist/index.js",
