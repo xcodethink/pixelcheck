@@ -5,7 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — v0.3 development
+## [0.3.0] - 2026-04-17
+
+Released after 22 atomic commits over 6 development weeks; verified with 300
+automated tests + live-API Phase-2 smoke ($0.26 / 3 bugs found and fixed
+before merge). Fully additive — no breaking changes from v0.2.0.
+
+### Fixed — Phase 2 live smoke (v0.3.0-rc.2)
+
+- `scoreReport` no longer silently disables gate when CLI overrides are
+  undefined (object-spread overwrote defaults)
+- Calibration fixture labels recalibrated against observed Sonnet 4.6
+  scoring — 100% agreement post-fix (was 46.7%)
+- `ai-audit explore` now writes audit.json / audit.html / audit-explorer.html
+  / summary.md (previously only video + console log)
 
 ### Added — Weeks 3-5: Observer + Report SPA + MCP + Memory + Persona gen + Recorder
 
