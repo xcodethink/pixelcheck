@@ -318,6 +318,7 @@ export function getDashboardHtml(): string {
   <button class="btn" id="btnResume" onclick="send('resume')" disabled>Resume</button>
   <button class="btn btn-warn" id="btnTakeover" onclick="send('takeover')">Take Over</button>
   <button class="btn btn-danger" id="btnRelease" onclick="send('release')" disabled>Release</button>
+  <a class="btn" style="text-decoration:none" href="/grid" target="_blank">Grid ▸</a>
 </div>
 
 <div class="main">
