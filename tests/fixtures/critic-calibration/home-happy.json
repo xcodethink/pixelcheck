@@ -1,0 +1,32 @@
+{
+  "id": "home-happy",
+  "description": "Clean home page with signup form + load button — should score well on polish, completion in progress",
+  "screenshot": "home-happy.png",
+  "persona_id": "us-desktop",
+  "scenario_goal": "Assess UX quality of the fixture home page",
+  "instruction": "Evaluate the fixture home page on visual polish, UI consistency, and localization.",
+  "labels": [
+    {
+      "dimension": "visual_polish",
+      "min_score": 1,
+      "max_score": 6,
+      "rationale": "Calibrated 2026-04-17 against Sonnet 4.6: unstyled fixture pages score 1-5. Range allows drift ±2."
+    },
+    {
+      "dimension": "localization",
+      "min_score": 6,
+      "max_score": 10,
+      "rationale": "en-US content for en-US persona; Sonnet scored 8 observed."
+    },
+    {
+      "dimension": "ui_consistency",
+      "min_score": 3,
+      "max_score": 7,
+      "rationale": "Calibrated 2026-04-17: plain fixture scored 5 observed."
+    }
+  ],
+  "expected_issues": {
+    "max_critical": 0
+  },
+  "tags": ["clean", "home"]
+}

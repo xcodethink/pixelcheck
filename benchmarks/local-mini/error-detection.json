@@ -1,0 +1,15 @@
+{
+  "task_id": "local-003",
+  "intent": "Visit the broken page and report whether any JavaScript errors occurred",
+  "start_url": "{{FIXTURE_URL}}/broken.html",
+  "sites": ["local-fixture"],
+  "difficulty": "medium",
+  "tags": ["error-detection"],
+  "eval": {
+    "eval_types": ["string_match"],
+    "reference_answers": {
+      "must_include": ["error"],
+      "must_exclude": ["no errors"]
+    }
+  }
+}

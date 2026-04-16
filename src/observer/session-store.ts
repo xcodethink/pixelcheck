@@ -154,3 +154,194 @@ export function loadEventsFromNdjson(filePath: string): AgentEvent[] {
   }
   return events;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Derived views for timeline UI
+// ─────────────────────────────────────────────────────────────
+
+/** One "step" on the timeline scrubber — an observable unit of work. */
+export interface TimelineStep {
+  id: string;
+  /** Monotonic index across the session */
+  sequence: number;
+  /** Step / action / plan — the kind of work this represents */
+  kind: "action" | "plan" | "criterion" | "thought" | "session" | "other";
+  label: string;
+  status: "ok" | "warn" | "fail" | "pending";
+  timestamp: string; // ISO
+  /** Related events' sequence numbers for details panel */
+  event_sequences: number[];
+  /** Extra data useful to the UI (reasoning, error, etc.) */
+  meta: Record<string, unknown>;
+}
+
+/**
+ * Query API over a SessionStore's events.
+ *
+ * Exposed as plain functions (not SessionStore methods) so tests can pass
+ * synthetic event arrays without instantiating a store.
+ */
+
+export function deriveTimeline(events: ReadonlyArray<AgentEvent>): TimelineStep[] {
+  const steps: TimelineStep[] = [];
+
+  // Track open action/step brackets by id
+  type Open = {
+    id: string;
+    sequence: number;
+    label: string;
+    startEvent: AgentEvent;
+    relatedSeqs: number[];
+  };
+  const openActions = new Map<string, Open>();
+
+  for (const event of events) {
+    switch (event.type) {
+      case "action:start":
+      case "step:start": {
+        const id = String(event.data.action_id ?? event.data.step_id ?? event.sequence);
+        const instruction = String(event.data.instruction ?? event.data.description ?? id);
+        openActions.set(id, {
+          id,
+          sequence: event.sequence,
+          label: instruction,
+          startEvent: event,
+          relatedSeqs: [event.sequence],
+        });
+        break;
+      }
+      case "action:complete":
+      case "action:failed":
+      case "step:complete":
+      case "step:failed": {
+        const id = String(event.data.action_id ?? event.data.step_id ?? event.sequence);
+        const open = openActions.get(id);
+        if (!open) break;
+        open.relatedSeqs.push(event.sequence);
+        const failed = event.type === "action:failed" || event.type === "step:failed";
+        const isWarn = !failed && event.data.status === "warn";
+        steps.push({
+          id,
+          sequence: open.sequence,
+          kind: "action",
+          label: open.label,
+          status: failed ? "fail" : isWarn ? "warn" : "ok",
+          timestamp: event.timestamp,
+          event_sequences: open.relatedSeqs,
+          meta: {
+            duration_ms: event.data.duration_ms,
+            execution_method: event.data.execution_method,
+            error: event.data.error,
+          },
+        });
+        openActions.delete(id);
+        break;
+      }
+      case "plan:created":
+      case "plan:revised":
+        steps.push({
+          id: `plan-${event.sequence}`,
+          sequence: event.sequence,
+          kind: "plan",
+          label:
+            event.type === "plan:created"
+              ? `Plan created (${Array.isArray(event.data.steps) ? event.data.steps.length : 0} steps)`
+              : `Plan revised (${String(event.data.kind ?? "full")})`,
+          status: "ok",
+          timestamp: event.timestamp,
+          event_sequences: [event.sequence],
+          meta: {
+            plan_id: event.data.plan_id,
+            reasoning: event.data.reasoning,
+            from_cache: event.data.from_cache,
+            kind: event.data.kind,
+          },
+        });
+        break;
+      case "criterion:met":
+        steps.push({
+          id: `criterion-${event.data.id ?? event.sequence}`,
+          sequence: event.sequence,
+          kind: "criterion",
+          label: `✓ ${String(event.data.description ?? event.data.id)}`,
+          status: "ok",
+          timestamp: event.timestamp,
+          event_sequences: [event.sequence],
+          meta: { id: event.data.id },
+        });
+        break;
+      case "convergence:goal_met":
+      case "convergence:budget_exceeded":
+      case "convergence:loop_detected":
+      case "convergence:stuck":
+        steps.push({
+          id: `conv-${event.sequence}`,
+          sequence: event.sequence,
+          kind: "other",
+          label: event.type.replace("convergence:", ""),
+          status: event.type === "convergence:goal_met" ? "ok" : "warn",
+          timestamp: event.timestamp,
+          event_sequences: [event.sequence],
+          meta: { ...event.data },
+        });
+        break;
+      case "session:start":
+      case "session:end":
+        steps.push({
+          id: `session-${event.type === "session:start" ? "start" : "end"}`,
+          sequence: event.sequence,
+          kind: "session",
+          label: event.type === "session:start" ? "Session started" : "Session ended",
+          status: "ok",
+          timestamp: event.timestamp,
+          event_sequences: [event.sequence],
+          meta: { ...event.data },
+        });
+        break;
+    }
+  }
+
+  // Close any actions that didn't receive a terminal event
+  for (const open of openActions.values()) {
+    steps.push({
+      id: open.id,
+      sequence: open.sequence,
+      kind: "action",
+      label: open.label,
+      status: "pending",
+      timestamp: open.startEvent.timestamp,
+      event_sequences: open.relatedSeqs,
+      meta: {},
+    });
+  }
+
+  return steps.sort((a, b) => a.sequence - b.sequence);
+}
+
+/**
+ * Events that occurred within a time range [startSeq, endSeq] (inclusive).
+ */
+export function eventsInRange(
+  events: ReadonlyArray<AgentEvent>,
+  startSeq: number,
+  endSeq: number,
+): AgentEvent[] {
+  return events.filter((e) => e.sequence >= startSeq && e.sequence <= endSeq);
+}
+
+/**
+ * The most recent screenshot path at or before the given sequence number.
+ */
+export function screenshotAt(
+  events: ReadonlyArray<AgentEvent>,
+  sequence: number,
+): string | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]!;
+    if (e.sequence > sequence) continue;
+    if (e.type === "observation:screenshot" && typeof e.data.path === "string") {
+      return e.data.path;
+    }
+  }
+  return null;
+}

@@ -5,6 +5,180 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-17
+
+Released after 22 atomic commits over 6 development weeks; verified with 300
+automated tests + live-API Phase-2 smoke ($0.26 / 3 bugs found and fixed
+before merge). Fully additive — no breaking changes from v0.2.0.
+
+### Fixed — Phase 2 live smoke (v0.3.0-rc.2)
+
+- `scoreReport` no longer silently disables gate when CLI overrides are
+  undefined (object-spread overwrote defaults)
+- Calibration fixture labels recalibrated against observed Sonnet 4.6
+  scoring — 100% agreement post-fix (was 46.7%)
+- `ai-audit explore` now writes audit.json / audit.html / audit-explorer.html
+  / summary.md (previously only video + console log)
+
+### Added — Weeks 3-5: Observer + Report SPA + MCP + Memory + Persona gen + Recorder
+
+**Observer UX (Week 3)**
+- **Timeline scrubber** in the live observer — every action / plan / criterion
+  rendered as a clickable step with color-coded status. Click any step to
+  open a right-side drawer showing meta, related events, and reasoning.
+  Auto-refresh debounced to 500ms on new events.
+- **Multi-session grid** (`/grid` route) — when a run executes N units in
+  parallel, each gets its own child SessionStore demultiplexed by
+  `session_id`. Grid tile shows status badge, 3 metrics (cost / steps /
+  fails), and the last-step label. 2-second polling; new sessions tile in
+  automatically.
+- **Session history API** — `GET /api/timeline`, `GET /api/events/all`,
+  `GET /api/screenshot?seq=`, `GET /api/session/:id` — backing APIs that
+  power the scrubber. Exposed as public HTTP so external tooling can
+  consume them.
+
+**Interactive Report (Week 3)**
+- **`audit-explorer.html`** written alongside `audit.html` on every run.
+  Self-contained single-file SPA with:
+  - Filter bar (persona × scenario × status × dimension-score ceiling ×
+    issue severity)
+  - Per-unit expandable cards with 18-dim score grid, step table with
+    gantt-style timing bars, issue browser
+  - XSS-hardened JSON embed (`<script type=application/json>` + `<`/`>`
+    escape), redaction-aware
+  - No build step, no runtime deps — works on file:// protocol
+
+**MCP Server (Week 4)**
+- **`ai-audit-mcp`** — stdio MCP server exposing 6 tools:
+  - `audit_url` / `explore_url` / `list_personas` / `list_scenarios`
+    / `calibrate_critic` / `get_last_report`
+- Registers in any MCP-aware client (Claude Code, Cursor, Cline,
+  Continue, Zed) via `~/.mcp.json`. Lets agents run audits inline
+  without leaving their workflow.
+
+**Agent Memory (Week 4)**
+- **Per-site playbooks** stored in `~/.ai-browser-auditor/memory.db`.
+  Each fact keyed on (host, persona_class) with confidence, confirmations,
+  contradictions, TTL.
+- Loaded facts feed the planner prompt as hints on first plan — speeds
+  convergence on repeat visits.
+- `AgentMemory.record()` is idempotent on same fact; confidence grows
+  +0.05 per hit (capped 0.99). Contradictions decrement by 0.2; facts
+  with more contradictions than confirmations drop out of lookup.
+- Shared-DB location with plan cache. 30-day TTL default.
+- Disable with `AUDIT_MEMORY_DISABLED=1`.
+
+**Persona Data Pipeline (Week 5)**
+- **`ai-audit persona generate --country=BR --device=mobile`** —
+  deterministic persona-YAML generator.
+- Backed by `src/persona-gen/market-data.ts` — curated Country Profile
+  table for 17 countries covering device split / mobile OS split /
+  language / timezone / p50 latency / typical payment tier. Values
+  from StatCounter + Cloudflare Radar + Ookla Q1 2026.
+- Auto-derives viewport, mental_model, critical_concerns (low-bandwidth /
+  RTL / GDPR / low-end Android) from country profile.
+- Generated YAMLs round-trip through `PersonaSchema`.
+- `ai-audit persona list-countries` prints the supported set.
+
+**Scenario Recorder (Week 5)**
+- **Chrome MV3 extension** (`extensions/scenario-recorder/`) —
+  click-through recording of user interactions → scenario YAML export.
+- Privacy-hardened: password fields skipped, long values truncated,
+  no network calls.
+- Canonical selector derivation: `data-testid` → stable id → aria-label
+  → `:has-text()` → nth-child fallback.
+- Auto-appends `assert_visual` step so recorded scenarios score output.
+- Pure compile logic in `src/recorder-core.ts` is unit-tested (13 tests);
+  round-trips through `ScenarioSchema`.
+
+### Changed — Weeks 3-5
+
+- `package.json` adds `@modelcontextprotocol/sdk` + bin `ai-audit-mcp`
+- `src/index.ts` re-exports `writeSpaReport`
+- `src/cli.ts` adds `persona generate` + `persona list-countries`
+- `StepResult.signals` field is now populated on every autonomous action
+- Full test suite: 299 tests (up from 226 end of Week 2)
+
+### Added — Week 2: Benchmark harness + Critic calibration
+
+- **WebArena-compatible benchmark runner** (`ai-audit benchmark`) —
+  ingests WebArena-shaped task JSON (`task_id`, `intent`, `start_url`,
+  `eval`) and runs each through the autonomous agent, emitting pass@1 +
+  cost + duration metrics directly comparable with published Browser Use /
+  Skyvern scores.
+  - Evaluation predicates: `string_match` (must_include/exclude/exact/fuzzy),
+    `url_match` (exact/prefix/substring), `exact_match`, `program_html`
+  - Filters: `--difficulties easy,medium,hard`, `--tags`, `--limit`
+  - Budget caps: `--per-task-budget`, `--total-budget` (stops scheduling
+    new tasks when exceeded)
+  - Outputs `benchmark.json` (machine-readable) + `benchmark.md` (human)
+  - `benchmarks/local-mini/` ships 3 starter tasks running against the
+    local fixture site — CI-stable, zero external deps
+- **Critic calibration suite** (`ai-audit calibrate`) — detects drift
+  when Anthropic ships a new vision model or when critic prompts change.
+  - Each sample labels expected score RANGES per dimension (not point
+    scores) — acknowledges LLM variance, measures directional correctness
+  - CI gate thresholds (defaults): mean_agreement ≥ 0.85,
+    mean_max_distance ≤ 1.5, fully_aligned_rate ≥ 0.70
+  - `tests/fixtures/critic-calibration/` ships 5 labeled screenshots
+    (happy home, post-signup success, broken page, CLS page, slow-LCP)
+  - `tests/calibration/generate-fixtures.ts` regenerates screenshots when
+    the fixture site changes
+
+### Changed — Week 2
+
+- `src/cli.ts` adds `benchmark` and `calibrate` subcommands (no changes
+  to existing commands)
+- Full test suite: 226 tests (up from 174 at end of Week 1)
+
+### Added — Week 1: Signal-based convergence + cost-optimized agent
+
+- **4-dimensional success criteria** — `SuccessCriterion.verification` extended with:
+  - `network` — assert HTTP request(s) matching url/method/status/duration
+  - `performance` — assert Core Web Vitals (LCP/CLS/INP/FCP/TTFB) thresholds
+  - `error` — assert bounded console errors / pageerrors / request failures (with `ignore_patterns` for known noise)
+  - `interaction` — assert an action actually changed page state (URL / title / interactive DOM / visible text / scroll / focus)
+
+  This defeats the "optimistic success" agent failure where a click reports success but nothing happened or the backend returned 500.
+- **Signal collectors** (`src/agent/signals/`) — zero-LLM-cost measurement primitives:
+  - `NetworkSignalCollector` — Playwright request/response tracking, `findMatching()` query API
+  - `PerformanceSignalCollector` — PerformanceObserver-injected web-vitals capture
+  - `ErrorSignalCollector` — console / pageerror / 4xx-5xx static resources, ignore patterns
+  - Interaction snapshot+diff functions
+  - All four attached per-action in autonomous mode; `StepResult.signals` carries per-step snapshots
+- **Plan cache** (`~/.ai-browser-auditor/plan-cache.db`) — SQLite store for reusable autonomous plans
+  - Keyed on (scenario_id, persona_class, host, dom_skeleton) — cosmetic changes don't invalidate
+  - 7-day TTL; auto-retires after ≥3 failures outweighing successes
+  - Disable with `AUDIT_PLAN_CACHE_DISABLED=1`
+  - Expected hit rate: 60–80% on repeated runs against the same site
+- **Economy navigator tier** — Haiku primary + Sonnet escalation
+  - `cost_mode: 'max' | 'balanced' | 'economy'` (default `'balanced'`) in ProjectConfig
+  - `balanced`: Haiku primary, Sonnet only when confidence < 0.6 or needs_replan
+  - `economy`: Haiku only
+  - `max`: legacy v0.2 behavior (always Sonnet)
+  - Override per-run: `AUDIT_COST_MODE=economy`
+  - Expected: ~3–5× cheaper per action at comparable success rate
+- **Micro-replan** — cheap single-step recovery before triggering a full Sonnet replan
+  - On stuck convergence, Haiku rewrites / skips / escalates the failing step
+  - ~15× cheaper than a full replan; capped at 2 attempts per plan
+- **Local fixture test site** (`tests/fixtures/test-site/`) — hermetic integration testing
+  - 5 static HTML fixtures + in-process HTTP server with canned JSON APIs
+  - Backs `tests/integration/` — full signal + convergence validation without external network
+
+### Changed
+
+- `ProjectConfig.models` adds `navigator_economy` (default Haiku 4.5)
+- `ProjectConfig` adds `cost_mode` field (default `'balanced'`)
+- `StepResult` adds optional `signals` field for per-step snapshots
+- CLI `explore` command now parses config through `ProjectConfigSchema` so defaults populate
+
+### Tests
+
+- 83 new tests across 7 new files (signals/*, convergence-signals, plan-cache, navigator-economy, micro-replan, signals-e2e, agent-loop-e2e)
+- Full suite: **174 tests pass** (up from 87 at branch start)
+- `tsc --noEmit` clean
+- No breaking changes: all new fields are additive + optional
+
 ## [0.2.0] - 2026-04-12
 
 ### Added

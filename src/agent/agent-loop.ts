@@ -24,8 +24,20 @@ import { runCritic, type CriticResult } from "../core/critic.js";
 import { Recorder } from "../core/recorder.js";
 import { waitForPageStable } from "../core/page-stability.js";
 import { extractDomSummary, formatDomSummary } from "./dom-summary.js";
-import { createPlan, revisePlan, type Plan, type PlannedStep } from "./planner.js";
-import { navigatorDecide, buildStepFromDecision } from "./navigator.js";
+import {
+  createPlan,
+  revisePlan,
+  microReplan,
+  type Plan,
+  type PlannedStep,
+} from "./planner.js";
+import { PlanCache, computeDomSkeleton } from "./plan-cache.js";
+import { AgentMemory, formatFactsForPlanner } from "./memory.js";
+import {
+  navigatorDecide,
+  economicNavigatorDecide,
+  buildStepFromDecision,
+} from "./navigator.js";
 import {
   ConvergenceTracker,
   initCriteriaState,
@@ -33,10 +45,18 @@ import {
   checkDomCriterion,
   checkExtractCriterion,
   checkVisualCriterion,
+  checkNetworkCriterion,
+  checkPerformanceCriterion,
+  checkErrorCriterion,
+  checkInteractionCriterion,
   getDomFingerprint,
   type CriteriaState,
 } from "./convergence.js";
 import { AgentEventBus } from "./events.js";
+import { NetworkSignalCollector } from "./signals/network.js";
+import { PerformanceSignalCollector } from "./signals/performance.js";
+import { ErrorSignalCollector } from "./signals/errors.js";
+import { takeSnapshot, type PageSnapshot } from "./signals/interaction.js";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -119,40 +139,119 @@ export async function runAutonomousLoop(
     diffResults: [],
   };
 
+  // ── Signal collectors: attach BEFORE navigation so LCP/init scripts fire correctly ──
+  const networkCollector = new NetworkSignalCollector(page);
+  const errorCollector = new ErrorSignalCollector(page);
+  const performanceCollector = new PerformanceSignalCollector(page);
+  networkCollector.start();
+  errorCollector.start();
+  await performanceCollector.attach();
+
+  // Most recent pre-action page snapshot for interaction-criterion checks.
+  let preActionSnapshot: PageSnapshot | null = null;
+
+  // Plan cache state (may remain null if disabled) — hoisted so `finally` can record outcome.
+  const cacheDisabledOuter = process.env.AUDIT_PLAN_CACHE_DISABLED === "1";
+  const planCache: PlanCache | null = cacheDisabledOuter ? null : new PlanCache();
+  let activeCacheKey: string | undefined;
+
+  // Agent memory — loaded facts feed into planner prompt; successful runs
+  // can add new facts in the future. Today we primarily consume.
+  const memoryDisabled = process.env.AUDIT_MEMORY_DISABLED === "1";
+  const memory: AgentMemory | null = memoryDisabled ? null : new AgentMemory();
+  const memoryHost = AgentMemory.hostOf(scenario.start_url ?? opts.config.base_url);
+  const memoryPersonaClass = AgentMemory.personaClass(
+    persona.country,
+    persona.device_class,
+    persona.payment_tier,
+  );
+
+  // Micro-replan counter — resets after each full replan. Cap prevents a stuck
+  // failing step from chaining cheap replans forever.
+  const MAX_MICRO_REPLAN_ATTEMPTS = 2;
+  let microReplanAttempts = 0;
+
   try {
     // ── Step 1: Navigate to start URL ────────────────────────────
     const startUrl = scenario.start_url!;
     await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await waitForPageStable(page, { timeout: 6000 });
+    preActionSnapshot = await takeSnapshot(page);
 
     // ── Step 2: Initial observation ──────────────────────────────
     const screenshot = await takeScreenshotBase64(page);
     const domSummary = await extractDomSummary(page);
+    const domSummaryText = formatDomSummary(domSummary);
 
-    // ── Step 3: Create initial plan ──────────────────────────────
-    const planResult = await createPlan(
-      {
-        goal: scenario.goal,
-        success_criteria: scenario.success_criteria ?? [],
-        hints: scenario.hints ?? [],
-        persona,
-        current_url: page.url(),
-        current_screenshot_base64: screenshot,
-        dom_summary: formatDomSummary(domSummary),
-        history: [],
-        failed_plans: [],
-        remaining_budget_usd: budgetCap - cost.value,
-      },
-      models.planner,
-      cost,
-    );
+    // ── Plan cache lookup (skip planner on hit) ──────────────────
+    const cacheKeyInput = {
+      scenario_id: scenario.id,
+      persona,
+      start_url: startUrl,
+      dom_skeleton: computeDomSkeleton(domSummaryText),
+    };
 
-    let plan = planResult.plan;
-    eventBus.emitEvent("plan:created", {
-      plan_id: plan.id,
-      steps: plan.steps,
-      reasoning: plan.reasoning,
-    });
+    let plan: Plan;
+    const cachedHit = planCache?.lookup(cacheKeyInput);
+    if (cachedHit) {
+      plan = cachedHit.plan;
+      activeCacheKey = cachedHit.key;
+      eventBus.emitEvent("plan:created", {
+        plan_id: plan.id,
+        steps: plan.steps,
+        reasoning: plan.reasoning,
+        from_cache: true,
+        cache_success_count: cachedHit.success_count,
+        cache_failure_count: cachedHit.failure_count,
+      });
+    } else {
+      // ── Step 3: Create initial plan (cache miss) ───────────────
+      // Enrich scenario hints with learned facts from memory for this (host, persona class)
+      const memFacts = memory
+        ? memory.lookup({ host: memoryHost, persona_class: memoryPersonaClass, limit: 10, min_confidence: 0.3 })
+        : [];
+      const memHints = memFacts.map((f) => ({
+        condition: "applies to this site",
+        suggestion: f.fact,
+      }));
+      const combinedHints = [...(scenario.hints ?? []), ...memHints];
+      if (memFacts.length > 0) {
+        eventBus.emitEvent("thought:reasoning", {
+          source: "memory",
+          count: memFacts.length,
+          preview: formatFactsForPlanner(memFacts).slice(0, 400),
+        });
+      }
+
+      const planResult = await createPlan(
+        {
+          goal: scenario.goal,
+          success_criteria: scenario.success_criteria ?? [],
+          hints: combinedHints,
+          persona,
+          current_url: page.url(),
+          current_screenshot_base64: screenshot,
+          dom_summary: domSummaryText,
+          history: [],
+          failed_plans: [],
+          remaining_budget_usd: budgetCap - cost.value,
+        },
+        models.planner,
+        cost,
+      );
+      plan = planResult.plan;
+      // Persist for future runs — outcome is recorded at loop end
+      if (planCache) {
+        planCache.store(cacheKeyInput, plan);
+        activeCacheKey = PlanCache.makeKey(cacheKeyInput);
+      }
+      eventBus.emitEvent("plan:created", {
+        plan_id: plan.id,
+        steps: plan.steps,
+        reasoning: plan.reasoning,
+        from_cache: false,
+      });
+    }
 
     let stepIndex = 0;
 
@@ -208,7 +307,7 @@ export async function runAutonomousLoop(
       const currentScreenshot = await takeScreenshotBase64(page);
       const currentDom = await extractDomSummary(page);
 
-      const decision = await navigatorDecide(
+      const decision = await runNavigator(
         {
           planned_step: plannedStep,
           persona,
@@ -217,7 +316,7 @@ export async function runAutonomousLoop(
           page_url: page.url(),
           hints: scenario.hints ?? [],
         },
-        models.navigator,
+        opts.config,
         cost,
       );
 
@@ -267,6 +366,8 @@ export async function runAutonomousLoop(
       }
 
       // ── ACT: Execute via existing handlers ─────────────────────
+      // Snapshot BEFORE the action for interaction-criterion baseline.
+      preActionSnapshot = await takeSnapshot(page);
       const step = buildStepFromDecision(decision, convergence.totalActions);
 
       eventBus.emitEvent("action:start", {
@@ -277,6 +378,20 @@ export async function runAutonomousLoop(
       });
 
       const result = await executeStep(step, ctx);
+      // Snapshot signals captured during this action and reset per-action collectors.
+      const postSnapshot = await takeSnapshot(page);
+      const interactionSignal =
+        preActionSnapshot && postSnapshot
+          ? { before: preActionSnapshot, after: postSnapshot }
+          : undefined;
+      result.signals = {
+        network: networkCollector.snapshot(),
+        errors: errorCollector.snapshot(),
+        performance: await performanceCollector.snapshot(),
+        interaction: interactionSignal,
+      };
+      networkCollector.reset();
+      errorCollector.reset();
       stepResults.push(result);
 
       const domFp = await getDomFingerprint(page);
@@ -334,6 +449,55 @@ export async function runAutonomousLoop(
       }
 
       if (signal.type === "stuck") {
+        // Try a cheap micro-replan FIRST — rewrite just the failing step via
+        // Haiku. Only escalate to a full Sonnet replan if the micro-replan
+        // asks us to, or if its rewrite itself subsequently fails.
+        if (microReplanAttempts < MAX_MICRO_REPLAN_ATTEMPTS) {
+          const economyNav = (opts.config.cost_mode ?? "balanced") !== "max";
+          const microModel = economyNav
+            ? (opts.config.models.navigator_economy ?? "claude-haiku-4-5-20251001")
+            : models.replan;
+          const microResult = await microReplan(
+            {
+              failed_step: plannedStep,
+              failure_reason: result.error ?? "failed without error message",
+              current_url: page.url(),
+              current_screenshot_base64: await takeScreenshotBase64(page),
+              dom_summary: formatDomSummary(await extractDomSummary(page)),
+              persona,
+              hints: scenario.hints ?? [],
+            },
+            microModel,
+            cost,
+          );
+          microReplanAttempts++;
+
+          if (microResult.kind === "rewrite") {
+            // Replace the failing step in-place and retry.
+            plan.steps[stepIndex] = microResult.replacement;
+            convergence.resetFailures();
+            eventBus.emitEvent("plan:revised", {
+              plan_id: plan.id,
+              steps: plan.steps,
+              reasoning: `micro-replan rewrite: ${microResult.replacement.reasoning}`,
+              kind: "micro_rewrite",
+            });
+            continue;
+          }
+          if (microResult.kind === "skip") {
+            stepIndex++;
+            convergence.resetFailures();
+            eventBus.emitEvent("plan:revised", {
+              plan_id: plan.id,
+              steps: plan.steps,
+              reasoning: `micro-replan skip: ${microResult.reason}`,
+              kind: "micro_skip",
+            });
+            continue;
+          }
+          // kind === "escalate" — fall through to full replan
+        }
+
         if (failedPlans.length >= agentConfig.max_replans) {
           convergenceReason = "max_replans";
           break;
@@ -344,6 +508,7 @@ export async function runAutonomousLoop(
         failedPlans.push(plan);
         plan = replanResult.plan;
         stepIndex = 0;
+        microReplanAttempts = 0; // fresh plan resets the counter
         convergence.resetFailures();
         eventBus.emitEvent("plan:revised", {
           plan_id: plan.id,
@@ -362,6 +527,12 @@ export async function runAutonomousLoop(
         models.critic,
         cost,
         eventBus,
+        {
+          network: networkCollector,
+          errors: errorCollector,
+          performance: performanceCollector,
+          preActionSnapshot,
+        },
       );
 
       if (allCriteriaMet(criteriaState)) {
@@ -407,6 +578,22 @@ export async function runAutonomousLoop(
       description: `Autonomous loop crashed: ${errMsg}`,
       recommendation: "Check logs. This may indicate a page crash, network issue, or API quota exceeded.",
     });
+  } finally {
+    networkCollector.stop();
+    errorCollector.stop();
+    // Record plan outcome into cache (if we had a cache key)
+    if (activeCacheKey && planCache) {
+      const planSucceeded = convergenceReason === "goal_met";
+      if (planSucceeded) {
+        planCache.recordOutcome(activeCacheKey, true);
+      } else if (convergenceReason === "max_replans" || convergenceReason === "error") {
+        // Plan was abandoned — count as failure, will be retired after enough occurrences.
+        planCache.recordOutcome(activeCacheKey, false);
+      }
+      // budget_exceeded / max_actions are not conclusive either way — don't record.
+      planCache.close();
+    }
+    if (memory) memory.close();
   }
 
   return {
@@ -478,6 +665,13 @@ async function doReplan(
   );
 }
 
+interface SignalBundle {
+  network: NetworkSignalCollector;
+  errors: ErrorSignalCollector;
+  performance: PerformanceSignalCollector;
+  preActionSnapshot: PageSnapshot | null;
+}
+
 async function checkCriteria(
   state: CriteriaState,
   page: Page,
@@ -486,6 +680,7 @@ async function checkCriteria(
   criticModel: string,
   cost: { value: number },
   eventBus: AgentEventBus,
+  signals: SignalBundle,
 ): Promise<void> {
   for (const criterion of state.criteria) {
     if (state.met.has(criterion.id)) continue;
@@ -498,6 +693,19 @@ async function checkCriteria(
         break;
       case "extract":
         met = await checkExtractCriterion(criterion, page);
+        break;
+      case "network":
+        met = checkNetworkCriterion(criterion, signals.network);
+        break;
+      case "performance":
+        met = await checkPerformanceCriterion(criterion, signals.performance);
+        break;
+      case "error":
+        met = checkErrorCriterion(criterion, signals.errors);
+        break;
+      case "interaction":
+        if (!signals.preActionSnapshot) continue;
+        met = await checkInteractionCriterion(criterion, page, signals.preActionSnapshot);
         break;
       case "visual":
         // Only check visual criteria every N actions to reduce cost
@@ -527,4 +735,41 @@ async function checkCriteria(
       });
     }
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Navigator dispatch — routes to economy or max tier per cost_mode
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Choose and invoke the right navigator based on ProjectConfig.cost_mode,
+ * overridable via AUDIT_COST_MODE env var for ad-hoc benchmarking.
+ *
+ *   'max'      → navigatorDecide with models.navigator (Sonnet)
+ *   'balanced' → economicNavigatorDecide (Haiku primary → Sonnet escalation)
+ *   'economy'  → economicNavigatorDecide (Haiku only, no escalation)
+ */
+async function runNavigator(
+  input: Parameters<typeof navigatorDecide>[0],
+  config: ProjectConfig,
+  cost: { value: number },
+): Promise<Awaited<ReturnType<typeof navigatorDecide>>> {
+  const envMode = process.env.AUDIT_COST_MODE as "max" | "balanced" | "economy" | undefined;
+  const mode = envMode ?? config.cost_mode ?? "balanced";
+  const strong = config.models.navigator;
+  const cheap = config.models.navigator_economy ?? "claude-haiku-4-5-20251001";
+
+  if (mode === "max") {
+    return navigatorDecide(input, strong, cost);
+  }
+
+  const decision = await economicNavigatorDecide(
+    input,
+    { primaryModel: cheap, fallbackModel: strong, primaryOnly: mode === "economy" },
+    cost,
+  );
+  // Strip the telemetry prop before handing back to caller which types against NavigatorDecision.
+  const { _telemetry, ...rest } = decision;
+  void _telemetry;
+  return rest;
 }

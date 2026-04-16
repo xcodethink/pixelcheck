@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AV Fixture — CLS</title>
+  <style>
+    body{font:15px/1.4 system-ui;padding:2rem;}
+    .banner { height: 0; overflow: hidden; background: #fee; transition: none; }
+    .banner.show { height: 200px; }
+  </style>
+</head>
+<body>
+  <div class="banner" id="b"></div>
+  <h1>Layout Shift Fixture</h1>
+  <p>Injects a 200px banner above this heading 300ms after load to cause CLS.</p>
+  <script>
+    setTimeout(() => { document.getElementById('b').classList.add('show'); }, 300);
+  </script>
+</body>
+</html>

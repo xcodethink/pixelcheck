@@ -11,6 +11,24 @@ import * as crypto from "node:crypto";
 import type { Page } from "playwright";
 import type { SuccessCriterion } from "../core/types.js";
 import { callVision, estimateCost } from "../core/llm.js";
+import { NetworkSignalCollector, type NetworkMatcher } from "./signals/network.js";
+import {
+  PerformanceSignalCollector,
+  matchPerformance,
+  type PerformanceExpectation,
+} from "./signals/performance.js";
+import {
+  ErrorSignalCollector,
+  matchErrors,
+  type ErrorExpectation,
+} from "./signals/errors.js";
+import {
+  diffSnapshots,
+  matchInteraction,
+  takeSnapshot,
+  type InteractionExpectation,
+  type PageSnapshot,
+} from "./signals/interaction.js";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -228,6 +246,78 @@ export async function checkVisualCriterion(
   } catch {
     return false;
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Signal-based criterion checkers (zero LLM cost)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Criterion checked against captured network traffic.
+ * Uses the NetworkSignalCollector's findMatching() query API.
+ */
+export function checkNetworkCriterion(
+  criterion: SuccessCriterion,
+  network: NetworkSignalCollector,
+): boolean {
+  if (criterion.verification !== "network") return false;
+  const exp = criterion.expected ?? {};
+  const matcher: NetworkMatcher = {
+    url_pattern: exp.url_pattern,
+    method: exp.method,
+    status_range: exp.status_range as [number, number] | undefined,
+    max_duration_ms: exp.max_duration_ms,
+  };
+  const matches = network.findMatching(matcher);
+  return matches.length > 0;
+}
+
+/**
+ * Criterion checked against Core Web Vitals.
+ * Reads current vitals from the PerformanceSignalCollector.
+ */
+export async function checkPerformanceCriterion(
+  criterion: SuccessCriterion,
+  perf: PerformanceSignalCollector,
+): Promise<boolean> {
+  if (criterion.verification !== "performance") return false;
+  const exp = (criterion.expected ?? {}) as PerformanceExpectation;
+  const signal = await perf.snapshot();
+  return matchPerformance(signal, exp).met;
+}
+
+/**
+ * Criterion checked against client-side errors.
+ * The collector is expected to have been configured with any ignore patterns.
+ */
+export function checkErrorCriterion(
+  criterion: SuccessCriterion,
+  errors: ErrorSignalCollector,
+): boolean {
+  if (criterion.verification !== "error") return false;
+  const exp = (criterion.expected ?? {}) as ErrorExpectation;
+  if (exp.ignore_patterns && exp.ignore_patterns.length > 0) {
+    errors.setIgnorePatterns(exp.ignore_patterns);
+  }
+  const signal = errors.snapshot();
+  return matchErrors(signal, exp).met;
+}
+
+/**
+ * Criterion checked against before/after interaction snapshots.
+ * Expects a baseline snapshot provided by the caller (the agent loop takes one
+ * before each action and passes it in when checking this criterion).
+ */
+export async function checkInteractionCriterion(
+  criterion: SuccessCriterion,
+  page: Page,
+  baseline: PageSnapshot,
+): Promise<boolean> {
+  if (criterion.verification !== "interaction") return false;
+  const after = await takeSnapshot(page);
+  const diff = diffSnapshots(baseline, after);
+  const exp = (criterion.expected ?? {}) as InteractionExpectation;
+  return matchInteraction(diff, exp).met;
 }
 
 /**

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AV Fixture — Broken</title>
+</head>
+<body>
+  <h1>Broken Page</h1>
+  <p>Emits console errors, a 404 resource, and a pageerror on load.</p>
+  <img src="/missing-image.png" alt="" />
+  <script src="/does-not-exist.js"></script>
+  <script>
+    console.error('Simulated console error: bootstrap failed');
+    console.warn('Simulated deprecation warning');
+    setTimeout(() => {
+      // Uncaught throw after load
+      throw new Error('Simulated uncaught exception');
+    }, 50);
+  </script>
+</body>
+</html>

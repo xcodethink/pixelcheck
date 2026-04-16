@@ -14,6 +14,7 @@ import {
   writeHtmlReport,
   writeMarkdownSummary,
 } from "./core/reporter.js";
+import { writeSpaReport } from "./core/reporter-spa.js";
 import { notifySlack, notifyTelegram } from "./core/notify.js";
 import { preflightUrls } from "./core/url-preflight.js";
 import { resolvePersonaSecrets } from "./core/persona.js";
@@ -29,7 +30,7 @@ program
   .description(
     "AI-driven post-deployment UX audit. Real browser, real personas, commercial-grade evaluation.",
   )
-  .version("0.2.0");
+  .version("0.3.0");
 
 program
   .command("run", { isDefault: true })
@@ -302,22 +303,16 @@ program
       };
 
       const personas = loadPersonas(path.resolve("personas"));
-      const config = {
+      // Parse through the schema so defaulted fields (cost_mode, navigator_economy…)
+      // are populated. This future-proofs the `explore` command against new fields.
+      const { ProjectConfigSchema } = await import("./core/types.js");
+      const config = ProjectConfigSchema.parse({
         project_name: "explore",
         base_url: exploreOpts.url,
         default_concurrency: 1,
         default_timeout_ms: 30_000,
-        models: {
-          default: "claude-sonnet-4-6",
-          critic: "claude-sonnet-4-6",
-          computer_use: "claude-opus-4-6",
-          planner: "claude-opus-4-6",
-          navigator: "claude-sonnet-4-6",
-          replan: "claude-sonnet-4-6",
-        },
         budget_usd: exploreOpts.budget ?? 2.0,
-        redact_patterns: [],
-      };
+      });
 
       validateEnv(["ANTHROPIC_API_KEY"]);
 
@@ -342,6 +337,21 @@ program
         observerPort: exploreOpts.observePort,
       });
 
+      // Write the full report set (JSON + HTML + SPA + markdown) just like
+      // the `run` command does. Without this, `explore` users got browser
+      // artifacts but no machine-readable report or rich explorer.
+      const runDir = path.join(path.resolve(exploreOpts.out), audit.run_id);
+      try {
+        writeJsonReport(audit, runDir);
+        writeHtmlReport(audit, runDir);
+        writeSpaReport(audit, runDir);
+        writeMarkdownSummary(audit, runDir);
+      } catch (reportErr) {
+        console.warn(chalk.yellow(
+          `  [reports] failed to write: ${reportErr instanceof Error ? reportErr.message : String(reportErr)}`,
+        ));
+      }
+
       console.log(chalk.cyan("\n[explore] Complete"));
       console.log(`  Score: ${audit.results[0]?.overall_score.toFixed(1) ?? "N/A"}`);
       console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
@@ -351,6 +361,7 @@ program
         console.log(`  Criteria met: ${as.criteria_met.join(", ") || "none"}`);
         console.log(`  Convergence: ${as.convergence_reason}`);
       }
+      console.log(`  Reports: ${runDir}`);
     } catch (err) {
       console.error(chalk.red("[FATAL]"), err instanceof Error ? err.message : String(err));
       process.exit(1);
@@ -414,6 +425,202 @@ program
     console.log(chalk.green("[replay] Complete. Dashboard still serving. Ctrl+C to stop."));
     // Keep process alive
     await new Promise(() => {});
+  });
+
+// ─────────────────────────────────────────────────────────────
+// `benchmark` command — run WebArena-compatible task sets
+// ─────────────────────────────────────────────────────────────
+
+program
+  .command("benchmark")
+  .description("Run a benchmark task set through the autonomous agent and emit pass@1 metrics")
+  .requiredOption("--tasks <path>", "Task file, directory, or .jsonl")
+  .option("-p, --personas <dir>", "Personas directory", "personas")
+  .option("-o, --out <dir>", "Output directory", "reports/benchmarks")
+  .option("--tag <tag>", "Benchmark run label", "benchmark")
+  .option("--cost-mode <mode>", "max|balanced|economy", "balanced")
+  .option("--per-task-budget <usd>", "Per-task budget cap", parseFloatOpt)
+  .option("--total-budget <usd>", "Total run budget cap", parseFloatOpt)
+  .option("--limit <n>", "Cap number of tasks", parseIntOpt)
+  .option("--tags <csv>", "Filter by tag(s) (comma-separated)")
+  .option(
+    "--difficulties <csv>",
+    "Filter by difficulty (easy,medium,hard — comma-separated)",
+  )
+  .action(async (opts: BenchmarkCliOpts) => {
+    const { loadTasks } = await import("./benchmark/loader.js");
+    const { runBenchmark } = await import("./benchmark/runner.js");
+    const { ProjectConfigSchema } = await import("./core/types.js");
+
+    const difficulties = opts.difficulties
+      ? (opts.difficulties.split(",").map((s) => s.trim()) as Array<"easy" | "medium" | "hard">)
+      : undefined;
+    const tagsFilter = opts.tags ? opts.tags.split(",").map((s) => s.trim()) : undefined;
+
+    const tasks = loadTasks(opts.tasks, {
+      difficulties,
+      tags: tagsFilter,
+      limit: opts.limit,
+    });
+    if (tasks.length === 0) {
+      console.error(chalk.red("No benchmark tasks matched filters."));
+      process.exit(1);
+    }
+
+    const personas = await loadPersonas(path.resolve(opts.personas));
+    const config = ProjectConfigSchema.parse({
+      project_name: "benchmark",
+      base_url: tasks[0]!.start_url,
+      default_concurrency: 1,
+      default_timeout_ms: 30_000,
+      budget_usd: opts.totalBudget ?? 20,
+      cost_mode: opts.costMode,
+    });
+
+    validateEnv(["ANTHROPIC_API_KEY"]);
+
+    const outDir = path.join(path.resolve(opts.out), `${opts.tag}_${Date.now()}`);
+    console.log(chalk.cyan(`\n[benchmark] ${tasks.length} tasks | cost_mode=${opts.costMode} | out=${outDir}`));
+
+    // The execute() hook wires each task into the autonomous agent loop.
+    // Implementation lives in a separate module so the runner stays pure/unit-testable.
+    const { executeBenchmarkTask } = await import("./benchmark/executor.js");
+
+    const report = await runBenchmark({
+      tasks,
+      config,
+      personas,
+      perTaskBudget: opts.perTaskBudget,
+      totalBudget: opts.totalBudget,
+      outputDir: outDir,
+      tag: opts.tag,
+      execute: executeBenchmarkTask,
+      onTaskComplete: (r) => {
+        const marker = r.passed ? chalk.green("✓") : chalk.red("✗");
+        console.log(
+          `  ${marker} ${r.task_id}  $${r.cost_usd.toFixed(3)}  ${r.duration_ms}ms  ${r.convergence_reason}`,
+        );
+      },
+    });
+
+    console.log(chalk.cyan("\n[benchmark] Complete"));
+    console.log(`  pass@1:     ${(report.pass_at_1 * 100).toFixed(1)}%  (${report.passed}/${report.total_tasks})`);
+    console.log(`  total cost: $${report.total_cost_usd.toFixed(2)}`);
+    console.log(`  avg cost:   $${report.avg_cost_usd.toFixed(3)}/task`);
+    console.log(`  p50 / p95:  ${report.p50_duration_ms}ms / ${report.p95_duration_ms}ms`);
+    console.log(`  report:     ${path.join(outDir, "benchmark.md")}`);
+  });
+
+// ─────────────────────────────────────────────────────────────
+// `calibrate` command — run critic against labeled fixtures + gate
+// ─────────────────────────────────────────────────────────────
+
+program
+  .command("calibrate")
+  .description("Run critic calibration against labeled screenshot fixtures; fails if the gate regresses.")
+  .option(
+    "--fixtures <dir>",
+    "Calibration fixtures directory",
+    "tests/fixtures/critic-calibration",
+  )
+  .option("--model <id>", "Critic model override (default: claude-sonnet-4-6)", "claude-sonnet-4-6")
+  .option("--tag <tag>", "Run label", "calibrate")
+  .option("--out <dir>", "Output directory", "reports/calibration")
+  .option("--min-agreement <n>", "Minimum mean agreement (0..1)", parseFloatOpt)
+  .option("--max-distance <n>", "Maximum mean max distance (0..10)", parseFloatOpt)
+  .option("--min-fully-aligned <n>", "Minimum fully-aligned rate (0..1)", parseFloatOpt)
+  .action(async (opts: CalibrateCliOpts) => {
+    const { runCalibration, scoreReport } = await import("./calibration/runner.js");
+    validateEnv(["ANTHROPIC_API_KEY"]);
+
+    const outDir = path.join(path.resolve(opts.out), `${opts.tag}_${Date.now()}`);
+    console.log(chalk.cyan(`\n[calibrate] fixtures=${opts.fixtures} model=${opts.model}`));
+
+    const report = await runCalibration({
+      fixturesDir: path.resolve(opts.fixtures),
+      model: opts.model,
+      tag: opts.tag,
+      outputDir: outDir,
+      onSampleComplete: (s) => {
+        const marker = s.agreement_rate === 1 && s.issue_check.passed ? chalk.green("✓") : chalk.yellow("~");
+        console.log(
+          `  ${marker} ${s.sample_id}  agreement=${(s.agreement_rate * 100).toFixed(0)}%  max_dist=${s.max_distance.toFixed(1)}  $${s.cost_usd.toFixed(3)}`,
+        );
+      },
+    });
+
+    const gate = scoreReport(report, {
+      min_mean_agreement: opts.minAgreement,
+      max_mean_max_distance: opts.maxDistance,
+      min_fully_aligned_rate: opts.minFullyAligned,
+    });
+
+    console.log(chalk.cyan("\n[calibrate] Complete"));
+    console.log(`  mean agreement:      ${(gate.computed.mean_agreement * 100).toFixed(1)}%`);
+    console.log(`  mean max distance:   ${gate.computed.mean_max_distance.toFixed(2)}`);
+    console.log(`  fully aligned rate:  ${(gate.computed.fully_aligned_rate * 100).toFixed(1)}%`);
+    console.log(`  total cost:          $${report.total_cost_usd.toFixed(3)}`);
+    console.log(`  report:              ${path.join(outDir, "calibration.md")}`);
+
+    if (!gate.passed) {
+      console.log(chalk.red("\n[GATE FAILED]"));
+      for (const v of gate.violations) console.log(chalk.red(`  - ${v}`));
+      process.exit(1);
+    }
+    console.log(chalk.green("\n[GATE PASSED]"));
+  });
+
+// ─────────────────────────────────────────────────────────────
+// `persona` command — generate persona YAML from market data
+// ─────────────────────────────────────────────────────────────
+
+const personaCmd = program.command("persona").description("Persona generator utilities");
+
+personaCmd
+  .command("generate")
+  .description("Generate a persona YAML from country + device market data")
+  .requiredOption("--country <code>", "ISO 3166-1 alpha-2 code (e.g. US, BR, IN)")
+  .option("--device <class>", "desktop | tablet | mobile (defaults to market modal)")
+  .option("--tier <tier>", "free | pro | max | power (defaults to typical for country)")
+  .option("--id <id>", "Override persona id")
+  .option("--out <dir>", "Write YAML to this dir (default: stdout)")
+  .action(async (opts: PersonaGenCliOpts) => {
+    const { writePersonaYaml, generatePersona } = await import("./persona-gen/generate.js");
+    try {
+      if (opts.out) {
+        const pth = writePersonaYaml(
+          {
+            country: opts.country,
+            device: opts.device as "desktop" | "tablet" | "mobile" | undefined,
+            payment_tier: opts.tier as "free" | "pro" | "max" | "power" | undefined,
+            id: opts.id,
+          },
+          path.resolve(opts.out),
+        );
+        console.log(chalk.cyan(`[persona] wrote ${pth}`));
+      } else {
+        const result = generatePersona({
+          country: opts.country,
+          device: opts.device as "desktop" | "tablet" | "mobile" | undefined,
+          payment_tier: opts.tier as "free" | "pro" | "max" | "power" | undefined,
+          id: opts.id,
+        });
+        process.stdout.write("# " + result.note + "\n" + result.yaml);
+      }
+    } catch (err) {
+      console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      process.exit(1);
+    }
+  });
+
+personaCmd
+  .command("list-countries")
+  .description("Print the list of countries with market data available")
+  .action(async () => {
+    const { availableCountries } = await import("./persona-gen/generate.js");
+    for (const c of availableCountries()) {
+      console.log(`  ${c.code}  ${c.name}`);
+    }
   });
 
 program.parse();
@@ -620,6 +827,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   const jsonPath = writeJsonReport(audit, runDir);
   const htmlPath = writeHtmlReport(audit, runDir, reportsDir);
   const mdPath = writeMarkdownSummary(audit, runDir);
+  const spaPath = writeSpaReport(audit, runDir);
 
   await notifySlack(audit);
   await notifyTelegram(audit);
@@ -639,6 +847,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   console.log(chalk.cyan("[ai-audit] Complete"));
   console.log(`  JSON:    ${jsonPath}`);
   console.log(`  HTML:    ${htmlPath}`);
+  console.log(`  SPA:     ${spaPath}`);
   console.log(`  Summary: ${mdPath}`);
   console.log("");
   console.log(
@@ -701,4 +910,35 @@ function parseIntOpt(value: string): number {
 
 function parseFloatOpt(value: string): number {
   return parseFloat(value);
+}
+
+interface BenchmarkCliOpts {
+  tasks: string;
+  personas: string;
+  out: string;
+  tag: string;
+  costMode: "max" | "balanced" | "economy";
+  perTaskBudget?: number;
+  totalBudget?: number;
+  limit?: number;
+  tags?: string;
+  difficulties?: string;
+}
+
+interface CalibrateCliOpts {
+  fixtures: string;
+  model: string;
+  tag: string;
+  out: string;
+  minAgreement?: number;
+  maxDistance?: number;
+  minFullyAligned?: number;
+}
+
+interface PersonaGenCliOpts {
+  country: string;
+  device?: string;
+  tier?: string;
+  id?: string;
+  out?: string;
 }
