@@ -554,6 +554,59 @@ program
     console.log(chalk.green("\n[GATE PASSED]"));
   });
 
+// ─────────────────────────────────────────────────────────────
+// `persona` command — generate persona YAML from market data
+// ─────────────────────────────────────────────────────────────
+
+const personaCmd = program.command("persona").description("Persona generator utilities");
+
+personaCmd
+  .command("generate")
+  .description("Generate a persona YAML from country + device market data")
+  .requiredOption("--country <code>", "ISO 3166-1 alpha-2 code (e.g. US, BR, IN)")
+  .option("--device <class>", "desktop | tablet | mobile (defaults to market modal)")
+  .option("--tier <tier>", "free | pro | max | power (defaults to typical for country)")
+  .option("--id <id>", "Override persona id")
+  .option("--out <dir>", "Write YAML to this dir (default: stdout)")
+  .action(async (opts: PersonaGenCliOpts) => {
+    const { writePersonaYaml, generatePersona } = await import("./persona-gen/generate.js");
+    try {
+      if (opts.out) {
+        const pth = writePersonaYaml(
+          {
+            country: opts.country,
+            device: opts.device as "desktop" | "tablet" | "mobile" | undefined,
+            payment_tier: opts.tier as "free" | "pro" | "max" | "power" | undefined,
+            id: opts.id,
+          },
+          path.resolve(opts.out),
+        );
+        console.log(chalk.cyan(`[persona] wrote ${pth}`));
+      } else {
+        const result = generatePersona({
+          country: opts.country,
+          device: opts.device as "desktop" | "tablet" | "mobile" | undefined,
+          payment_tier: opts.tier as "free" | "pro" | "max" | "power" | undefined,
+          id: opts.id,
+        });
+        process.stdout.write("# " + result.note + "\n" + result.yaml);
+      }
+    } catch (err) {
+      console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      process.exit(1);
+    }
+  });
+
+personaCmd
+  .command("list-countries")
+  .description("Print the list of countries with market data available")
+  .action(async () => {
+    const { availableCountries } = await import("./persona-gen/generate.js");
+    for (const c of availableCountries()) {
+      console.log(`  ${c.code}  ${c.name}`);
+    }
+  });
+
 program.parse();
 
 interface RunOpts {
@@ -864,4 +917,12 @@ interface CalibrateCliOpts {
   minAgreement?: number;
   maxDistance?: number;
   minFullyAligned?: number;
+}
+
+interface PersonaGenCliOpts {
+  country: string;
+  device?: string;
+  tier?: string;
+  id?: string;
+  out?: string;
 }
