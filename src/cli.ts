@@ -337,6 +337,21 @@ program
         observerPort: exploreOpts.observePort,
       });
 
+      // Write the full report set (JSON + HTML + SPA + markdown) just like
+      // the `run` command does. Without this, `explore` users got browser
+      // artifacts but no machine-readable report or rich explorer.
+      const runDir = path.join(path.resolve(exploreOpts.out), audit.run_id);
+      try {
+        writeJsonReport(audit, runDir);
+        writeHtmlReport(audit, runDir);
+        writeSpaReport(audit, runDir);
+        writeMarkdownSummary(audit, runDir);
+      } catch (reportErr) {
+        console.warn(chalk.yellow(
+          `  [reports] failed to write: ${reportErr instanceof Error ? reportErr.message : String(reportErr)}`,
+        ));
+      }
+
       console.log(chalk.cyan("\n[explore] Complete"));
       console.log(`  Score: ${audit.results[0]?.overall_score.toFixed(1) ?? "N/A"}`);
       console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
@@ -346,6 +361,7 @@ program
         console.log(`  Criteria met: ${as.criteria_met.join(", ") || "none"}`);
         console.log(`  Convergence: ${as.convergence_reason}`);
       }
+      console.log(`  Reports: ${runDir}`);
     } catch (err) {
       console.error(chalk.red("[FATAL]"), err instanceof Error ? err.message : String(err));
       process.exit(1);

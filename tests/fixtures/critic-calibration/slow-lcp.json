@@ -8,15 +8,15 @@
   "labels": [
     {
       "dimension": "visual_polish",
-      "min_score": 3,
-      "max_score": 8,
-      "rationale": "Simple 'HERO' block on a neutral background. Nothing broken, nothing premium."
+      "min_score": 0,
+      "max_score": 3,
+      "rationale": "Calibrated 2026-04-17: near-blank hero page scored 1 on Sonnet 4.6."
     },
     {
       "dimension": "time_to_value",
-      "min_score": 3,
-      "max_score": 9,
-      "rationale": "From a static screenshot the critic can't directly see the slow LCP; should score neutrally unless hint present."
+      "min_score": 0,
+      "max_score": 3,
+      "rationale": "Calibrated 2026-04-17: Sonnet sees minimal content as delivering no value (0 observed)."
     }
   ],
   "tags": ["performance", "lcp"]
