@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — v0.3 development
 
+### Added — Week 2: Benchmark harness + Critic calibration
+
+- **WebArena-compatible benchmark runner** (`ai-audit benchmark`) —
+  ingests WebArena-shaped task JSON (`task_id`, `intent`, `start_url`,
+  `eval`) and runs each through the autonomous agent, emitting pass@1 +
+  cost + duration metrics directly comparable with published Browser Use /
+  Skyvern scores.
+  - Evaluation predicates: `string_match` (must_include/exclude/exact/fuzzy),
+    `url_match` (exact/prefix/substring), `exact_match`, `program_html`
+  - Filters: `--difficulties easy,medium,hard`, `--tags`, `--limit`
+  - Budget caps: `--per-task-budget`, `--total-budget` (stops scheduling
+    new tasks when exceeded)
+  - Outputs `benchmark.json` (machine-readable) + `benchmark.md` (human)
+  - `benchmarks/local-mini/` ships 3 starter tasks running against the
+    local fixture site — CI-stable, zero external deps
+- **Critic calibration suite** (`ai-audit calibrate`) — detects drift
+  when Anthropic ships a new vision model or when critic prompts change.
+  - Each sample labels expected score RANGES per dimension (not point
+    scores) — acknowledges LLM variance, measures directional correctness
+  - CI gate thresholds (defaults): mean_agreement ≥ 0.85,
+    mean_max_distance ≤ 1.5, fully_aligned_rate ≥ 0.70
+  - `tests/fixtures/critic-calibration/` ships 5 labeled screenshots
+    (happy home, post-signup success, broken page, CLS page, slow-LCP)
+  - `tests/calibration/generate-fixtures.ts` regenerates screenshots when
+    the fixture site changes
+
+### Changed — Week 2
+
+- `src/cli.ts` adds `benchmark` and `calibrate` subcommands (no changes
+  to existing commands)
+- Full test suite: 226 tests (up from 174 at end of Week 1)
+
 ### Added — Week 1: Signal-based convergence + cost-optimized agent
 
 - **4-dimensional success criteria** — `SuccessCriterion.verification` extended with:
