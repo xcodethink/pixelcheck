@@ -234,7 +234,13 @@ export function scoreReport(
   report: CalibrationReport,
   thresholds: GateThresholds = {},
 ): GateResult {
-  const t = { ...DEFAULT_GATE, ...thresholds };
+  // Only apply overrides that are actually numeric — a naive spread would
+  // overwrite defaults with `undefined` from CLI options that weren't supplied,
+  // silently disabling the gate. (Caught in Phase 2 live smoke v0.3.0-rc.1.)
+  const t = { ...DEFAULT_GATE };
+  if (typeof thresholds.min_mean_agreement === "number") t.min_mean_agreement = thresholds.min_mean_agreement;
+  if (typeof thresholds.max_mean_max_distance === "number") t.max_mean_max_distance = thresholds.max_mean_max_distance;
+  if (typeof thresholds.min_fully_aligned_rate === "number") t.min_fully_aligned_rate = thresholds.min_fully_aligned_rate;
   const fullyAlignedRate =
     report.total_samples === 0 ? 0 : report.fully_aligned / report.total_samples;
   const violations: string[] = [];

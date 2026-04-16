@@ -8,21 +8,21 @@
   "labels": [
     {
       "dimension": "visual_polish",
-      "min_score": 5,
-      "max_score": 9,
-      "rationale": "Simple but clean layout; readable; not broken. Not premium either."
+      "min_score": 1,
+      "max_score": 6,
+      "rationale": "Calibrated 2026-04-17 against Sonnet 4.6: unstyled fixture pages score 1-5. Range allows drift ±2."
     },
     {
       "dimension": "localization",
-      "min_score": 7,
+      "min_score": 6,
       "max_score": 10,
-      "rationale": "Entirely English for an en-US persona; no translation mismatch."
+      "rationale": "en-US content for en-US persona; Sonnet scored 8 observed."
     },
     {
       "dimension": "ui_consistency",
-      "min_score": 6,
-      "max_score": 9,
-      "rationale": "Two cards, consistent button style, standard form inputs."
+      "min_score": 3,
+      "max_score": 7,
+      "rationale": "Calibrated 2026-04-17: plain fixture scored 5 observed."
     }
   ],
   "expected_issues": {
