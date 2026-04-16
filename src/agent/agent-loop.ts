@@ -32,6 +32,7 @@ import {
   type PlannedStep,
 } from "./planner.js";
 import { PlanCache, computeDomSkeleton } from "./plan-cache.js";
+import { AgentMemory, formatFactsForPlanner } from "./memory.js";
 import {
   navigatorDecide,
   economicNavigatorDecide,
@@ -154,6 +155,17 @@ export async function runAutonomousLoop(
   const planCache: PlanCache | null = cacheDisabledOuter ? null : new PlanCache();
   let activeCacheKey: string | undefined;
 
+  // Agent memory — loaded facts feed into planner prompt; successful runs
+  // can add new facts in the future. Today we primarily consume.
+  const memoryDisabled = process.env.AUDIT_MEMORY_DISABLED === "1";
+  const memory: AgentMemory | null = memoryDisabled ? null : new AgentMemory();
+  const memoryHost = AgentMemory.hostOf(scenario.start_url ?? opts.config.base_url);
+  const memoryPersonaClass = AgentMemory.personaClass(
+    persona.country,
+    persona.device_class,
+    persona.payment_tier,
+  );
+
   // Micro-replan counter — resets after each full replan. Cap prevents a stuck
   // failing step from chaining cheap replans forever.
   const MAX_MICRO_REPLAN_ATTEMPTS = 2;
@@ -194,11 +206,28 @@ export async function runAutonomousLoop(
       });
     } else {
       // ── Step 3: Create initial plan (cache miss) ───────────────
+      // Enrich scenario hints with learned facts from memory for this (host, persona class)
+      const memFacts = memory
+        ? memory.lookup({ host: memoryHost, persona_class: memoryPersonaClass, limit: 10, min_confidence: 0.3 })
+        : [];
+      const memHints = memFacts.map((f) => ({
+        condition: "applies to this site",
+        suggestion: f.fact,
+      }));
+      const combinedHints = [...(scenario.hints ?? []), ...memHints];
+      if (memFacts.length > 0) {
+        eventBus.emitEvent("thought:reasoning", {
+          source: "memory",
+          count: memFacts.length,
+          preview: formatFactsForPlanner(memFacts).slice(0, 400),
+        });
+      }
+
       const planResult = await createPlan(
         {
           goal: scenario.goal,
           success_criteria: scenario.success_criteria ?? [],
-          hints: scenario.hints ?? [],
+          hints: combinedHints,
           persona,
           current_url: page.url(),
           current_screenshot_base64: screenshot,
@@ -564,6 +593,7 @@ export async function runAutonomousLoop(
       // budget_exceeded / max_actions are not conclusive either way — don't record.
       planCache.close();
     }
+    if (memory) memory.close();
   }
 
   return {
