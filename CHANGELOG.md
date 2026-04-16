@@ -7,6 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — v0.3 development
 
+### Added — Weeks 3-5: Observer + Report SPA + MCP + Memory + Persona gen + Recorder
+
+**Observer UX (Week 3)**
+- **Timeline scrubber** in the live observer — every action / plan / criterion
+  rendered as a clickable step with color-coded status. Click any step to
+  open a right-side drawer showing meta, related events, and reasoning.
+  Auto-refresh debounced to 500ms on new events.
+- **Multi-session grid** (`/grid` route) — when a run executes N units in
+  parallel, each gets its own child SessionStore demultiplexed by
+  `session_id`. Grid tile shows status badge, 3 metrics (cost / steps /
+  fails), and the last-step label. 2-second polling; new sessions tile in
+  automatically.
+- **Session history API** — `GET /api/timeline`, `GET /api/events/all`,
+  `GET /api/screenshot?seq=`, `GET /api/session/:id` — backing APIs that
+  power the scrubber. Exposed as public HTTP so external tooling can
+  consume them.
+
+**Interactive Report (Week 3)**
+- **`audit-explorer.html`** written alongside `audit.html` on every run.
+  Self-contained single-file SPA with:
+  - Filter bar (persona × scenario × status × dimension-score ceiling ×
+    issue severity)
+  - Per-unit expandable cards with 18-dim score grid, step table with
+    gantt-style timing bars, issue browser
+  - XSS-hardened JSON embed (`<script type=application/json>` + `<`/`>`
+    escape), redaction-aware
+  - No build step, no runtime deps — works on file:// protocol
+
+**MCP Server (Week 4)**
+- **`ai-audit-mcp`** — stdio MCP server exposing 6 tools:
+  - `audit_url` / `explore_url` / `list_personas` / `list_scenarios`
+    / `calibrate_critic` / `get_last_report`
+- Registers in any MCP-aware client (Claude Code, Cursor, Cline,
+  Continue, Zed) via `~/.mcp.json`. Lets agents run audits inline
+  without leaving their workflow.
+
+**Agent Memory (Week 4)**
+- **Per-site playbooks** stored in `~/.ai-browser-auditor/memory.db`.
+  Each fact keyed on (host, persona_class) with confidence, confirmations,
+  contradictions, TTL.
+- Loaded facts feed the planner prompt as hints on first plan — speeds
+  convergence on repeat visits.
+- `AgentMemory.record()` is idempotent on same fact; confidence grows
+  +0.05 per hit (capped 0.99). Contradictions decrement by 0.2; facts
+  with more contradictions than confirmations drop out of lookup.
+- Shared-DB location with plan cache. 30-day TTL default.
+- Disable with `AUDIT_MEMORY_DISABLED=1`.
+
+**Persona Data Pipeline (Week 5)**
+- **`ai-audit persona generate --country=BR --device=mobile`** —
+  deterministic persona-YAML generator.
+- Backed by `src/persona-gen/market-data.ts` — curated Country Profile
+  table for 17 countries covering device split / mobile OS split /
+  language / timezone / p50 latency / typical payment tier. Values
+  from StatCounter + Cloudflare Radar + Ookla Q1 2026.
+- Auto-derives viewport, mental_model, critical_concerns (low-bandwidth /
+  RTL / GDPR / low-end Android) from country profile.
+- Generated YAMLs round-trip through `PersonaSchema`.
+- `ai-audit persona list-countries` prints the supported set.
+
+**Scenario Recorder (Week 5)**
+- **Chrome MV3 extension** (`extensions/scenario-recorder/`) —
+  click-through recording of user interactions → scenario YAML export.
+- Privacy-hardened: password fields skipped, long values truncated,
+  no network calls.
+- Canonical selector derivation: `data-testid` → stable id → aria-label
+  → `:has-text()` → nth-child fallback.
+- Auto-appends `assert_visual` step so recorded scenarios score output.
+- Pure compile logic in `src/recorder-core.ts` is unit-tested (13 tests);
+  round-trips through `ScenarioSchema`.
+
+### Changed — Weeks 3-5
+
+- `package.json` adds `@modelcontextprotocol/sdk` + bin `ai-audit-mcp`
+- `src/index.ts` re-exports `writeSpaReport`
+- `src/cli.ts` adds `persona generate` + `persona list-countries`
+- `StepResult.signals` field is now populated on every autonomous action
+- Full test suite: 299 tests (up from 226 end of Week 2)
+
 ### Added — Week 2: Benchmark harness + Critic calibration
 
 - **WebArena-compatible benchmark runner** (`ai-audit benchmark`) —
