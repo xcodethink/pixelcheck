@@ -1,0 +1,14 @@
+{
+  "task_id": "local-002",
+  "intent": "Load the items list on the home page and report how many items were loaded",
+  "start_url": "{{FIXTURE_URL}}/",
+  "sites": ["local-fixture"],
+  "difficulty": "easy",
+  "tags": ["extract", "api"],
+  "eval": {
+    "eval_types": ["string_match"],
+    "reference_answers": {
+      "must_include": ["3"]
+    }
+  }
+}

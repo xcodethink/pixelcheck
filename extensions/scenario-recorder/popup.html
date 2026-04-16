@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  body { width: 320px; font-family: system-ui, -apple-system, sans-serif; padding: 12px; margin: 0; color: #222; }
+  h1 { font-size: 13px; margin: 0 0 8px 0; color: #0a7; }
+  .row { margin-bottom: 8px; font-size: 12px; }
+  button { padding: 6px 10px; font-size: 12px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; margin-right: 4px; }
+  button.primary { background: #0a7; color: #fff; border-color: #0a7; }
+  button.danger { background: #d44; color: #fff; border-color: #d44; }
+  label { font-size: 11px; color: #555; display: block; margin-bottom: 2px; }
+  input, textarea { width: 100%; padding: 4px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; }
+  .status { font-size: 11px; color: #777; }
+  pre { background: #f5f5f5; padding: 6px; font-size: 10px; max-height: 220px; overflow: auto; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <h1>AI Browser Auditor — Recorder</h1>
+  <div class="row">
+    <button id="btnStart" class="primary">Start</button>
+    <button id="btnStop">Stop</button>
+    <button id="btnClear" class="danger">Clear</button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="row">
+    <label>Scenario id</label>
+    <input id="scenarioId" placeholder="my-scenario" value="recorded-scenario" />
+  </div>
+  <div class="row">
+    <label>Goal / intent</label>
+    <textarea id="goal" rows="2" placeholder="e.g. Complete a signup flow"></textarea>
+  </div>
+  <div class="row">
+    <label>Persona id</label>
+    <input id="personaId" placeholder="us-desktop-pro" value="us-desktop-pro" />
+  </div>
+
+  <div class="row">
+    <button id="btnExport" class="primary">Export YAML</button>
+    <button id="btnCopy">Copy to clipboard</button>
+  </div>
+
+  <pre id="preview"></pre>
+
+<script src="popup.js"></script>
+</body>
+</html>

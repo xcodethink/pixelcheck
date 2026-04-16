@@ -221,6 +221,131 @@ export async function revisePlan(
   return createPlan(input, model, cost);
 }
 
+// ─────────────────────────────────────────────────────────────
+// Micro-replan — cheap single-step adjustment before full replan
+// ─────────────────────────────────────────────────────────────
+
+export interface MicroReplanInput {
+  /** The plan step that just failed */
+  failed_step: PlannedStep;
+  /** Why it failed (from executor) */
+  failure_reason: string;
+  /** Current page context */
+  current_url: string;
+  current_screenshot_base64?: string;
+  dom_summary: string;
+  persona: Persona;
+  hints: Hint[];
+}
+
+export type MicroReplanResult =
+  | { kind: "rewrite"; replacement: PlannedStep; costUsd: number }
+  | { kind: "skip"; reason: string; costUsd: number }
+  | { kind: "escalate"; reason: string; costUsd: number };
+
+const MICRO_REPLAN_SYSTEM_PROMPT = `You are a recovery assistant for a browser testing agent. A single step just failed. You can pick ONE of three responses:
+
+1. "rewrite" — propose a replacement step that attempts the same goal differently (new wording, different selector cue, different action type).
+2. "skip" — declare the step unnecessary given current state; the plan can proceed without it.
+3. "escalate" — the failure reflects a bigger plan problem; demand a full replan.
+
+Only return "rewrite" when you are confident a tweaked instruction will succeed. Return "escalate" when you cannot determine a safe retry.
+
+OUTPUT FORMAT (strict JSON):
+{ "kind": "rewrite", "replacement": { "action_type": "...", "instruction": "...", "reasoning": "..." } }
+{ "kind": "skip", "reason": "..." }
+{ "kind": "escalate", "reason": "..." }`;
+
+/**
+ * Attempt a cheap single-step recovery. Called BEFORE a full replan.
+ *
+ * Economics:
+ *   Full replan (Sonnet, ~3000 tokens): ~$0.03
+ *   Micro-replan (Haiku, ~1200 tokens): ~$0.002 (~15× cheaper)
+ *
+ * The caller should only trigger a full replan if this returns 'escalate' or
+ * if the returned 'rewrite' itself fails.
+ */
+export async function microReplan(
+  input: MicroReplanInput,
+  model: string,
+  cost: { value: number },
+): Promise<MicroReplanResult> {
+  const client = getAnthropicClient();
+  const parts: string[] = [];
+  parts.push(`## Failed Step`);
+  parts.push(`Action type: ${input.failed_step.action_type}`);
+  parts.push(`Instruction: ${input.failed_step.instruction}`);
+  parts.push(`Reasoning: ${input.failed_step.reasoning}`);
+  parts.push(`\n## Failure Reason\n${input.failure_reason}`);
+  parts.push(`\n## Current Page\nURL: ${input.current_url}`);
+  parts.push(`\n## DOM Summary\n${input.dom_summary.slice(0, 2000)}`);
+  if (input.hints.length > 0) {
+    parts.push(`\n## Hints`);
+    for (const h of input.hints) {
+      parts.push(`- When: "${h.condition}" → ${h.suggestion}`);
+    }
+  }
+
+  const content: Anthropic.Messages.ContentBlockParam[] = [];
+  if (input.current_screenshot_base64) {
+    content.push({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: "image/jpeg",
+        data: input.current_screenshot_base64,
+      },
+    });
+  }
+  content.push({ type: "text", text: parts.join("\n") });
+
+  const response = await client.messages.create({
+    model,
+    max_tokens: 512,
+    system: MICRO_REPLAN_SYSTEM_PROMPT,
+    messages: [{ role: "user", content }],
+  });
+
+  const costUsd = estimateCost(
+    model,
+    response.usage.input_tokens,
+    response.usage.output_tokens,
+  );
+  cost.value += costUsd;
+
+  const text = response.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b as { type: "text"; text: string }).text)
+    .join("\n");
+
+  let parsed: {
+    kind?: string;
+    replacement?: { action_type?: string; instruction?: string; reasoning?: string };
+    reason?: string;
+  };
+  try {
+    parsed = extractJson(text);
+  } catch {
+    return { kind: "escalate", reason: "micro-replan output was unparseable", costUsd };
+  }
+
+  if (parsed.kind === "skip") {
+    return { kind: "skip", reason: parsed.reason ?? "skipped", costUsd };
+  }
+  if (parsed.kind === "rewrite" && parsed.replacement?.instruction) {
+    const replacement: PlannedStep = {
+      index: input.failed_step.index,
+      action_type: validateActionType(parsed.replacement.action_type ?? input.failed_step.action_type),
+      instruction: parsed.replacement.instruction,
+      reasoning: parsed.replacement.reasoning ?? "micro-replan rewrite",
+      targets_criteria: input.failed_step.targets_criteria,
+    };
+    return { kind: "rewrite", replacement, costUsd };
+  }
+  return { kind: "escalate", reason: parsed.reason ?? "escalation requested", costUsd };
+}
+
 function validateActionType(type: string): PlannedStep["action_type"] {
   const valid: PlannedStep["action_type"][] = [
     "visit", "act", "extract", "observe", "wait", "scroll", "assert_visual", "assert_dom",
