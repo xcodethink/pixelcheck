@@ -243,6 +243,18 @@ describe("scoreReport", () => {
     expect(r.passed).toBe(true);
   });
 
+  it("does not silently disable the gate when thresholds are undefined (regression)", () => {
+    // Was a bug where { ...DEFAULT, ...{ min_mean_agreement: undefined } }
+    // overwrote the default with undefined, making every comparison return false.
+    const r = scoreReport(mkReport({ mean_agreement: 0.3 }), {
+      min_mean_agreement: undefined,
+      max_mean_max_distance: undefined,
+      min_fully_aligned_rate: undefined,
+    });
+    expect(r.passed).toBe(false);
+    expect(r.violations[0]).toMatch(/mean_agreement/);
+  });
+
   it("default gate has sane values", () => {
     expect(DEFAULT_GATE.min_mean_agreement).toBeGreaterThan(0.5);
     expect(DEFAULT_GATE.min_mean_agreement).toBeLessThanOrEqual(1);
