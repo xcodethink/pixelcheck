@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "AI Browser Auditor — Scenario Recorder",
+  "version": "0.3.0",
+  "description": "Record interactions in any page and export them as an AI Browser Auditor scenario YAML.",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Scenario Recorder"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["recorder-ui.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
