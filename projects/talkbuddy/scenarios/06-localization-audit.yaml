@@ -1,0 +1,84 @@
+id: 06-localization-audit
+name: Site-wide zh/en localization + fallback parity
+priority: P1
+goal: |
+  i18n completeness sweep — hits the pages that changed in the
+  recent audit batch (landing, onboarding destination step, plan
+  tab, consent banner, admin tier modal) and verifies every user-
+  visible string renders in the persona's language without leaking
+  the key, English fallbacks into Chinese views, or raw
+  `{placeholder}` tokens.
+
+  Specifically watches for:
+    * Missing `plan.timeline.*`, `consent.*`, `privacy.analytics.*`,
+      `common.cancel`, `data.exportFailed`, `error.storageFull` keys
+      (all added by recent commits).
+    * The Tencent SMS provider path being flag-gated — the login
+      form should NOT show phone-input on any persona until the
+      flag flips back on.
+
+applies_to:
+  personas:
+    - cn-chinese-free-mobile     # Simplified Chinese
+    - tw-chinese-pro-tablet       # Traditional Chinese (fallback to zh)
+    - jp-japanese-pro-desktop     # Japanese (should fallback to zh or en)
+    - uk-english-power-desktop    # British English (should render en)
+
+scoring_dimensions:
+  - completion
+  - localization
+
+# Pages to sweep. Keep small; each page is screenshot + reviewed.
+pages:
+  - /
+  - /auth/login
+  - /auth/register
+  - /privacy
+  - /scenes
+  - /app
+
+steps:
+  - id: loop-over-pages
+    type: foreach
+    over: pages
+    steps:
+      - id: visit-page
+        type: visit
+        url: "https://talkbuddy.wayjet.io${item}"
+        wait_until: networkidle
+
+      - id: screenshot
+        type: screenshot
+        label: "locale-${persona.locale}-${item_slug}"
+        full_page: true
+
+      - id: localization-review
+        type: llm_review
+        prompt: |
+          Scan the full-page screenshot for localization issues.
+
+          REPORT every one you find (per finding: selector or
+          paragraph, problem, severity):
+            1. Untranslated strings in $persona.language's view.
+               Example: "Coming Soon" shown to a cn-chinese user.
+            2. Leaked i18n keys — text like
+               "plan.timeline.phaseEmpty" or "consent.title".
+               These mean the key exists in only one locale.
+            3. Unfilled placeholders — literal text like "{n} days"
+               or "{count}". Means the interpolation fed the
+               param the wrong name.
+            4. Machine-translation smell — awkward word order,
+               literal translations, missing measure words for ZH.
+            5. Phone-input visible anywhere on /auth/* — that
+               feature is currently feature-flagged OFF. Any
+               phone UI means PHONE_AUTH_ENABLED got flipped on
+               by accident.
+
+          Score localization 1-5 for this page + this persona.
+
+  - id: summary
+    type: llm_review
+    prompt: |
+      Summarize localization-severity findings across all pages
+      seen. Highest-severity first. Don't include minor
+      "could be more natural" quibbles unless they're repeated.
