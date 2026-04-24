@@ -1,0 +1,79 @@
+id: 00-infra-smoke
+name: Infrastructure smoke — no LLM
+priority: P0
+goal: |
+  Verify production is alive and reachable from every persona's
+  regional proxy. Zero LLM calls, zero cost. Run this first on any
+  new deploy before spending budget on semantic audits.
+
+  Covers: browser launch + stealth fingerprint, persona locale
+  routing, video/HAR/console capture, screenshot-with-SHA-256
+  baseline, visual diff against previous run.
+
+applies_to:
+  personas:
+    - cn-chinese-free-mobile
+    - us-english-free-mobile
+    - in-hindi-free-android
+
+scoring_dimensions:
+  - completion
+
+steps:
+  - id: open-home
+    type: visit
+    url: https://talkbuddy.wayjet.io/
+    wait_until: domcontentloaded
+
+  - id: wait-settle
+    type: wait_for
+    ms: 3000
+
+  - id: screenshot-home
+    type: screenshot
+    label: home
+    full_page: true
+
+  - id: assert-html-lang
+    type: assert_dom
+    selector: html
+    expected:
+      visible: true
+
+  - id: open-scenes
+    type: visit
+    url: https://talkbuddy.wayjet.io/scenes
+    wait_until: domcontentloaded
+
+  - id: wait-scenes
+    type: wait_for
+    ms: 2000
+
+  - id: screenshot-scenes
+    type: screenshot
+    label: scenes-index
+    full_page: true
+
+  - id: open-privacy
+    type: visit
+    url: https://talkbuddy.wayjet.io/privacy
+    wait_until: domcontentloaded
+
+  - id: wait-privacy
+    type: wait_for
+    ms: 1500
+
+  - id: screenshot-privacy
+    type: screenshot
+    label: privacy
+    full_page: true
+
+  - id: check-health
+    type: visit
+    url: https://talkbuddy.wayjet.io/api/health
+    wait_until: load
+
+  - id: screenshot-health
+    type: screenshot
+    label: health-endpoint
+    full_page: true

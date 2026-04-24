@@ -1,0 +1,84 @@
+id: 02-signup-email
+name: Email signup end-to-end
+priority: P0
+goal: |
+  Walk through the email signup flow. SMS auth is currently feature-
+  flagged off (PHONE_AUTH_ENABLED=false in login-form.tsx /
+  register-form.tsx), so this audit only exercises email registration.
+
+  Validates the build-fix + a11y commits from the audit batch:
+    * consent.* + privacy.analytics.* i18n keys present across
+      locales (landed as part of perf-baseline push)
+    * commit 4af7f66 — skip-link, pinch-zoom, aria-labels
+
+  Scoring: can a brand-new user complete registration without
+  stumbling on i18n gaps, broken validation messages, or Google OAuth
+  that silently fails?
+
+applies_to:
+  personas:
+    - cn-chinese-free-mobile
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+
+scoring_dimensions:
+  - completion
+  - localization
+  - error_handling
+  - accessibility
+
+steps:
+  - id: open-register
+    type: visit
+    url: https://talkbuddy.wayjet.io/auth/register
+    wait_until: networkidle
+
+  - id: screenshot-register
+    type: screenshot
+    label: register-form
+    full_page: true
+
+  - id: review-register-ui
+    type: llm_review
+    prompt: |
+      You are $persona.display_name opening the registration page.
+
+      Evaluate as a 1-5 score + one-sentence justification:
+        - completion: every form field labelled clearly?
+        - localization: field labels, placeholder, submit button,
+          "already have account" link — all in $persona.language?
+        - error_handling: password strength indicator visible?
+          Visible requirements before typing? (length, mixed case,
+          number, special char)
+        - accessibility: tab order reaches every input? Password
+          show/hide button has an aria-label? Form has a <main id=
+          "main-content"> landing the skip-link to?
+
+      Also: is Google OAuth button above or below email/password?
+      Either is OK but flag if it's missing entirely.
+
+  - id: click-google
+    type: click
+    description: "Click the 'Sign in with Google' / 'Continue with
+      Google' button. Stop after the Google OAuth consent screen
+      becomes visible — DO NOT enter real credentials."
+    wait_until: networkidle
+
+  - id: screenshot-google-oauth
+    type: screenshot
+    label: google-oauth-consent
+    full_page: false
+
+  - id: review-oauth
+    type: llm_review
+    prompt: |
+      Google OAuth consent screen for TalkBuddy.
+      - Does it show "TalkBuddy" or "WayJet" as the requesting app?
+        (not a generic "localhost" or a half-configured name)
+      - Scopes requested are minimal (email + profile)?
+      - No scary "unverified app" warning?
+
+      If the button did NOT navigate to Google at all, score
+      completion = 1 and flag the regression. This is a repeated
+      past failure mode we audit for specifically (OAuth silently
+      broken after deploy — per CLAUDE.md "OAuth/登录保护铁律").

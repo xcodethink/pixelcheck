@@ -1,0 +1,100 @@
+id: 03-paywall-enforcement
+name: Free-tier paywall — scene 4+ lockout
+priority: P0
+goal: |
+  Validate the revenue-integrity commits:
+    * 1e57dd9 fix(revenue): enforce scene paywall in API + centralize
+      client gate — server-side assertSceneAccessible + client
+      handleSelectPreset gate.
+    * e2e82f0 fix(revenue): legacy sceneContext path now 403 for free
+      users — no more "gifted credits bypass paywall".
+
+  Expected behaviour as a free-tier user:
+    * First 3 scenes per category open normally (reader mode loads).
+    * Tapping the 4th (or later) scene triggers the upgrade modal —
+      NOT a successful navigation to /scenes/[id].
+    * Upgrade modal copy is clear, localized, and has a visible CTA.
+    * No raw 403 error page leaks through to the user.
+
+  Known gotcha: /scenes/[id] pages are public for SEO. The paywall
+  runs on the reader's "start practicing" button, not on the
+  informational page. The scenario distinguishes these.
+
+applies_to:
+  personas:
+    - cn-chinese-free-mobile
+    - us-english-free-mobile
+
+scoring_dimensions:
+  - completion
+  - localization
+  - trust_signals
+  - revenue_integrity
+
+steps:
+  - id: open-scenes
+    type: visit
+    url: https://talkbuddy.wayjet.io/scenes
+    wait_until: networkidle
+
+  - id: screenshot-scenes-index
+    type: screenshot
+    label: scenes-index
+    full_page: true
+
+  - id: click-airport
+    type: click
+    description: "Click the 'Airport' (or '机场') category card to
+      filter scenes by that category."
+    wait_until: networkidle
+
+  - id: screenshot-airport-list
+    type: screenshot
+    label: airport-scenes
+    full_page: true
+
+  - id: count-scenes-visible
+    type: llm_review
+    prompt: |
+      How many airport scene cards are visible in the screenshot?
+      List the first 5 by their displayed title. For each, note:
+        - Is there a lock icon / 'upgrade to access' badge?
+        - Is the card greyed out or does it look clickable?
+
+      Expected: first 3 scenes clickable, scenes 4+ show a lock
+      icon or upgrade CTA.
+
+  - id: click-fourth-scene
+    type: click
+    description: "Click the 4th scene in the airport category list.
+      Count from the top. If all visible scenes are clickable with
+      no lock icons, this is a regression — click the 4th anyway."
+    wait_until: networkidle
+
+  - id: screenshot-after-click
+    type: screenshot
+    label: after-fourth-scene-click
+    full_page: true
+
+  - id: verify-paywall
+    type: llm_review
+    prompt: |
+      Did an upgrade/paywall modal appear, OR did the reader mode
+      load the scene? The ONLY acceptable outcomes:
+
+        (a) An upgrade modal is visible. Score this screenshot as
+            completion=5. Check the modal for:
+              - Price shown in $persona.language's currency
+                expectation ($12.99 USD is fine for all personas)
+              - "Early bird" or "one-time" framing clear
+              - Close button present (X in corner)
+              - Primary CTA text is native-feeling
+
+        (b) The scene reader loaded — this is a REGRESSION of
+            commits 1e57dd9 + e2e82f0. Score completion=1 and
+            include the URL in the report so we can reproduce.
+
+        (c) A raw 403 / "SCENE_LOCKED" error page or toast with
+            uncaught error — score completion=2 and flag the UX
+            gap (paywall modal is the intended UX, not the raw
+            error bubble-up).

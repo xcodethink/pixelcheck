@@ -1,0 +1,102 @@
+id: 01-landing-first-impression
+name: Landing page first impression + a11y + localization
+priority: P0
+goal: |
+  Validate the commits that just shipped:
+    * 27809a12 perf(landing): curated preview subset
+      Expect: landing page bytes ≤ 500 KB, TTI under 1.5s on desktop.
+    * 4af7f66  fix(a11y): skip-link target, pinch-zoom, bf-cache,
+      aria-labels on icon-only buttons.
+      Expect: axe-core 0 critical violations, skip-link navigable,
+      pinch-zoom enabled (no maximumScale).
+
+  Additional AI-reviewed UX dimensions:
+    * As a [persona], does the hero clearly explain what TalkBuddy
+      does? Is the value prop localized correctly for the user's
+      country (出境旅行英语 for CN; "travel English" for US)?
+    * Trust signals present? ("No credit card required", 7-day
+      free tier explanation, pricing transparency.)
+    * Is the sign-up CTA visible above the fold on this device?
+
+applies_to:
+  personas:
+    - cn-chinese-free-mobile
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+    - in-hindi-free-android
+    - uk-english-power-desktop
+
+scoring_dimensions:
+  - completion
+  - localization
+  - visual_polish
+  - trust_signals
+  - accessibility
+  - value_prop_clarity
+
+steps:
+  - id: open-home
+    type: visit
+    url: https://talkbuddy.wayjet.io/
+    wait_until: networkidle
+
+  - id: screenshot-hero
+    type: screenshot
+    label: hero-above-fold
+    full_page: false
+
+  - id: screenshot-full-landing
+    type: screenshot
+    label: landing-full-page
+    full_page: true
+
+  - id: axe-scan
+    type: a11y
+    tool: axe
+    fail_on: ["critical", "serious"]
+
+  - id: check-locale
+    type: llm_review
+    prompt: |
+      You are a ${persona.display_name} visiting talkbuddy.wayjet.io
+      for the first time. Review the screenshot above.
+
+      Score from 1-5 on each axis; justify each score in one
+      sentence referencing specific text or visual elements:
+        1. completion — did the page actually load without partial /
+           broken / half-translated UI?
+        2. localization — is every user-visible string in the user's
+           language ($persona.language)? If ZH, is it Simplified
+           Chinese? If EN, is it natural native English, not
+           machine-translated?
+        3. visual_polish — is the layout clean, readable on $persona.device_class?
+           Any overflow, overlap, cut-off text?
+        4. trust_signals — a first-time visitor evaluating whether
+           this is a trustworthy product. What would nudge them to
+           sign up vs bounce?
+        5. accessibility — color contrast, readable font sizes
+           under $persona.viewport, alt text on hero images.
+        6. value_prop_clarity — can the persona tell in <5 seconds
+           what the product does and why they'd pay for it?
+
+      Flag any dealbreakers separately.
+
+  - id: scroll-to-pricing
+    type: scroll
+    to: "#pricing"
+
+  - id: screenshot-pricing
+    type: screenshot
+    label: pricing-section
+    full_page: false
+
+  - id: review-pricing
+    type: llm_review
+    prompt: |
+      Pricing section review. Per $persona.language +
+      $persona.payment_tier:
+        - Is the $12.99 early-bird clearly marked as time-limited?
+        - Does the $39.99 original price strike-through render?
+        - "Lifetime unlock" — is that phrase localized correctly?
+        - Free-tier limitations visible here? (3 scenes per category)
+        - Any CTA text that reads machine-translated or off-tone?
