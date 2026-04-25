@@ -13,6 +13,9 @@ import { getDashboardHtml } from "./dashboard.js";
 import { getGridHtml } from "./grid-dashboard.js";
 import { deriveTimeline, eventsInRange, screenshotAt } from "./session-store.js";
 import type { SessionRegistry } from "./session-registry.js";
+import { getLogger } from "../core/logger.js";
+
+const log = getLogger("observer.server");
 
 export interface ObserverServerOptions {
   port: number;
@@ -56,8 +59,9 @@ export class ObserverServer {
   async start(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       this._httpServer.listen(this._port, "127.0.0.1", () => {
-        console.log(
-          `  [observer] Dashboard: http://localhost:${this._port}`,
+        log.info(
+          { port: this._port, url: `http://localhost:${this._port}` },
+          `observer dashboard listening`,
         );
         resolve();
       });

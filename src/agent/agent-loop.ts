@@ -57,6 +57,9 @@ import { NetworkSignalCollector } from "./signals/network.js";
 import { PerformanceSignalCollector } from "./signals/performance.js";
 import { ErrorSignalCollector } from "./signals/errors.js";
 import { takeSnapshot, type PageSnapshot } from "./signals/interaction.js";
+import { getLogger } from "../core/logger.js";
+
+const log = getLogger("agent.loop");
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -570,9 +573,7 @@ export async function runAutonomousLoop(
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     const errStack = err instanceof Error ? err.stack : undefined;
-    if (process.env.AUDIT_DEBUG) {
-      console.error(`[AGENT-LOOP] ${errStack ?? errMsg}`);
-    }
+    log.error({ err: errMsg, stack: errStack }, `agent loop crashed`);
     issues.push({
       severity: "critical",
       description: `Autonomous loop crashed: ${errMsg}`,
