@@ -1,4 +1,7 @@
 import type { AuditRun } from "./types.js";
+import { getLogger } from "./logger.js";
+
+const log = getLogger("notify");
 
 /**
  * Send a Slack incoming-webhook notification with the run summary.
@@ -29,7 +32,10 @@ Duration: ${(audit.duration_ms / 1000).toFixed(1)}s`;
       body: JSON.stringify({ text }),
     });
   } catch (err) {
-    console.warn("[notify] Slack webhook failed:", err);
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      `slack webhook failed`,
+    );
   }
 }
 
@@ -65,6 +71,9 @@ Cost: $${audit.summary.total_cost_usd.toFixed(3)}`;
       }),
     });
   } catch (err) {
-    console.warn("[notify] Telegram failed:", err);
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      `telegram notify failed`,
+    );
   }
 }

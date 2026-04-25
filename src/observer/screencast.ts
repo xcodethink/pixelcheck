@@ -7,6 +7,9 @@
  */
 
 import type { Page, CDPSession } from "playwright";
+import { getLogger } from "../core/logger.js";
+
+const log = getLogger("observer.screencast");
 
 export interface ScreencastOptions {
   /** Image format. Default: "jpeg" */
@@ -51,8 +54,10 @@ export async function startScreencast(
   try {
     cdp = await page.context().newCDPSession(page);
   } catch (err) {
-    // If CDP is not available (e.g., Firefox), return a no-op handle
-    console.warn("[screencast] CDP not available, screencast disabled");
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      `CDP not available, screencast disabled`,
+    );
     return { stop: async () => {} };
   }
 
