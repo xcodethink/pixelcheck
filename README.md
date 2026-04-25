@@ -320,6 +320,29 @@ ai-browser-auditor/
 - **Computer Use guardrails** — Anthropic's prompt-injection classifier enabled by default
 - **Budget cap** — stops spawning new audit units when cumulative API cost exceeds your threshold
 
+## Logging
+
+Internal events use a structured logger (pino). Output goes to **stderr**, so stdout stays clean for CLI results and the MCP stdio protocol. By default the format is human-readable when stderr is a TTY and JSON otherwise.
+
+| Env var | Values | Default | Effect |
+|---|---|---|---|
+| `LOG_LEVEL` | `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `silent` | `info` | Minimum log level |
+| `LOG_PRETTY` | `1`, `true`, `0`, `false`, `auto` | `auto` | Force pretty-print or JSON; `auto` decides by TTY |
+| `LOG_FILE` | `/path/to.log` | unset | Additionally tee logs to a file |
+
+Examples:
+
+```sh
+# CI / piped: JSON to stderr automatically (no TTY)
+ai-audit run --project projects/my-app 2> audit.log
+
+# Force JSON even in a terminal
+LOG_PRETTY=0 ai-audit run --project projects/my-app
+
+# Verbose debugging
+LOG_LEVEL=debug ai-audit run --project projects/my-app
+```
+
 ## Built With
 
 - [Playwright](https://playwright.dev/) — browser automation
