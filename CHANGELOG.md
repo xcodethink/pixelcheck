@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — v1 worktree (worktree-v1-ai-first)
+
+> Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
+
+### Added (M1-3 Structured logging)
+
+- New `src/core/logger.ts`: pino-based structured logger.
+  - `getLogger(module)` returns a module-scoped child logger (cached per module).
+  - All output goes to **stderr** — keeps stdout clean for CLI results and the MCP stdio protocol.
+  - TTY-aware default: pretty (colored, human-readable) when stderr is a TTY, JSON otherwise.
+  - Env config: `LOG_LEVEL` (trace…fatal, default `info`), `LOG_PRETTY` (`auto`/`1`/`0`), `LOG_FILE` (optional tee).
+- `scripts/check-no-console.sh`: regression guard wired into `npm test`. Build fails if any source file outside `src/cli.ts` reintroduces `console.{log,error,warn,info,debug}(`.
+- New ADR-005 documenting the choice and trade-offs.
+
+### Changed
+
+- ~30 internal `console.*` call sites in `core/runner.ts`, `core/notify.ts`, `core/stagehand-wrapper.ts`, `agent/agent-loop.ts`, `agent/events.ts`, `observer/screencast.ts`, `observer/server.ts`, `mcp/server.ts` migrated to the structured logger.
+- `agent/events.ts:attachConsoleLogger` now emits structured log lines (one per agent event) instead of chalk-formatted console writes. Each line carries `event`, `category`, `sessionId`, `seq`, plus event-specific fields.
+- The previous `AUDIT_DEBUG=1` gate on agent-loop crash stack traces is removed; `LOG_LEVEL=debug` covers it.
+- `npm test` now runs the no-console regression check before vitest.
+
+### Dependencies
+
+- Added: `pino@^10.3.1`, `pino-pretty@^13.1.3`.
+
 ## [0.3.0] - 2026-04-17
 
 Released after 22 atomic commits over 6 development weeks; verified with 300
