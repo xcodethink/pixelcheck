@@ -12,8 +12,9 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "audit": "tsx src/cli.ts",
-    "test": "vitest run",
+    "test": "npm run lint:no-console && vitest run",
     "test:watch": "vitest",
+    "lint:no-console": "bash scripts/check-no-console.sh",
     "clean": "rm -rf dist"
   },
   "keywords": [
@@ -40,6 +41,8 @@
     "odiff-bin": "^4.3.2",
     "ora": "^8.1.0",
     "p-limit": "^6.1.0",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
     "playwright": "^1.49.0",
     "sharp": "^0.34.5",
     "stealth-core": "file:../stealth-core",
