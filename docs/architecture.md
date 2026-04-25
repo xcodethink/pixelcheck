@@ -213,3 +213,25 @@ Three formats from one source of truth, plus persistent history:
 - `history.db` — SQLite database for trend tracking across runs
 
 All report formats pass through the redaction layer (`secrets.redactDeep`) before being written. The HTML report automatically includes trend data when the history database contains >= 2 runs for the project.
+
+## Logging
+
+All internal modules log through a structured logger built on [pino](https://github.com/pinojs/pino) (`src/core/logger.ts`).
+
+Key properties:
+
+- **Output stream**: stderr only — keeps stdout clean for CLI results and the MCP stdio protocol.
+- **Format**: pretty-printed (colored, human-readable) when stderr is a TTY, JSON otherwise. So `ai-audit run` in a terminal still shows readable progress, while CI pipelines and the MCP server emit machine-parseable JSON.
+- **Module-scoped**: every module gets its own child logger via `getLogger("module.name")`. The `module` field is auto-attached to every log line.
+- **Configurable via env**:
+  - `LOG_LEVEL` — `trace|debug|info|warn|error|fatal|silent` (default `info`)
+  - `LOG_PRETTY` — `1|true` force pretty, `0|false` force JSON, `auto` (default) decide by TTY
+  - `LOG_FILE` — additionally tee logs to a file (created if missing)
+
+The CLI rendering layer (`src/cli.ts`) is the **only** module that may use `console.*` directly — those calls are user-facing chalk-styled UX, not diagnostics. A regression check (`scripts/check-no-console.sh`, wired into `npm test`) fails the build if any other source file reintroduces `console.{log,error,warn,info,debug}`.
+
+Sample log line (JSON mode):
+
+```json
+{"level":"info","time":"2026-04-26T01:23:45.678Z","pid":12345,"module":"runner","runId":"20260426_012345","units":3,"concurrency":2,"budgetUsd":3,"msg":"run started"}
+```
