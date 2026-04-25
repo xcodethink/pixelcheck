@@ -1,7 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import pLimit from "p-limit";
-import chalk from "chalk";
+import { getLogger } from "./logger.js";
+
+const log = getLogger("runner");
 import type {
   Persona,
   Scenario,
@@ -106,11 +108,14 @@ export async function runAudit(
     await observer.start();
   }
 
-  console.log(
-    chalk.cyan(`\n[ai-audit] Run ${runId}`),
-    chalk.gray(
-      `(${opts.matrix.length} units, concurrency=${concurrency}, budget=$${budget.toFixed(2)})\n`,
-    ),
+  log.info(
+    {
+      runId,
+      units: opts.matrix.length,
+      concurrency,
+      budgetUsd: budget,
+    },
+    `run started`,
   );
 
   const startedAt = new Date().toISOString();
@@ -122,17 +127,17 @@ export async function runAudit(
   const tasks = opts.matrix.map(({ scenario, personaId }) =>
     limit(async () => {
       if (stoppedForBudget) {
-        console.log(
-          chalk.yellow(`[SKIP]`),
-          `${scenario.id} × ${personaId} (budget exceeded)`,
+        log.warn(
+          { scenarioId: scenario.id, personaId, reason: "budget_exceeded" },
+          `unit skipped`,
         );
         return;
       }
       const persona = opts.personas.get(personaId);
       if (!persona) {
-        console.log(
-          chalk.red(`[ERROR]`),
-          `persona ${personaId} not found for scenario ${scenario.id}`,
+        log.error(
+          { scenarioId: scenario.id, personaId },
+          `persona not found for scenario`,
         );
         return;
       }
@@ -162,10 +167,12 @@ export async function runAudit(
       totalCost.value += result.cost_usd;
       if (totalCost.value >= budget) {
         stoppedForBudget = true;
-        console.log(
-          chalk.yellow(
-            `[BUDGET] Total cost $${totalCost.value.toFixed(2)} >= cap $${budget.toFixed(2)} — no new units will start.`,
-          ),
+        log.warn(
+          {
+            spentUsd: totalCost.value,
+            budgetUsd: budget,
+          },
+          `budget cap reached — no new units will start`,
         );
       }
       results.push(result);
@@ -215,10 +222,13 @@ export async function runAudit(
   // Print failure repro hints
   for (const r of results) {
     if (r.status === "fail") {
-      console.log(
-        chalk.gray(
-          `  [repro] npm run audit -- --scenario ${r.scenario_id} --persona ${r.persona_id} --headed`,
-        ),
+      log.info(
+        {
+          scenarioId: r.scenario_id,
+          personaId: r.persona_id,
+          reproCmd: `npm run audit -- --scenario ${r.scenario_id} --persona ${r.persona_id} --headed`,
+        },
+        `repro hint for failed unit`,
       );
     }
   }
@@ -250,9 +260,9 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
   const startedAt = new Date().toISOString();
   const startMs = Date.now();
 
-  console.log(
-    chalk.blue(`[START]`),
-    `${opts.scenario.id} × ${opts.persona.id}`,
+  log.info(
+    { scenarioId: opts.scenario.id, personaId: opts.persona.id },
+    `unit started`,
   );
 
   opts.eventBus?.emitEvent("session:start", {
@@ -391,9 +401,13 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
         }
 
         if (result.status === "fail" && step.critical) {
-          console.log(
-            chalk.red(`[CRITICAL FAIL]`),
-            `${opts.scenario.id}/${step.id}: ${result.error ?? "see logs"}`,
+          log.error(
+            {
+              scenarioId: opts.scenario.id,
+              stepId: step.id,
+              error: result.error ?? null,
+            },
+            `critical step failed — aborting unit`,
           );
           break;
         }
@@ -498,20 +512,17 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
 }
 
 function printUnitSummary(r: ScenarioRunResult): void {
-  const tag =
-    r.status === "pass"
-      ? chalk.green("[PASS]")
-      : r.status === "pass_with_issues"
-        ? chalk.yellow("[WARN]")
-        : chalk.red("[FAIL]");
-  console.log(
-    tag,
-    `${r.scenario_id} × ${r.persona_id}`,
-    chalk.gray(
-      `score=${r.overall_score.toFixed(1)} issues=${r.issues.length} cost=$${r.cost_usd.toFixed(3)} ${(
-        r.duration_ms / 1000
-      ).toFixed(1)}s`,
-    ),
+  log.info(
+    {
+      scenarioId: r.scenario_id,
+      personaId: r.persona_id,
+      status: r.status,
+      score: Number(r.overall_score.toFixed(1)),
+      issuesCount: r.issues.length,
+      costUsd: Number(r.cost_usd.toFixed(3)),
+      durationMs: r.duration_ms,
+    },
+    `unit complete`,
   );
 }
 

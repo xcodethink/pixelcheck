@@ -185,113 +185,163 @@ export class AgentEventBus extends EventEmitter {
 // Console Logger Subscriber
 // ─────────────────────────────────────────────────────────────
 
-import chalk from "chalk";
+import { getLogger } from "../core/logger.js";
 
-const EVENT_TAGS: Partial<Record<AgentEventType, { tag: string; color: typeof chalk.green }>> = {
-  "session:start": { tag: "SESSION", color: chalk.cyan },
-  "session:end": { tag: "SESSION", color: chalk.cyan },
-  "step:start": { tag: "STEP", color: chalk.blue },
-  "step:complete": { tag: "STEP", color: chalk.green },
-  "step:failed": { tag: "STEP", color: chalk.red },
-  "action:start": { tag: "ACTION", color: chalk.blue },
-  "action:complete": { tag: "ACTION", color: chalk.green },
-  "action:failed": { tag: "ACTION", color: chalk.red },
-  "plan:created": { tag: "PLAN", color: chalk.magenta },
-  "plan:revised": { tag: "REPLAN", color: chalk.yellow },
-  "thought:reasoning": { tag: "THINK", color: chalk.gray },
-  "thought:decision": { tag: "DECIDE", color: chalk.white },
-  "convergence:stuck": { tag: "STUCK", color: chalk.red },
-  "convergence:loop_detected": { tag: "LOOP", color: chalk.red },
-  "convergence:goal_met": { tag: "GOAL", color: chalk.green },
-  "convergence:budget_exceeded": { tag: "BUDGET", color: chalk.yellow },
-  "criterion:met": { tag: "CRITERIA", color: chalk.green },
-  "pause:requested": { tag: "PAUSE", color: chalk.yellow },
-  "pause:resumed": { tag: "RESUME", color: chalk.green },
-  "takeover:start": { tag: "TAKEOVER", color: chalk.yellow },
-  "takeover:end": { tag: "RELEASE", color: chalk.green },
+const log = getLogger("agent.events");
+
+const EVENT_TAGS: Partial<Record<AgentEventType, string>> = {
+  "session:start": "session",
+  "session:end": "session",
+  "step:start": "step",
+  "step:complete": "step",
+  "step:failed": "step",
+  "action:start": "action",
+  "action:complete": "action",
+  "action:failed": "action",
+  "plan:created": "plan",
+  "plan:revised": "plan",
+  "thought:reasoning": "think",
+  "thought:decision": "decide",
+  "convergence:stuck": "convergence",
+  "convergence:loop_detected": "convergence",
+  "convergence:goal_met": "convergence",
+  "convergence:budget_exceeded": "convergence",
+  "criterion:met": "criterion",
+  "pause:requested": "pause",
+  "pause:resumed": "pause",
+  "takeover:start": "takeover",
+  "takeover:end": "takeover",
 };
 
 /**
- * Attach a console logger to the event bus. Prints human-readable event summaries.
+ * Attach a structured-log subscriber to the event bus. Each agent event
+ * becomes a structured log line tagged with `event` (raw type), `category`
+ * (grouping), and a per-event payload.
  */
 export function attachConsoleLogger(bus: AgentEventBus, verbose = false): void {
   bus.on("*", (event: AgentEvent) => {
-    const entry = EVENT_TAGS[event.type];
-    if (!entry) return;
+    const category = EVENT_TAGS[event.type];
+    if (!category) return;
 
-    const { tag, color } = entry;
-    const prefix = color(`[${tag}]`);
+    const base = {
+      event: event.type,
+      category,
+      sessionId: event.session_id,
+      seq: event.sequence,
+    };
 
     switch (event.type) {
       case "session:start":
-        console.log(
-          prefix,
-          `${event.data.scenario_id ?? "?"} x ${event.data.persona_id ?? "?"}`,
-          chalk.gray(`(session ${event.session_id})`),
+        log.info(
+          {
+            ...base,
+            scenarioId: event.data.scenario_id ?? null,
+            personaId: event.data.persona_id ?? null,
+          },
+          `session started`,
         );
         break;
       case "session:end":
-        console.log(
-          prefix,
-          `ended`,
-          chalk.gray(
-            `status=${event.data.status ?? "?"} actions=${event.data.total_actions ?? 0} cost=$${(event.data.cost_usd as number ?? 0).toFixed(3)}`,
-          ),
+        log.info(
+          {
+            ...base,
+            status: event.data.status ?? null,
+            totalActions: event.data.total_actions ?? 0,
+            costUsd: Number((event.data.cost_usd as number ?? 0).toFixed(3)),
+          },
+          `session ended`,
         );
         break;
       case "step:start":
-        console.log(
-          prefix,
-          chalk.gray(`${event.data.step_id ?? "?"} (${event.data.step_type ?? "?"})`),
-          event.data.instruction ? String(event.data.instruction).slice(0, 80) : "",
+        log.info(
+          {
+            ...base,
+            stepId: event.data.step_id ?? null,
+            stepType: event.data.step_type ?? null,
+            instruction: event.data.instruction
+              ? String(event.data.instruction).slice(0, 200)
+              : null,
+          },
+          `step started`,
         );
         break;
       case "step:complete":
-        console.log(
-          prefix,
-          chalk.gray(`${event.data.step_id ?? "?"}`),
-          `status=${event.data.status ?? "pass"}`,
-          chalk.gray(`${event.data.duration_ms ?? 0}ms`),
+        log.info(
+          {
+            ...base,
+            stepId: event.data.step_id ?? null,
+            status: event.data.status ?? "pass",
+            durationMs: event.data.duration_ms ?? 0,
+          },
+          `step complete`,
         );
         break;
       case "step:failed":
-        console.log(
-          prefix,
-          chalk.gray(`${event.data.step_id ?? "?"}`),
-          String(event.data.error ?? "unknown error").slice(0, 100),
+        log.warn(
+          {
+            ...base,
+            stepId: event.data.step_id ?? null,
+            error: String(event.data.error ?? "unknown error").slice(0, 200),
+          },
+          `step failed`,
         );
         break;
       case "plan:created":
       case "plan:revised":
-        console.log(
-          prefix,
-          `${(event.data.steps as unknown[])?.length ?? 0} steps`,
-          chalk.gray(String(event.data.reasoning ?? "").slice(0, 80)),
+        log.info(
+          {
+            ...base,
+            stepCount: (event.data.steps as unknown[])?.length ?? 0,
+            reasoning: String(event.data.reasoning ?? "").slice(0, 200),
+          },
+          event.type === "plan:created" ? `plan created` : `plan revised`,
         );
         break;
       case "thought:decision":
         if (verbose) {
-          console.log(
-            prefix,
-            String(event.data.instruction ?? event.data.thought ?? "").slice(0, 100),
+          log.debug(
+            {
+              ...base,
+              text: String(event.data.instruction ?? event.data.thought ?? "").slice(
+                0,
+                200,
+              ),
+            },
+            `decision`,
           );
         }
         break;
       case "convergence:goal_met":
-        console.log(prefix, "All success criteria met");
+        log.info(base, `all success criteria met`);
         break;
       case "convergence:stuck":
-        console.log(prefix, String(event.data.reason ?? "max failures"));
+        log.warn(
+          { ...base, reason: String(event.data.reason ?? "max failures") },
+          `agent stuck`,
+        );
         break;
       case "convergence:budget_exceeded":
-        console.log(prefix, `$${(event.data.spent as number ?? 0).toFixed(3)} >= cap`);
+        log.warn(
+          {
+            ...base,
+            spentUsd: Number((event.data.spent as number ?? 0).toFixed(3)),
+          },
+          `budget exceeded`,
+        );
         break;
       case "criterion:met":
-        console.log(prefix, `${event.data.id ?? "?"}: ${event.data.description ?? ""}`);
+        log.info(
+          {
+            ...base,
+            criterionId: event.data.id ?? null,
+            description: event.data.description ?? null,
+          },
+          `criterion met`,
+        );
         break;
       default:
         if (verbose) {
-          console.log(prefix, JSON.stringify(event.data).slice(0, 120));
+          log.debug({ ...base, data: event.data }, `event`);
         }
     }
   });
