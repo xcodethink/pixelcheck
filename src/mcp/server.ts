@@ -35,6 +35,9 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { loadPersonas } from "../core/persona.js";
 import { ProjectConfigSchema, ScenarioSchema, type Persona } from "../core/types.js";
+import { getLogger } from "../core/logger.js";
+
+const log = getLogger("mcp.server");
 
 // ─────────────────────────────────────────────────────────────
 // Tool input schemas
@@ -459,8 +462,13 @@ export function resolvePersona(personas: Map<string, Persona>, id: string | unde
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   runMcpServer().catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error("MCP server crashed:", err);
+    log.fatal(
+      {
+        err: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      },
+      `MCP server crashed`,
+    );
     process.exit(1);
   });
 }

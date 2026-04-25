@@ -10,6 +10,9 @@ import {
 } from "stealth-core";
 import type { BrowserContext, Page, Cookie } from "playwright";
 import type { Persona } from "./types.js";
+import { getLogger } from "./logger.js";
+
+const log = getLogger("stagehand-wrapper");
 
 /**
  * Stagehand wrapper.
@@ -166,9 +169,9 @@ export async function createStagehandWrapper(
   try {
     await stagehand.context.addInitScript(buildStealthScript(fingerprint));
   } catch (err) {
-    console.warn(
-      "[stagehand-wrapper] Failed to inject stealth init script:",
-      err instanceof Error ? err.message : String(err),
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      `failed to inject stealth init script`,
     );
   }
 
