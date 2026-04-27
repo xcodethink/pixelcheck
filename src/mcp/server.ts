@@ -37,6 +37,17 @@ import { loadPersonas } from "../core/persona.js";
 import { ProjectConfigSchema, ScenarioSchema, type Persona } from "../core/types.js";
 import { getLogger, registerSecret } from "../core/logger.js";
 import { buildRedactPatterns } from "../core/secrets.js";
+import {
+  AuditUrlResultSchema,
+  ExploreUrlResultSchema,
+  CalibrateCriticResultSchema,
+  ListPersonasResultSchema,
+  ListScenariosResultSchema,
+  HistoryEntrySchema,
+  attachSchemaVersion,
+  validateResult,
+} from "../core/result-schema.js";
+import type { z } from "zod";
 
 const log = getLogger("mcp.server");
 
@@ -222,7 +233,7 @@ async function handleListPersonas(args: Record<string, unknown>): Promise<ToolRe
     device: p.device_class,
     payment_tier: p.payment_tier,
   }));
-  return textResult(JSON.stringify(summary, null, 2));
+  return stampedTextResult("ListPersonasResult", ListPersonasResultSchema, summary);
 }
 
 async function handleListScenarios(args: Record<string, unknown>): Promise<ToolResult> {
@@ -235,7 +246,7 @@ async function handleListScenarios(args: Record<string, unknown>): Promise<ToolR
     .readdirSync(resolved)
     .filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"))
     .sort();
-  return textResult(JSON.stringify(files, null, 2));
+  return stampedTextResult("ListScenariosResult", ListScenariosResultSchema, files);
 }
 
 async function handleAuditUrl(args: Record<string, unknown>): Promise<ToolResult> {
@@ -295,21 +306,15 @@ async function handleAuditUrl(args: Record<string, unknown>): Promise<ToolResult
   const jsonPath = writeJsonReport(audit, runDir);
   const spaPath = writeSpaReport(audit, runDir);
   const r = audit.results[0];
-  return textResult(
-    JSON.stringify(
-      {
-        status: r?.status,
-        overall_score: r?.overall_score,
-        cost_usd: audit.summary.total_cost_usd,
-        issues: r?.issues.length ?? 0,
-        critical_issues: audit.summary.critical_issues,
-        report_json: jsonPath,
-        report_html: spaPath,
-      },
-      null,
-      2,
-    ),
-  );
+  return stampedTextResult("AuditUrlResult", AuditUrlResultSchema, {
+    status: r?.status,
+    overall_score: r?.overall_score,
+    cost_usd: audit.summary.total_cost_usd,
+    issues: r?.issues.length ?? 0,
+    critical_issues: audit.summary.critical_issues,
+    report_json: jsonPath,
+    report_html: spaPath,
+  });
 }
 
 async function handleExploreUrl(args: Record<string, unknown>): Promise<ToolResult> {
@@ -367,20 +372,14 @@ async function handleExploreUrl(args: Record<string, unknown>): Promise<ToolResu
   });
 
   const r = audit.results[0];
-  return textResult(
-    JSON.stringify(
-      {
-        status: r?.status,
-        convergence: r?.agent_summary?.convergence_reason,
-        criteria_met: r?.agent_summary?.criteria_met,
-        criteria_missed: r?.agent_summary?.criteria_missed,
-        total_actions: r?.agent_summary?.total_actions,
-        cost_usd: audit.summary.total_cost_usd,
-      },
-      null,
-      2,
-    ),
-  );
+  return stampedTextResult("ExploreUrlResult", ExploreUrlResultSchema, {
+    status: r?.status,
+    convergence: r?.agent_summary?.convergence_reason,
+    criteria_met: r?.agent_summary?.criteria_met,
+    criteria_missed: r?.agent_summary?.criteria_missed,
+    total_actions: r?.agent_summary?.total_actions,
+    cost_usd: audit.summary.total_cost_usd,
+  });
 }
 
 async function handleCalibrate(args: Record<string, unknown>): Promise<ToolResult> {
@@ -398,21 +397,15 @@ async function handleCalibrate(args: Record<string, unknown>): Promise<ToolResul
     outputDir: outDir,
   });
   const gate = scoreReport(report);
-  return textResult(
-    JSON.stringify(
-      {
-        passed: gate.passed,
-        violations: gate.violations,
-        mean_agreement: gate.computed.mean_agreement,
-        mean_max_distance: gate.computed.mean_max_distance,
-        fully_aligned_rate: gate.computed.fully_aligned_rate,
-        total_cost_usd: report.total_cost_usd,
-        report_dir: outDir,
-      },
-      null,
-      2,
-    ),
-  );
+  return stampedTextResult("CalibrateCriticResult", CalibrateCriticResultSchema, {
+    passed: gate.passed,
+    violations: gate.violations,
+    mean_agreement: gate.computed.mean_agreement,
+    mean_max_distance: gate.computed.mean_max_distance,
+    fully_aligned_rate: gate.computed.fully_aligned_rate,
+    total_cost_usd: report.total_cost_usd,
+    report_dir: outDir,
+  });
 }
 
 async function handleGetLastReport(args: Record<string, unknown>): Promise<ToolResult> {
@@ -421,7 +414,7 @@ async function handleGetLastReport(args: Record<string, unknown>): Promise<ToolR
   const { loadHistory } = await import("../core/history.js");
   const entries = loadHistory(path.resolve(reportsRoot), { limit: 1 });
   if (entries.length === 0) return textResult("no audits found in history");
-  return textResult(JSON.stringify(entries[0], null, 2));
+  return stampedTextResult("HistoryEntry", HistoryEntrySchema, entries[0]!);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -438,6 +431,27 @@ export function textResult(text: string): ToolResult {
 }
 export function errorResult(text: string): ToolResult {
   return { content: [{ type: "text", text }], isError: true };
+}
+
+/**
+ * Build a ToolResult whose JSON body carries `schema_version` and has been
+ * passed through `validateResult` (M9-2 C3).
+ *
+ * - Objects: schema_version is stamped at the top via `attachSchemaVersion`.
+ * - Arrays / scalars: returned unchanged (no envelope wrapping).
+ *
+ * Validation runs in safeParse mode; mismatches log a warn line via
+ * the result-schema logger and the original payload still flows through.
+ * v1.0.0 is observe-only; never block the caller on schema drift.
+ */
+export function stampedTextResult<T>(
+  resultName: string,
+  schema: z.ZodType<T>,
+  value: T,
+): ToolResult {
+  const stamped = attachSchemaVersion(value);
+  validateResult(resultName, schema, stamped);
+  return textResult(JSON.stringify(stamped, null, 2));
 }
 
 export function requireString(val: unknown, name: string): string {
