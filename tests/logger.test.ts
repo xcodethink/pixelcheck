@@ -4,7 +4,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-import { getLogger, _resetLoggerForTests } from "../src/core/logger.js";
+import {
+  getLogger,
+  registerSecret,
+  _resetLoggerForTests,
+  _resetRegisteredSecretsForTests,
+  _registeredSecretCountForTests,
+} from "../src/core/logger.js";
 
 function captureStream() {
   const chunks: string[] = [];
@@ -37,10 +43,12 @@ function withEnv(overrides: Record<string, string | undefined>, fn: () => void) 
 describe("logger", () => {
   beforeEach(() => {
     _resetLoggerForTests();
+    _resetRegisteredSecretsForTests();
   });
 
   afterEach(() => {
     _resetLoggerForTests();
+    _resetRegisteredSecretsForTests();
   });
 
   it("getLogger caches by module name", () => {
@@ -123,5 +131,164 @@ describe("logger", () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Redaction (M1-4)
+// ─────────────────────────────────────────────────────────────
+
+function logToFile(
+  fn: (log: ReturnType<typeof getLogger>) => void,
+  options: { module?: string; level?: string } = {},
+): Promise<{ raw: string; lines: Array<Record<string, unknown>> }> {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "logger-redact-"));
+  const logFile = path.join(tmpDir, "log.ndjson");
+  return new Promise((resolve, reject) => {
+    withEnv(
+      {
+        LOG_LEVEL: options.level ?? "info",
+        LOG_PRETTY: "0",
+        LOG_FILE: logFile,
+      },
+      () => {
+        _resetLoggerForTests();
+        const log = getLogger(options.module ?? "redact-test");
+        fn(log);
+        setTimeout(() => {
+          try {
+            const raw = fs.readFileSync(logFile, "utf-8");
+            const lines = raw
+              .trim()
+              .split("\n")
+              .filter(Boolean)
+              .map((l) => JSON.parse(l) as Record<string, unknown>);
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+            resolve({ raw, lines });
+          } catch (err) {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+            reject(err);
+          }
+        }, 200);
+      },
+    );
+  });
+}
+
+describe("logger redaction", () => {
+  beforeEach(() => {
+    _resetLoggerForTests();
+    _resetRegisteredSecretsForTests();
+  });
+
+  afterEach(() => {
+    _resetLoggerForTests();
+    _resetRegisteredSecretsForTests();
+  });
+
+  describe("path-based redaction (well-known field names)", () => {
+    it("redacts top-level apiKey field", async () => {
+      const { raw, lines } = await logToFile((log) => {
+        log.info({ apiKey: "sk-ant-secret-12345" }, "calling API");
+      });
+      expect(raw).not.toContain("sk-ant-secret-12345");
+      expect(lines[0]!.apiKey).toBe("[REDACTED]");
+    });
+
+    it("redacts top-level password / token / cookie / authorization", async () => {
+      const { raw } = await logToFile((log) => {
+        log.info(
+          {
+            password: "supersecretpw",
+            token: "tok_abc123xyz",
+            cookie: "session=abc123def456",
+            authorization: "Bearer xyz123abc456",
+          },
+          "auth payload",
+        );
+      });
+      expect(raw).not.toContain("supersecretpw");
+      expect(raw).not.toContain("tok_abc123xyz");
+      expect(raw).not.toContain("session=abc123def456");
+      expect(raw).not.toContain("Bearer xyz123abc456");
+    });
+
+    it("redacts one-level-nested apiKey", async () => {
+      const { raw, lines } = await logToFile((log) => {
+        log.info({ config: { apiKey: "sk-ant-nested-67890" } }, "nested");
+      });
+      expect(raw).not.toContain("sk-ant-nested-67890");
+      const config = lines[0]!.config as Record<string, unknown>;
+      expect(config.apiKey).toBe("[REDACTED]");
+    });
+
+    it("does not censor unrelated fields", async () => {
+      const { raw, lines } = await logToFile((log) => {
+        log.info({ url: "https://example.com", count: 42 }, "ok");
+      });
+      expect(raw).toContain("example.com");
+      expect(lines[0]!.count).toBe(42);
+    });
+  });
+
+  describe("value-based redaction (registerSecret)", () => {
+    it("does nothing when no secrets registered", async () => {
+      const { raw } = await logToFile((log) => {
+        log.info({ note: "this contains the word secret_value_xyz" }, "ok");
+      });
+      expect(raw).toContain("secret_value_xyz");
+    });
+
+    it("redacts a registered secret value found inside a string field", async () => {
+      registerSecret("sk-ant-registered-abcdef");
+      const { raw, lines } = await logToFile((log) => {
+        log.info(
+          { note: "tried to call API with key sk-ant-registered-abcdef and failed" },
+          "ok",
+        );
+      });
+      expect(raw).not.toContain("sk-ant-registered-abcdef");
+      expect(lines[0]!.note).toContain("[REDACTED]");
+    });
+
+    it("redacts secret in nested arrays / objects", async () => {
+      registerSecret("very-long-secret-value-12345");
+      const { raw } = await logToFile((log) => {
+        log.info(
+          {
+            calls: [
+              { endpoint: "/x", body: "with very-long-secret-value-12345 in it" },
+              { endpoint: "/y", deeply: { nested: "very-long-secret-value-12345" } },
+            ],
+          },
+          "ok",
+        );
+      });
+      expect(raw).not.toContain("very-long-secret-value-12345");
+      // Two occurrences should both be censored
+      expect(raw.match(/\[REDACTED\]/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    });
+
+    it("redacts secret embedded in the log message itself", async () => {
+      registerSecret("abcdef-message-secret");
+      const { raw } = await logToFile((log) => {
+        log.warn(`error: leaked abcdef-message-secret in message`);
+      });
+      expect(raw).not.toContain("abcdef-message-secret");
+    });
+
+    it("registerSecret rejects empty / short values", () => {
+      _resetRegisteredSecretsForTests();
+      registerSecret(undefined);
+      registerSecret(null);
+      registerSecret("");
+      registerSecret("short");
+      expect(_registeredSecretCountForTests()).toBe(0);
+      registerSecret("longenough123");
+      expect(_registeredSecretCountForTests()).toBe(1);
+      // Idempotent — adding the same value twice is a no-op
+      registerSecret("longenough123");
+      expect(_registeredSecretCountForTests()).toBe(1);
+    });
   });
 });
