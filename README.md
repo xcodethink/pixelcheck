@@ -197,6 +197,8 @@ reports/2026-04-11_post-deploy/
       |-- video/*.webm              # Session recording
 ```
 
+`audit.json` and every MCP tool response carries a top-level `schema_version` field (SemVer). The contract is documented in [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md); machine-readable JSON Schemas live in [docs/schemas/](./docs/schemas/) and can be regenerated with `npm run schemas`.
+
 ### Historical Trends
 
 Scores are tracked in a local SQLite database. Compare any two runs:

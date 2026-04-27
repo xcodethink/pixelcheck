@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M9-2 Result schema 稳定承诺)
+
+- `RESULT_SCHEMA_VERSION = "1.0.0"` — single source-of-truth SemVer string for every result the auditor emits to AI agents and external consumers.
+- `src/core/result-schema.ts` — Zod schemas for the 19 public result types (`AuditRun`, `ScenarioRunResult`, `StepResult`, `Issue`, `DimensionScore`, `ConsoleError`, `CriticResult`, `GateResult`, `CalibrationReport`, `BenchmarkReport`, `BenchmarkTaskResult`, `MutationResult`, MCP tool envelopes, `HistoryEntry`, `PersonaSummary`).
+- `attachSchemaVersion(value)` — idempotent helper that stamps `schema_version` at the top of plain object results without overwriting an existing value.
+- `validateResult(name, schema, value)` — observe-only `safeParse` wrapper. Mismatches log a structured `warn` line via the result-schema logger; the producer's payload always flows through unchanged at v1.0.0.
+- Producers stamp `schema_version` on every freshly emitted result (`runAudit`, `runCritic`, `scoreReport`, `aggregateReport`, `summarize` for benchmarks, `generateMutations`).
+- MCP server's 6 tool handlers now route through `stampedTextResult(name, schema, value)`: object responses gain `schema_version` at the top; arrays pass through validated but unwrapped.
+- SQLite history DB migrates `user_version` 1 → 2: adds `audit_runs.schema_version TEXT NOT NULL DEFAULT '1.0.0'` (legacy rows backfill to `'1.0.0'`); `loadHistory` returns the value as `HistoryEntry.schemaVersion`.
+- New `npm run schemas` script (`scripts/export-result-schemas.ts`) emits Draft-7 JSON Schemas to `docs/schemas/*.schema.json` plus an `index.json` manifest. Each carries `$id`, `title`, `description`, and `x-result-schema-version` for consumer matching.
+- `docs/contracts/RESULT_SCHEMA.md` — full SemVer policy (patch / minor / major bump rules, what may change without a bump, how to bump operationally).
+- New ADR-007 documenting embed-vs-envelope, observe-then-enforce, and SQLite migration choices.
+- 30 new tests across `tests/result-schema.test.ts`, `tests/history.test.ts`, `tests/mcp-server.test.ts` covering schema validation, version stamping, history round-trip, and MCP envelope behavior. Total: 345/345 tests pass.
+
+### Dependencies
+
+- Added (dev): `zod-to-json-schema@^3.25.2`.
+
 ### Added (M1-4 Secrets redaction)
 
 - Logger now applies two-layer secret redaction to every log line:
