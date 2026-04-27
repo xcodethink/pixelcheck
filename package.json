@@ -15,6 +15,7 @@
     "test": "npm run lint:no-console && vitest run",
     "test:watch": "vitest",
     "lint:no-console": "bash scripts/check-no-console.sh",
+    "schemas": "tsx scripts/export-result-schemas.ts",
     "clean": "rm -rf dist"
   },
   "keywords": [
@@ -56,6 +57,7 @@
     "@types/ws": "^8.18.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "zod-to-json-schema": "^3.25.2"
   }
 }
