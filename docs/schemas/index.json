@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI Browser Auditor — result schemas index",
+  "x-result-schema-version": "1.0.0",
+  "description": "Index of every public result schema. Generated from src/core/result-schema.ts; do not edit by hand. See docs/contracts/RESULT_SCHEMA.md for the SemVer policy.",
+  "schemas": [
+    {
+      "slug": "audit-run",
+      "title": "AuditRun",
+      "description": "The top-level result of a `runAudit` invocation. Written to audit.json and returned by the audit_url MCP tool's `report_json` artefact.",
+      "file": "audit-run.schema.json"
+    },
+    {
+      "slug": "scenario-run-result",
+      "title": "ScenarioRunResult",
+      "description": "Per-(scenario, persona) execution result — nested under AuditRun.results[].",
+      "file": "scenario-run-result.schema.json"
+    },
+    {
+      "slug": "step-result",
+      "title": "StepResult",
+      "description": "Per-step execution record. Includes status, retries, execution_method, and optional signals.",
+      "file": "step-result.schema.json"
+    },
+    {
+      "slug": "issue",
+      "title": "Issue",
+      "description": "A single audit issue (severity + description + recommendation).",
+      "file": "issue.schema.json"
+    },
+    {
+      "slug": "dimension-score",
+      "title": "DimensionScore",
+      "description": "Score for one scoring dimension on a 0..10 scale with a justification string.",
+      "file": "dimension-score.schema.json"
+    },
+    {
+      "slug": "console-error",
+      "title": "ConsoleError",
+      "description": "A captured browser console error / pageerror / failed request.",
+      "file": "console-error.schema.json"
+    },
+    {
+      "slug": "critic-result",
+      "title": "CriticResult",
+      "description": "Output of the vision critic (runCritic).",
+      "file": "critic-result.schema.json"
+    },
+    {
+      "slug": "gate-result",
+      "title": "GateResult",
+      "description": "Calibration gate verdict (passed + violations + computed metrics).",
+      "file": "gate-result.schema.json"
+    },
+    {
+      "slug": "calibration-report",
+      "title": "CalibrationReport",
+      "description": "Full calibration run report with per-sample agreement details.",
+      "file": "calibration-report.schema.json"
+    },
+    {
+      "slug": "benchmark-report",
+      "title": "BenchmarkReport",
+      "description": "Aggregate benchmark report (pass@1, by_difficulty, by_tag, durations).",
+      "file": "benchmark-report.schema.json"
+    },
+    {
+      "slug": "benchmark-task-result",
+      "title": "BenchmarkTaskResult",
+      "description": "Per-task benchmark result.",
+      "file": "benchmark-task-result.schema.json"
+    },
+    {
+      "slug": "mutation-result",
+      "title": "MutationResult",
+      "description": "Single instruction-mutation variant (rephrase | decompose | specific).",
+      "file": "mutation-result.schema.json"
+    },
+    {
+      "slug": "audit-url-result",
+      "title": "AuditUrlResult",
+      "description": "MCP tool envelope returned by audit_url.",
+      "file": "audit-url-result.schema.json"
+    },
+    {
+      "slug": "explore-url-result",
+      "title": "ExploreUrlResult",
+      "description": "MCP tool envelope returned by explore_url.",
+      "file": "explore-url-result.schema.json"
+    },
+    {
+      "slug": "calibrate-critic-result",
+      "title": "CalibrateCriticResult",
+      "description": "MCP tool envelope returned by calibrate_critic.",
+      "file": "calibrate-critic-result.schema.json"
+    },
+    {
+      "slug": "list-personas-result",
+      "title": "ListPersonasResult",
+      "description": "MCP tool envelope returned by list_personas (array of PersonaSummary).",
+      "file": "list-personas-result.schema.json"
+    },
+    {
+      "slug": "list-scenarios-result",
+      "title": "ListScenariosResult",
+      "description": "MCP tool envelope returned by list_scenarios (array of YAML file names).",
+      "file": "list-scenarios-result.schema.json"
+    },
+    {
+      "slug": "history-entry",
+      "title": "HistoryEntry",
+      "description": "Compact summary of a historical audit run as returned by get_last_report.",
+      "file": "history-entry.schema.json"
+    },
+    {
+      "slug": "persona-summary",
+      "title": "PersonaSummary",
+      "description": "Short persona descriptor used inside ListPersonasResult.",
+      "file": "persona-summary.schema.json"
+    }
+  ]
+}
