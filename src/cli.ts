@@ -18,10 +18,41 @@ import { writeSpaReport } from "./core/reporter-spa.js";
 import { notifySlack, notifyTelegram } from "./core/notify.js";
 import { preflightUrls } from "./core/url-preflight.js";
 import { resolvePersonaSecrets } from "./core/persona.js";
-import { getStripeSecrets } from "./core/secrets.js";
+import { buildRedactPatterns, getStripeSecrets, redact } from "./core/secrets.js";
 import { saveAuditToHistory, loadHistory, diffRuns } from "./core/history.js";
+import { registerSecret } from "./core/logger.js";
 
 dotenv.config();
+
+// Register all known env-derived secrets with the logger redaction layer
+// before any log emission.
+for (const p of buildRedactPatterns([])) registerSecret(p);
+
+/**
+ * Print user-facing text that may include error messages or other strings
+ * which could embed a secret value. Runs the registered-secret list across
+ * the text before writing.
+ *
+ * Use this for any console.{log,error} that interpolates `err.message`,
+ * user-supplied URLs, or other untrusted-content fields.
+ */
+function safePrint(...args: unknown[]): void {
+  const patterns = buildRedactPatterns([]);
+  const safeArgs = args.map((a) =>
+    typeof a === "string" ? redact(a, patterns) : a,
+  );
+  // eslint-disable-next-line no-console
+  console.log(...safeArgs);
+}
+
+function safeError(...args: unknown[]): void {
+  const patterns = buildRedactPatterns([]);
+  const safeArgs = args.map((a) =>
+    typeof a === "string" ? redact(a, patterns) : a,
+  );
+  // eslint-disable-next-line no-console
+  console.error(...safeArgs);
+}
 
 const program = new Command();
 
@@ -77,7 +108,7 @@ program
     try {
       await runCommand(opts);
     } catch (err) {
-      console.error(
+      safeError(
         chalk.red("\n[FATAL]"),
         err instanceof Error ? err.message : String(err),
       );
@@ -363,7 +394,7 @@ program
       }
       console.log(`  Reports: ${runDir}`);
     } catch (err) {
-      console.error(chalk.red("[FATAL]"), err instanceof Error ? err.message : String(err));
+      safeError(chalk.red("[FATAL]"), err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
   });
@@ -608,7 +639,7 @@ personaCmd
         process.stdout.write("# " + result.note + "\n" + result.yaml);
       }
     } catch (err) {
-      console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      safeError(chalk.red(err instanceof Error ? err.message : String(err)));
       process.exit(1);
     }
   });
