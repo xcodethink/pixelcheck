@@ -35,9 +35,15 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { loadPersonas } from "../core/persona.js";
 import { ProjectConfigSchema, ScenarioSchema, type Persona } from "../core/types.js";
-import { getLogger } from "../core/logger.js";
+import { getLogger, registerSecret } from "../core/logger.js";
+import { buildRedactPatterns } from "../core/secrets.js";
 
 const log = getLogger("mcp.server");
+
+// Wire env-derived secrets into the logger redaction layer at module load,
+// before any tool handler can fire. Done at module level (not inside
+// runMcpServer) so any dynamic import path also picks it up.
+for (const p of buildRedactPatterns([])) registerSecret(p);
 
 // ─────────────────────────────────────────────────────────────
 // Tool input schemas
