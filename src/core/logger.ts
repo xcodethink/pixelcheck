@@ -19,6 +19,13 @@ import pino, { type Logger, type LoggerOptions } from "pino";
  *   import { getLogger } from "./logger.js";
  *   const log = getLogger("runner");
  *   log.info({ unitId, durationMs }, "unit completed");
+ *
+ * Redaction (M1-4): two layers of protection against secret leakage —
+ *   1. Path-based: well-known field names (apiKey, password, token, cookie,
+ *      authorization, etc.) get [REDACTED] regardless of value.
+ *   2. Value-based: callers register concrete secret strings via
+ *      registerSecret(value) at startup; any occurrence of those strings
+ *      in any log payload is replaced with [REDACTED] before write.
  */
 
 export type { Logger } from "pino";
@@ -46,13 +53,139 @@ function isPretty(): boolean {
   return Boolean((process.stderr as NodeJS.WriteStream).isTTY);
 }
 
+// ─────────────────────────────────────────────────────────────
+// Redaction (M1-4)
+// ─────────────────────────────────────────────────────────────
+
+const CENSOR = "[REDACTED]";
+
+/**
+ * Path-based redact paths handed to pino.redact.
+ *
+ * Catches well-named fields regardless of their value — useful when callers
+ * accidentally log structured payloads like `{ apiKey: "sk-..." }`.
+ *
+ * Matches both top-level (`apiKey`) and nested under any single parent
+ * (`*.apiKey`, `**.apiKey`). pino's redact uses fast-redact under the hood;
+ * single-segment wildcards are cheap, deeper wildcards a bit less so.
+ */
+const REDACT_PATHS: string[] = [
+  // Top-level
+  "apiKey",
+  "api_key",
+  "password",
+  "token",
+  "secret",
+  "cookie",
+  "cookies",
+  "authorization",
+  "auth",
+  "anthropic_api_key",
+  "ANTHROPIC_API_KEY",
+  // One level deep
+  "*.apiKey",
+  "*.api_key",
+  "*.password",
+  "*.token",
+  "*.secret",
+  "*.cookie",
+  "*.cookies",
+  "*.authorization",
+  "*.auth",
+];
+
+/** Concrete secret values registered via registerSecret(). */
+const registeredSecrets = new Set<string>();
+
+/**
+ * Replace every registered secret string occurrence in `value` with [REDACTED].
+ * No-op if the registry is empty.
+ */
+function redactValueString(input: string): string {
+  if (registeredSecrets.size === 0) return input;
+  let out = input;
+  for (const s of registeredSecrets) {
+    if (!s) continue;
+    if (out.includes(s)) out = out.split(s).join(CENSOR);
+  }
+  return out;
+}
+
+/**
+ * Walk a JSON-ish payload and substring-redact every string against the
+ * registered-secret list. Cheap when the list is empty.
+ */
+function redactValuesDeep(value: unknown, depth = 0): unknown {
+  if (registeredSecrets.size === 0) return value;
+  if (depth > 8) return value; // hard cap on recursion
+  if (value === null || value === undefined) return value;
+  if (typeof value === "string") return redactValueString(value);
+  if (Array.isArray(value)) return value.map((v) => redactValuesDeep(v, depth + 1));
+  if (typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = redactValuesDeep(v, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Register a concrete secret value. Any subsequent log call whose payload
+ * contains this string (anywhere — keys excluded, values only) will have
+ * the occurrence replaced with [REDACTED].
+ *
+ * No-op for empty / very short values (< 8 chars) so common words don't
+ * accidentally get blanket-redacted.
+ *
+ * Call at process startup, after `dotenv.config()`, before any log emission.
+ */
+export function registerSecret(value: string | undefined | null): void {
+  if (!value || value.length < 8) return;
+  registeredSecrets.add(value);
+}
+
+/** Test-only: clear the registered-secret list. */
+export function _resetRegisteredSecretsForTests(): void {
+  registeredSecrets.clear();
+}
+
+/** Test-only: read the current registered-secret count. */
+export function _registeredSecretCountForTests(): number {
+  return registeredSecrets.size;
+}
+
 function buildOptions(): LoggerOptions {
   const opts: LoggerOptions = {
     level: resolveLevel(),
     base: { pid: process.pid },
     timestamp: pino.stdTimeFunctions.isoTime,
+    redact: {
+      paths: REDACT_PATHS,
+      censor: CENSOR,
+    },
     formatters: {
       level: (label) => ({ level: label }),
+    },
+    hooks: {
+      // Intercept every log call and substring-redact registered secrets
+      // across all args (both payload objects and message strings). pino's
+      // built-in `redact` only handles paths, not value substrings — and
+      // pino's formatters.log can't see the message string. logMethod is
+      // the only hook that sees both, so it's the only place that catches
+      // a secret accidentally interpolated into the message.
+      logMethod(inputArgs, method) {
+        if (registeredSecrets.size === 0) {
+          return method.apply(this, inputArgs);
+        }
+        const safe = inputArgs.map((arg) => {
+          if (typeof arg === "string") return redactValueString(arg);
+          if (arg && typeof arg === "object") return redactValuesDeep(arg);
+          return arg;
+        }) as Parameters<typeof method>;
+        return method.apply(this, safe);
+      },
     },
   };
 
