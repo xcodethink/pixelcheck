@@ -27,6 +27,7 @@ import type {
 import { CalibrationSampleSchema } from "./types.js";
 import type { Persona, Scenario } from "../core/types.js";
 import { runCritic } from "../core/critic.js";
+import { RESULT_SCHEMA_VERSION } from "../core/result-schema.js";
 
 export interface CalibrationRunOpts {
   fixturesDir: string;
@@ -189,6 +190,7 @@ export function aggregateReport(
   }
 
   return {
+    schema_version: RESULT_SCHEMA_VERSION,
     tag,
     model,
     started_at: startedAt.toISOString(),
@@ -221,6 +223,8 @@ export const DEFAULT_GATE: Required<GateThresholds> = {
 };
 
 export interface GateResult {
+  /** Result schema version (SemVer). Stamped by `scoreReport`. */
+  schema_version?: string;
   passed: boolean;
   violations: string[];
   computed: {
@@ -260,6 +264,7 @@ export function scoreReport(
     );
   }
   return {
+    schema_version: RESULT_SCHEMA_VERSION,
     passed: violations.length === 0,
     violations,
     computed: {

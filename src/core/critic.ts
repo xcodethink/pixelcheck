@@ -2,6 +2,7 @@ import { z } from "zod";
 import { callVision, extractJson, type VisionResponse } from "./llm.js";
 import { compressForVision } from "./image.js";
 import type { Persona, Scenario, StepResult, DimensionScore, Issue } from "./types.js";
+import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 
 const VisionVerdictSchema = z.object({
   scores: z
@@ -51,6 +52,8 @@ export interface CriticOptions {
 }
 
 export interface CriticResult {
+  /** Result schema version (SemVer). Stamped by `runCritic`. */
+  schema_version?: string;
   verdict: VisionVerdict;
   scores: DimensionScore[];
   issues: Issue[];
@@ -108,6 +111,7 @@ export async function runCritic(opts: CriticOptions): Promise<CriticResult> {
   } catch (err) {
     // Critic failed to return JSON — record as a warning issue but don't crash.
     return {
+      schema_version: RESULT_SCHEMA_VERSION,
       verdict: { scores: [], issues: [] },
       scores: [],
       issues: [
@@ -155,6 +159,7 @@ export async function runCritic(opts: CriticOptions): Promise<CriticResult> {
   }
 
   return {
+    schema_version: RESULT_SCHEMA_VERSION,
     verdict,
     scores,
     issues,

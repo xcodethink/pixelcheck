@@ -77,6 +77,8 @@ export interface SampleAgreement {
 }
 
 export interface CalibrationReport {
+  /** Result schema version (SemVer). Stamped by `aggregateReport`. */
+  schema_version?: string;
   tag: string;
   model: string;
   started_at: string;
