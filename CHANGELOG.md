@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M1-4 Secrets redaction)
+
+- Logger now applies two-layer secret redaction to every log line:
+  - **Path-based** — well-known field names (`apiKey`, `password`, `token`, `cookie`, `authorization`, etc.) are always censored regardless of value, both at top level and one level deep.
+  - **Value-based** — concrete env-derived secret values (registered at startup via `registerSecret`) are substring-replaced anywhere they appear in payloads or in the message string.
+- New `registerSecret(value)` API in `src/core/logger.ts`. Bootstrapped in `src/cli.ts` and `src/mcp/server.ts` via `buildRedactPatterns([])` after `dotenv.config()`.
+- New `safePrint` / `safeError` helpers in `src/cli.ts` for `catch` blocks that print `err.message` — runs the same redaction pass on user-facing console output.
+- New ADR-006 documenting the design.
+
 ### Added (M1-3 Structured logging)
 
 - New `src/core/logger.ts`: pino-based structured logger.

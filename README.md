@@ -316,7 +316,7 @@ ai-browser-auditor/
 ## Safety
 
 - **Stripe live key protection** — refuses to start if `pk_live_` detected in environment
-- **Credential redaction** — OAuth tokens and passwords are never written to reports
+- **Credential redaction** — OAuth tokens, passwords, API keys, and webhook URLs are never written to reports OR to logs (two layers: well-known field names like `apiKey` / `password` / `token` / `cookie` are always censored, and concrete env-derived secret values are substring-replaced anywhere they appear, including inside log messages)
 - **Computer Use guardrails** — Anthropic's prompt-injection classifier enabled by default
 - **Budget cap** — stops spawning new audit units when cumulative API cost exceeds your threshold
 
