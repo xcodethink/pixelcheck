@@ -514,6 +514,13 @@ export interface ScenarioRunResult {
 }
 
 export interface AuditRun {
+  /**
+   * Result schema version (SemVer). Stamped by `runAudit` from
+   * `RESULT_SCHEMA_VERSION` in `result-schema.ts`. Optional in the type so
+   * legacy fixtures and historical JSON files still parse; producers always
+   * set it on freshly emitted runs.
+   */
+  schema_version?: string;
   run_id: string;
   project_name: string;
   base_url: string;

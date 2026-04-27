@@ -16,8 +16,16 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import Database from "better-sqlite3";
 import type { AuditRun, DimensionScore, Issue } from "./types.js";
+import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 
-const SCHEMA_VERSION = 1;
+/**
+ * SQLite `user_version` schema number — bumped per migration.
+ * Distinct from the result schema's SemVer string (`RESULT_SCHEMA_VERSION`).
+ *
+ *   1 — initial schema (audit_runs, dimension_scores, issues_history)
+ *   2 — adds audit_runs.schema_version (M9-2 result schema column)
+ */
+const SCHEMA_VERSION = 2;
 
 function openDb(dbPath: string): Database.Database {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -25,12 +33,16 @@ function openDb(dbPath: string): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
-  // Migrate schema
+  // Migrate schema. Each migration runs once, advancing user_version.
   const userVersion =
     (db.pragma("user_version", { simple: true }) as number | null) ?? 0;
-  if (userVersion < SCHEMA_VERSION) {
+  if (userVersion < 1) {
     db.exec(MIGRATIONS[0]!);
-    db.pragma("user_version = " + String(SCHEMA_VERSION));
+    db.pragma("user_version = 1");
+  }
+  if (userVersion < 2) {
+    db.exec(MIGRATIONS[1]!);
+    db.pragma("user_version = 2");
   }
 
   return db;
@@ -83,6 +95,13 @@ const MIGRATIONS = [
   CREATE INDEX IF NOT EXISTS idx_runs_project ON audit_runs(project_name);
   CREATE INDEX IF NOT EXISTS idx_runs_started ON audit_runs(started_at);
   `,
+  // Version 2 (M9-2): record the result schema version each row was written
+  // under. Backfilled to '1.0.0' for legacy rows; producers stamp current
+  // RESULT_SCHEMA_VERSION on new inserts. Default lets ad-hoc INSERTs skip
+  // the column without errors.
+  `
+  ALTER TABLE audit_runs ADD COLUMN schema_version TEXT NOT NULL DEFAULT '1.0.0';
+  `,
 ];
 
 /**
@@ -106,9 +125,10 @@ export function saveAuditToHistory(
       INSERT OR REPLACE INTO audit_runs
         (id, tag, project_name, base_url, started_at, finished_at,
          duration_ms, total_cost_usd, total_units, pass_count, warn_count,
-         fail_count, total_issues, critical_issues, overall_score)
+         fail_count, total_issues, critical_issues, overall_score,
+         schema_version)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertScore = db.prepare(`
@@ -141,6 +161,7 @@ export function saveAuditToHistory(
         audit.summary.total_issues,
         audit.summary.critical_issues,
         overallScore,
+        audit.schema_version ?? RESULT_SCHEMA_VERSION,
       );
 
       // Insert per-unit dimension scores
@@ -194,6 +215,8 @@ export interface HistoryEntry {
   overallScore: number;
   /** Average score per dimension across all units in this run */
   dimensionAverages: Record<string, number>;
+  /** Result schema version this row was written under (M9-2). */
+  schemaVersion?: string;
 }
 
 /**
@@ -255,6 +278,7 @@ export function loadHistory(
         criticalIssues: row.critical_issues,
         overallScore: row.overall_score,
         dimensionAverages,
+        schemaVersion: row.schema_version ?? undefined,
       };
     });
   } finally {

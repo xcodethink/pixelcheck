@@ -27,6 +27,7 @@ import {
 } from "./secrets.js";
 import type { CriticResult } from "./critic.js";
 import type { DiffResult } from "./visual-diff.js";
+import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 import { AgentEventBus, attachConsoleLogger } from "../agent/events.js";
 import { ObserverServer } from "../observer/server.js";
 import { SessionStore } from "../observer/session-store.js";
@@ -208,6 +209,7 @@ export async function runAudit(
   };
 
   const audit: AuditRun = {
+    schema_version: RESULT_SCHEMA_VERSION,
     run_id: runId,
     project_name: opts.config.project_name,
     base_url: opts.config.base_url,

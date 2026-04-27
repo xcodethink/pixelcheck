@@ -13,6 +13,7 @@ import * as path from "node:path";
 import type { BenchmarkTask } from "./task.js";
 import { evaluateTask, type TaskEvalResult } from "./evaluator.js";
 import type { Persona, ProjectConfig, Scenario } from "../core/types.js";
+import { RESULT_SCHEMA_VERSION } from "../core/result-schema.js";
 
 export interface BenchmarkRunOpts {
   tasks: BenchmarkTask[];
@@ -53,6 +54,8 @@ export interface TaskExecution {
 }
 
 export interface BenchmarkTaskResult {
+  /** Result schema version (SemVer). Stamped by the runner. */
+  schema_version?: string;
   task_id: string;
   intent: string;
   difficulty?: "easy" | "medium" | "hard";
@@ -68,6 +71,8 @@ export interface BenchmarkTaskResult {
 }
 
 export interface BenchmarkReport {
+  /** Result schema version (SemVer). Stamped by `summarize`. */
+  schema_version?: string;
   tag: string;
   started_at: string;
   finished_at: string;
@@ -108,6 +113,7 @@ export async function runBenchmark(opts: BenchmarkRunOpts): Promise<BenchmarkRep
   for (const task of opts.tasks) {
     if (runningCost >= totalBudget) {
       taskResults.push({
+        schema_version: RESULT_SCHEMA_VERSION,
         task_id: task.task_id,
         intent: task.intent,
         difficulty: task.difficulty,
@@ -147,6 +153,7 @@ export async function runBenchmark(opts: BenchmarkRunOpts): Promise<BenchmarkRep
         page,
       });
       const entry: BenchmarkTaskResult = {
+        schema_version: RESULT_SCHEMA_VERSION,
         task_id: task.task_id,
         intent: task.intent,
         difficulty: task.difficulty,
@@ -230,6 +237,7 @@ export function summarize(
   }
 
   return {
+    schema_version: RESULT_SCHEMA_VERSION,
     tag,
     started_at: startedAt.toISOString(),
     finished_at: finishedAt.toISOString(),
@@ -294,6 +302,7 @@ export function renderMarkdown(report: BenchmarkReport): string {
 
 function makeErrorResult(task: BenchmarkTask, err: string): BenchmarkTaskResult {
   return {
+    schema_version: RESULT_SCHEMA_VERSION,
     task_id: task.task_id,
     intent: task.intent,
     difficulty: task.difficulty,

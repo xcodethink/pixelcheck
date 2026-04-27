@@ -211,4 +211,26 @@ describe("history", () => {
     const diff = diffRuns(tmpDir, "nonexistent_a", "nonexistent_b");
     expect(diff).toBeNull();
   });
+
+  it("persists audit.schema_version through save/load round-trip (M9-2)", () => {
+    saveAuditToHistory(
+      makeAuditRun({ run_id: "with_version", schema_version: "1.0.0" }),
+      tmpDir,
+    );
+    const entries = loadHistory(tmpDir);
+    const found = entries.find((e) => e.id === "with_version");
+    expect(found).toBeDefined();
+    expect(found!.schemaVersion).toBe("1.0.0");
+  });
+
+  it("backfills schema_version with default '1.0.0' when audit lacks it", () => {
+    // Older AuditRun shape (no schema_version on the object)
+    const old = makeAuditRun({ run_id: "no_version" });
+    delete (old as { schema_version?: string }).schema_version;
+    saveAuditToHistory(old, tmpDir);
+    const entries = loadHistory(tmpDir);
+    const found = entries.find((e) => e.id === "no_version");
+    expect(found).toBeDefined();
+    expect(found!.schemaVersion).toBe("1.0.0");
+  });
 });

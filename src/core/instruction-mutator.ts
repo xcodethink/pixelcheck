@@ -20,6 +20,7 @@
 
 import type { Page } from "playwright";
 import { getAnthropicClient, estimateCost } from "./llm.js";
+import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 
 /**
  * Extract a compact DOM summary of interactive elements on the current page.
@@ -65,6 +66,8 @@ async function getInteractiveElements(page: Page): Promise<string> {
 }
 
 export interface MutationResult {
+  /** Result schema version (SemVer). Stamped by `generateMutations`. */
+  schema_version?: string;
   /** The type of mutation applied */
   type: "rephrase" | "decompose" | "specific";
   /** The mutated instruction(s). For decompose, multiple strings. */
@@ -329,6 +332,13 @@ export async function generateMutations(
   const hasRephrase = results.some((r) => r.type === "rephrase");
   if (!hasRephrase) {
     results.push({ type: "rephrase", instructions: [rephrase(original)] });
+  }
+
+  // Stamp the schema version on every result before returning. Done once
+  // here rather than at each individual return site so all mutation paths
+  // (LLM rewrite, specific, decompose, rephrase fallback) carry the version.
+  for (const r of results) {
+    if (!r.schema_version) r.schema_version = RESULT_SCHEMA_VERSION;
   }
 
   return results;
