@@ -235,3 +235,27 @@ Sample log line (JSON mode):
 ```json
 {"level":"info","time":"2026-04-26T01:23:45.678Z","pid":12345,"module":"runner","runId":"20260426_012345","units":3,"concurrency":2,"budgetUsd":3,"msg":"run started"}
 ```
+
+### Redaction
+
+Two layers protect against secret leakage in log output:
+
+**Path-based** — well-known field names always get `[REDACTED]` regardless of value. Built into pino via the `redact.paths` option. Covers: `apiKey` / `api_key` / `password` / `token` / `secret` / `cookie` / `cookies` / `authorization` / `auth` / `anthropic_api_key` / `ANTHROPIC_API_KEY`, both at top level and one level deep (`*.apiKey`, etc.). Cheap — fast-redact under the hood.
+
+**Value-based** — concrete secret strings registered at startup get substring-replaced anywhere they appear in any log payload, including inside the message string. Implemented as a `hooks.logMethod` interceptor that runs before pino composes the line.
+
+Bootstrap (in `cli.ts` and `mcp/server.ts`):
+
+```ts
+import { buildRedactPatterns } from "./core/secrets.js";
+import { registerSecret } from "./core/logger.js";
+
+dotenv.config();
+for (const p of buildRedactPatterns([])) registerSecret(p);
+```
+
+`buildRedactPatterns([])` collects values from `ANTHROPIC_API_KEY`, `SCAMLENS_ADMIN_COOKIE`, `STRIPE_TEST_PUBLISHABLE_KEY`, `TEST_GOOGLE_*_PASSWORD`, `SLACK_WEBHOOK`, `TELEGRAM_BOT_TOKEN`, plus any patterns the project's `config.yaml` defines. Values shorter than 8 characters are ignored to avoid blanket-redacting common words.
+
+The same `secrets.redactDeep()` already runs over every audit report (`audit.json` / `audit.html` / `summary.md`) before disk write, so reports never contain raw secrets either.
+
+The CLI rendering layer (`src/cli.ts`) provides `safePrint` / `safeError` helpers that run the same redaction pass on user-facing console output for error messages that may interpolate `err.message` or other fields containing secret values.
