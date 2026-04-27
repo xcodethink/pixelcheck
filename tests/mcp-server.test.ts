@@ -9,7 +9,13 @@ import {
   errorResult,
   requireString,
   resolvePersona,
+  stampedTextResult,
 } from "../src/mcp/server.js";
+import {
+  AuditUrlResultSchema,
+  ListScenariosResultSchema,
+  RESULT_SCHEMA_VERSION,
+} from "../src/core/result-schema.js";
 import type { Persona } from "../src/core/types.js";
 
 function mk(id: string, overrides: Partial<Persona> = {}): Persona {
@@ -76,5 +82,47 @@ describe("resolvePersona", () => {
 
   it("throws when no personas at all", () => {
     expect(() => resolvePersona(new Map(), undefined)).toThrow();
+  });
+});
+
+describe("stampedTextResult (M9-2 C3)", () => {
+  it("stamps schema_version onto an object payload at the top of the JSON", () => {
+    const r = stampedTextResult("AuditUrlResult", AuditUrlResultSchema, {
+      status: "pass" as const,
+      overall_score: 8.0,
+      cost_usd: 0.1,
+      issues: 0,
+      critical_issues: 0,
+      report_json: "/tmp/audit.json",
+      report_html: "/tmp/audit.html",
+    });
+    const body = r.content[0]!.text;
+    const parsed = JSON.parse(body);
+    expect(parsed.schema_version).toBe(RESULT_SCHEMA_VERSION);
+    // schema_version should be the first key in the serialized JSON.
+    expect(body.startsWith(`{\n  "schema_version":`)).toBe(true);
+  });
+
+  it("does not wrap arrays — passes them through verbatim", () => {
+    const r = stampedTextResult(
+      "ListScenariosResult",
+      ListScenariosResultSchema,
+      ["smoke.yaml", "auth.yaml"],
+    );
+    const body = r.content[0]!.text;
+    const parsed = JSON.parse(body);
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toEqual(["smoke.yaml", "auth.yaml"]);
+  });
+
+  it("returns the payload even when validation would fail (warn-not-throw)", () => {
+    // Intentionally pass a malformed object — handler should still succeed.
+    const r = stampedTextResult(
+      "AuditUrlResult",
+      AuditUrlResultSchema,
+      { cost_usd: -1 } as unknown as { cost_usd: number },
+    );
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0]!.text).toContain("schema_version");
   });
 });

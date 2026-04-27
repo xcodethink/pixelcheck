@@ -420,6 +420,7 @@ export const ListScenariosResultSchema = z.array(z.string());
 
 // HistoryEntry — used by get_last_report. Match history.ts shape.
 export const HistoryEntrySchema = z.object({
+  schema_version: SchemaVersionField,
   id: z.string(),
   tag: z.string().nullable(),
   projectName: z.string(),
@@ -434,6 +435,8 @@ export const HistoryEntrySchema = z.object({
   criticalIssues: z.number().int().nonnegative(),
   overallScore: z.number(),
   dimensionAverages: z.record(z.number()),
+  /** Result schema version this row was written under (camelCase for parity with HistoryEntry). */
+  schemaVersion: z.string().optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
