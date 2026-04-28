@@ -9,6 +9,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { getAnthropicClient, estimateCost, extractJson } from "../core/llm.js";
+import { getCostGuard } from "../core/cost-guard.js";
 import type { Persona, Hint, Step } from "../core/types.js";
 import type { PlannedStep } from "./planner.js";
 
@@ -98,6 +99,8 @@ export async function navigatorDecide(
   }
   content.push({ type: "text", text: userPrompt });
 
+  const guard = getCostGuard();
+  guard.checkBudget();
   const response = await client.messages.create({
     model,
     max_tokens: 1024,
@@ -105,6 +108,11 @@ export async function navigatorDecide(
     messages: [{ role: "user", content }],
   });
 
+  guard.recordUsage(
+    model,
+    response.usage.input_tokens,
+    response.usage.output_tokens,
+  );
   const costUsd = estimateCost(
     model,
     response.usage.input_tokens,

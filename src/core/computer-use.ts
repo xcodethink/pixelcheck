@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import { getAnthropicClient, estimateCost } from "./llm.js";
+import { getCostGuard } from "./cost-guard.js";
 
 /**
  * Playwright-backed Claude Computer Use loop.
@@ -120,6 +121,8 @@ export async function runComputerUseTask(
       };
     };
 
+    const guard = getCostGuard();
+    guard.checkBudget();
     const response = await c.beta.messages.create({
       model: opts.model,
       max_tokens: 4096,
@@ -131,6 +134,11 @@ export async function runComputerUseTask(
       betas: [BETA_HEADER],
     });
 
+    guard.recordUsage(
+      opts.model,
+      response.usage.input_tokens,
+      response.usage.output_tokens,
+    );
     totalCost += estimateCost(
       opts.model,
       response.usage.input_tokens,
