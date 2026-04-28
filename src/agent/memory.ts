@@ -122,32 +122,26 @@ export class AgentMemory {
   /**
    * Store a new fact or update an existing one (idempotent on host+persona+fact).
    * Repeated calls with the same fact increment confirmations and boost confidence.
+   *
+   * Implemented as a single INSERT ... ON CONFLICT(fact_hash) DO UPDATE so
+   * two concurrent processes recording the same fact never race between
+   * SELECT and INSERT (M9-3): the conflict resolution and the increment are
+   * one atomic SQLite statement. The confidence bump is capped at 0.99 via
+   * SQLite's scalar min().
    */
   record(opts: RecordOpts): void {
     if (this._disabled) return;
     const db = this._open();
     const hash = factHash(opts.host, opts.persona_class, opts.fact);
-    const existing = db
-      .prepare(`SELECT id, confirmations, confidence FROM site_memory WHERE fact_hash = ?`)
-      .get(hash) as { id: number; confirmations: number; confidence: number } | undefined;
-
-    if (existing) {
-      // Boost confidence up to 0.99, capped.
-      const newConfidence = Math.min(0.99, existing.confidence + 0.05);
-      db.prepare(
-        `UPDATE site_memory SET
-           confirmations = confirmations + 1,
-           confidence = ?,
-           last_used_at = datetime('now')
-         WHERE id = ?`,
-      ).run(newConfidence, existing.id);
-      return;
-    }
 
     db.prepare(
       `INSERT INTO site_memory
          (host, persona_class, fact, fact_hash, source, confidence, ttl_seconds)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(fact_hash) DO UPDATE SET
+         confirmations = confirmations + 1,
+         confidence    = min(0.99, confidence + 0.05),
+         last_used_at  = datetime('now')`,
     ).run(
       opts.host,
       opts.persona_class,
