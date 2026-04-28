@@ -20,6 +20,7 @@
 
 import type { Page } from "playwright";
 import { getAnthropicClient, estimateCost } from "./llm.js";
+import { getCostGuard } from "./cost-guard.js";
 import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 
 /**
@@ -234,6 +235,8 @@ async function llmRewrite(
 ): Promise<MutationResult | null> {
   try {
     const client = getAnthropicClient();
+    const guard = getCostGuard();
+    guard.checkBudget();
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 256,
@@ -249,6 +252,11 @@ async function llmRewrite(
       ],
     });
 
+    guard.recordUsage(
+      "claude-haiku-4-5-20251001",
+      response.usage.input_tokens,
+      response.usage.output_tokens,
+    );
     cost.value += estimateCost(
       "claude-haiku-4-5-20251001",
       response.usage.input_tokens,

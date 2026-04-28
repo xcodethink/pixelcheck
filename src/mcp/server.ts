@@ -37,6 +37,7 @@ import { loadPersonas } from "../core/persona.js";
 import { ProjectConfigSchema, ScenarioSchema, type Persona } from "../core/types.js";
 import { getLogger, registerSecret } from "../core/logger.js";
 import { buildRedactPatterns } from "../core/secrets.js";
+import { getCostGuard } from "../core/cost-guard.js";
 import {
   AuditUrlResultSchema,
   ExploreUrlResultSchema,
@@ -189,6 +190,10 @@ export async function runMcpServer(): Promise<void> {
   // task/progress shapes that aren't relevant to CallToolResult.
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args = {} } = req.params;
+    // Cost guard: each MCP tool invocation is its own "run" — reset the
+    // per-run counter so a tool's run-USD cap is measured fresh, while the
+    // persistent daily ledger keeps accumulating across calls.
+    getCostGuard().resetRun();
     let result: ToolResult;
     try {
       switch (name) {

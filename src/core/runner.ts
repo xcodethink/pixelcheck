@@ -28,6 +28,7 @@ import {
 import type { CriticResult } from "./critic.js";
 import type { DiffResult } from "./visual-diff.js";
 import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
+import { getCostGuard } from "./cost-guard.js";
 import { AgentEventBus, attachConsoleLogger } from "../agent/events.js";
 import { ObserverServer } from "../observer/server.js";
 import { SessionStore } from "../observer/session-store.js";
@@ -109,12 +110,17 @@ export async function runAudit(
     await observer.start();
   }
 
+  // Cost guard: reset per-run counters at run start so the run-level cap is
+  // measured against this run only. The daily ledger persists across runs.
+  getCostGuard().resetRun();
+
   log.info(
     {
       runId,
       units: opts.matrix.length,
       concurrency,
       budgetUsd: budget,
+      costGuard: getCostGuard().snapshot(),
     },
     `run started`,
   );
