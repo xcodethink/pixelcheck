@@ -37,7 +37,7 @@ import { loadPersonas } from "../core/persona.js";
 import { ProjectConfigSchema, ScenarioSchema, type Persona } from "../core/types.js";
 import { getLogger, registerSecret } from "../core/logger.js";
 import { buildRedactPatterns } from "../core/secrets.js";
-import { getCostGuard } from "../core/cost-guard.js";
+import { withCostRun } from "../core/cost-guard.js";
 import {
   AuditUrlResultSchema,
   ExploreUrlResultSchema,
@@ -190,33 +190,36 @@ export async function runMcpServer(): Promise<void> {
   // task/progress shapes that aren't relevant to CallToolResult.
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args = {} } = req.params;
-    // Cost guard: each MCP tool invocation is its own "run" — reset the
-    // per-run counter so a tool's run-USD cap is measured fresh, while the
-    // persistent daily ledger keeps accumulating across calls.
-    getCostGuard().resetRun();
-    let result: ToolResult;
-    try {
-      switch (name) {
-        case "list_personas":
-          result = await handleListPersonas(args); break;
-        case "list_scenarios":
-          result = await handleListScenarios(args); break;
-        case "audit_url":
-          result = await handleAuditUrl(args); break;
-        case "explore_url":
-          result = await handleExploreUrl(args); break;
-        case "calibrate_critic":
-          result = await handleCalibrate(args); break;
-        case "get_last_report":
-          result = await handleGetLastReport(args); break;
-        default:
-          result = errorResult(`unknown tool: ${name}`);
+    // Cost guard: every MCP tool invocation runs inside its own
+    // AsyncLocalStorage cost scope (M9-3). Two parallel tool calls served
+    // by this same MCP server process see independent per-run counters,
+    // so one call's spend never bleeds into another's run-USD cap. The
+    // persistent daily ledger is still shared (and write-locked).
+    return withCostRun(async () => {
+      let result: ToolResult;
+      try {
+        switch (name) {
+          case "list_personas":
+            result = await handleListPersonas(args); break;
+          case "list_scenarios":
+            result = await handleListScenarios(args); break;
+          case "audit_url":
+            result = await handleAuditUrl(args); break;
+          case "explore_url":
+            result = await handleExploreUrl(args); break;
+          case "calibrate_critic":
+            result = await handleCalibrate(args); break;
+          case "get_last_report":
+            result = await handleGetLastReport(args); break;
+          default:
+            result = errorResult(`unknown tool: ${name}`);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        result = errorResult(`tool ${name} failed: ${msg}`);
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      result = errorResult(`tool ${name} failed: ${msg}`);
-    }
-    return result as unknown as Record<string, unknown>;
+      return result as unknown as Record<string, unknown>;
+    }) as unknown as Promise<Record<string, unknown>>;
   });
 
   const transport = new StdioServerTransport();
