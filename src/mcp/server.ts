@@ -34,7 +34,7 @@ import {
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { loadPersonas } from "../core/persona.js";
-import { ProjectConfigSchema, ScenarioSchema, type Persona } from "../core/types.js";
+import { ProjectConfigSchema, ScenarioSchema } from "../core/types.js";
 import { getLogger, registerSecret } from "../core/logger.js";
 import { buildRedactPatterns } from "../core/secrets.js";
 import { withCostRun } from "../core/cost-guard.js";
@@ -45,10 +45,14 @@ import {
   ListPersonasResultSchema,
   ListScenariosResultSchema,
   HistoryEntrySchema,
-  attachSchemaVersion,
-  validateResult,
 } from "../core/result-schema.js";
-import type { z } from "zod";
+import {
+  errorResult,
+  stampedTextResult,
+  textResult,
+  type ToolResult,
+} from "./result.js";
+import { requireString, resolvePersona } from "./helpers.js";
 
 const log = getLogger("mcp.server");
 
@@ -423,65 +427,6 @@ async function handleGetLastReport(args: Record<string, unknown>): Promise<ToolR
   const entries = loadHistory(path.resolve(reportsRoot), { limit: 1 });
   if (entries.length === 0) return textResult("no audits found in history");
   return stampedTextResult("HistoryEntry", HistoryEntrySchema, entries[0]!);
-}
-
-// ─────────────────────────────────────────────────────────────
-// Helpers (exported for unit tests)
-// ─────────────────────────────────────────────────────────────
-
-export interface ToolResult {
-  content: Array<{ type: "text"; text: string }>;
-  isError?: boolean;
-}
-
-export function textResult(text: string): ToolResult {
-  return { content: [{ type: "text", text }] };
-}
-export function errorResult(text: string): ToolResult {
-  return { content: [{ type: "text", text }], isError: true };
-}
-
-/**
- * Build a ToolResult whose JSON body carries `schema_version` and has been
- * passed through `validateResult` (M9-2 C3).
- *
- * - Objects: schema_version is stamped at the top via `attachSchemaVersion`.
- * - Arrays / scalars: returned unchanged (no envelope wrapping).
- *
- * Validation runs in safeParse mode; mismatches log a warn line via
- * the result-schema logger and the original payload still flows through.
- * v1.0.0 is observe-only; never block the caller on schema drift.
- */
-export function stampedTextResult<T>(
-  resultName: string,
-  schema: z.ZodType<T>,
-  value: T,
-): ToolResult {
-  const stamped = attachSchemaVersion(value);
-  validateResult(resultName, schema, stamped);
-  return textResult(JSON.stringify(stamped, null, 2));
-}
-
-export function requireString(val: unknown, name: string): string {
-  if (typeof val !== "string" || val.length === 0) {
-    throw new Error(`missing required string argument: ${name}`);
-  }
-  return val;
-}
-
-/**
- * Resolve a persona id to a Persona object, falling back to a sensible
- * default (first US desktop, else first available) when no id is given
- * or the requested id doesn't exist.
- */
-export function resolvePersona(personas: Map<string, Persona>, id: string | undefined): Persona {
-  if (id && personas.has(id)) return personas.get(id)!;
-  for (const [, p] of personas) {
-    if (p.country === "US" && p.device_class === "desktop") return p;
-  }
-  const first = personas.values().next();
-  if (first.done) throw new Error("no personas available");
-  return first.value;
 }
 
 // ─────────────────────────────────────────────────────────────
