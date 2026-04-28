@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getCostGuard } from "./cost-guard.js";
 
 let client: Anthropic | null = null;
 
@@ -81,6 +82,8 @@ export async function callVision(req: VisionRequest): Promise<VisionResponse> {
   }
   content.push({ type: "text", text: req.userPrompt });
 
+  const guard = getCostGuard();
+  guard.checkBudget();
   const response = await c.messages.create({
     model: req.model,
     max_tokens: req.maxTokens ?? 2048,
@@ -93,6 +96,11 @@ export async function callVision(req: VisionRequest): Promise<VisionResponse> {
     .map((b) => b.text)
     .join("\n");
 
+  guard.recordUsage(
+    req.model,
+    response.usage.input_tokens,
+    response.usage.output_tokens,
+  );
   const costUsd = estimateCost(
     req.model,
     response.usage.input_tokens,
