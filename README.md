@@ -345,6 +345,33 @@ LOG_PRETTY=0 ai-audit run --project projects/my-app
 LOG_LEVEL=debug ai-audit run --project projects/my-app
 ```
 
+## Cost Guard
+
+A process-wide spend cap protects against runaway LLM bills. Every Anthropic API call is tracked against two limits:
+
+- **Per-run** — single audit / MCP tool invocation. Reset at run start.
+- **Per-day** — UTC-day total persisted across processes in a JSON ledger (default `~/.ai-browser-auditor/cost-ledger.json`, override via `AUDIT_COST_LEDGER_PATH`).
+
+Exceeding any cap throws `BudgetExceededError` so the calling loop stops immediately. The ledger auto-prunes entries older than 30 days.
+
+| Env var | Default | Effect |
+|---|---|---|
+| `AUDIT_COST_MAX_RUN_USD` | `5` | Max USD per audit run / MCP tool call |
+| `AUDIT_COST_MAX_RUN_TOKENS` | `10000000` | Max input+output tokens per run |
+| `AUDIT_COST_MAX_DAILY_USD` | `50` | Max USD per UTC day across all runs |
+| `AUDIT_COST_MAX_DAILY_TOKENS` | `100000000` | Max input+output tokens per UTC day |
+| `AUDIT_COST_LEDGER_PATH` | `~/.ai-browser-auditor/cost-ledger.json` | Path to the persistent daily ledger |
+| `AUDIT_COST_GUARD_DISABLED` | unset | `1` / `true` to bypass entirely (CI / tests) |
+
+The cost guard layers over (and is independent of) the runner's `budget_usd` cap, which only stops the runner from scheduling new units. The cost guard catches direct MCP tool calls, computer-use loops, and instruction mutations that the unit scheduler doesn't see.
+
+Inspect the current state via the snapshot included in the `run started` log line, or:
+
+```sh
+LOG_LEVEL=debug ai-audit run --project projects/my-app
+# emits one "llm usage recorded" debug line per Anthropic call with running totals
+```
+
 ## Built With
 
 - [Playwright](https://playwright.dev/) — browser automation
