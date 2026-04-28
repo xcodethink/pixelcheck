@@ -48,7 +48,9 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { estimateCost } from "./llm.js";
+import { withFileLockSync } from "./file-lock.js";
 import { getLogger } from "./logger.js";
 
 const log = getLogger("cost-guard");
@@ -244,40 +246,112 @@ function writeLedgerAtomic(filePath: string, ledger: LedgerSnapshot): void {
   fs.renameSync(tmp, filePath);
 }
 
+/**
+ * AsyncLocalStorage holding the per-run counters for the currently
+ * executing audit / MCP tool call. When set, all checkBudget /
+ * recordUsage calls in that async context use THIS object instead of
+ * the singleton's fallback `run` field. This is what makes a single
+ * MCP server process safely serve concurrent tool calls — each
+ * dispatch wraps its work in `withCostRun()` and gets its own private
+ * counters.
+ *
+ * When unset (eg. unit tests that exercise CostGuard directly without
+ * a wrapping run scope), `cost-guard.run` falls back to the instance's
+ * own field. Behaviour matches the pre-M9-3 API.
+ */
+const runScope = new AsyncLocalStorage<RunSnapshot>();
+
+/**
+ * Run `fn` with a fresh per-run cost-guard counter scope.
+ *
+ *   await withCostRun(() => runAudit(opts))
+ *   await withCostRun(() => mcpToolHandler(args))
+ *
+ * Inside `fn`, every getCostGuard().checkBudget() / .recordUsage()
+ * sees a private RunSnapshot. Sibling calls running in parallel get
+ * their own scopes and never interfere.
+ */
+export function withCostRun<T>(fn: () => T | Promise<T>): Promise<T> {
+  const fresh = emptyRun(new Date());
+  return Promise.resolve(runScope.run(fresh, fn));
+}
+
+/** Test-only: peek at the currently active run scope, if any. */
+export function _getActiveRunScopeForTests(): RunSnapshot | undefined {
+  return runScope.getStore();
+}
+
 export class CostGuard {
   private readonly ledgerPath: string;
+  private readonly lockPath: string;
   private limits: CostGuardLimits;
   private readonly now: () => Date;
   private disabled: boolean;
-  private run: RunSnapshot;
+  private fallbackRun: RunSnapshot;
 
   constructor(opts: CostGuardOptions = {}) {
     this.ledgerPath = opts.ledgerPath ?? defaultLedgerPath();
+    this.lockPath = `${this.ledgerPath}.lock`;
     this.limits = { ...defaultLimits(), ...(opts.limits ?? {}) };
     this.now = opts.now ?? (() => new Date());
     this.disabled = opts.disabled ?? isDisabledByEnv();
-    this.run = emptyRun(this.now());
+    this.fallbackRun = emptyRun(this.now());
   }
 
-  /** Reset per-run counters. Call at the start of each audit / MCP tool call. */
+  /**
+   * The active per-run snapshot. Prefers the AsyncLocalStorage scope
+   * (set by withCostRun) and falls back to the instance's own field
+   * for callers that haven't wrapped themselves in a scope (eg. unit
+   * tests exercising the class directly).
+   */
+  private get run(): RunSnapshot {
+    return runScope.getStore() ?? this.fallbackRun;
+  }
+
+  /**
+   * Reset per-run counters.
+   *
+   * - With an active withCostRun scope: mutates the scope's snapshot
+   *   in place (zeros out the four counter fields, refreshes
+   *   startedAt). The scope object identity is preserved so other
+   *   refs in the same async context still see the reset.
+   * - Without a scope: resets this.fallbackRun (legacy behaviour).
+   *
+   * Most callers no longer need to call this directly — withCostRun
+   * already starts each scope with fresh counters. resetRun() is
+   * still wired at runner / MCP entry as a belt-and-suspenders
+   * (zeroes the fallback when no scope is active, eg. CLI without
+   * MCP wrapping).
+   */
   resetRun(): void {
-    this.run = emptyRun(this.now());
+    const fresh = emptyRun(this.now());
+    const scope = runScope.getStore();
+    if (scope) {
+      scope.startedAt = fresh.startedAt;
+      scope.inputTokens = fresh.inputTokens;
+      scope.outputTokens = fresh.outputTokens;
+      scope.usd = fresh.usd;
+      return;
+    }
+    this.fallbackRun = fresh;
   }
 
   /**
    * Verify spend is below all four caps. Throws BudgetExceededError if
-   * already at or over the limit. Cheap — no IO.
+   * already at or over the limit. Cheap — no IO under the lock; reads
+   * the ledger once but does not mutate.
    */
   checkBudget(): void {
     if (this.disabled) return;
-    if (this.run.usd >= this.limits.maxRunUsd) {
+    const runSnap = this.run;
+    if (runSnap.usd >= this.limits.maxRunUsd) {
       throw new BudgetExceededError(
         "run-usd",
-        this.run.usd,
+        runSnap.usd,
         this.limits.maxRunUsd,
       );
     }
-    const runTokens = this.run.inputTokens + this.run.outputTokens;
+    const runTokens = runSnap.inputTokens + runSnap.outputTokens;
     if (runTokens >= this.limits.maxRunTokens) {
       throw new BudgetExceededError(
         "run-tokens",
@@ -318,22 +392,33 @@ export class CostGuard {
       return { usd, runUsd: 0, dailyUsd: 0 };
     }
 
-    // Update run counters (in-memory)
-    this.run.inputTokens += inputTokens;
-    this.run.outputTokens += outputTokens;
-    this.run.usd += usd;
+    const runSnap = this.run;
+    // Update run counters (in-memory; per-scope when ALS is active)
+    runSnap.inputTokens += inputTokens;
+    runSnap.outputTokens += outputTokens;
+    runSnap.usd += usd;
 
-    // Update day counter (persistent)
+    // Update day counter (persistent). Hold the ledger lock for the whole
+    // read-modify-write so concurrent processes never lose updates. The
+    // file lock is process-wide; in-process serialization is provided by
+    // the lock as well (only one withFileLockSync can hold a given path
+    // at a time within the same process either).
     const dayKey = todayKey(this.now());
-    const ledger = pruneLedger(loadLedger(this.ledgerPath), this.now());
-    const day = ledger.days[dayKey] ?? emptyDay();
-    day.input_tokens += inputTokens;
-    day.output_tokens += outputTokens;
-    day.usd += usd;
-    ledger.days[dayKey] = day;
-    ledger.schema_version = COST_LEDGER_SCHEMA_VERSION;
+    let dayUsdAfter = 0;
+    let dayTokensAfter = 0;
     try {
-      writeLedgerAtomic(this.ledgerPath, ledger);
+      withFileLockSync(this.lockPath, () => {
+        const ledger = pruneLedger(loadLedger(this.ledgerPath), this.now());
+        const day = ledger.days[dayKey] ?? emptyDay();
+        day.input_tokens += inputTokens;
+        day.output_tokens += outputTokens;
+        day.usd += usd;
+        ledger.days[dayKey] = day;
+        ledger.schema_version = COST_LEDGER_SCHEMA_VERSION;
+        writeLedgerAtomic(this.ledgerPath, ledger);
+        dayUsdAfter = day.usd;
+        dayTokensAfter = day.input_tokens + day.output_tokens;
+      });
     } catch (err) {
       log.warn(
         {
@@ -350,8 +435,8 @@ export class CostGuard {
         inputTokens,
         outputTokens,
         usd,
-        runUsd: this.run.usd,
-        dailyUsd: day.usd,
+        runUsd: runSnap.usd,
+        dailyUsd: dayUsdAfter,
       },
       "llm usage recorded",
     );
@@ -359,16 +444,15 @@ export class CostGuard {
     // Post-call enforcement: if THIS call straddled the limit, throw so the
     // downstream loop stops here (the response itself is still returned to
     // the caller; only the next iteration is blocked).
-    const runTokens = this.run.inputTokens + this.run.outputTokens;
-    const dayTokens = day.input_tokens + day.output_tokens;
-    if (this.run.usd > this.limits.maxRunUsd) {
+    const runTokens = runSnap.inputTokens + runSnap.outputTokens;
+    if (runSnap.usd > this.limits.maxRunUsd) {
       log.warn(
-        { runUsd: this.run.usd, limit: this.limits.maxRunUsd },
+        { runUsd: runSnap.usd, limit: this.limits.maxRunUsd },
         "run usd cap exceeded after this call",
       );
       throw new BudgetExceededError(
         "run-usd",
-        this.run.usd,
+        runSnap.usd,
         this.limits.maxRunUsd,
       );
     }
@@ -383,30 +467,30 @@ export class CostGuard {
         this.limits.maxRunTokens,
       );
     }
-    if (day.usd > this.limits.maxDailyUsd) {
+    if (dayUsdAfter > this.limits.maxDailyUsd) {
       log.warn(
-        { dayUsd: day.usd, limit: this.limits.maxDailyUsd },
+        { dayUsd: dayUsdAfter, limit: this.limits.maxDailyUsd },
         "daily usd cap exceeded after this call",
       );
       throw new BudgetExceededError(
         "daily-usd",
-        day.usd,
+        dayUsdAfter,
         this.limits.maxDailyUsd,
       );
     }
-    if (dayTokens > this.limits.maxDailyTokens) {
+    if (dayTokensAfter > this.limits.maxDailyTokens) {
       log.warn(
-        { dayTokens, limit: this.limits.maxDailyTokens },
+        { dayTokens: dayTokensAfter, limit: this.limits.maxDailyTokens },
         "daily token cap exceeded after this call",
       );
       throw new BudgetExceededError(
         "daily-tokens",
-        dayTokens,
+        dayTokensAfter,
         this.limits.maxDailyTokens,
       );
     }
 
-    return { usd, runUsd: this.run.usd, dailyUsd: day.usd };
+    return { usd, runUsd: runSnap.usd, dailyUsd: dayUsdAfter };
   }
 
   /** Read the current day's totals without mutating. */
@@ -425,6 +509,11 @@ export class CostGuard {
       today: { date: dayKey, ...this.readToday() },
       ledgerPath: this.ledgerPath,
     };
+  }
+
+  /** Test-only: expose the resolved lockfile path. */
+  _getLockPathForTests(): string {
+    return this.lockPath;
   }
 
   /** Test-only: replace limits at runtime. */

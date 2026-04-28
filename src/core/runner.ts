@@ -28,7 +28,7 @@ import {
 import type { CriticResult } from "./critic.js";
 import type { DiffResult } from "./visual-diff.js";
 import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
-import { getCostGuard } from "./cost-guard.js";
+import { getCostGuard, withCostRun } from "./cost-guard.js";
 import { AgentEventBus, attachConsoleLogger } from "../agent/events.js";
 import { ObserverServer } from "../observer/server.js";
 import { SessionStore } from "../observer/session-store.js";
@@ -68,6 +68,17 @@ export interface RunnerOptions {
  *   - Budget cap stops new units from starting once exceeded.
  */
 export async function runAudit(
+  opts: RunnerOptions,
+): Promise<{ audit: AuditRun; eventBus?: AgentEventBus }> {
+  // Each audit gets its own cost-guard run scope (M9-3). Two concurrent
+  // runAudit() calls (eg. parallel MCP tool dispatches into the runner)
+  // see separate per-run counters and never interfere. The persistent
+  // daily ledger is still shared across processes via the file lock
+  // inside CostGuard.recordUsage.
+  return withCostRun(() => runAuditInner(opts));
+}
+
+async function runAuditInner(
   opts: RunnerOptions,
 ): Promise<{ audit: AuditRun; eventBus?: AgentEventBus }> {
   const concurrency = opts.concurrency ?? opts.config.default_concurrency;
