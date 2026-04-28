@@ -4,13 +4,8 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  textResult,
-  errorResult,
-  requireString,
-  resolvePersona,
-  stampedTextResult,
-} from "../src/mcp/server.js";
+import { textResult, errorResult, stampedTextResult } from "../src/mcp/result.js";
+import { requireString, resolvePersona } from "../src/mcp/helpers.js";
 import {
   AuditUrlResultSchema,
   ListScenariosResultSchema,
