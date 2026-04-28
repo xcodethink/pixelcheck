@@ -41,10 +41,33 @@ export async function diffAgainstBaseline(
   const { current, baseline, diffOutput } = opts;
   const threshold = opts.thresholdPixels ?? 100;
 
-  // Bootstrap baseline if missing
+  // Bootstrap baseline if missing.
+  //
+  // Concurrency note (M9-3): two parallel runs that both target a brand-new
+  // baseline must not racily overwrite each other. We copy to a per-process
+  // temp file first, then atomically link it into place via fs.linkSync —
+  // which fails with EEXIST when the baseline already exists. The first
+  // writer wins, the second silently accepts the winning baseline rather
+  // than clobbering it with its own (semantically equivalent) screenshot.
   if (!fs.existsSync(baseline)) {
     fs.mkdirSync(path.dirname(baseline), { recursive: true });
-    fs.copyFileSync(current, baseline);
+    const tmp = `${baseline}.${process.pid}.${Date.now()}.tmp`;
+    try {
+      fs.copyFileSync(current, tmp);
+      try {
+        fs.linkSync(tmp, baseline);
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code !== "EEXIST") throw err;
+        // Another concurrent run installed the baseline first — that's fine.
+      }
+    } finally {
+      try {
+        fs.unlinkSync(tmp);
+      } catch {
+        // tmp gone — fine
+      }
+    }
     return {
       computed: false,
       regression: false,
