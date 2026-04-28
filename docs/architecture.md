@@ -259,3 +259,29 @@ for (const p of buildRedactPatterns([])) registerSecret(p);
 The same `secrets.redactDeep()` already runs over every audit report (`audit.json` / `audit.html` / `summary.md`) before disk write, so reports never contain raw secrets either.
 
 The CLI rendering layer (`src/cli.ts`) provides `safePrint` / `safeError` helpers that run the same redaction pass on user-facing console output for error messages that may interpolate `err.message` or other fields containing secret values.
+
+## Cost Guard
+
+Every Anthropic API call is intercepted by a process-wide cost guard (`src/core/cost-guard.ts`) that enforces two limits:
+
+- **Per-run** — single audit / MCP tool invocation. Reset by `runAudit()` at run start and by the MCP `CallToolRequestSchema` dispatcher at the start of every tool call.
+- **Per-day** — UTC-day total persisted to a JSON ledger (default `~/.ai-browser-auditor/cost-ledger.json`, override via `AUDIT_COST_LEDGER_PATH`). Survives process restart and is shared across concurrent processes via last-write-wins atomic temp + rename.
+
+Hook pattern at every call site:
+
+```ts
+const guard = getCostGuard();
+guard.checkBudget();                                    // pre: throw if already over
+const response = await client.messages.create({ ... }); // the only thing that costs money
+guard.recordUsage(model, in_tokens, out_tokens);        // post: persist + throw if this call straddled the cap
+```
+
+Six call sites are wrapped this way: `core/llm.ts:callVision`, `core/computer-use.ts` beta loop, `core/instruction-mutator.ts:llmRewrite`, `agent/planner.ts` (`createPlan` + `microReplan`), `agent/navigator.ts:decideNextStep`. Convergence's visual criterion check inherits via `callVision`.
+
+`BudgetExceededError` carries a `kind` (`run-usd` / `run-tokens` / `daily-usd` / `daily-tokens`), the `current` total, and the `limit`. The error message includes the exact env var name to override and the `AUDIT_COST_GUARD_DISABLED=1` bypass for CI / tests.
+
+Ledger is stamped with `COST_LEDGER_SCHEMA_VERSION = "1.0.0"` (per ADR-007's SemVer rules) and auto-prunes entries older than 30 days at every write. A malformed ledger file is treated as empty (warn-logged) so audits never get bricked by a corrupted file.
+
+This layer is independent of the runner's `budget_usd` setting, which is a unit-scheduling hint that stops *new* units from starting; the cost guard is a hard cap at the LLM-call boundary that also catches direct MCP tool calls and computer-use loops not orchestrated by the runner.
+
+See ADR-008 for the full design rationale.

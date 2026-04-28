@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M5-6 Cost guard)
+
+- New `src/core/cost-guard.ts` — process-wide LLM spend cap with two layers:
+  - **Per-run** in-memory token / USD counter, reset at audit-run / MCP-tool entry.
+  - **Per-day** UTC-keyed JSON ledger persisted to `~/.ai-browser-auditor/cost-ledger.json` (override via `AUDIT_COST_LEDGER_PATH`); 30-day auto-prune at write time; atomic temp + rename writes; malformed-file recovery treats the ledger as empty.
+- `getCostGuard()` singleton; `BudgetExceededError` carries `kind: "run-usd" | "run-tokens" | "daily-usd" | "daily-tokens"`, `current`, and `limit`.
+- Every Anthropic API call site now sandwiches `guard.checkBudget()` (pre) and `guard.recordUsage(model, in, out)` (post): `core/llm.ts:callVision`, `core/computer-use.ts` beta loop, `core/instruction-mutator.ts:llmRewrite`, `agent/planner.ts:createPlan` + `microReplan`, `agent/navigator.ts:decideNextStep`. Convergence's `checkVisualCriterion` inherits via `callVision`.
+- `runAudit` (CLI path) and the MCP `CallToolRequestSchema` dispatcher both call `getCostGuard().resetRun()` so each invocation starts with a clean per-run counter.
+- Ledger schema is stamped with `COST_LEDGER_SCHEMA_VERSION = "1.0.0"`, following the M9-2 SemVer policy.
+- New env vars: `AUDIT_COST_MAX_RUN_USD` (default `5`), `AUDIT_COST_MAX_RUN_TOKENS` (default `10_000_000`), `AUDIT_COST_MAX_DAILY_USD` (default `50`), `AUDIT_COST_MAX_DAILY_TOKENS` (default `100_000_000`), `AUDIT_COST_LEDGER_PATH`, `AUDIT_COST_GUARD_DISABLED=1` (bypass for CI / tests).
+- New ADR-008 documenting hook-at-call-site, persistent ledger, symmetric pre-check / post-record enforcement.
+- New `tests/cost-guard.test.ts` with 18 tests: `recordUsage` math, atomic ledger persistence, cross-instance ledger sharing, day rollover, all four tripwire kinds, error message env hint, `resetRun` semantics, snapshot reporting, disabled mode (constructor flag + env var), 30-day pruning, malformed-file recovery, singleton lifecycle. Total: 363/363 tests pass.
+
 ### Added (M9-2 Result schema 稳定承诺)
 
 - `RESULT_SCHEMA_VERSION = "1.0.0"` — single source-of-truth SemVer string for every result the auditor emits to AI agents and external consumers.
