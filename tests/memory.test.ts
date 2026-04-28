@@ -127,4 +127,49 @@ describe("formatFactsForPlanner", () => {
     expect(out).toContain("F1");
     expect(out).toContain("F2");
   });
+
+  it("two child processes recording the same fact concurrently never error and converge to one row", async () => {
+    const { spawn } = await import("node:child_process");
+    const dbPath = path.join(tmp, "race.db");
+    const ITERATIONS = 12;
+    const child = `
+const { AgentMemory } = require(${JSON.stringify(
+      path.join(process.cwd(), "dist/agent/memory.js"),
+    )});
+const mem = new AgentMemory({ dbPath: ${JSON.stringify(dbPath)} });
+const ITER = ${ITERATIONS};
+for (let i = 0; i < ITER; i++) {
+  mem.record({ host: "shared.example", persona_class: "US|desktop|free", fact: "shared fact" });
+  const start = Date.now();
+  while (Date.now() - start < 1) {}
+}
+mem.close();
+process.exit(0);
+`;
+    const procs = [0, 1, 2].map(
+      () =>
+        new Promise<number>((resolve, reject) => {
+          const p = spawn(process.execPath, ["-e", child], {
+            cwd: process.cwd(),
+          });
+          p.on("exit", (code) => resolve(code ?? -1));
+          p.on("error", reject);
+        }),
+    );
+    const codes = await Promise.all(procs);
+    expect(codes).toEqual([0, 0, 0]);
+
+    // Re-open the DB to read the result.
+    const m = new AgentMemory({ dbPath });
+    const facts = m.lookup({
+      host: "shared.example",
+      persona_class: "US|desktop|free",
+    });
+    expect(facts).toHaveLength(1);
+    // Total confirmations across 3 procs × ITER calls = (3*ITER - 1) increments
+    // on top of the initial INSERT (which sets confirmations=1 by default).
+    // SQLite's atomic INSERT...ON CONFLICT guarantees no lost increments.
+    expect(facts[0]!.confirmations).toBe(3 * ITERATIONS);
+    m.close();
+  }, 60_000);
 });
