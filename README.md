@@ -372,6 +372,17 @@ LOG_LEVEL=debug ai-audit run --project projects/my-app
 # emits one "llm usage recorded" debug line per Anthropic call with running totals
 ```
 
+## Concurrency Safety
+
+PixelCheck is safe to run from multiple processes at once — two parallel `ai-audit` terminals, an MCP server fielding two `audit_url` calls in parallel, or a CLI run alongside an MCP-served call. Specifically:
+
+- **Cost ledger** (`cost-ledger.json`): protected by a cross-process advisory lockfile (`<ledger>.lock`). Concurrent recorders never lose updates.
+- **Per-run cost counters**: each MCP tool dispatch and each `runAudit` call gets its own `AsyncLocalStorage` scope, so two parallel calls have independent run-USD caps. The persistent daily ledger is still shared.
+- **Memory DB** (`memory.db`): `record(fact)` uses one atomic `INSERT … ON CONFLICT DO UPDATE`. No SELECT-then-write race.
+- **Visual diff baselines**: first-run bootstrap copies to a `.tmp` path then `linkSync`s into place. Two parallel first-runs both succeed; the first writer wins.
+
+If a process crashes while holding the cost-ledger lock, the lock auto-recovers after 30 seconds (or sooner if the holder pid is no longer alive). See [ADR-009](docs/decisions/ADR-009-concurrency-safety.md) for design.
+
 ## Built With
 
 - [Playwright](https://playwright.dev/) — browser automation
