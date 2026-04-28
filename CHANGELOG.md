@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M9-3 Concurrency safety)
+
+- New `src/core/file-lock.ts` — cross-process advisory lock helper. `withFileLock(lockPath, fn)` and `withFileLockSync(lockPath, fn)` hold a critical section across processes via a write-tmp-then-`linkSync` lockfile. Stale locks self-heal when the holder pid is no longer alive or the timestamp exceeds `staleAfterMs` (default 30 s). No new dependencies.
+- `CostGuard.recordUsage` ledger I/O now wraps load-prune-mutate-write in `withFileLockSync(<ledgerPath>.lock, …)`. Two parallel CLI / MCP processes hitting the same ledger file no longer lose updates last-write-wins.
+- Per-run cost counters move from `CostGuard.run` (instance field) to an `AsyncLocalStorage<RunSnapshot>`. New `withCostRun(fn)` helper creates a fresh scope per audit / per MCP tool dispatch.
+  - `runner.runAudit()` body wraps in `withCostRun` — every audit (CLI, benchmark, MCP-via-runAudit) gets its own scope.
+  - `mcp/server.ts` dispatcher wraps every tool call in `withCostRun` — covers `calibrate_critic` and any future LLM-using tools that don't go through the runner.
+  - Falls back to the instance's `fallbackRun` field when no scope is active (back-compat for unit tests and direct-class users).
+- `AgentMemory.record` switched from SELECT-then-INSERT/UPDATE to one atomic `INSERT … ON CONFLICT(fact_hash) DO UPDATE`. Confidence cap (≤ 0.99) moves to SQLite's `min(0.99, confidence + 0.05)`. Closes a race where two parallel processes recording the same fact would throw `UNIQUE constraint failed`.
+- Visual diff baseline bootstrap (`diffAgainstBaseline`) now copies to a per-process `.tmp` and atomically `linkSync`s into place. First writer wins; second swallows `EEXIST`. No more racy clobbering of a freshly-created baseline.
+- New ADR-009 documenting the four-hazard inventory and the linkSync / ALS / atomic-upsert mitigations.
+- New tests:
+  - `tests/file-lock.test.ts` — 11 tests including 2 cross-process races (counter increments under lock from 2 / 3 child processes).
+  - `tests/cost-guard-concurrency.test.ts` — 6 tests for ALS scope isolation, nested scopes, fallback behaviour, and a 3-process ledger race.
+  - `tests/memory.test.ts` — 14th test: 3 child processes recording the same fact 12 times each → `confirmations = 36`, no exceptions.
+  - `tests/visual-diff-baseline.test.ts` — 2 tests including parallel-bootstrap race.
+
 ### Added (M5-6 Cost guard)
 
 - New `src/core/cost-guard.ts` — process-wide LLM spend cap with two layers:

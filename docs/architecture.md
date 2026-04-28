@@ -91,6 +91,8 @@ The handler covers all 16 action types from `computer_20251124`: screenshot, lef
 - **Global**: `pLimit(concurrency)` controls how many units run in parallel (default 3)
 - **Per-origin**: `OriginThrottle` ensures units targeting the same origin are serialized within that origin (so a 6-persona × 1-scenario run against scamlens.org doesn't blast 6 requests/sec at the same WAF)
 - **Budget**: a global `cost.value` accumulator stops new units from starting once the cap is exceeded
+- **Cross-process**: shared mutable state — `cost-ledger.json`, `memory.db`, visual-diff baselines — is protected against races between parallel CLI / MCP processes. The cost ledger uses a `withFileLock` advisory lockfile around its read-modify-write; `AgentMemory.record` is one atomic SQLite upsert; visual baselines bootstrap via `linkSync` so the first writer wins. See [ADR-009](decisions/ADR-009-concurrency-safety.md).
+- **Per-call cost isolation**: per-run cost-guard counters live in an `AsyncLocalStorage` scope. Each `runAudit` call and each MCP tool dispatch gets its own scope, so two parallel tool invocations in a single MCP server process keep independent run-USD caps.
 
 ## 4-Layer Reliability Stack
 
