@@ -13,6 +13,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { getAnthropicClient, estimateCost, extractJson } from "../core/llm.js";
+import { getCostGuard } from "../core/cost-guard.js";
 import type { Persona, SuccessCriterion, Hint } from "../core/types.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -162,6 +163,8 @@ export async function createPlan(
   }
   content.push({ type: "text", text: userPrompt });
 
+  const guard = getCostGuard();
+  guard.checkBudget();
   const response = await client.messages.create({
     model,
     max_tokens: 4096,
@@ -169,6 +172,11 @@ export async function createPlan(
     messages: [{ role: "user", content }],
   });
 
+  guard.recordUsage(
+    model,
+    response.usage.input_tokens,
+    response.usage.output_tokens,
+  );
   const costUsd = estimateCost(
     model,
     response.usage.input_tokens,
@@ -300,6 +308,8 @@ export async function microReplan(
   }
   content.push({ type: "text", text: parts.join("\n") });
 
+  const guard = getCostGuard();
+  guard.checkBudget();
   const response = await client.messages.create({
     model,
     max_tokens: 512,
@@ -307,6 +317,11 @@ export async function microReplan(
     messages: [{ role: "user", content }],
   });
 
+  guard.recordUsage(
+    model,
+    response.usage.input_tokens,
+    response.usage.output_tokens,
+  );
   const costUsd = estimateCost(
     model,
     response.usage.input_tokens,
