@@ -87,15 +87,23 @@ describe("ToolRegistry", () => {
 });
 
 describe("ALL_TOOLS catalog invariants", () => {
-  it("contains the 6 shipped tools in stable order", () => {
+  it("contains the 7 shipped tools in stable order", () => {
     expect(ALL_TOOLS.map((t) => t.name)).toEqual([
       "audit_url",
       "explore_url",
+      "see",
       "list_personas",
       "list_scenarios",
       "calibrate_critic",
       "get_last_report",
     ]);
+  });
+
+  it("every kind is represented (preset, primitive, meta)", () => {
+    const kinds = new Set(ALL_TOOLS.map((t) => t.kind));
+    expect(kinds.has("preset")).toBe(true);
+    expect(kinds.has("primitive")).toBe(true);
+    expect(kinds.has("meta")).toBe(true);
   });
 
   it("every tool has a non-empty name and description", () => {
