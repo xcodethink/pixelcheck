@@ -20,6 +20,9 @@ import {
   ListPersonasResultSchema,
   ListScenariosResultSchema,
   SeeResultSchema,
+  ActStepSchema,
+  ActStepResultSchema,
+  ActResultSchema,
   validateResult,
   attachSchemaVersion,
 } from "../src/core/result-schema.js";
@@ -344,6 +347,188 @@ describe("result-schema — SeeResultSchema (N-1)", () => {
   it("schema_version is optional (legacy fixtures must still validate)", () => {
     const { schema_version: _v, ...rest } = minimalSee;
     expect(() => SeeResultSchema.parse(rest)).not.toThrow();
+  });
+});
+
+describe("result-schema — ActStepSchema (N-2)", () => {
+  it("accepts every documented step type", () => {
+    const cases: unknown[] = [
+      { type: "goto", url: "https://x/" },
+      { type: "goto", url: "https://x/", wait_for: "networkidle", timeout_ms: 5000 },
+      { type: "goto", url: "https://x/", wait_for: { type: "selector", selector: "#root" } },
+      { type: "click", selector: "button.submit" },
+      { type: "fill", selector: "input[name=email]", value: "a@b.c" },
+      { type: "press", key: "Enter" },
+      { type: "press", key: "Enter", selector: "input" },
+      { type: "wait", ms: 250 },
+      { type: "wait_for", selector: "#done" },
+      { type: "wait_for", selector: "#done", state: "hidden", timeout_ms: 8000 },
+      { type: "scroll", to_bottom: true },
+      { type: "scroll", delta_y: -400 },
+      { type: "screenshot" },
+      { type: "screenshot", label: "after-login", full_page: false },
+      { type: "act", instruction: "Click the Sign Up button" },
+      { type: "note", goal: "Is there a cookie banner?" },
+    ];
+    for (const c of cases) {
+      expect(() => ActStepSchema.parse(c)).not.toThrow();
+    }
+  });
+
+  it("rejects unknown step type", () => {
+    expect(() => ActStepSchema.parse({ type: "teleport" })).toThrow();
+  });
+
+  it("rejects missing required field per step type", () => {
+    expect(() => ActStepSchema.parse({ type: "click" })).toThrow();
+    expect(() => ActStepSchema.parse({ type: "fill", selector: "x" })).toThrow();
+    expect(() => ActStepSchema.parse({ type: "act" })).toThrow();
+  });
+});
+
+describe("result-schema — ActStepResultSchema (N-2)", () => {
+  const minimal = {
+    index: 0,
+    type: "goto" as const,
+    status: "ok" as const,
+    duration_ms: 12,
+    cost_usd: 0,
+  };
+
+  it("accepts a minimal step result", () => {
+    expect(() => ActStepResultSchema.parse(minimal)).not.toThrow();
+  });
+
+  it("accepts a fully-populated note step result", () => {
+    expect(() =>
+      ActStepResultSchema.parse({
+        ...minimal,
+        type: "note",
+        note: "There is a header that says 'Welcome'.",
+        cost_usd: 0.0042,
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts an error step result with screenshot", () => {
+    expect(() =>
+      ActStepResultSchema.parse({
+        ...minimal,
+        type: "click",
+        status: "error",
+        error: "Timeout 5000ms exceeded",
+        screenshot: { path: "/tmp/x.png", sha256: "deadbeef" },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects negative cost_usd", () => {
+    expect(() =>
+      ActStepResultSchema.parse({ ...minimal, cost_usd: -0.001 }),
+    ).toThrow();
+  });
+});
+
+describe("result-schema — ActResultSchema (N-2)", () => {
+  const minimalAct = {
+    schema_version: "1.0.0",
+    url_input: "https://example.com",
+    url_final: "https://example.com/",
+    title: "Example",
+    started_at: "2026-04-29T08:00:00.000Z",
+    finished_at: "2026-04-29T08:00:05.000Z",
+    status: "ok" as const,
+    engine: "playwright" as const,
+    steps: [],
+    dom: null,
+    console: null,
+    screenshot: null,
+    persona_id: "act-default-desktop",
+    artifacts_dir: "/tmp/acts/abc",
+    cost_usd: 0,
+    duration_ms: 5000,
+  };
+
+  it("validates a minimal act result", () => {
+    expect(() => ActResultSchema.parse(minimalAct)).not.toThrow();
+  });
+
+  it("validates a fully populated act result with mixed step kinds", () => {
+    const full = {
+      ...minimalAct,
+      engine: "stagehand" as const,
+      url_final: "https://example.com/dashboard",
+      steps: [
+        {
+          index: 0,
+          type: "goto" as const,
+          status: "ok" as const,
+          duration_ms: 800,
+          cost_usd: 0,
+        },
+        {
+          index: 1,
+          type: "act" as const,
+          status: "ok" as const,
+          duration_ms: 1450,
+          output: { description: "clicked Sign Up" },
+          cost_usd: 0.0031,
+        },
+        {
+          index: 2,
+          type: "screenshot" as const,
+          status: "ok" as const,
+          duration_ms: 80,
+          screenshot: {
+            path: "/tmp/acts/abc/step-2.png",
+            sha256: "abcd1234",
+            width: 1280,
+            height: 800,
+            bytes: 4321,
+          },
+          cost_usd: 0,
+        },
+        {
+          index: 3,
+          type: "note" as const,
+          status: "ok" as const,
+          duration_ms: 320,
+          note: "Welcome to your dashboard",
+          cost_usd: 0.0017,
+        },
+      ],
+      dom: {
+        interactive_count: 5,
+        headings: ["h1: Dashboard"],
+        summary: "[Headings]\nh1: Dashboard",
+      },
+      console: { errors_count: 0, errors: [] },
+      screenshot: {
+        path: "/tmp/acts/abc/screenshot.png",
+        sha256: "ffeeddcc",
+        width: 1280,
+        height: 800,
+      },
+      cost_usd: 0.0048,
+    };
+    expect(() => ActResultSchema.parse(full)).not.toThrow();
+  });
+
+  it("rejects unknown engine value", () => {
+    expect(() =>
+      ActResultSchema.parse({ ...minimalAct, engine: "puppeteer" }),
+    ).toThrow();
+  });
+
+  it("rejects negative cost_usd", () => {
+    expect(() =>
+      ActResultSchema.parse({ ...minimalAct, cost_usd: -0.01 }),
+    ).toThrow();
+  });
+
+  it("schema_version is optional (legacy fixtures must still validate)", () => {
+    const { schema_version: _v, ...rest } = minimalAct;
+    expect(() => ActResultSchema.parse(rest)).not.toThrow();
   });
 });
 
