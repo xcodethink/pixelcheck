@@ -558,6 +558,45 @@ export const ActResultSchema = z.object({
   duration_ms: z.number().nonnegative(),
 });
 
+// ─────────────────────────────────────────────────────────────
+// `extract` primitive (N-4)
+//
+// `data` is `z.unknown()` because the shape is caller-defined: the user
+// hands us a JSON Schema describing what they want, the primitive converts
+// it to a Zod schema for Stagehand's `extract()`, and the LLM returns a
+// matching object. The result envelope here pins the surrounding metadata
+// (engine, dom, console, screenshot, cost) but cannot pin `data` itself
+// without copying the user's schema across the wire — out of scope for v1.
+//
+// `schema_used` echoes the JSON Schema the caller passed so downstream
+// consumers can re-validate locally against the same contract. It is
+// intentionally `z.unknown()` (Draft 7 schemas are JSON, not a Zod shape
+// we want to bake into our own contract — that would couple our SemVer
+// to JSON Schema's evolution).
+// ─────────────────────────────────────────────────────────────
+
+export const ExtractResultSchema = z.object({
+  schema_version: SchemaVersionField,
+  url_input: z.string(),
+  url_final: z.string(),
+  title: z.string(),
+  loaded_at: z.string(),
+  status: z.enum(["ok", "error"]),
+  error: z.string().optional(),
+  engine: z.literal("stagehand"),
+  data: z.unknown(),
+  schema_used: z.unknown().optional(),
+  instruction_used: z.string().optional(),
+  selector_used: z.string().optional(),
+  dom: SeeDomSchema.nullable(),
+  console: SeeConsoleSchema.nullable(),
+  screenshot: SeeScreenshotSchema.nullable(),
+  persona_id: z.string(),
+  artifacts_dir: z.string(),
+  cost_usd: z.number().nonnegative(),
+  duration_ms: z.number().nonnegative(),
+});
+
 export const PersonaSummarySchema = z.object({
   id: z.string(),
   display_name: z.string(),
@@ -669,3 +708,4 @@ export type SeeResultShape = z.infer<typeof SeeResultSchema>;
 export type ActStepShape = z.infer<typeof ActStepSchema>;
 export type ActStepResultShape = z.infer<typeof ActStepResultSchema>;
 export type ActResultShape = z.infer<typeof ActResultSchema>;
+export type ExtractResultShape = z.infer<typeof ExtractResultSchema>;
