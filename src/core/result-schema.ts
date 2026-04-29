@@ -406,6 +406,48 @@ export const CalibrateCriticResultSchema = z.object({
   report_dir: z.string(),
 });
 
+// ─────────────────────────────────────────────────────────────
+// `see` primitive (N-1)
+// ─────────────────────────────────────────────────────────────
+
+export const SeeDomSchema = z.object({
+  interactive_count: z.number().int().nonnegative(),
+  headings: z.array(z.string()),
+  summary: z.string(),
+  text_excerpt: z.string().optional(),
+});
+
+export const SeeConsoleSchema = z.object({
+  errors_count: z.number().int().nonnegative(),
+  errors: z.array(ConsoleErrorSchema),
+});
+
+export const SeeScreenshotSchema = z.object({
+  path: z.string(),
+  sha256: z.string(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  bytes: z.number().int().positive().optional(),
+});
+
+export const SeeResultSchema = z.object({
+  schema_version: SchemaVersionField,
+  url_input: z.string(),
+  url_final: z.string(),
+  title: z.string(),
+  loaded_at: z.string(),
+  status: z.enum(["ok", "error"]),
+  error: z.string().optional(),
+  dom: SeeDomSchema.nullable(),
+  console: SeeConsoleSchema.nullable(),
+  screenshot: SeeScreenshotSchema.nullable(),
+  note: z.string().nullable(),
+  persona_id: z.string(),
+  artifacts_dir: z.string(),
+  cost_usd: z.number().nonnegative(),
+  duration_ms: z.number().nonnegative(),
+});
+
 export const PersonaSummarySchema = z.object({
   id: z.string(),
   display_name: z.string(),
@@ -513,3 +555,4 @@ export type MutationResultSchemaShape = z.infer<typeof MutationResultSchema>;
 export type AuditUrlResultShape = z.infer<typeof AuditUrlResultSchema>;
 export type ExploreUrlResultShape = z.infer<typeof ExploreUrlResultSchema>;
 export type CalibrateCriticResultShape = z.infer<typeof CalibrateCriticResultSchema>;
+export type SeeResultShape = z.infer<typeof SeeResultSchema>;

@@ -95,6 +95,12 @@
       "file": "calibrate-critic-result.schema.json"
     },
     {
+      "slug": "see-result",
+      "title": "SeeResult",
+      "description": "MCP tool envelope returned by `see` (N-1 primitive). One-shot navigation snapshot: DOM summary, console errors, screenshot, and an optional vision note.",
+      "file": "see-result.schema.json"
+    },
+    {
       "slug": "list-personas-result",
       "title": "ListPersonasResult",
       "description": "MCP tool envelope returned by list_personas (array of PersonaSummary).",

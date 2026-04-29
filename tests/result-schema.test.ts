@@ -19,6 +19,7 @@ import {
   CalibrateCriticResultSchema,
   ListPersonasResultSchema,
   ListScenariosResultSchema,
+  SeeResultSchema,
   validateResult,
   attachSchemaVersion,
 } from "../src/core/result-schema.js";
@@ -272,6 +273,77 @@ describe("result-schema — MCP tool envelopes", () => {
 
   it("ListScenariosResultSchema accepts an empty array", () => {
     expect(() => ListScenariosResultSchema.parse([])).not.toThrow();
+  });
+});
+
+describe("result-schema — SeeResultSchema (N-1)", () => {
+  const minimalSee = {
+    schema_version: "1.0.0",
+    url_input: "https://example.com",
+    url_final: "https://example.com/",
+    title: "Example",
+    loaded_at: "2026-04-29T08:00:00.000Z",
+    status: "ok" as const,
+    dom: null,
+    console: null,
+    screenshot: null,
+    note: null,
+    persona_id: "us-desktop",
+    artifacts_dir: "/tmp/sees/abc",
+    cost_usd: 0,
+    duration_ms: 1234,
+  };
+
+  it("validates a minimal see result with all optional sections null", () => {
+    expect(() => SeeResultSchema.parse(minimalSee)).not.toThrow();
+  });
+
+  it("validates a fully populated see result", () => {
+    const full = {
+      ...minimalSee,
+      dom: {
+        interactive_count: 12,
+        headings: ["h1: Welcome", "h2: Pricing"],
+        summary: "[Headings]\nh1: Welcome\n\n[Interactive Elements] (12)\n<a href=\"/p\">Pricing</a>",
+        text_excerpt: "Welcome to Example",
+      },
+      console: {
+        errors_count: 1,
+        errors: [
+          {
+            type: "console" as const,
+            text: "Failed to load resource",
+            location: "https://example.com/missing.js",
+            timestamp: "2026-04-29T08:00:01.000Z",
+          },
+        ],
+      },
+      screenshot: {
+        path: "/tmp/sees/abc/screenshot.png",
+        sha256: "deadbeef",
+        width: 1280,
+        height: 800,
+        bytes: 12345,
+      },
+      note: "Hero is a centered headline + CTA button labeled \"Sign up\".",
+      cost_usd: 0.0042,
+    };
+    expect(() => SeeResultSchema.parse(full)).not.toThrow();
+  });
+
+  it("rejects unknown status enum values", () => {
+    const bad = { ...minimalSee, status: "loading" };
+    expect(() => SeeResultSchema.parse(bad)).toThrow();
+  });
+
+  it("rejects negative cost_usd", () => {
+    const bad = { ...minimalSee, cost_usd: -1 };
+    expect(() => SeeResultSchema.parse(bad)).toThrow();
+  });
+
+  it("schema_version is optional (legacy fixtures must still validate)", () => {
+    const { schema_version: _v, ...rest } = minimalSee;
+    expect(() => SeeResultSchema.parse(rest)).not.toThrow();
   });
 });
 
