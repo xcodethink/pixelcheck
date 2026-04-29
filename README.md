@@ -324,12 +324,13 @@ Add to `~/.mcp.json` (or your client's equivalent):
 | `audit_url` | preset | You want the full audit pipeline against one URL — agent loop, scoring, JSON + HTML report. |
 | `explore_url` | preset | You want a quick autonomous run with a free-form goal; no scenario YAML needed. |
 | `see` | primitive | You want to look at a URL once and get back DOM summary + screenshot + console errors + an optional natural-language note. 0 LLM cost when `goal` is omitted. |
+| `act` | primitive | You want to drive an action sequence (click / fill / scroll / screenshot / natural-language `act` / vision `note`) and get back per-step status + final DOM + screenshot. |
 | `list_personas` | meta | Discover which personas are installed in a project. |
 | `list_scenarios` | meta | Discover which scenarios are installed in a project. |
 | `calibrate_critic` | meta | Run the critic calibration gate against labeled fixtures (returns pass/fail + agreement metrics). |
 | `get_last_report` | meta | Read the most recent audit's summary JSON from the local history DB. |
 
-The N-2 `act` / N-3 `compare` / N-4 `extract` primitives and M9-5 `list_capabilities` are on the v1 roadmap.
+The N-3 `compare` / N-4 `extract` primitives and M9-5 `list_capabilities` are on the v1 roadmap.
 
 #### `see` — one-shot navigation snapshot
 
@@ -351,6 +352,38 @@ The lightest tool in the kit. Call it when you want to ask "what's on this page 
 ```
 
 Returns a `SeeResult` (see [docs/schemas/see-result.schema.json](./docs/schemas/see-result.schema.json)) with `url_final` (post-redirect), `title`, `dom` (interactive count + headings + summary), `console.errors`, `screenshot` (path + sha256), and `note` (the goal answer when set). Artefacts land under `$AUDIT_SEES_DIR` or `~/.ai-browser-auditor/sees/<UTC-iso>-<rand6>/`. See [ADR-011](./docs/decisions/ADR-011-see-primitive.md) for design rationale.
+
+#### `act` — execute an action sequence
+
+Run a sequence of browser actions (deterministic + AI), get back a per-step trace, the final DOM, and a final screenshot. Engine is auto-selected: pure-deterministic step lists run on raw Playwright (~1 s cold start, no LLM key needed), Stagehand only spins up when at least one step is `{ "type": "act" }`.
+
+```jsonc
+// MCP tools/call arguments
+{
+  "url": "https://stripe.com/pricing",
+  "steps": [
+    { "type": "fill", "selector": "input[name=email]", "value": "user@example.com" },
+    { "type": "click", "selector": "button[type=submit]" },
+    { "type": "wait_for", "selector": ".dashboard", "state": "visible" },
+    { "type": "screenshot", "label": "after-login" },
+    { "type": "act", "instruction": "Click the Upgrade to Pro button" },
+    { "type": "note", "goal": "Was the upgrade modal shown? Any error?" }
+  ],
+  "stop_on_error": true
+}
+```
+
+Each step kind:
+
+| Kind | Cost | Notes |
+|---|---|---|
+| `goto` | 0 | Re-navigate. Supports `wait_for` (load / domcontentloaded / networkidle / CSS selector). |
+| `click` / `fill` / `press` / `wait` / `wait_for` / `scroll` | 0 | Direct Playwright. No LLM. |
+| `screenshot` | 0 | Writes `<label>.png` (default `step-<index>.png`) into the per-call artefacts dir. |
+| `act` | ~1 LLM call | Stagehand-resolved natural-language action. Forces the engine to Stagehand for the whole session. |
+| `note` | ~$0.005 | One vision call against the current page. Works on either engine. |
+
+Returns an `ActResult` (see [docs/schemas/act-result.schema.json](./docs/schemas/act-result.schema.json)) with `engine` (`"playwright"` | `"stagehand"`), `steps[]` (each with `status`, `duration_ms`, `cost_usd`, optional `screenshot` / `note` / `output` / `error`), final `dom` / `console` / `screenshot`, and total `cost_usd`. Failure semantics: `stop_on_error: true` (default) skips remaining steps after the first failure (recorded as `status: "skipped"`); `false` runs them all and the top-level `status` is `"error"` if any failed. Artefacts land under `$AUDIT_ACTS_DIR` or `~/.ai-browser-auditor/acts/<UTC-iso>-<rand6>/`. See [ADR-012](./docs/decisions/ADR-012-act-primitive.md) for design rationale.
 
 Every tool response carries a top-level `schema_version` field per [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md). Two parallel tool calls in one server process see independent run-USD cost caps (per [ADR-009](./docs/decisions/ADR-009-concurrency-safety.md)) but share the persistent daily ledger.
 
