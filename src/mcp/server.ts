@@ -18,6 +18,7 @@
  *   - explore_url      (preset)    — autonomous agent run with a goal
  *   - see              (primitive) — one-shot navigation snapshot (N-1)
  *   - act              (primitive) — execute a sequence of actions (N-2)
+ *   - extract          (primitive) — schema-bound structured extraction (N-4)
  *   - list_personas    (meta)      — enumerate installed personas
  *   - list_scenarios   (meta)      — enumerate installed scenarios
  *   - calibrate_critic (meta)      — run the critic calibration gate
@@ -52,6 +53,7 @@ import { auditUrlTool } from "./tools/audit-url.js";
 import { exploreUrlTool } from "./tools/explore-url.js";
 import { seeTool } from "./tools/see.js";
 import { actTool } from "./tools/act.js";
+import { extractTool } from "./tools/extract.js";
 import { listPersonasTool } from "./tools/list-personas.js";
 import { listScenariosTool } from "./tools/list-scenarios.js";
 import { calibrateCriticTool } from "./tools/calibrate-critic.js";
@@ -74,6 +76,7 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   exploreUrlTool,
   seeTool,
   actTool,
+  extractTool,
   listPersonasTool,
   listScenariosTool,
   calibrateCriticTool,
