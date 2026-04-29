@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (N-1 `see` primitive)
+
+- New `src/core/primitives/see.ts` — first AI primitive in the v1 catalog. `see(opts: SeeOptions): Promise<SeeResult>` opens a URL once with raw Playwright and returns a structured snapshot: DOM summary (interactive count + headings as `string[]` + element/text excerpts), captured console errors, a screenshot (always written to disk), and an optional natural-language note answering a `goal` question (one vision call). 0 LLM cost when `goal` is omitted; ~$0.005 when set.
+- New `src/mcp/tools/see.ts` — MCP wrapper, `kind: "primitive"` (first one in the catalog). Accepts snake-case args (`url`, `goal`, `persona`, `wait_for`, `viewport_width`/`viewport_height`, `full_page`, `include_dom`, `include_console`, `timeout_ms`, `headless`). Persona resolution is best-effort: missing dir / id silently degrades to defaults (1280×800 / `en-US` / `UTC`). Output stamped with `schema_version` via `stampedTextResult(SeeResultSchema)`.
+- `ALL_TOOLS` in `src/mcp/server.ts` grows 6 → 7. Catalog order is now `audit_url` (preset) → `explore_url` (preset) → **`see` (primitive)** → `list_personas` (meta) → `list_scenarios` (meta) → `calibrate_critic` (meta) → `get_last_report` (meta).
+- New schemas: `SeeResultSchema` + `SeeDomSchema` + `SeeConsoleSchema` + `SeeScreenshotSchema` in `src/core/result-schema.ts`. JSON Schema published as `docs/schemas/see-result.schema.json`. Schema count 19 → 20 at `RESULT_SCHEMA_VERSION` 1.0.0.
+- New tests:
+  - `tests/result-schema.test.ts` — 5 cases for `SeeResultSchema` (minimal / full / enum reject / negative-cost reject / legacy-no-version).
+  - `tests/primitives/see.test.ts` — 13 cases. Unit tests via `_open` test seam cover schema field plumbing, error path, persona/viewport precedence, note synthesis on/off, vision-failure swallowing, artefacts subdir uniqueness, `AUDIT_SEES_DIR` env override. One real-Chromium integration test loads the existing `tests/fixtures/test-site/index.html`, asserts `dom.headings`, `interactive_count`, and screenshot bytes.
+  - `tests/mcp-registry.test.ts` — catalog test asserts the 7-tool order; new invariant that all three kinds (preset / primitive / meta) are represented.
+- New ADR-011 documenting why `see` bypasses Stagehand and `runAudit`, why vision uses `callVision` instead of `runCritic`, and the rejected alternatives (full audit pipeline; Stagehand fingerprint parity; inline base64 screenshot; split tools).
+- Artifacts directory: `$AUDIT_SEES_DIR` env or `~/.ai-browser-auditor/sees/<UTC-iso>-<rand6>/`. v1 worktree's `.env.development` already points the env at `~/.ai-browser-auditor-v1/sees/` for isolation.
+- 399 → 418 tests pass (+5 schema, +13 see primitive, +1 registry catalog kinds invariant). Typecheck clean. Build clean. MCP `tools/list` over stdio confirms 7 tools with correct `see` schema.
+
 ### Changed (M3-6 + M9-1 MCP server modularization + tool registry)
 
 - `src/mcp/server.ts` shrinks 502 → 148 lines. Tool input schemas, descriptions, and handlers all move to dedicated files under `src/mcp/tools/`. `server.ts` retains only transport lifecycle, secret bootstrap, the `ALL_TOOLS` catalog, ListTools mapping, and the CallTool dispatcher (with `withCostRun` + try/catch from M9-3).
