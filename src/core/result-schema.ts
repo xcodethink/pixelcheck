@@ -597,6 +597,144 @@ export const ExtractResultSchema = z.object({
   duration_ms: z.number().nonnegative(),
 });
 
+// ─────────────────────────────────────────────────────────────
+// `judge` primitive (N-8)
+//
+// Single-page rubric-driven critic. Captures (or accepts) a page snapshot,
+// runs one vision call against the chosen rubric(s), and returns a
+// structured verdict — per-criterion score (0..10) plus issue-level
+// findings (severity / dimension / location / recommendation).
+//
+// Rubric framing (caller-supplied criteria) lets the same engine evaluate
+// aesthetic quality, dark-pattern risk, brand cohesion, or any custom
+// rubric without retraining the prompt: the rubric is a
+// machine-checkable contract emitted into the system prompt.
+// ─────────────────────────────────────────────────────────────
+
+export const JudgeRubricKindSchema = z.enum(["aesthetic", "dark_pattern", "custom"]);
+
+export const JudgeCriterionSpecSchema = z.object({
+  /** Stable id (snake_case). Used as the join key in CompareResult. */
+  id: z.string().min(1),
+  /** Human-readable label shown in reports. */
+  label: z.string().min(1),
+  /** What this criterion measures (single sentence). */
+  description: z.string().min(1),
+  /** Provenance: which built-in rubric (or `custom`) emitted this criterion. */
+  kind: JudgeRubricKindSchema,
+});
+
+export const JudgeVerdictSchema = z.object({
+  /** Echoes JudgeCriterionSpec.id so consumers can join back to the rubric. */
+  criterion_id: z.string().min(1),
+  /** 0..10. Higher is better, regardless of kind (so dark_pattern 10 = no DP). */
+  score: z.number().min(0).max(10),
+  /** One-sentence rationale grounded in observed evidence. */
+  rationale: z.string(),
+  /** Quoted text or visual cues the model used. Free-form, may be empty. */
+  evidence: z.array(z.string()).default([]),
+});
+
+export const JudgeFindingSchema = z.object({
+  severity: z.enum(["critical", "high", "medium", "low"]),
+  /** Optional cross-link to a criterion id; `null` if cross-cutting. */
+  criterion_id: z.string().nullable(),
+  description: z.string(),
+  /** Physical location on screen (e.g. "footer column 2", "hero CTA"). */
+  location: z.string().optional(),
+  recommendation: z.string(),
+});
+
+export const JudgeResultSchema = z.object({
+  schema_version: SchemaVersionField,
+  url_input: z.string(),
+  url_final: z.string(),
+  title: z.string(),
+  loaded_at: z.string(),
+  status: z.enum(["ok", "error"]),
+  error: z.string().optional(),
+  /** Which rubric(s) were applied. Order-preserving for trace fidelity. */
+  rubrics: z.array(JudgeRubricKindSchema),
+  criteria: z.array(JudgeCriterionSpecSchema),
+  verdicts: z.array(JudgeVerdictSchema),
+  findings: z.array(JudgeFindingSchema),
+  /** Mean of verdict scores. Convenience field; consumers may recompute. */
+  overall_score: z.number().min(0).max(10).nullable(),
+  /** Free-form summary (≤ 2 sentences) of the dominant issue. */
+  summary: z.string().nullable(),
+  dom: SeeDomSchema.nullable(),
+  console: SeeConsoleSchema.nullable(),
+  screenshot: SeeScreenshotSchema.nullable(),
+  persona_id: z.string(),
+  artifacts_dir: z.string(),
+  model: z.string(),
+  cost_usd: z.number().nonnegative(),
+  duration_ms: z.number().nonnegative(),
+});
+
+// ─────────────────────────────────────────────────────────────
+// `compare` primitive (N-3)
+//
+// A/B comparison primitive. Default behaviour is the **double-blind +
+// synthesis** mode (3 vision calls): judge each side independently with
+// the same rubric, then 1 comparison call sees both screenshots side-by-side
+// with the per-side verdicts as context and emits per-criterion winners.
+// `mode: "fast"` collapses to a single side-by-side call (1 vision call,
+// at the cost of anchoring bias — see ADR-014).
+//
+// The double-blind default follows commercial UX-review practice (Nielsen
+// Norman, Baymard) where each candidate is evaluated independently before
+// being compared, so absolute scores are not contaminated by the
+// difference between the two pages.
+// ─────────────────────────────────────────────────────────────
+
+export const CompareModeSchema = z.enum(["double_blind", "fast"]);
+
+export const CompareWinnerSchema = z.enum(["a", "b", "tie"]);
+
+export const CompareCriterionVerdictSchema = z.object({
+  criterion_id: z.string().min(1),
+  /** Per-side score recorded for this criterion. May be null in fast mode if the model only emitted a winner. */
+  score_a: z.number().min(0).max(10).nullable(),
+  score_b: z.number().min(0).max(10).nullable(),
+  winner: CompareWinnerSchema,
+  /** One-sentence rationale grounded in observed evidence from both sides. */
+  rationale: z.string(),
+});
+
+export const CompareSideSchema = z.object({
+  url_input: z.string(),
+  url_final: z.string(),
+  title: z.string(),
+  /** Embedded judge result for this side. `null` when caller pre-supplied a capture and judge was skipped. */
+  judge: JudgeResultSchema.nullable(),
+  screenshot: SeeScreenshotSchema.nullable(),
+  artifacts_dir: z.string(),
+});
+
+export const CompareResultSchema = z.object({
+  schema_version: SchemaVersionField,
+  /** Which strategy was used. */
+  mode: CompareModeSchema,
+  rubrics: z.array(JudgeRubricKindSchema),
+  criteria: z.array(JudgeCriterionSpecSchema),
+  started_at: z.string(),
+  finished_at: z.string(),
+  status: z.enum(["ok", "error"]),
+  error: z.string().optional(),
+  side_a: CompareSideSchema,
+  side_b: CompareSideSchema,
+  per_criterion: z.array(CompareCriterionVerdictSchema),
+  /** Overall winner across all criteria. Tie when no clear majority. */
+  overall_winner: CompareWinnerSchema,
+  /** Free-form summary (≤ 3 sentences) of the dominant difference. */
+  summary: z.string().nullable(),
+  artifacts_dir: z.string(),
+  model: z.string(),
+  cost_usd: z.number().nonnegative(),
+  duration_ms: z.number().nonnegative(),
+});
+
 export const PersonaSummarySchema = z.object({
   id: z.string(),
   display_name: z.string(),
@@ -709,3 +847,13 @@ export type ActStepShape = z.infer<typeof ActStepSchema>;
 export type ActStepResultShape = z.infer<typeof ActStepResultSchema>;
 export type ActResultShape = z.infer<typeof ActResultSchema>;
 export type ExtractResultShape = z.infer<typeof ExtractResultSchema>;
+export type JudgeRubricKind = z.infer<typeof JudgeRubricKindSchema>;
+export type JudgeCriterionSpec = z.infer<typeof JudgeCriterionSpecSchema>;
+export type JudgeVerdict = z.infer<typeof JudgeVerdictSchema>;
+export type JudgeFinding = z.infer<typeof JudgeFindingSchema>;
+export type JudgeResultShape = z.infer<typeof JudgeResultSchema>;
+export type CompareMode = z.infer<typeof CompareModeSchema>;
+export type CompareWinner = z.infer<typeof CompareWinnerSchema>;
+export type CompareCriterionVerdict = z.infer<typeof CompareCriterionVerdictSchema>;
+export type CompareSide = z.infer<typeof CompareSideSchema>;
+export type CompareResultShape = z.infer<typeof CompareResultSchema>;

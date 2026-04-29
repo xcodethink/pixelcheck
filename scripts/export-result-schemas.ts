@@ -43,6 +43,8 @@ import {
   SeeResultSchema,
   ActResultSchema,
   ExtractResultSchema,
+  JudgeResultSchema,
+  CompareResultSchema,
 } from "../src/core/result-schema.js";
 
 interface SchemaEntry {
@@ -168,6 +170,20 @@ const ENTRIES: SchemaEntry[] = [
     description:
       "MCP tool envelope returned by `extract` (N-4 primitive). Schema-bound structured extraction: caller passes a JSON Schema describing the desired shape, the primitive runs Stagehand's extract() and returns matching `data` plus DOM summary, console errors, and screenshot.",
     schema: ExtractResultSchema,
+  },
+  {
+    slug: "judge-result",
+    title: "JudgeResult",
+    description:
+      "MCP tool envelope returned by `judge` (N-8 primitive). Single-page rubric-driven critic — captures a screenshot+DOM and runs one vision call against the chosen rubric(s) (aesthetic, dark_pattern, custom), returning per-criterion verdicts (0..10 score + rationale + evidence) and severity-graded findings.",
+    schema: JudgeResultSchema,
+  },
+  {
+    slug: "compare-result",
+    title: "CompareResult",
+    description:
+      "MCP tool envelope returned by `compare` (N-3 primitive). A/B comparison primitive. Default mode is `double_blind`: judges each side independently with the same rubric, then runs a synthesis vision call that sees both screenshots and emits per-criterion winners. `fast` mode collapses to a single side-by-side call (cheaper but susceptible to anchoring bias).",
+    schema: CompareResultSchema,
   },
   {
     slug: "list-personas-result",
