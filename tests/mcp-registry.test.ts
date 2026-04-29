@@ -87,13 +87,14 @@ describe("ToolRegistry", () => {
 });
 
 describe("ALL_TOOLS catalog invariants", () => {
-  it("contains the 9 shipped tools in stable order", () => {
+  it("contains the 10 shipped tools in stable order", () => {
     expect(ALL_TOOLS.map((t) => t.name)).toEqual([
       "audit_url",
       "explore_url",
       "see",
       "act",
       "extract",
+      "judge",
       "list_personas",
       "list_scenarios",
       "calibrate_critic",
