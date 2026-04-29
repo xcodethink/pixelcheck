@@ -40,6 +40,7 @@ import {
   HistoryEntrySchema,
   PersonaSummarySchema,
   ConsoleErrorSchema,
+  SeeResultSchema,
 } from "../src/core/result-schema.js";
 
 interface SchemaEntry {
@@ -144,6 +145,13 @@ const ENTRIES: SchemaEntry[] = [
     title: "CalibrateCriticResult",
     description: "MCP tool envelope returned by calibrate_critic.",
     schema: CalibrateCriticResultSchema,
+  },
+  {
+    slug: "see-result",
+    title: "SeeResult",
+    description:
+      "MCP tool envelope returned by `see` (N-1 primitive). One-shot navigation snapshot: DOM summary, console errors, screenshot, and an optional vision note.",
+    schema: SeeResultSchema,
   },
   {
     slug: "list-personas-result",
