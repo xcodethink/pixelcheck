@@ -295,6 +295,45 @@ Exit codes: `0` = pass, `1` = fail, `2` = warn.
 
 Notifications: Slack webhook and Telegram bot on completion.
 
+## MCP Server
+
+PixelCheck ships an MCP server that lets any Model Context Protocol client (Claude Code, Cursor, Cline, Continue, Zed agent) drive audits without leaving its workflow.
+
+### Register with Claude Code
+
+Add to `~/.mcp.json` (or your client's equivalent):
+
+```json
+{
+  "mcpServers": {
+    "ai-browser-auditor": {
+      "command": "node",
+      "args": ["/abs/path/to/ai-browser-auditor/dist/mcp/server.js"],
+      "env": {
+        "ANTHROPIC_API_KEY": "sk-ant-..."
+      }
+    }
+  }
+}
+```
+
+### Tools
+
+| Tool | Kind | Use when |
+|---|---|---|
+| `audit_url` | preset | You want the full audit pipeline against one URL — agent loop, scoring, JSON + HTML report. |
+| `explore_url` | preset | You want a quick autonomous run with a free-form goal; no scenario YAML needed. |
+| `list_personas` | meta | Discover which personas are installed in a project. |
+| `list_scenarios` | meta | Discover which scenarios are installed in a project. |
+| `calibrate_critic` | meta | Run the critic calibration gate against labeled fixtures (returns pass/fail + agreement metrics). |
+| `get_last_report` | meta | Read the most recent audit's summary JSON from the local history DB. |
+
+The N-1 `see` / N-2 `act` / N-3 `compare` / N-4 `extract` primitives and M9-5 `list_capabilities` are on the v1 roadmap.
+
+Every tool response carries a top-level `schema_version` field per [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md). Two parallel tool calls in one server process see independent run-USD cost caps (per [ADR-009](./docs/decisions/ADR-009-concurrency-safety.md)) but share the persistent daily ledger.
+
+Adding a new tool: drop a file under `src/mcp/tools/<name>.ts` exporting a `ToolDefinition`, then push it into `ALL_TOOLS` in `src/mcp/server.ts`. See [ADR-010](./docs/decisions/ADR-010-mcp-tool-registry.md) for the registry rationale.
+
 ## Multi-Project Support
 
 One auditor instance serves all your projects:

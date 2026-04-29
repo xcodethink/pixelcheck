@@ -216,6 +216,37 @@ Three formats from one source of truth, plus persistent history:
 
 All report formats pass through the redaction layer (`secrets.redactDeep`) before being written. The HTML report automatically includes trend data when the history database contains >= 2 runs for the project.
 
+## MCP Server
+
+`src/mcp/` exposes the auditor as a Model Context Protocol server over stdio. Any MCP-aware client (Claude Code, Cursor, Cline, Continue, Zed agent) can drive audits without leaving its workflow.
+
+**Module layout** (M3-6 + M9-1, see [ADR-010](decisions/ADR-010-mcp-tool-registry.md)):
+
+| File | Responsibility |
+|---|---|
+| `server.ts` | Transport lifecycle, secret bootstrap, ALL_TOOLS catalog, ListTools mapping, CallTool dispatcher (wraps each call in `withCostRun` + try/catch). |
+| `registry.ts` | `ToolDefinition` record + `ToolRegistry` class (register / get / has / list / size / describe). Side-effect-free, trivially unit-testable. |
+| `result.ts` | `ToolResult` shape + `textResult` / `errorResult` / `stampedTextResult`. Last one stamps `schema_version` and runs `validateResult` per [ADR-007](decisions/ADR-007-result-schema-versioning.md). |
+| `helpers.ts` | `requireString` (argument coercion) + `resolvePersona` (id → persona with sensible fallback). |
+| `tools/<name>.ts` | One file per tool. Exports a `ToolDefinition` with `name` / `description` / `inputSchema` / `kind` / optional `resultSchema` / `handler`. |
+
+**Tool kinds** (used today by the catalog, surfaced by the future M9-5 `list_capabilities`):
+
+- **preset** — composed pipelines. Today: `audit_url` (full audit) and `explore_url` (autonomous goal-driven run).
+- **primitive** — single-capability building blocks. Reserved for N-1 `see` / N-2 `act` / N-3 `compare` / N-4 `extract`.
+- **meta** — introspection / discovery. Today: `list_personas`, `list_scenarios`, `get_last_report`, `calibrate_critic`.
+
+**Adding a new tool**:
+
+1. Drop a file under `src/mcp/tools/<name>.ts` exporting a `ToolDefinition`.
+2. Push it into `ALL_TOOLS` in `server.ts`.
+
+That's it — `tools/list` and the dispatcher both pick it up automatically. No switch-case edit, no inline JSON Schema in `server.ts`.
+
+The `ListTools` response only emits the spec-compliant `{ name, description, inputSchema }` subset; `kind` and `resultSchema` stay on the registry for `list_capabilities` and unit-test invariants. `tests/mcp-registry.test.ts` enforces that every declared `resultSchema` matches a JSON Schema in [docs/schemas/](schemas/), so a tool can never claim a result shape that isn't published.
+
+Per-tool dynamic imports keep the cold-start path lean: heavy modules (`runner`, `reporter-spa`, `calibration/runner`, `history`) are only loaded when their tool is invoked. `list_personas` / `list_scenarios` cost a couple of milliseconds.
+
 ## Logging
 
 All internal modules log through a structured logger built on [pino](https://github.com/pinojs/pino) (`src/core/logger.ts`).
