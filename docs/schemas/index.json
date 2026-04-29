@@ -113,6 +113,18 @@
       "file": "extract-result.schema.json"
     },
     {
+      "slug": "judge-result",
+      "title": "JudgeResult",
+      "description": "MCP tool envelope returned by `judge` (N-8 primitive). Single-page rubric-driven critic — captures a screenshot+DOM and runs one vision call against the chosen rubric(s) (aesthetic, dark_pattern, custom), returning per-criterion verdicts (0..10 score + rationale + evidence) and severity-graded findings.",
+      "file": "judge-result.schema.json"
+    },
+    {
+      "slug": "compare-result",
+      "title": "CompareResult",
+      "description": "MCP tool envelope returned by `compare` (N-3 primitive). A/B comparison primitive. Default mode is `double_blind`: judges each side independently with the same rubric, then runs a synthesis vision call that sees both screenshots and emits per-criterion winners. `fast` mode collapses to a single side-by-side call (cheaper but susceptible to anchoring bias).",
+      "file": "compare-result.schema.json"
+    },
+    {
       "slug": "list-personas-result",
       "title": "ListPersonasResult",
       "description": "MCP tool envelope returned by list_personas (array of PersonaSummary).",

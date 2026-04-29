@@ -24,6 +24,15 @@ import {
   ActStepResultSchema,
   ActResultSchema,
   ExtractResultSchema,
+  JudgeResultSchema,
+  JudgeRubricKindSchema,
+  JudgeCriterionSpecSchema,
+  JudgeVerdictSchema,
+  JudgeFindingSchema,
+  CompareResultSchema,
+  CompareModeSchema,
+  CompareWinnerSchema,
+  CompareCriterionVerdictSchema,
   validateResult,
   attachSchemaVersion,
 } from "../src/core/result-schema.js";
@@ -743,5 +752,314 @@ describe("result-schema — attachSchemaVersion", () => {
     expect(attachSchemaVersion(42 as unknown)).toBe(42);
     const arr = [1, 2, 3];
     expect(attachSchemaVersion(arr as unknown)).toBe(arr);
+  });
+});
+
+describe("result-schema — JudgeResultSchema (N-8)", () => {
+  const aestheticCriterion = {
+    id: "visual_hierarchy",
+    label: "Visual hierarchy",
+    description: "Does the layout guide the eye through a clear primary action?",
+    kind: "aesthetic" as const,
+  };
+
+  const minimalJudge = {
+    schema_version: "1.0.0",
+    url_input: "https://example.com",
+    url_final: "https://example.com/",
+    title: "Example",
+    loaded_at: "2026-04-30T10:00:00.000Z",
+    status: "ok" as const,
+    rubrics: ["aesthetic" as const],
+    criteria: [aestheticCriterion],
+    verdicts: [
+      {
+        criterion_id: "visual_hierarchy",
+        score: 7,
+        rationale: "CTA is visually dominant.",
+        evidence: [],
+      },
+    ],
+    findings: [],
+    overall_score: 7,
+    summary: null,
+    dom: null,
+    console: null,
+    screenshot: null,
+    persona_id: "judge-default-desktop",
+    artifacts_dir: "/tmp/judges/abc",
+    model: "claude-sonnet-4-6",
+    cost_usd: 0,
+    duration_ms: 1500,
+  };
+
+  it("validates a minimal judge result with one rubric and one verdict", () => {
+    expect(() => JudgeResultSchema.parse(minimalJudge)).not.toThrow();
+  });
+
+  it("validates a fully populated judge result with multiple rubrics + findings", () => {
+    const full = {
+      ...minimalJudge,
+      rubrics: ["aesthetic", "dark_pattern"] as const,
+      criteria: [
+        aestheticCriterion,
+        {
+          id: "forced_continuity",
+          label: "Forced continuity",
+          description: "Does the page hide auto-renew or charge after a free trial?",
+          kind: "dark_pattern" as const,
+        },
+      ],
+      verdicts: [
+        {
+          criterion_id: "visual_hierarchy",
+          score: 7,
+          rationale: "CTA is dominant.",
+          evidence: ["Hero CTA reads 'Start free trial'"],
+        },
+        {
+          criterion_id: "forced_continuity",
+          score: 3,
+          rationale: "Auto-renew disclosure is buried.",
+          evidence: ["Footer microcopy: 'auto-renews at $29/mo'"],
+        },
+      ],
+      findings: [
+        {
+          severity: "high" as const,
+          criterion_id: "forced_continuity",
+          description: "Auto-renew disclosure rendered at 10px in footer.",
+          location: "footer column 3",
+          recommendation: "Surface auto-renew terms next to the CTA.",
+        },
+      ],
+      overall_score: 5,
+      summary: "Strong aesthetic but a forced-continuity dark pattern lowers trust.",
+      dom: { interactive_count: 12, headings: ["h1: Plans"], summary: "[Headings]\nh1: Plans" },
+      console: { errors_count: 0, errors: [] },
+      screenshot: {
+        path: "/tmp/judges/abc/screenshot.png",
+        sha256: "deadbeef",
+        width: 1280,
+        height: 800,
+        bytes: 23456,
+      },
+      cost_usd: 0.0084,
+    };
+    expect(() => JudgeResultSchema.parse(full)).not.toThrow();
+  });
+
+  it("rejects rubric kind that is not in the enum", () => {
+    expect(() =>
+      JudgeRubricKindSchema.parse("performance"),
+    ).toThrow();
+  });
+
+  it("rejects verdict score outside 0..10", () => {
+    expect(() =>
+      JudgeVerdictSchema.parse({
+        criterion_id: "x",
+        score: 11,
+        rationale: "y",
+        evidence: [],
+      }),
+    ).toThrow();
+    expect(() =>
+      JudgeVerdictSchema.parse({
+        criterion_id: "x",
+        score: -1,
+        rationale: "y",
+        evidence: [],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects criterion spec with empty id or label", () => {
+    expect(() =>
+      JudgeCriterionSpecSchema.parse({ ...aestheticCriterion, id: "" }),
+    ).toThrow();
+    expect(() =>
+      JudgeCriterionSpecSchema.parse({ ...aestheticCriterion, label: "" }),
+    ).toThrow();
+  });
+
+  it("rejects finding severity not in the enum", () => {
+    expect(() =>
+      JudgeFindingSchema.parse({
+        severity: "fatal",
+        criterion_id: null,
+        description: "x",
+        recommendation: "y",
+      }),
+    ).toThrow();
+  });
+
+  it("accepts finding with criterion_id explicitly null (cross-cutting)", () => {
+    expect(() =>
+      JudgeFindingSchema.parse({
+        severity: "low" as const,
+        criterion_id: null,
+        description: "Cross-cutting concern.",
+        recommendation: "Investigate.",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects negative cost_usd", () => {
+    expect(() =>
+      JudgeResultSchema.parse({ ...minimalJudge, cost_usd: -0.01 }),
+    ).toThrow();
+  });
+
+  it("rejects unknown status enum values", () => {
+    expect(() =>
+      JudgeResultSchema.parse({ ...minimalJudge, status: "loading" }),
+    ).toThrow();
+  });
+
+  it("accepts overall_score = null when no verdicts can be aggregated", () => {
+    expect(() =>
+      JudgeResultSchema.parse({ ...minimalJudge, verdicts: [], overall_score: null }),
+    ).not.toThrow();
+  });
+
+  it("schema_version is optional (legacy fixtures must still validate)", () => {
+    const { schema_version: _v, ...rest } = minimalJudge;
+    expect(() => JudgeResultSchema.parse(rest)).not.toThrow();
+  });
+});
+
+describe("result-schema — CompareResultSchema (N-3)", () => {
+  const criterion = {
+    id: "visual_hierarchy",
+    label: "Visual hierarchy",
+    description: "Does the layout guide the eye through a clear primary action?",
+    kind: "aesthetic" as const,
+  };
+
+  const minimalSide = {
+    url_input: "https://a.example.com",
+    url_final: "https://a.example.com/",
+    title: "A",
+    judge: null,
+    screenshot: null,
+    artifacts_dir: "/tmp/compares/abc/a",
+  };
+
+  const minimalCompare = {
+    schema_version: "1.0.0",
+    mode: "double_blind" as const,
+    rubrics: ["aesthetic" as const],
+    criteria: [criterion],
+    started_at: "2026-04-30T10:00:00.000Z",
+    finished_at: "2026-04-30T10:00:05.000Z",
+    status: "ok" as const,
+    side_a: minimalSide,
+    side_b: { ...minimalSide, url_input: "https://b.example.com", url_final: "https://b.example.com/", title: "B", artifacts_dir: "/tmp/compares/abc/b" },
+    per_criterion: [
+      {
+        criterion_id: "visual_hierarchy",
+        score_a: 7,
+        score_b: 5,
+        winner: "a" as const,
+        rationale: "Side A's CTA is visually dominant; side B's hero is cluttered.",
+      },
+    ],
+    overall_winner: "a" as const,
+    summary: null,
+    artifacts_dir: "/tmp/compares/abc",
+    model: "claude-sonnet-4-6",
+    cost_usd: 0,
+    duration_ms: 3500,
+  };
+
+  it("validates a minimal compare result", () => {
+    expect(() => CompareResultSchema.parse(minimalCompare)).not.toThrow();
+  });
+
+  it("rejects mode outside the enum", () => {
+    expect(() => CompareModeSchema.parse("medium")).toThrow();
+  });
+
+  it("rejects winner outside the enum", () => {
+    expect(() => CompareWinnerSchema.parse("draw")).toThrow();
+  });
+
+  it("accepts per-criterion scores as null in fast mode (model only emitted a winner)", () => {
+    const fast = {
+      ...minimalCompare,
+      mode: "fast" as const,
+      per_criterion: [
+        {
+          criterion_id: "visual_hierarchy",
+          score_a: null,
+          score_b: null,
+          winner: "tie" as const,
+          rationale: "Both sides perform comparably.",
+        },
+      ],
+      overall_winner: "tie" as const,
+    };
+    expect(() => CompareResultSchema.parse(fast)).not.toThrow();
+  });
+
+  it("rejects per-criterion score outside 0..10", () => {
+    expect(() =>
+      CompareCriterionVerdictSchema.parse({
+        criterion_id: "x",
+        score_a: 11,
+        score_b: 5,
+        winner: "a",
+        rationale: "r",
+      }),
+    ).toThrow();
+  });
+
+  it("validates compare result with embedded judge results on both sides", () => {
+    const judgeFixture = {
+      schema_version: "1.0.0",
+      url_input: "https://a.example.com",
+      url_final: "https://a.example.com/",
+      title: "A",
+      loaded_at: "2026-04-30T10:00:00.000Z",
+      status: "ok" as const,
+      rubrics: ["aesthetic" as const],
+      criteria: [criterion],
+      verdicts: [{ criterion_id: "visual_hierarchy", score: 7, rationale: "ok", evidence: [] }],
+      findings: [],
+      overall_score: 7,
+      summary: null,
+      dom: null,
+      console: null,
+      screenshot: null,
+      persona_id: "judge-default-desktop",
+      artifacts_dir: "/tmp/judges/a",
+      model: "claude-sonnet-4-6",
+      cost_usd: 0.005,
+      duration_ms: 1500,
+    };
+    const full = {
+      ...minimalCompare,
+      side_a: { ...minimalSide, judge: judgeFixture },
+      side_b: { ...minimalSide, url_input: "https://b.example.com", title: "B", judge: { ...judgeFixture, url_input: "https://b.example.com" } },
+    };
+    expect(() => CompareResultSchema.parse(full)).not.toThrow();
+  });
+
+  it("rejects negative cost_usd", () => {
+    expect(() =>
+      CompareResultSchema.parse({ ...minimalCompare, cost_usd: -0.01 }),
+    ).toThrow();
+  });
+
+  it("rejects unknown status enum values", () => {
+    expect(() =>
+      CompareResultSchema.parse({ ...minimalCompare, status: "loading" }),
+    ).toThrow();
+  });
+
+  it("schema_version is optional (legacy fixtures must still validate)", () => {
+    const { schema_version: _v, ...rest } = minimalCompare;
+    expect(() => CompareResultSchema.parse(rest)).not.toThrow();
   });
 });

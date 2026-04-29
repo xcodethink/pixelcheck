@@ -1,0 +1,979 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/compare-result.schema.json",
+  "title": "CompareResult",
+  "description": "MCP tool envelope returned by `compare` (N-3 primitive). A/B comparison primitive. Default mode is `double_blind`: judges each side independently with the same rubric, then runs a synthesis vision call that sees both screenshots and emits per-criterion winners. `fast` mode collapses to a single side-by-side call (cheaper but susceptible to anchoring bias).",
+  "x-result-schema-version": "1.0.0",
+  "$ref": "#/definitions/CompareResult",
+  "definitions": {
+    "CompareResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "double_blind",
+            "fast"
+          ]
+        },
+        "rubrics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "aesthetic",
+              "dark_pattern",
+              "custom"
+            ]
+          }
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "aesthetic",
+                  "dark_pattern",
+                  "custom"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "label",
+              "description",
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "finished_at": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "error"
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "side_a": {
+          "type": "object",
+          "properties": {
+            "url_input": {
+              "type": "string"
+            },
+            "url_final": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "judge": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                    },
+                    "url_input": {
+                      "type": "string"
+                    },
+                    "url_final": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "loaded_at": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "error"
+                      ]
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "rubrics": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "aesthetic",
+                          "dark_pattern",
+                          "custom"
+                        ]
+                      }
+                    },
+                    "criteria": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "description": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "aesthetic",
+                              "dark_pattern",
+                              "custom"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label",
+                          "description",
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "verdicts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "criterion_id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "score": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "rationale": {
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "default": []
+                          }
+                        },
+                        "required": [
+                          "criterion_id",
+                          "score",
+                          "rationale"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "findings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "severity": {
+                            "type": "string",
+                            "enum": [
+                              "critical",
+                              "high",
+                              "medium",
+                              "low"
+                            ]
+                          },
+                          "criterion_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "recommendation": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "severity",
+                          "criterion_id",
+                          "description",
+                          "recommendation"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "overall_score": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "summary": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "dom": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "interactive_count": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "headings": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "summary": {
+                              "type": "string"
+                            },
+                            "text_excerpt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "interactive_count",
+                            "headings",
+                            "summary"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "console": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "errors_count": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "errors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "console",
+                                      "pageerror",
+                                      "requestfailed"
+                                    ]
+                                  },
+                                  "text": {
+                                    "type": "string"
+                                  },
+                                  "location": {
+                                    "type": "string"
+                                  },
+                                  "timestamp": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "text",
+                                  "timestamp"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "errors_count",
+                            "errors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "screenshot": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "path": {
+                              "type": "string"
+                            },
+                            "sha256": {
+                              "type": "string"
+                            },
+                            "width": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "height": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "bytes": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": [
+                            "path",
+                            "sha256"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "persona_id": {
+                      "type": "string"
+                    },
+                    "artifacts_dir": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "cost_usd": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "duration_ms": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "url_input",
+                    "url_final",
+                    "title",
+                    "loaded_at",
+                    "status",
+                    "rubrics",
+                    "criteria",
+                    "verdicts",
+                    "findings",
+                    "overall_score",
+                    "summary",
+                    "dom",
+                    "console",
+                    "screenshot",
+                    "persona_id",
+                    "artifacts_dir",
+                    "model",
+                    "cost_usd",
+                    "duration_ms"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "screenshot": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "type": "string"
+                    },
+                    "width": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "height": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "artifacts_dir": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "url_input",
+            "url_final",
+            "title",
+            "judge",
+            "screenshot",
+            "artifacts_dir"
+          ],
+          "additionalProperties": false
+        },
+        "side_b": {
+          "type": "object",
+          "properties": {
+            "url_input": {
+              "type": "string"
+            },
+            "url_final": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "judge": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                    },
+                    "url_input": {
+                      "type": "string"
+                    },
+                    "url_final": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "loaded_at": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "error"
+                      ]
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "rubrics": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "aesthetic",
+                          "dark_pattern",
+                          "custom"
+                        ]
+                      }
+                    },
+                    "criteria": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "description": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "aesthetic",
+                              "dark_pattern",
+                              "custom"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label",
+                          "description",
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "verdicts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "criterion_id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "score": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "rationale": {
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "default": []
+                          }
+                        },
+                        "required": [
+                          "criterion_id",
+                          "score",
+                          "rationale"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "findings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "severity": {
+                            "type": "string",
+                            "enum": [
+                              "critical",
+                              "high",
+                              "medium",
+                              "low"
+                            ]
+                          },
+                          "criterion_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "recommendation": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "severity",
+                          "criterion_id",
+                          "description",
+                          "recommendation"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "overall_score": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "summary": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "dom": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "interactive_count": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "headings": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "summary": {
+                              "type": "string"
+                            },
+                            "text_excerpt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "interactive_count",
+                            "headings",
+                            "summary"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "console": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "errors_count": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "errors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "console",
+                                      "pageerror",
+                                      "requestfailed"
+                                    ]
+                                  },
+                                  "text": {
+                                    "type": "string"
+                                  },
+                                  "location": {
+                                    "type": "string"
+                                  },
+                                  "timestamp": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "text",
+                                  "timestamp"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "errors_count",
+                            "errors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "screenshot": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "path": {
+                              "type": "string"
+                            },
+                            "sha256": {
+                              "type": "string"
+                            },
+                            "width": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "height": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "bytes": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": [
+                            "path",
+                            "sha256"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "persona_id": {
+                      "type": "string"
+                    },
+                    "artifacts_dir": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "cost_usd": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "duration_ms": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "url_input",
+                    "url_final",
+                    "title",
+                    "loaded_at",
+                    "status",
+                    "rubrics",
+                    "criteria",
+                    "verdicts",
+                    "findings",
+                    "overall_score",
+                    "summary",
+                    "dom",
+                    "console",
+                    "screenshot",
+                    "persona_id",
+                    "artifacts_dir",
+                    "model",
+                    "cost_usd",
+                    "duration_ms"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "screenshot": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "type": "string"
+                    },
+                    "width": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "height": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "artifacts_dir": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "url_input",
+            "url_final",
+            "title",
+            "judge",
+            "screenshot",
+            "artifacts_dir"
+          ],
+          "additionalProperties": false
+        },
+        "per_criterion": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "criterion_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "score_a": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "score_b": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "winner": {
+                "type": "string",
+                "enum": [
+                  "a",
+                  "b",
+                  "tie"
+                ]
+              },
+              "rationale": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "criterion_id",
+              "score_a",
+              "score_b",
+              "winner",
+              "rationale"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "overall_winner": {
+          "type": "string",
+          "enum": [
+            "a",
+            "b",
+            "tie"
+          ]
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "artifacts_dir": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "mode",
+        "rubrics",
+        "criteria",
+        "started_at",
+        "finished_at",
+        "status",
+        "side_a",
+        "side_b",
+        "per_criterion",
+        "overall_winner",
+        "summary",
+        "artifacts_dir",
+        "model",
+        "cost_usd",
+        "duration_ms"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
