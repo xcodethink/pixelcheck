@@ -325,12 +325,13 @@ Add to `~/.mcp.json` (or your client's equivalent):
 | `explore_url` | preset | You want a quick autonomous run with a free-form goal; no scenario YAML needed. |
 | `see` | primitive | You want to look at a URL once and get back DOM summary + screenshot + console errors + an optional natural-language note. 0 LLM cost when `goal` is omitted. |
 | `act` | primitive | You want to drive an action sequence (click / fill / scroll / screenshot / natural-language `act` / vision `note`) and get back per-step status + final DOM + screenshot. |
+| `extract` | primitive | You want a typed payload back from a URL — pricing tiers, feature lists, FAQ entries — shaped exactly the way you asked for. Hand the tool a JSON Schema; get back `data` matching it plus DOM / console / screenshot. |
 | `list_personas` | meta | Discover which personas are installed in a project. |
 | `list_scenarios` | meta | Discover which scenarios are installed in a project. |
 | `calibrate_critic` | meta | Run the critic calibration gate against labeled fixtures (returns pass/fail + agreement metrics). |
 | `get_last_report` | meta | Read the most recent audit's summary JSON from the local history DB. |
 
-The N-3 `compare` / N-4 `extract` primitives and M9-5 `list_capabilities` are on the v1 roadmap.
+The N-3 `compare` primitive and M9-5 `list_capabilities` are on the v1 roadmap.
 
 #### `see` — one-shot navigation snapshot
 
@@ -384,6 +385,51 @@ Each step kind:
 | `note` | ~$0.005 | One vision call against the current page. Works on either engine. |
 
 Returns an `ActResult` (see [docs/schemas/act-result.schema.json](./docs/schemas/act-result.schema.json)) with `engine` (`"playwright"` | `"stagehand"`), `steps[]` (each with `status`, `duration_ms`, `cost_usd`, optional `screenshot` / `note` / `output` / `error`), final `dom` / `console` / `screenshot`, and total `cost_usd`. Failure semantics: `stop_on_error: true` (default) skips remaining steps after the first failure (recorded as `status: "skipped"`); `false` runs them all and the top-level `status` is `"error"` if any failed. Artefacts land under `$AUDIT_ACTS_DIR` or `~/.ai-browser-auditor/acts/<UTC-iso>-<rand6>/`. See [ADR-012](./docs/decisions/ADR-012-act-primitive.md) for design rationale.
+
+#### `extract` — schema-bound structured extraction
+
+Hand the tool a JSON Schema describing the payload you want; get back `data` matching the shape. One LLM call per invocation. Always Stagehand (extract is fundamentally LLM-driven; there is no deterministic alternative for "give me an arbitrarily-shaped object").
+
+```jsonc
+// MCP tools/call arguments
+{
+  "url": "https://stripe.com/pricing",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "plans": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name":     { "type": "string" },
+            "price":    { "type": "number", "description": "Monthly price in USD" },
+            "features": { "type": "array",  "items": { "type": "string" } }
+          },
+          "required": ["name", "price"]
+        }
+      }
+    },
+    "required": ["plans"]
+  },
+  "instruction": "Extract every pricing plan card",   // optional — auto-synthesised from schema field names if omitted
+  "selector": "main"                                   // optional — constrain to a sub-region
+}
+```
+
+JSON Schema subset accepted (the converter rejects everything else with a precise error message naming the keyword and JSON path):
+
+| Accepted | Rejected |
+|---|---|
+| `type: object \| array \| string \| number \| integer \| boolean \| null` | `oneOf`, `anyOf`, `allOf`, `not` |
+| `type: ["string", "null"]` (nullable shorthand) | `$ref`, `patternProperties`, `dependencies` |
+| `properties`, `required`, `items`, `enum`, `description`, `nullable` | `if` / `then` / `else`, `const` (use a single-element `enum` instead) |
+| `additionalProperties` (accepted, ignored — `z.object` strips by default) | |
+| `pattern`, `minLength`, `maxLength`, `minimum`, `maximum` (accepted, not enforced — the LLM does not honour them) | |
+
+The root must be `type: "object"` because Stagehand's `extract()` requires an object schema. A bare `{ properties: {…} }` (no `type`) is accepted as object-shorthand.
+
+Returns an `ExtractResult` (see [docs/schemas/extract-result.schema.json](./docs/schemas/extract-result.schema.json)) with `engine: "stagehand"`, `data` (matching your schema), `schema_used` / `instruction_used` / `selector_used` (echoed for client-side re-validation and debugging), `dom` / `console` / `screenshot`, and `cost_usd` derived from Stagehand's `metrics.extractPromptTokens` × `estimateCost(model, …)`. The `data.json` artefact is also persisted alongside the screenshot for replay. If a tight cost-guard cap trips during `recordUsage`, `status` flips to `"error"` but `data` and `cost_usd` are still surfaced (partial-success). Artefacts land under `$AUDIT_EXTRACTS_DIR` or `~/.ai-browser-auditor/extracts/<UTC-iso>-<rand6>/`. See [ADR-013](./docs/decisions/ADR-013-extract-primitive.md) for design rationale.
 
 Every tool response carries a top-level `schema_version` field per [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md). Two parallel tool calls in one server process see independent run-USD cost caps (per [ADR-009](./docs/decisions/ADR-009-concurrency-safety.md)) but share the persistent daily ledger.
 
