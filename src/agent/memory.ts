@@ -21,6 +21,7 @@ import * as os from "node:os";
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
 import Database from "better-sqlite3";
+import { withFileLockSync } from "../core/file-lock.js";
 
 const SCHEMA_VERSION = 1;
 
@@ -100,7 +101,21 @@ export class AgentMemory {
     if (this._db) return this._db;
     fs.mkdirSync(path.dirname(this._dbPath), { recursive: true });
     const db = new Database(this._dbPath);
-    db.pragma("journal_mode = WAL");
+    // M9-3 follow-up: protect concurrent writers in two layers.
+    // (1) busy_timeout retries internal lock waits up to 5s. Per-
+    //     connection setting; safe to call without contention.
+    // (2) WAL transition needs an EXCLUSIVE lock that does NOT honor
+    //     busy_timeout (SQLite uses a fast-fail path for journal-mode
+    //     changes). Serialize the one-time WAL switch across processes
+    //     via an init lockfile; once WAL is set on the file it
+    //     persists, so subsequent opens just observe and skip.
+    db.pragma("busy_timeout = 5000");
+    withFileLockSync(`${this._dbPath}.init.lock`, () => {
+      const mode = db.pragma("journal_mode", { simple: true }) as string;
+      if (mode !== "wal") {
+        db.pragma("journal_mode = WAL");
+      }
+    });
     const userVersion = (db.pragma("user_version", { simple: true }) as number | null) ?? 0;
     if (userVersion < SCHEMA_VERSION) {
       // Run migration statements individually so "column already exists"

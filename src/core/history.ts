@@ -15,6 +15,7 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
 import Database from "better-sqlite3";
+import { withFileLockSync } from "./file-lock.js";
 import type { AuditRun, DimensionScore, Issue } from "./types.js";
 import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 
@@ -30,7 +31,15 @@ const SCHEMA_VERSION = 2;
 function openDb(dbPath: string): Database.Database {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
+  // M9-3 follow-up — see agent/memory.ts for full rationale on the
+  // busy_timeout + file-locked WAL transition pattern.
+  db.pragma("busy_timeout = 5000");
+  withFileLockSync(`${dbPath}.init.lock`, () => {
+    const mode = db.pragma("journal_mode", { simple: true }) as string;
+    if (mode !== "wal") {
+      db.pragma("journal_mode = WAL");
+    }
+  });
   db.pragma("foreign_keys = ON");
 
   // Migrate schema. Each migration runs once, advancing user_version.
