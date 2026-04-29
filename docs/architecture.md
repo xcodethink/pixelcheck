@@ -233,7 +233,7 @@ All report formats pass through the redaction layer (`secrets.redactDeep`) befor
 **Tool kinds** (used today by the catalog, surfaced by the future M9-5 `list_capabilities`):
 
 - **preset** — composed pipelines. Today: `audit_url` (full audit) and `explore_url` (autonomous goal-driven run).
-- **primitive** — single-capability building blocks. Today: `see` (N-1 — see [ADR-011](decisions/ADR-011-see-primitive.md)). Coming: N-2 `act`, N-3 `compare`, N-4 `extract`.
+- **primitive** — single-capability building blocks. Today: `see` (N-1 — see [ADR-011](decisions/ADR-011-see-primitive.md)) and `act` (N-2 — see [ADR-012](decisions/ADR-012-act-primitive.md)). Coming: N-3 `compare`, N-4 `extract`.
 - **meta** — introspection / discovery. Today: `list_personas`, `list_scenarios`, `get_last_report`, `calibrate_critic`.
 
 **Adding a new tool**:
@@ -251,7 +251,10 @@ Per-tool dynamic imports keep the cold-start path lean: heavy modules (`runner`,
 
 Primitives live under `src/core/primitives/<name>.ts` and are intentionally **decoupled from `runAudit` and Stagehand**. They use raw Playwright, expose simple `(opts) => Promise<Result>` signatures, and integrate with the existing cross-cutting concerns (cost guard, schema versioning, concurrency safety) without dragging in scenario YAML, persona files, or the reporter pipeline.
 
-The first shipped primitive is `see` (N-1) — a one-shot navigation snapshot. See [ADR-011](decisions/ADR-011-see-primitive.md) for the design trade-offs (why no Stagehand, why `callVision` instead of `runCritic`, why per-call artefact subdirectories). The MCP-side wrapper in `src/mcp/tools/see.ts` translates snake-case JSON args into `SeeOptions`.
+The first two shipped primitives are:
+
+- **`see` (N-1)** — a one-shot navigation snapshot. See [ADR-011](decisions/ADR-011-see-primitive.md) for the design trade-offs (why no Stagehand, why `callVision` instead of `runCritic`, why per-call artefact subdirectories). The MCP-side wrapper in `src/mcp/tools/see.ts` translates snake-case JSON args into `SeeOptions`.
+- **`act` (N-2)** — execute a sequence of actions. Step kinds split into deterministic (`goto` / `click` / `fill` / `press` / `wait` / `wait_for` / `scroll` / `screenshot`) and AI-driven (`act` for natural-language Stagehand calls, `note` for one vision call). The engine auto-selects per call: pure-deterministic step lists run on raw Playwright (~1 s cold start, no LLM key needed), Stagehand only spins up if any step is `act`. See [ADR-012](decisions/ADR-012-act-primitive.md) for rationale (mixed-kind contract, auto engine, stop-on-error semantics, why no inline retry stack).
 
 Adding a new primitive is a four-commit recipe: schema entry in `result-schema.ts` (+ `npm run schemas`), primitive module under `src/core/primitives/`, MCP tool wrapper under `src/mcp/tools/` with `kind: "primitive"`, ADR + CHANGELOG.
 
