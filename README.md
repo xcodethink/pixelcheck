@@ -326,12 +326,14 @@ Add to `~/.mcp.json` (or your client's equivalent):
 | `see` | primitive | You want to look at a URL once and get back DOM summary + screenshot + console errors + an optional natural-language note. 0 LLM cost when `goal` is omitted. |
 | `act` | primitive | You want to drive an action sequence (click / fill / scroll / screenshot / natural-language `act` / vision `note`) and get back per-step status + final DOM + screenshot. |
 | `extract` | primitive | You want a typed payload back from a URL — pricing tiers, feature lists, FAQ entries — shaped exactly the way you asked for. Hand the tool a JSON Schema; get back `data` matching it plus DOM / console / screenshot. |
+| `judge` | primitive | You want a rubric-driven critique of one URL — aesthetic polish, dark-pattern risk, or any custom rubric. Returns per-criterion scores (0..10) + severity-graded findings with on-screen locations. 1 vision call. |
+| `compare` | primitive | You want an A/B comparison of two URLs against the same rubric. Default `double_blind` mode judges each side independently then synthesises a comparison (3 vision calls, free of anchoring bias). `fast` mode is 1 call (cheaper, anchored). |
 | `list_personas` | meta | Discover which personas are installed in a project. |
 | `list_scenarios` | meta | Discover which scenarios are installed in a project. |
 | `calibrate_critic` | meta | Run the critic calibration gate against labeled fixtures (returns pass/fail + agreement metrics). |
 | `get_last_report` | meta | Read the most recent audit's summary JSON from the local history DB. |
 
-The N-3 `compare` primitive and M9-5 `list_capabilities` are on the v1 roadmap.
+M9-5 `list_capabilities` is the next item on the v1 roadmap.
 
 #### `see` — one-shot navigation snapshot
 
@@ -430,6 +432,55 @@ JSON Schema subset accepted (the converter rejects everything else with a precis
 The root must be `type: "object"` because Stagehand's `extract()` requires an object schema. A bare `{ properties: {…} }` (no `type`) is accepted as object-shorthand.
 
 Returns an `ExtractResult` (see [docs/schemas/extract-result.schema.json](./docs/schemas/extract-result.schema.json)) with `engine: "stagehand"`, `data` (matching your schema), `schema_used` / `instruction_used` / `selector_used` (echoed for client-side re-validation and debugging), `dom` / `console` / `screenshot`, and `cost_usd` derived from Stagehand's `metrics.extractPromptTokens` × `estimateCost(model, …)`. The `data.json` artefact is also persisted alongside the screenshot for replay. If a tight cost-guard cap trips during `recordUsage`, `status` flips to `"error"` but `data` and `cost_usd` are still surfaced (partial-success). Artefacts land under `$AUDIT_EXTRACTS_DIR` or `~/.ai-browser-auditor/extracts/<UTC-iso>-<rand6>/`. See [ADR-013](./docs/decisions/ADR-013-extract-primitive.md) for design rationale.
+
+#### `judge` — rubric-driven page critic
+
+Score one URL against a rubric — aesthetic polish, dark-pattern risk, or any custom criteria you supply. One vision call per invocation. Built-in rubrics are reified data in `src/core/critics/`; the criterion ids are part of the public contract so consumers can join verdicts back to the rubric across runs.
+
+```jsonc
+// MCP tools/call arguments
+{
+  "url": "https://stripe.com/pricing",
+  "rubrics": ["aesthetic", "dark_pattern"],          // 8 + 12 built-in criteria
+  "custom_criteria": [                                // optional one-off rubric
+    { "id": "pricing_clarity", "label": "Pricing clarity", "description": "Is total cost visible without scrolling?" }
+  ],
+  "persona": "wayne-power-user",                      // optional — drives viewport/locale via personas/
+  "wait_for": "networkidle"
+}
+```
+
+Built-in rubrics:
+
+| Rubric | Criteria | Examples |
+|---|---|---|
+| `aesthetic` (8) | `visual_hierarchy`, `typography`, `alignment_grid`, `color_contrast`, `spacing_rhythm`, `polish`, `information_density`, `brand_cohesion` | Benchmarked against Stripe / Linear / Vercel / Notion |
+| `dark_pattern` (12) | `forced_continuity`, `hidden_costs`, `preselected_options`, `fake_urgency`, `confirmshaming`, `obstruction`, `misdirection`, `trick_questions`, `disguised_ads`, `bait_and_switch`, `privacy_zuckering`, `nagging` | Brignull taxonomy + Norwegian Consumer Council 2018 |
+| `custom` | Caller-supplied | Any one-off rubric — pricing clarity, conversion path, accessibility narrative, … |
+
+Score direction is uniform: **higher = better**, regardless of kind. Aesthetic 10 = excellent; dark-pattern 10 = no dark pattern detected. So `overall_score` (mean of all verdict scores) is monotonic across mixed rubrics.
+
+Returns a `JudgeResult` (see [docs/schemas/judge-result.schema.json](./docs/schemas/judge-result.schema.json)) with `rubrics`, `criteria` (the full rubric list rendered into the prompt), `verdicts[]` (per-criterion `{ criterion_id, score, rationale, evidence }`), `findings[]` (severity-graded issues with `location`), `overall_score`, `summary`, plus the standard `dom` / `console` / `screenshot` / `cost_usd` envelope. Artefacts land under `$AUDIT_JUDGES_DIR` or `~/.ai-browser-auditor/judges/<UTC-iso>-<rand6>/judge.json`. See [ADR-014](./docs/decisions/ADR-014-judge-and-compare-primitives.md) for design rationale.
+
+#### `compare` — A/B page comparison
+
+Run an A/B comparison of two pages against a shared rubric. Default mode is **`double_blind`**: judge each side independently (parallel) with the same rubric, then run ONE synthesis vision call that sees both screenshots side-by-side with the prior judgements as context. Three vision calls total; wall-clock ≈ two calls because the judges run in parallel. This mirrors commercial UX-review practice — Nielsen Norman, Baymard Institute — where each candidate is evaluated independently before the comparison synthesis. The reason is anchoring bias: when a model is asked to score two pages in one prompt, absolute scores get pulled toward the difference between them, not the page itself.
+
+`fast` mode collapses to a single side-by-side vision call — cheaper (~3× cheaper) but anchored. Opt in for batch comparisons (e.g. evaluating 100 competitors overnight) where the cost ratio matters more than per-call accuracy.
+
+```jsonc
+// MCP tools/call arguments
+{
+  "a": { "url": "https://stripe.com/pricing" },
+  "b": { "url": "https://intercom.com/pricing", "viewport_width": 375, "viewport_height": 812 },
+  "rubrics": ["aesthetic", "dark_pattern"],
+  "mode": "double_blind"                                // default; use "fast" for cheap batches
+}
+```
+
+Per-side `viewport` lets you compare e.g. desktop A vs mobile B. Either side may be a pre-captured snapshot from a prior `see` / `extract` / `judge` call (`{ "capture": { ... } }`); the tool will skip the browser for that side.
+
+Returns a `CompareResult` (see [docs/schemas/compare-result.schema.json](./docs/schemas/compare-result.schema.json)) with `mode`, `rubrics`, `criteria`, `side_a` / `side_b` (each carrying the embedded JudgeResult in double_blind mode + per-side screenshot + artefacts dir), `per_criterion[]` (`{ criterion_id, score_a, score_b, winner: "a"|"b"|"tie", rationale }`), `overall_winner`, `summary`, and total `cost_usd`. Artefacts land under `$AUDIT_COMPARES_DIR` or `~/.ai-browser-auditor/compares/<UTC-iso>-<rand6>/` with `a/` and `b/` subdirs and a `compare.json` sidecar.
 
 Every tool response carries a top-level `schema_version` field per [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md). Two parallel tool calls in one server process see independent run-USD cost caps (per [ADR-009](./docs/decisions/ADR-009-concurrency-safety.md)) but share the persistent daily ledger.
 
