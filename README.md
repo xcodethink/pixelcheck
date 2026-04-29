@@ -323,12 +323,34 @@ Add to `~/.mcp.json` (or your client's equivalent):
 |---|---|---|
 | `audit_url` | preset | You want the full audit pipeline against one URL — agent loop, scoring, JSON + HTML report. |
 | `explore_url` | preset | You want a quick autonomous run with a free-form goal; no scenario YAML needed. |
+| `see` | primitive | You want to look at a URL once and get back DOM summary + screenshot + console errors + an optional natural-language note. 0 LLM cost when `goal` is omitted. |
 | `list_personas` | meta | Discover which personas are installed in a project. |
 | `list_scenarios` | meta | Discover which scenarios are installed in a project. |
 | `calibrate_critic` | meta | Run the critic calibration gate against labeled fixtures (returns pass/fail + agreement metrics). |
 | `get_last_report` | meta | Read the most recent audit's summary JSON from the local history DB. |
 
-The N-1 `see` / N-2 `act` / N-3 `compare` / N-4 `extract` primitives and M9-5 `list_capabilities` are on the v1 roadmap.
+The N-2 `act` / N-3 `compare` / N-4 `extract` primitives and M9-5 `list_capabilities` are on the v1 roadmap.
+
+#### `see` — one-shot navigation snapshot
+
+The lightest tool in the kit. Call it when you want to ask "what's on this page right now?" without spinning up a full audit.
+
+```jsonc
+// MCP tools/call arguments
+{
+  "url": "https://stripe.com/pricing",
+  "goal": "Is there a free tier?",      // optional — runs one vision call, ~$0.005
+  "wait_for": "networkidle",            // or "load", "domcontentloaded", or a CSS selector
+  "viewport_width": 1280,
+  "viewport_height": 800,
+  "include_dom": true,
+  "include_console": true,
+  "headless": true,
+  "timeout_ms": 30000
+}
+```
+
+Returns a `SeeResult` (see [docs/schemas/see-result.schema.json](./docs/schemas/see-result.schema.json)) with `url_final` (post-redirect), `title`, `dom` (interactive count + headings + summary), `console.errors`, `screenshot` (path + sha256), and `note` (the goal answer when set). Artefacts land under `$AUDIT_SEES_DIR` or `~/.ai-browser-auditor/sees/<UTC-iso>-<rand6>/`. See [ADR-011](./docs/decisions/ADR-011-see-primitive.md) for design rationale.
 
 Every tool response carries a top-level `schema_version` field per [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md). Two parallel tool calls in one server process see independent run-USD cost caps (per [ADR-009](./docs/decisions/ADR-009-concurrency-safety.md)) but share the persistent daily ledger.
 
