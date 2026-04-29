@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Changed (M3-6 + M9-1 MCP server modularization + tool registry)
+
+- `src/mcp/server.ts` shrinks 502 → 148 lines. Tool input schemas, descriptions, and handlers all move to dedicated files under `src/mcp/tools/`. `server.ts` retains only transport lifecycle, secret bootstrap, the `ALL_TOOLS` catalog, ListTools mapping, and the CallTool dispatcher (with `withCostRun` + try/catch from M9-3).
+- New `src/mcp/registry.ts` — `ToolDefinition` record (name / description / inputSchema / kind / optional resultSchema / handler) + `ToolRegistry` class (register / get / has / list / size / describe / registerAll).
+- New `src/mcp/result.ts` — `ToolResult` interface, `textResult`, `errorResult`, `stampedTextResult` (M9-2 `schema_version` stamping wrapper). Extracted from `server.ts` so per-tool modules can import without dragging in transport.
+- New `src/mcp/helpers.ts` — `requireString` (argument coercion), `resolvePersona` (id → persona with US-desktop fallback). Extracted from `server.ts`.
+- New `src/mcp/tools/<name>.ts` — one file per tool, each exporting a `ToolDefinition`:
+  - `audit-url.ts` (kind: preset)
+  - `explore-url.ts` (kind: preset)
+  - `list-personas.ts` (kind: meta)
+  - `list-scenarios.ts` (kind: meta)
+  - `calibrate-critic.ts` (kind: meta)
+  - `get-last-report.ts` (kind: meta)
+- `tests/mcp-server.test.ts` updated to import helpers from their new modules (`result.js` / `helpers.js`) instead of `server.js`. No dead re-export shims left behind.
+- New `tests/mcp-registry.test.ts` (14 tests): `ToolRegistry` class coverage, `ALL_TOOLS` catalog invariants (every tool has non-empty name / description, object-shaped `inputSchema`, valid `kind`, unique names, `resultSchema` matches a published `docs/schemas/index.json` entry), and routing smoke (`buildDefaultRegistry().get(name).handler` returns a stamped ToolResult). Catches drift between a tool's declared result shape and the schemas committed to the repo.
+- New ADR-010 documenting the file layout, the three-discriminator `kind` ("preset" / "primitive" / "meta"), why `kind`/`resultSchema` are kept off the `ListTools` payload, and the rejected alternatives (auto-glob discovery; re-export shims; MCP `_meta` field; registry-owned dispatcher).
+- New README "MCP Server" section (registration JSON for Claude Code, tool table, link to ADR-010).
+- New architecture.md "MCP Server" section (file layout, kind taxonomy, "adding a new tool" recipe).
+- `tools/list` payload is unchanged from a client's perspective: still 6 tools, still `{ name, description, inputSchema }` only. `kind` and `resultSchema` are reserved on the registry record for the future M9-5 `list_capabilities` tool.
+- 399/399 tests pass (was 385/385 on M9-3 verification; +14 from the new registry test file).
+
+### Fixed (M9-3 follow-up — cross-process SQLite WAL init)
+
+- All three SQLite open paths (`agent/memory.ts`, `agent/plan-cache.ts`, `core/history.ts`) now serialize the one-time WAL transition through `withFileLockSync(<dbPath>.init.lock, …)` and set `busy_timeout = 5000` per connection. Closes a race discovered while validating M3-6+M9-1: SQLite's `journal_mode = WAL` switch takes an EXCLUSIVE lock that explicitly does NOT honor `busy_timeout` (verified by setting it to 30 s and watching concurrent opens still fail in ~10 ms with "database is locked"). Three subprocesses opening the same fresh DB file would race the journal-mode switch, ~25 % of the time one would lose and exit code 1; in production this would silently drop facts / cache writes from one of two parallel audit runs.
+- Inside the lock, `journal_mode` is read first and only set when not already `"wal"`. Once any process completes the transition, WAL persists in the file header — subsequent opens just observe and skip in microseconds.
+- `tests/memory.test.ts` cross-process race test: 20/20 pass after fix (was 5/20 before).
+- No production behaviour change beyond eliminating the SQLITE_BUSY crash path. WAL mode persists in the DB header as before; `busy_timeout` adds patient retry, never changes correctness.
+
 ### Added (M9-3 Concurrency safety)
 
 - New `src/core/file-lock.ts` — cross-process advisory lock helper. `withFileLock(lockPath, fn)` and `withFileLockSync(lockPath, fn)` hold a critical section across processes via a write-tmp-then-`linkSync` lockfile. Stale locks self-heal when the holder pid is no longer alive or the timestamp exceeds `staleAfterMs` (default 30 s). No new dependencies.
