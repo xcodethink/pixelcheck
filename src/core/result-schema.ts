@@ -448,6 +448,116 @@ export const SeeResultSchema = z.object({
   duration_ms: z.number().nonnegative(),
 });
 
+// ─────────────────────────────────────────────────────────────
+// `act` primitive (N-2)
+// ─────────────────────────────────────────────────────────────
+
+const WaitForLiteralSchema = z.enum(["load", "domcontentloaded", "networkidle"]);
+
+const WaitForSelectorObjSchema = z.object({
+  type: z.literal("selector"),
+  selector: z.string(),
+});
+
+const WaitForSchema = z.union([WaitForLiteralSchema, WaitForSelectorObjSchema]);
+
+export const ActStepSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("goto"),
+    url: z.string(),
+    wait_for: WaitForSchema.optional(),
+    timeout_ms: z.number().int().positive().optional(),
+  }),
+  z.object({
+    type: z.literal("click"),
+    selector: z.string(),
+    timeout_ms: z.number().int().positive().optional(),
+  }),
+  z.object({
+    type: z.literal("fill"),
+    selector: z.string(),
+    value: z.string(),
+    timeout_ms: z.number().int().positive().optional(),
+  }),
+  z.object({
+    type: z.literal("press"),
+    key: z.string(),
+    selector: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal("wait"),
+    ms: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal("wait_for"),
+    selector: z.string(),
+    state: z.enum(["visible", "attached", "hidden"]).optional(),
+    timeout_ms: z.number().int().positive().optional(),
+  }),
+  z.object({
+    type: z.literal("scroll"),
+    selector: z.string().optional(),
+    delta_y: z.number().optional(),
+    to_bottom: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("screenshot"),
+    label: z.string().optional(),
+    full_page: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("act"),
+    instruction: z.string(),
+  }),
+  z.object({
+    type: z.literal("note"),
+    goal: z.string(),
+  }),
+]);
+
+export const ActStepResultSchema = z.object({
+  index: z.number().int().nonnegative(),
+  type: z.enum([
+    "goto",
+    "click",
+    "fill",
+    "press",
+    "wait",
+    "wait_for",
+    "scroll",
+    "screenshot",
+    "act",
+    "note",
+  ]),
+  status: z.enum(["ok", "error", "skipped"]),
+  duration_ms: z.number().nonnegative(),
+  error: z.string().optional(),
+  screenshot: SeeScreenshotSchema.optional(),
+  note: z.string().optional(),
+  output: z.unknown().optional(),
+  cost_usd: z.number().nonnegative(),
+});
+
+export const ActResultSchema = z.object({
+  schema_version: SchemaVersionField,
+  url_input: z.string(),
+  url_final: z.string(),
+  title: z.string(),
+  started_at: z.string(),
+  finished_at: z.string(),
+  status: z.enum(["ok", "error"]),
+  error: z.string().optional(),
+  engine: z.enum(["playwright", "stagehand"]),
+  steps: z.array(ActStepResultSchema),
+  dom: SeeDomSchema.nullable(),
+  console: SeeConsoleSchema.nullable(),
+  screenshot: SeeScreenshotSchema.nullable(),
+  persona_id: z.string(),
+  artifacts_dir: z.string(),
+  cost_usd: z.number().nonnegative(),
+  duration_ms: z.number().nonnegative(),
+});
+
 export const PersonaSummarySchema = z.object({
   id: z.string(),
   display_name: z.string(),
@@ -556,3 +666,6 @@ export type AuditUrlResultShape = z.infer<typeof AuditUrlResultSchema>;
 export type ExploreUrlResultShape = z.infer<typeof ExploreUrlResultSchema>;
 export type CalibrateCriticResultShape = z.infer<typeof CalibrateCriticResultSchema>;
 export type SeeResultShape = z.infer<typeof SeeResultSchema>;
+export type ActStepShape = z.infer<typeof ActStepSchema>;
+export type ActStepResultShape = z.infer<typeof ActStepResultSchema>;
+export type ActResultShape = z.infer<typeof ActResultSchema>;

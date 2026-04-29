@@ -101,6 +101,12 @@
       "file": "see-result.schema.json"
     },
     {
+      "slug": "act-result",
+      "title": "ActResult",
+      "description": "MCP tool envelope returned by `act` (N-2 primitive). Per-step outcome of an action sequence (goto / click / fill / press / wait / wait_for / scroll / screenshot / act / note) plus a final DOM summary, console errors, and screenshot.",
+      "file": "act-result.schema.json"
+    },
+    {
       "slug": "list-personas-result",
       "title": "ListPersonasResult",
       "description": "MCP tool envelope returned by list_personas (array of PersonaSummary).",
