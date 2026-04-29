@@ -42,6 +42,7 @@ import {
   ConsoleErrorSchema,
   SeeResultSchema,
   ActResultSchema,
+  ExtractResultSchema,
 } from "../src/core/result-schema.js";
 
 interface SchemaEntry {
@@ -160,6 +161,13 @@ const ENTRIES: SchemaEntry[] = [
     description:
       "MCP tool envelope returned by `act` (N-2 primitive). Per-step outcome of an action sequence (goto / click / fill / press / wait / wait_for / scroll / screenshot / act / note) plus a final DOM summary, console errors, and screenshot.",
     schema: ActResultSchema,
+  },
+  {
+    slug: "extract-result",
+    title: "ExtractResult",
+    description:
+      "MCP tool envelope returned by `extract` (N-4 primitive). Schema-bound structured extraction: caller passes a JSON Schema describing the desired shape, the primitive runs Stagehand's extract() and returns matching `data` plus DOM summary, console errors, and screenshot.",
+    schema: ExtractResultSchema,
   },
   {
     slug: "list-personas-result",

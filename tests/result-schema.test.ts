@@ -23,6 +23,7 @@ import {
   ActStepSchema,
   ActStepResultSchema,
   ActResultSchema,
+  ExtractResultSchema,
   validateResult,
   attachSchemaVersion,
 } from "../src/core/result-schema.js";
@@ -529,6 +530,116 @@ describe("result-schema — ActResultSchema (N-2)", () => {
   it("schema_version is optional (legacy fixtures must still validate)", () => {
     const { schema_version: _v, ...rest } = minimalAct;
     expect(() => ActResultSchema.parse(rest)).not.toThrow();
+  });
+});
+
+describe("result-schema — ExtractResultSchema (N-4)", () => {
+  const minimalExtract = {
+    schema_version: "1.0.0",
+    url_input: "https://example.com",
+    url_final: "https://example.com/",
+    title: "Example",
+    loaded_at: "2026-04-29T08:00:00.000Z",
+    status: "ok" as const,
+    engine: "stagehand" as const,
+    data: {},
+    dom: null,
+    console: null,
+    screenshot: null,
+    persona_id: "extract-default-desktop",
+    artifacts_dir: "/tmp/extracts/abc",
+    cost_usd: 0,
+    duration_ms: 1500,
+  };
+
+  it("validates a minimal extract result with empty data and all optional sections null", () => {
+    expect(() => ExtractResultSchema.parse(minimalExtract)).not.toThrow();
+  });
+
+  it("validates a fully populated extract result with caller-defined data shape", () => {
+    const full = {
+      ...minimalExtract,
+      data: {
+        plans: [
+          { name: "Free", price: 0, features: ["Basic"] },
+          { name: "Pro", price: 29, features: ["Basic", "Advanced", "Priority"] },
+        ],
+      },
+      schema_used: {
+        type: "object",
+        properties: {
+          plans: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                price: { type: "number" },
+                features: { type: "array", items: { type: "string" } },
+              },
+              required: ["name", "price"],
+            },
+          },
+        },
+        required: ["plans"],
+      },
+      instruction_used: "Extract plans from the pricing page",
+      selector_used: "main",
+      dom: {
+        interactive_count: 8,
+        headings: ["h1: Pricing"],
+        summary: "[Headings]\nh1: Pricing",
+      },
+      console: { errors_count: 0, errors: [] },
+      screenshot: {
+        path: "/tmp/extracts/abc/screenshot.png",
+        sha256: "deadbeef",
+        width: 1280,
+        height: 800,
+        bytes: 23456,
+      },
+      cost_usd: 0.0073,
+    };
+    expect(() => ExtractResultSchema.parse(full)).not.toThrow();
+  });
+
+  it("accepts arbitrary `data` shape (caller-defined, never narrowed by us)", () => {
+    const cases: unknown[] = [
+      null,
+      "a free-form string",
+      42,
+      [1, 2, 3],
+      { extraction: "fallback default schema returns this" },
+      { nested: { deeply: { value: true } } },
+    ];
+    for (const c of cases) {
+      expect(() =>
+        ExtractResultSchema.parse({ ...minimalExtract, data: c }),
+      ).not.toThrow();
+    }
+  });
+
+  it("rejects unknown engine value (only 'stagehand' is valid for extract)", () => {
+    expect(() =>
+      ExtractResultSchema.parse({ ...minimalExtract, engine: "playwright" }),
+    ).toThrow();
+  });
+
+  it("rejects unknown status enum values", () => {
+    expect(() =>
+      ExtractResultSchema.parse({ ...minimalExtract, status: "loading" }),
+    ).toThrow();
+  });
+
+  it("rejects negative cost_usd", () => {
+    expect(() =>
+      ExtractResultSchema.parse({ ...minimalExtract, cost_usd: -0.01 }),
+    ).toThrow();
+  });
+
+  it("schema_version is optional (legacy fixtures must still validate)", () => {
+    const { schema_version: _v, ...rest } = minimalExtract;
+    expect(() => ExtractResultSchema.parse(rest)).not.toThrow();
   });
 });
 

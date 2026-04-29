@@ -107,6 +107,12 @@
       "file": "act-result.schema.json"
     },
     {
+      "slug": "extract-result",
+      "title": "ExtractResult",
+      "description": "MCP tool envelope returned by `extract` (N-4 primitive). Schema-bound structured extraction: caller passes a JSON Schema describing the desired shape, the primitive runs Stagehand's extract() and returns matching `data` plus DOM summary, console errors, and screenshot.",
+      "file": "extract-result.schema.json"
+    },
+    {
       "slug": "list-personas-result",
       "title": "ListPersonasResult",
       "description": "MCP tool envelope returned by list_personas (array of PersonaSummary).",
