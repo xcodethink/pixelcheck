@@ -41,6 +41,7 @@ import {
   PersonaSummarySchema,
   ConsoleErrorSchema,
   SeeResultSchema,
+  ActResultSchema,
 } from "../src/core/result-schema.js";
 
 interface SchemaEntry {
@@ -152,6 +153,13 @@ const ENTRIES: SchemaEntry[] = [
     description:
       "MCP tool envelope returned by `see` (N-1 primitive). One-shot navigation snapshot: DOM summary, console errors, screenshot, and an optional vision note.",
     schema: SeeResultSchema,
+  },
+  {
+    slug: "act-result",
+    title: "ActResult",
+    description:
+      "MCP tool envelope returned by `act` (N-2 primitive). Per-step outcome of an action sequence (goto / click / fill / press / wait / wait_for / scroll / screenshot / act / note) plus a final DOM summary, console errors, and screenshot.",
+    schema: ActResultSchema,
   },
   {
     slug: "list-personas-result",

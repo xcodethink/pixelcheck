@@ -1,0 +1,290 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/act-result.schema.json",
+  "title": "ActResult",
+  "description": "MCP tool envelope returned by `act` (N-2 primitive). Per-step outcome of an action sequence (goto / click / fill / press / wait / wait_for / scroll / screenshot / act / note) plus a final DOM summary, console errors, and screenshot.",
+  "x-result-schema-version": "1.0.0",
+  "$ref": "#/definitions/ActResult",
+  "definitions": {
+    "ActResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "url_input": {
+          "type": "string"
+        },
+        "url_final": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "finished_at": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "error"
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "engine": {
+          "type": "string",
+          "enum": [
+            "playwright",
+            "stagehand"
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "goto",
+                  "click",
+                  "fill",
+                  "press",
+                  "wait",
+                  "wait_for",
+                  "scroll",
+                  "screenshot",
+                  "act",
+                  "note"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "error",
+                  "skipped"
+                ]
+              },
+              "duration_ms": {
+                "type": "number",
+                "minimum": 0
+              },
+              "error": {
+                "type": "string"
+              },
+              "screenshot": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "type": "string"
+                  },
+                  "width": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "bytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "path",
+                  "sha256"
+                ],
+                "additionalProperties": false
+              },
+              "note": {
+                "type": "string"
+              },
+              "output": {},
+              "cost_usd": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "index",
+              "type",
+              "status",
+              "duration_ms",
+              "cost_usd"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "dom": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "interactive_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "headings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "text_excerpt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "interactive_count",
+                "headings",
+                "summary"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "console": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "errors_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "console",
+                          "pageerror",
+                          "requestfailed"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "text",
+                      "timestamp"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "errors_count",
+                "errors"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "screenshot": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "width": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "height": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "bytes": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "persona_id": {
+          "type": "string"
+        },
+        "artifacts_dir": {
+          "type": "string"
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "url_input",
+        "url_final",
+        "title",
+        "started_at",
+        "finished_at",
+        "status",
+        "engine",
+        "steps",
+        "dom",
+        "console",
+        "screenshot",
+        "persona_id",
+        "artifacts_dir",
+        "cost_usd",
+        "duration_ms"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
