@@ -67,7 +67,8 @@ import {
   getCostGuard,
   BudgetExceededError,
 } from "../cost-guard.js";
-import { RESULT_SCHEMA_VERSION } from "../result-schema.js";
+import { RESULT_SCHEMA_VERSION, type ResultCacheMeta } from "../result-schema.js";
+import { withResultCache } from "../result-cache.js";
 import type { ConsoleError } from "../types.js";
 import {
   DEFAULT_LOCALE,
@@ -133,6 +134,15 @@ export interface ExtractOptions {
   /** LLM model id (must be a key in PRICING). Default `"claude-sonnet-4-6"`. */
   model?: string;
 
+  /**
+   * Result cache (M9-4). Caching is on by default. The cache key
+   * covers url, schema, instruction, selector, persona/viewport, and
+   * model — anything that would change the extracted data.
+   */
+  cache?: boolean;
+  cacheBust?: boolean;
+  cacheTtlMs?: number;
+
   // ── Test seams ────────────────────────────────────────────────
   /** Replace the Stagehand init+open path. */
   _openStagehand?: StagehandOpenFn;
@@ -175,6 +185,8 @@ export interface ExtractResult {
   artifacts_dir: string;
   cost_usd: number;
   duration_ms: number;
+  /** Result-cache annotation (M9-4). Absent when caching not applicable. */
+  cache?: ResultCacheMeta;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -424,7 +436,43 @@ export function synthesizeInstruction(
 // Primitive
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Build the cache-key inputs for an `extract` call. Excludes timeout /
+ * headless / artifactsRoot / test seams — those affect performance or
+ * file location, not the extracted data itself.
+ */
+function extractCacheKeyInputs(opts: ExtractOptions): unknown {
+  const persona = opts.persona ?? {};
+  return {
+    url: opts.url,
+    schema: opts.schema,
+    instruction: opts.instruction,
+    selector: opts.selector,
+    waitFor: opts.waitFor ?? "networkidle",
+    fullPage: opts.fullPage ?? true,
+    includeDom: opts.includeDom ?? true,
+    includeConsole: opts.includeConsole ?? true,
+    viewport: opts.viewport ?? persona.viewport ?? { ...DEFAULT_VIEWPORT },
+    locale: persona.locale ?? DEFAULT_LOCALE,
+    timezone: persona.timezone ?? DEFAULT_TIMEZONE,
+    user_agent: persona.user_agent,
+    persona_id: persona.id,
+    model: opts.model ?? DEFAULT_MODEL,
+  };
+}
+
 export async function extract(opts: ExtractOptions): Promise<ExtractResult> {
+  return withResultCache<ExtractResult>({
+    primitive: "extract",
+    cacheKeyInputs: extractCacheKeyInputs(opts),
+    cacheEnabled: opts.cache !== false,
+    cacheBust: opts.cacheBust,
+    ttlMs: opts.cacheTtlMs,
+    compute: () => computeExtract(opts),
+  });
+}
+
+async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
   const t0 = Date.now();
   const startedAt = new Date().toISOString();
 
