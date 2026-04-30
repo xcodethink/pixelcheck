@@ -44,6 +44,9 @@ export default defineConfig({
         //   M1-2 Phase 2 critic:              58 / 51 / 61 / 59 → floor 55/50/55/55
         //   M1-2 Phase 2 llm:                 60 / 53 / 62 / 60 → floor 58/52/58/58
         //   M1-2 Phase 2 instruction-mutator: 61 / 54 / 63 / 61 → floor 59/53/59/59
+        //   M1-2 Phase 2 reporter-spa:        61 / 54 / 63 / 62 → floor unchanged
+        //     (sub-1pt gain — ADR-017 contract bumps only on ≥ 1pt gains;
+        //     keeps headroom for natural fluctuation)
         statements: 59,
         branches: 53,
         functions: 59,
