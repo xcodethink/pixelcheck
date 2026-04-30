@@ -4,6 +4,7 @@ reports/
 baselines/
 tmp/
 downloads/
+coverage/
 .env
 *.log
 *.har
