@@ -15,6 +15,7 @@ import {
   writeMarkdownSummary,
 } from "./core/reporter.js";
 import { writeSpaReport } from "./core/reporter-spa.js";
+import { writePdfReport } from "./core/reporter-pdf.js";
 import {
   writeJunitXmlReport,
   writeSarifReport,
@@ -115,6 +116,10 @@ program
   .option(
     "--ci-format <formats>",
     "Comma-separated CI output formats: junit,sarif,jsonl,gha,all,none (default: auto — emit all when CI is detected)",
+  )
+  .option(
+    "--no-pdf",
+    "Skip PDF report generation (default: generate audit.pdf for stakeholder distribution)",
   )
   .action(async (opts) => {
     try {
@@ -689,6 +694,7 @@ interface RunOpts {
   preflight: boolean;
   minScore?: number;
   ciFormat?: string;
+  pdf: boolean;
 }
 
 async function runCommand(opts: RunOpts): Promise<void> {
@@ -873,6 +879,24 @@ async function runCommand(opts: RunOpts): Promise<void> {
   const mdPath = writeMarkdownSummary(audit, runDir);
   const spaPath = writeSpaReport(audit, runDir);
 
+  // Stakeholder-facing PDF (default: on; --no-pdf to skip during local
+  // iteration). PDF generation spawns a fresh chromium for the print
+  // render — adds ~2s but the result is the artefact PMs / executives
+  // / customers actually consume. Failures are non-fatal: the audit
+  // remains complete and we just log a warning.
+  let pdfPath: string | null = null;
+  if (opts.pdf !== false) {
+    try {
+      pdfPath = await writePdfReport(audit, runDir);
+    } catch (err) {
+      console.warn(
+        chalk.yellow(
+          `  [pdf] Failed to render audit.pdf: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
+    }
+  }
+
   // CI-friendly output formats. --ci-format selects which to emit:
   //   "auto" (default): emit all four when a CI environment is detected,
   //                     none on a developer laptop (so /tmp/audit-runs/
@@ -917,6 +941,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   console.log(`  HTML:    ${htmlPath}`);
   console.log(`  SPA:     ${spaPath}`);
   console.log(`  Summary: ${mdPath}`);
+  if (pdfPath) console.log(`  PDF:     ${pdfPath}`);
   for (const [name, p] of Object.entries(ciOutputs)) {
     console.log(`  ${name.toUpperCase().padEnd(7)} ${p}`);
   }
