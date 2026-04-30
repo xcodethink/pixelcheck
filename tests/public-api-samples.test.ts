@@ -92,6 +92,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "WaitForStepSchema",
   "attachConsoleLogger",
   "buildExecutionMatrix",
+  "detectCiEnvironment",
   "diffRuns",
   "extractDomSummary",
   "formatDomSummary",
@@ -105,9 +106,13 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "saveAuditToHistory",
   "substituteTemplate",
   "waitForPageStable",
+  "writeGithubAnnotationsReport",
   "writeHtmlReport",
+  "writeJsonLinesReport",
   "writeJsonReport",
+  "writeJunitXmlReport",
   "writeMarkdownSummary",
+  "writeSarifReport",
   "writeSpaReport",
 ] as const;
 
@@ -117,13 +122,14 @@ describe("public surface snapshot — src/index.ts", () => {
     expect(actual).toEqual([...EXPECTED_RUNTIME_EXPORTS]);
   });
 
-  it("ships exactly 40 runtime exports (bump this when intentionally adding a public symbol)", () => {
-    expect(Object.keys(lib)).toHaveLength(40);
+  it("ships exactly 45 runtime exports (bump this when intentionally adding a public symbol)", () => {
+    expect(Object.keys(lib)).toHaveLength(45);
   });
 
   const functionExports: Array<keyof typeof lib> = [
     "attachConsoleLogger",
     "buildExecutionMatrix",
+    "detectCiEnvironment",
     "diffRuns",
     "extractDomSummary",
     "formatDomSummary",
@@ -137,9 +143,13 @@ describe("public surface snapshot — src/index.ts", () => {
     "saveAuditToHistory",
     "substituteTemplate",
     "waitForPageStable",
+    "writeGithubAnnotationsReport",
     "writeHtmlReport",
+    "writeJsonLinesReport",
     "writeJsonReport",
+    "writeJunitXmlReport",
     "writeMarkdownSummary",
+    "writeSarifReport",
     "writeSpaReport",
   ];
   for (const name of functionExports) {
