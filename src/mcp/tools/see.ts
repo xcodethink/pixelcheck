@@ -78,6 +78,21 @@ const inputSchema = {
       type: "boolean",
       description: "Run headless. Default true.",
     },
+    cache: {
+      type: "boolean",
+      description:
+        "Result cache (M9-4). Default true. Only applied when `goal` is set (a goal-less see has no LLM cost and risks serving a stale snapshot). Set false to bypass.",
+    },
+    cache_bust: {
+      type: "boolean",
+      description:
+        "Force a fresh compute, but still write the new result to the cache. Default false.",
+    },
+    cache_ttl_ms: {
+      type: "number",
+      description:
+        "Per-call cache TTL override (ms). Default: AUDIT_RESULT_CACHE_TTL_MS env or 24h.",
+    },
   },
   required: ["url"],
 };
@@ -128,6 +143,9 @@ async function handler(args: Record<string, unknown>): Promise<ToolResult> {
       typeof args.include_console === "boolean" ? args.include_console : undefined,
     timeoutMs: typeof args.timeout_ms === "number" ? args.timeout_ms : undefined,
     headless: typeof args.headless === "boolean" ? args.headless : undefined,
+    cache: typeof args.cache === "boolean" ? args.cache : undefined,
+    cacheBust: typeof args.cache_bust === "boolean" ? args.cache_bust : undefined,
+    cacheTtlMs: typeof args.cache_ttl_ms === "number" ? args.cache_ttl_ms : undefined,
   };
 
   const w = typeof args.viewport_width === "number" ? args.viewport_width : undefined;
