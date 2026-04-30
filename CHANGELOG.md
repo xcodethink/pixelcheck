@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M1-2 Phase 2 — `core/critic.ts` unit tests)
+
+- `tests/critic.test.ts` — 24 tests for the Vision Critic. Mocks `./llm.js` so `callVision` is deterministic; keeps `extractJson` real (it's pure) and `compressForVision` real (already covered by `image.test.ts`) so the integration of compress → vision → JSON parse → schema-validate → score/issue mapping is exercised end-to-end. `vi.hoisted` shared capture object lets every test assert on the prompt that was sent to the model.
+- Coverage: `core/critic.ts` 3.33 → **100% statements / 92.85% branches / 100% functions / 100% lines**. Only line uncovered is the `String(err)` defensive branch when `err instanceof Error` is false (extractJson always throws Error in practice).
+- Test surface: single-image happy path / multi-image label convention (full-page thumbnail + viewport-segment N of M ordering preservation) / verdict.violations mapped to high-severity localization issues (with + without `location`) / malformed JSON returns low-severity issue (cost still recorded, schema_version still stamped) / schema-validation failure path / verdict defaults (missing scores/issues → empty arrays) / issue.dimension optionality / verdict.passed pass-through / system prompt embeds persona mental_model + country + locale + device + tier + critical_concerns (incl. `(none specified)` empty case) + scenario.goal + anti-hallucination / data-exposure rules + brand-name carve-out reflects `persona.language` / user prompt joins `scoring_dimensions` with `, ` + ends `Return JSON only.` / callVision error propagation (no swallow) / model-name forwarding / raw VisionResponse preserved in `result.raw`.
+- Coverage threshold ratcheted up per ADR-017's contract: statements 50 → 55, branches 45 → 50, functions 50 → 55, lines 50 → 55. Current baseline 58.1 / 51.67 / 61.39 / 58.83 leaves 2-3 points of headroom for natural fluctuation. 898/898 tests pass (874 → 898, +24).
+
 ### Added (M1-2 Phase 1 — coverage tooling + small/utility module unit tests)
 
 - `@vitest/coverage-v8` ^4.1.5 dev dep. `vitest.config.ts` enables coverage with provider `v8`, three reporters (`text-summary` / `html` / `json-summary`), `./coverage` output dir. Includes `src/**/*.ts` minus entry-points (`cli.ts` / `index.ts` / `mcp/server.ts`) and pure-type contracts (`core/types.ts` / `core/result-schema.ts`) — counting them dilutes the signal.
