@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M1-5 — Public API contract tests)
+
+- Two new test files guard the *external consumer* perspective on the published JSON Schemas (Ajv-validated) and the runtime export surface of `src/index.ts`:
+  - `tests/public-api-contract.test.ts` (45 tests) — registry integrity (`docs/schemas/index.json` references every shipped `*.schema.json`, no orphans, no dangling, unique slugs/files, exactly 30 schemas at v1.2.0), per-schema Draft-7 validity (Ajv `compile()` clean for every schema, `$schema` / `$id` / `title` / `x-result-schema-version` checks), cross-document version coherence (`RESULT_SCHEMA_VERSION` constant ↔ `index.json` ↔ `docs/contracts/RESULT_SCHEMA.md` ↔ every individual schema's version field), `JSON.parse + 2-space JSON.stringify` idempotence (catches accidental hand-edits / formatter drift).
+  - `tests/public-api-samples.test.ts` (107 tests) — public surface snapshot of `src/index.ts`'s 40 runtime exports (review checkpoint on add/remove + per-name function-callable / Zod-schema-shape / `AgentEventBus`-constructable assertions), sample-driven Ajv validation (every shipped schema gets a minimally-conformant sample pair: Ajv MUST accept the valid one, MUST reject the deliberate violation; coverage check at top requires bidirectional agreement between SAMPLES and on-disk schema files), Zod ↔ Ajv equivalence (4 representative payloads validate / fail under both validators).
+- New dev deps: `ajv` ^8.20.0 + `ajv-formats` ^3.0.1. Ajv configured with `strict: false` to tolerate the `x-result-schema-version` custom keyword (the IETF-recommended `x-` extension pattern).
+- 980 → 1132 tests pass (+152). Global coverage 60.75 → 60.93% statements (no new src/ logic — these are read-only contract tests).
+- See [ADR-018](docs/decisions/ADR-018-public-api-contract-tests.md) for the full design rationale and 8 alternatives rejected.
+
 ### Added (M1-2 Phase 2 close — `core/reporter-spa.ts` HTML-escape coverage)
 
 - `tests/reporter-spa.test.ts` extended from 5 → 13 tests. Coverage: `core/reporter-spa.ts` 60 → **93.33% statements / 100% branches / 100% functions / 93.33% lines**. The remaining ~7% is the unreachable `default:` return inside `escapeHtml`'s switch (the calling regex `[&<>"]` only passes those four chars, so the default branch is dead defensive code).
