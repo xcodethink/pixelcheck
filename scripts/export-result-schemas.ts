@@ -46,6 +46,11 @@ import {
   JudgeResultSchema,
   CompareResultSchema,
   ResultCacheMetaSchema,
+  ListCapabilitiesResultSchema,
+  ToolCapabilitySchema,
+  EnvVarDocSchema,
+  CostEstimateSchema,
+  CacheInfoSchema,
 } from "../src/core/result-schema.js";
 
 interface SchemaEntry {
@@ -216,6 +221,41 @@ const ENTRIES: SchemaEntry[] = [
     description:
       "Annotation attached by the result cache (M9-4) to primitive result envelopes (see / act / extract / judge / compare). Distinguishes cache hit / miss / not-applicable. On hit the original cost moves to `cost_saved_usd` and the envelope's `cost_usd` is zeroed.",
     schema: ResultCacheMetaSchema,
+  },
+  {
+    slug: "list-capabilities-result",
+    title: "ListCapabilitiesResult",
+    description:
+      "MCP tool envelope returned by `list_capabilities` (M9-5). Self-describes the server: every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and M9-4 cache state. Static introspection — no LLM, no browser, no runtime probe of secrets.",
+    schema: ListCapabilitiesResultSchema,
+  },
+  {
+    slug: "tool-capability",
+    title: "ToolCapability",
+    description:
+      "Per-tool descriptor inside ListCapabilitiesResult.tools[]. Mirrors the MCP `tools/list` shape (name / description / kind / input_schema / result_schema) and adds the richer fields that are deliberately not in the spec-level catalog: cacheable, cost_estimate_usd, side_effects, requires.",
+    schema: ToolCapabilitySchema,
+  },
+  {
+    slug: "env-var-doc",
+    title: "EnvVarDoc",
+    description:
+      "Documentation for one environment variable that influences server behaviour, returned inside ListCapabilitiesResult.env[]. Names secrets but never values; `required: true` is a static dependency declaration, not a presence probe.",
+    schema: EnvVarDocSchema,
+  },
+  {
+    slug: "cost-estimate",
+    title: "CostEstimate",
+    description:
+      "Static cost band ({typical, min, max, unit, notes?}) for one invocation of a tool. Used by AI agents at plan time to budget calls. Real spend is reported on each tool's envelope `cost_usd`.",
+    schema: CostEstimateSchema,
+  },
+  {
+    slug: "cache-info",
+    title: "CacheInfo",
+    description:
+      "Live state of the M9-4 result cache (enabled / ttl_ms_default / path) inside ListCapabilitiesResult.cache. Path is exposed for diagnostics (paths are not secrets); the cache file's contents stay opaque.",
+    schema: CacheInfoSchema,
   },
 ];
 

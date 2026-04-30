@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/benchmark-task-result.schema.json",
   "title": "BenchmarkTaskResult",
   "description": "Per-task benchmark result.",
-  "x-result-schema-version": "1.1.0",
+  "x-result-schema-version": "1.2.0",
   "$ref": "#/definitions/BenchmarkTaskResult",
   "definitions": {
     "BenchmarkTaskResult": {

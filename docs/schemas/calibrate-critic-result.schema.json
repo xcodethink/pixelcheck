@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/calibrate-critic-result.schema.json",
   "title": "CalibrateCriticResult",
   "description": "MCP tool envelope returned by calibrate_critic.",
-  "x-result-schema-version": "1.1.0",
+  "x-result-schema-version": "1.2.0",
   "$ref": "#/definitions/CalibrateCriticResult",
   "definitions": {
     "CalibrateCriticResult": {
