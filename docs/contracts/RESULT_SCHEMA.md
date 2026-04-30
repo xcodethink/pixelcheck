@@ -1,10 +1,10 @@
 # Result Schema — Stability Contract
 
-> **Status**: stable (v1.1.0) — applies to every result the auditor emits to AI agents and external consumers.
+> **Status**: stable (v1.2.0) — applies to every result the auditor emits to AI agents and external consumers.
 > **Source of truth**: [`src/core/result-schema.ts`](../../src/core/result-schema.ts)
 > **Generated artefacts**: [`docs/schemas/`](../schemas/) (Draft-7 JSON Schema files, regenerable via `npm run schemas`)
 > **Related ADRs**: [ADR-007](../decisions/ADR-007-result-schema-versioning.md), [ADR-015](../decisions/ADR-015-result-cache.md)
-> **Tasks**: M9-2 (initial), M9-4 (1.1.0 — added optional `cache` field on primitive envelopes)
+> **Tasks**: M9-2 (initial), M9-4 (1.1.0 — added optional `cache` field on primitive envelopes), M9-5 (1.2.0 — added `list_capabilities` envelope and supporting schemas)
 
 This document is the long-form spec for the `RESULT_SCHEMA_VERSION` SemVer string and the rules for evolving it. The TL;DR lives in `result-schema.ts`; everything below is binding.
 
@@ -26,13 +26,14 @@ Internal-to-internal data structures (e.g. `AutonomousRunResult`, `PlannerResult
 ## 2. The version
 
 ```ts
-export const RESULT_SCHEMA_VERSION = "1.1.0";
+export const RESULT_SCHEMA_VERSION = "1.2.0";
 ```
 
 ### Version history
 
 - **1.0.0** — initial release (M9-2). 19 schemas covering audit / critic / gate / benchmark / mutation / MCP envelopes / history.
-- **1.1.0** (additive minor) — added optional `cache?: ResultCacheMeta` field on the five primitive result envelopes (`SeeResult`, `ActResult`, `ExtractResult`, `JudgeResult`, `CompareResult`) so the M9-4 result cache can annotate hits/misses without breaking 1.0.0 consumers. Schema count 19 → 25 (cumulative incl. primitive envelopes added in N-1/2/3/4/8 plus the new `ResultCacheMeta`).
+- **1.1.0** (additive minor) — added optional `cache?: ResultCacheMeta` field on the five primitive result envelopes (`SeeResult`, `ActResult`, `ExtractResult`, `JudgeResult`, `CompareResult`) so the M9-4 result cache can annotate hits/misses without breaking 1.0.0 consumers. Schema count 19 → 25 (cumulative incl. primitive envelopes added in N-1/2/3/4/8 plus the new `ResultCacheMeta`). See [ADR-015](../decisions/ADR-015-result-cache.md).
+- **1.2.0** (additive minor) — added the M9-5 self-describe envelope and its building blocks: `ListCapabilitiesResult` + `ToolCapability` + `EnvVarDoc` + `CostEstimate` + `CacheInfo`. The new `list_capabilities` MCP tool is the proper exit for fields kept off the spec-level `tools/list` (kind, cacheable, cost band, side-effects, dependencies). No existing envelope changed shape. Schema count 25 → 30. See [ADR-016](../decisions/ADR-016-mcp-self-describe.md).
 
 
 Stamped at the top of every emitted result object via `attachSchemaVersion(...)` and validated against the corresponding Zod schema by `validateResult(...)`. The constant is the **single source of truth** — every emitted artefact (audit.json, MCP responses, benchmark/calibration JSON, generated JSON Schemas, the SQLite `audit_runs.schema_version` column) reflects this value.
