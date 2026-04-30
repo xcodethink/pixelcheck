@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M2-3 — Long-running trends dashboard)
+
+- New CLI subcommand `ai-audit trends` reads the project's `history.db` (already populated by every audit run since v0.3) and renders a standalone HTML dashboard answering "did our UX trend up or down over the last quarter?". Output: `<reports>/trends.html` by default; `--dashboard <path>` overrides; `--project <name>` filters; `-n <limit>` caps history rows for chart density (default 100, ~3 months of daily runs).
+- New module `src/core/reporter-trends.ts` (~430 LoC). Five inline-SVG charts (no Chart.js / D3 / external CDN — the page is fully self-contained, ~10 KB of SVG total, opens behind any corporate firewall, prints / emails / archives identically):
+  - **Overall score** line — answers "trending up or down"
+  - **Pass / Warn / Fail** stacked bars per run — answers "consistent or flaky"
+  - **Issues over time** (total + critical highlighted) — answers "where are the regression hot spots"
+  - **Cost over time** — answers "is efficiency drifting"
+  - **Per-dimension multi-line** — answers "which scoring dimension is the cause of overall movement"
+- Six summary cards above the charts: latest score (with ▲ / ▼ delta vs first run), mean last 7, mean last 30, total cost, total issues, total critical issues. Plus a recent-runs table for navigation to the run that explains a chart's spike.
+- Public API: `writeTrendsDashboard(reportsDir, opts?)` + pure `renderTrendsHtml(entries, project?)` + `computeSummary(orderedAsc)` for embedders. SVG primitives exposed too (`lineChartSvg` / `stackedBarsSvg` / `multiLineChartSvg` / `deriveTicks` / `collectDimensions` / `escapeHtml`) so a downstream library can drop a single chart into its own page.
+- Light theme matching `audit.pdf` aesthetic — both stakeholder artefacts share visual language. UTC date format (never local time) so dashboards copied between machines or archived stay interpretable. Score colours hard-coded green / amber / red (universal traffic-light convention, not brand-themable).
+- Empty-state placeholder when `history.db` is missing or the project filter excludes everything — explicit "run `ai-audit run` to seed" guidance instead of a confusing blank page.
+- Public surface grows 47 → 50 exports.
+- 1225 → 1269 tests pass (+44). Coverage on the new file: 98.54% statements / 90.83% branches / 100% functions.
+- See [ADR-021](docs/decisions/ADR-021-trends-dashboard.md) for the full design rationale and 8 alternatives rejected (Chart.js / dark theme / embed-in-audit.html / auto-generate / date-stamped path / per-persona breakdown / PNG rasterisation / CSV export).
+
 ### Added (M2-1 — Stakeholder-facing PDF report)
 
 - New module `src/core/reporter-pdf.ts` (~360 LoC) renders an A4 portrait PDF for non-technical readers (PMs, executives, customers, sales / CS) — the audience that won't open `audit.html` but will read an emailed PDF on their phone or paste it into a slide deck.

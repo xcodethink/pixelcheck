@@ -29,6 +29,7 @@ import { preflightUrls } from "./core/url-preflight.js";
 import { resolvePersonaSecrets } from "./core/persona.js";
 import { buildRedactPatterns, getStripeSecrets, redact } from "./core/secrets.js";
 import { saveAuditToHistory, loadHistory, diffRuns } from "./core/history.js";
+import { writeTrendsDashboard } from "./core/reporter-trends.js";
 import { registerSecret } from "./core/logger.js";
 
 dotenv.config();
@@ -174,6 +175,36 @@ program
     }
     console.log("");
   });
+
+program
+  .command("trends")
+  .description(
+    "Generate a long-running quality trends dashboard (HTML) from history.db",
+  )
+  .option("-o, --out <dir>", "Reports directory containing history.db", "reports")
+  .option("--dashboard <path>", "Output path for the HTML file (default: <reports>/trends.html)")
+  .option("-n, --limit <n>", "Cap on history rows used for charts", parseIntOpt)
+  .option("--project <name>", "Filter by project name")
+  .action(
+    (trendsOpts: {
+      out: string;
+      dashboard?: string;
+      limit?: number;
+      project?: string;
+    }) => {
+      const reportsDir = path.resolve(trendsOpts.out);
+      const outPath = writeTrendsDashboard(reportsDir, {
+        outPath: trendsOpts.dashboard
+          ? path.resolve(trendsOpts.dashboard)
+          : undefined,
+        limit: trendsOpts.limit,
+        project: trendsOpts.project,
+      });
+      console.log(
+        chalk.cyan(`\n[ai-audit] Trends dashboard written to:\n  ${outPath}\n`),
+      );
+    },
+  );
 
 program
   .command("diff <runA> <runB>")
