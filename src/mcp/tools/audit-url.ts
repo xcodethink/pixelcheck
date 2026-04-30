@@ -124,6 +124,26 @@ export const auditUrlTool: ToolDefinition = {
     "Run a UX audit against a URL using one persona. Returns the audit summary + report path.",
   kind: "preset",
   resultSchema: "AuditUrlResult",
+  cacheable: false,
+  costEstimateUsd: {
+    typical: 0.3,
+    min: 0.05,
+    max: 2.0,
+    unit: "per_persona_scenario",
+    notes:
+      "Full audit pipeline: navigation + scenario steps + critic vision pass + reporter. Cost scales with scenario step count. The per-call `budget_usd` cap (default $2) hard-limits worst case.",
+  },
+  sideEffects: [
+    "navigation",
+    "network_egress",
+    "fs_writes_artifacts",
+    "fs_writes_history",
+  ],
+  requires: {
+    apiKeys: ["ANTHROPIC_API_KEY"],
+    browser: true,
+    personasDir: true,
+  },
   inputSchema,
   handler,
 };

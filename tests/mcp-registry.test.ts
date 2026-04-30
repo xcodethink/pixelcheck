@@ -23,6 +23,15 @@ import { ALL_TOOLS, buildDefaultRegistry } from "../src/mcp/server.js";
 import type { ToolResult } from "../src/mcp/result.js";
 
 const VALID_KINDS = new Set(["preset", "primitive", "meta"]);
+const VALID_SIDE_EFFECTS = new Set([
+  "navigation",
+  "state_changing",
+  "fs_writes_artifacts",
+  "fs_writes_history",
+  "fs_reads",
+  "network_egress",
+]);
+const VALID_COST_UNITS = new Set(["per_call", "per_step", "per_persona_scenario"]);
 
 function fakeTool(overrides: Partial<ToolDefinition> = {}): ToolDefinition {
   return {
@@ -30,6 +39,10 @@ function fakeTool(overrides: Partial<ToolDefinition> = {}): ToolDefinition {
     description: "test fake",
     kind: "meta",
     inputSchema: { type: "object", properties: {} },
+    cacheable: false,
+    costEstimateUsd: { typical: 0, min: 0, max: 0, unit: "per_call" },
+    sideEffects: ["fs_reads"],
+    requires: { apiKeys: [], browser: false },
     handler: async () =>
       ({ content: [{ type: "text", text: "ok" }] }) as ToolResult,
     ...overrides,
@@ -154,6 +167,78 @@ describe("ALL_TOOLS catalog invariants", () => {
     expect(r.size()).toBe(ALL_TOOLS.length);
     for (const t of ALL_TOOLS) {
       expect(r.get(t.name)).toBe(t);
+    }
+  });
+
+  // ── M9-5 metadata invariants ─────────────────────────────────────
+
+  it("every tool declares a boolean cacheable flag", () => {
+    for (const t of ALL_TOOLS) {
+      expect(typeof t.cacheable).toBe("boolean");
+    }
+  });
+
+  it("every tool has a well-formed costEstimateUsd band (min ≤ typical ≤ max, all ≥ 0)", () => {
+    for (const t of ALL_TOOLS) {
+      const c = t.costEstimateUsd;
+      expect(typeof c.typical).toBe("number");
+      expect(c.min).toBeGreaterThanOrEqual(0);
+      expect(c.typical).toBeGreaterThanOrEqual(c.min);
+      expect(c.max).toBeGreaterThanOrEqual(c.typical);
+      expect(VALID_COST_UNITS.has(c.unit)).toBe(true);
+    }
+  });
+
+  it("every tool's sideEffects entries are from the closed enum", () => {
+    for (const t of ALL_TOOLS) {
+      expect(Array.isArray(t.sideEffects)).toBe(true);
+      for (const eff of t.sideEffects) {
+        expect(VALID_SIDE_EFFECTS.has(eff)).toBe(true);
+      }
+    }
+  });
+
+  it("every tool has a requires record (apiKeys array + browser boolean)", () => {
+    for (const t of ALL_TOOLS) {
+      expect(Array.isArray(t.requires.apiKeys)).toBe(true);
+      expect(typeof t.requires.browser).toBe("boolean");
+    }
+  });
+
+  it("network_egress matches non-empty apiKeys requirement", () => {
+    // If a tool calls an LLM provider, it must (a) declare network_egress
+    // and (b) declare ANTHROPIC_API_KEY in requires.apiKeys. The two flags
+    // are independent encodings of the same underlying fact and must agree.
+    for (const t of ALL_TOOLS) {
+      const hasEgress = t.sideEffects.includes("network_egress");
+      const hasKey = t.requires.apiKeys.length > 0;
+      expect(hasEgress).toBe(hasKey);
+    }
+  });
+
+  it("every tool that drives a browser declares the navigation side-effect", () => {
+    for (const t of ALL_TOOLS) {
+      if (!t.requires.browser) continue;
+      expect(t.sideEffects.includes("navigation")).toBe(true);
+    }
+  });
+
+  it("M9-4 cacheable matrix matches the v1 design (judge / extract / see cache; act / compare / presets / meta do not)", () => {
+    const expected: Record<string, boolean> = {
+      audit_url: false,
+      explore_url: false,
+      see: true,
+      act: false,
+      extract: true,
+      judge: true,
+      compare: false,
+      list_personas: false,
+      list_scenarios: false,
+      calibrate_critic: false,
+      get_last_report: false,
+    };
+    for (const t of ALL_TOOLS) {
+      expect(`${t.name}=${t.cacheable}`).toBe(`${t.name}=${expected[t.name]}`);
     }
   });
 });

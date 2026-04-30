@@ -33,6 +33,10 @@ export const getLastReportTool: ToolDefinition = {
     "Read the most recent audit's summary JSON from the reports history DB.",
   kind: "meta",
   resultSchema: "HistoryEntry",
+  cacheable: false,
+  costEstimateUsd: { typical: 0, min: 0, max: 0, unit: "per_call" },
+  sideEffects: ["fs_reads"],
+  requires: { apiKeys: [], browser: false },
   inputSchema,
   handler,
 };
