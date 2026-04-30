@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M1-2 Phase 2 — `core/llm.ts` unit tests)
+
+- `tests/llm.test.ts` — 38 tests for the Anthropic SDK wrapper. Mocks `@anthropic-ai/sdk` (FakeAnthropic class with `messages.create` capture) and `./cost-guard.js` (controllable `checkBudget` + `recordUsage`). Uses `vi.resetModules` + dynamic `await import("../src/core/llm.js")` per test so the module-level singleton `client` cache is fresh on every run — previously the singleton was untestable from the public API without an explicit reset seam.
+- Coverage: `core/llm.ts` 22.22 → **87.4% statements / 87% branches / 100% functions / 86% lines**. Remaining 13% are deep edge cases inside `repairTruncatedJson` (escape handling in second walk, stack mismatch on close brace, value-char terminators) that the public `extractJson` API doesn't reach without contrived inputs.
+- Test surface:
+  - `getAnthropicClient`: throws without `ANTHROPIC_API_KEY`; constructs with the env key on demand; memoised (singleton — second call returns the same instance).
+  - `estimateCost`: opus 4.6 ($15/$75 per 1M), sonnet 4.6 ($3/$15), haiku 4.5 ($0.80/$4); unknown model falls back to sonnet pricing; zero usage returns 0.
+  - `callVision` request shaping: throws on no images; legacy `imageBase64` path defaults `media_type=image/png`; `imageMediaType` override; `images[]` wins over `imageBase64` when both set; `image.label` prepended as a `text` content block; `userPrompt` always last in content; `systemPrompt` + `maxTokens` (default 2048, custom 4096) + model name forwarded.
+  - `callVision` response handling: text blocks joined with `\n`, non-`text` blocks (e.g. `tool_use`) ignored; `costUsd` computed via `estimateCost` from response usage; cost-guard `checkBudget` invoked pre-call and `recordUsage` post-call (in order); `checkBudget` throw aborts before the SDK call; SDK throw propagates without calling `recordUsage`.
+  - `extractJson` paths: fenced ```json``` parse, fenced no-language parse, bare object, prose-surrounded balanced object, nested braces inside string values, escaped quotes, truncated array repair, nested truncation repair, trailing-comma strip, no-JSON throw, empty input throw, missing-closing-fence fallback to balanced extraction; truncated-string drops everything past the unterminated open-quote (documented contract); error message snippet truncated at 200 chars; generic typing.
+
 ### Added (M1-2 Phase 2 — `core/critic.ts` unit tests)
 
 - `tests/critic.test.ts` — 24 tests for the Vision Critic. Mocks `./llm.js` so `callVision` is deterministic; keeps `extractJson` real (it's pure) and `compressForVision` real (already covered by `image.test.ts`) so the integration of compress → vision → JSON parse → schema-validate → score/issue mapping is exercised end-to-end. `vi.hoisted` shared capture object lets every test assert on the prompt that was sent to the model.
