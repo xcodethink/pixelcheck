@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M2-4 — Report localisation, 5 locales)
+
+- New module `src/core/i18n.ts` (~470 LoC, 90 keys × 5 locales = 450 translation entries) is the central source of truth for every visible label in the four stakeholder reports. Supported locales (v1 priority markets):
+  - **en** — English (baseline / fallback)
+  - **zh-CN** — Simplified Chinese (China)
+  - **ja** — Japanese (Japan)
+  - **es** — Spanish (Spain + Latin America)
+  - **de** — German (DACH region)
+- New CLI flag `--locale <code>` on `run` / `trends` / `diff` subcommands. `ai-audit run` reads `default_locale` from `config.yaml` if `--locale` is unset; CLI overrides per-invocation.
+- New `ProjectConfig.default_locale` enum field in `ProjectConfigSchema` (additive, defaults to `"en"`, existing config.yaml files keep working without touching it).
+- All four stakeholder reports now emit native-language content:
+  - **PDF** (`reporter-pdf.ts`): cover meta labels, summary card rows, top-findings section, scenario-results, methodology + disclaimer, status badges (using full-form a11y label e.g. "Passed" / "通過了" / "Bestanden"), severity tags translated per locale.
+  - **Trends** (`reporter-trends.ts`): page title, h1, 6 summary cards, all 5 chart titles + hint paragraphs, stacked-bars legend, runs-table headers, locale-aware singular vs plural for "{n} runs" (English / Spanish / German pluralise; Chinese / Japanese have no plural form).
+  - **Diff Markdown** (`reporter-diff.ts`): title, baseline/this-run pills, headline metrics + per-dimension table headers, severity tags `[critical]` / `[严重]` / `[致命的]`, "🆕 New issues" / "✅ Resolved issues" section titles, no-changes message, cross-project warning.
+  - **Diff HTML**: same as Markdown, plus `<title>` and footer.
+- What's NOT translated: the auditor's own findings (LLM-generated issue descriptions / recommendations come from Claude in whatever language the user asked for); numeric values / dates / run IDs / scenario IDs (data, not UI).
+- Translation drift caught at CI: `lintTranslations(locale)` test asserts `[]` missing keys for every locale, so adding a key only to en silently falls back is impossible without `npm test` failing.
+- `normaliseLocale(raw)` handles realistic input: case-insensitive, family fallback (`zh-Hans` → `zh-CN`, `ja-JP` → `ja`, `en-GB` → `en`), unknown → `en`.
+- Public API surface grows 55 → 60 exports: `t`, `normaliseLocale`, `formatRunsCount`, `SUPPORTED_LOCALES`, `DEFAULT_LOCALE` plus `Locale` / `TranslationKey` types. `PdfReportOptions` / `TrendsDashboardOptions` / `DiffReportOptions` all gain a `locale?: Locale` field.
+- 1319 → 1432 tests pass (+113 across i18n + 3 reporter integrations + public surface snapshot updates).
+- See [ADR-023](docs/decisions/ADR-023-report-localisation.md) for the full design rationale and 8 alternatives rejected (per-reporter tables / full i18n library / translate LLM findings / auto-detect locale / more locales upfront / audit.html i18n / RTL / ICU).
+
 ### Added (M2-5 — PR diff report)
 
 - New module `src/core/reporter-diff.ts` (~310 LoC) renders an audit `RunDiff` into 4 formats CI / PR-review tooling actually consumes:

@@ -363,6 +363,14 @@ export const ProjectConfigSchema = z.object({
   admin_url: z.string().url().optional(),
   default_concurrency: z.number().int().min(1).max(10).default(3),
   default_timeout_ms: z.number().int().positive().default(30_000),
+  /**
+   * Default report locale for PDF / trends / diff output. CLI
+   * `--locale <code>` overrides per-invocation. Supported codes:
+   * en | zh-CN | ja | es | de. Unknown codes fall back to en.
+   */
+  default_locale: z
+    .enum(["en", "zh-CN", "ja", "es", "de"])
+    .default("en"),
   models: z
     .object({
       default: z.string().default("claude-sonnet-4-6"),
