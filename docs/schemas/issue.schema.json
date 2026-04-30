@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/issue.schema.json",
   "title": "Issue",
   "description": "A single audit issue (severity + description + recommendation).",
-  "x-result-schema-version": "1.1.0",
+  "x-result-schema-version": "1.2.0",
   "$ref": "#/definitions/Issue",
   "definitions": {
     "Issue": {
