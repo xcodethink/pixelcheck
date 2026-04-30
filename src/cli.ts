@@ -15,6 +15,14 @@ import {
   writeMarkdownSummary,
 } from "./core/reporter.js";
 import { writeSpaReport } from "./core/reporter-spa.js";
+import {
+  writeJunitXmlReport,
+  writeSarifReport,
+  writeJsonLinesReport,
+  writeGithubAnnotationsReport,
+  detectCiEnvironment,
+  renderGithubAnnotations,
+} from "./core/ci-reporters.js";
 import { notifySlack, notifyTelegram } from "./core/notify.js";
 import { preflightUrls } from "./core/url-preflight.js";
 import { resolvePersonaSecrets } from "./core/persona.js";
@@ -103,6 +111,10 @@ program
     "--min-score <n>",
     "Quality gate: fail with exit code 1 if overall score is below this threshold (0-10)",
     parseFloatOpt,
+  )
+  .option(
+    "--ci-format <formats>",
+    "Comma-separated CI output formats: junit,sarif,jsonl,gha,all,none (default: auto — emit all when CI is detected)",
   )
   .action(async (opts) => {
     try {
@@ -676,6 +688,7 @@ interface RunOpts {
   dryRun: boolean;
   preflight: boolean;
   minScore?: number;
+  ciFormat?: string;
 }
 
 async function runCommand(opts: RunOpts): Promise<void> {
@@ -860,6 +873,30 @@ async function runCommand(opts: RunOpts): Promise<void> {
   const mdPath = writeMarkdownSummary(audit, runDir);
   const spaPath = writeSpaReport(audit, runDir);
 
+  // CI-friendly output formats. --ci-format selects which to emit:
+  //   "auto" (default): emit all four when a CI environment is detected,
+  //                     none on a developer laptop (so /tmp/audit-runs/
+  //                     stays clean during local iteration)
+  //   "all":            force-emit all four regardless of environment
+  //   "none":           skip all CI formats
+  //   "junit,sarif,..": comma-separated subset
+  const ciSet = resolveCiFormats(opts.ciFormat);
+  const ciOutputs: Record<string, string> = {};
+  if (ciSet.has("junit")) ciOutputs.junit = writeJunitXmlReport(audit, runDir);
+  if (ciSet.has("sarif")) ciOutputs.sarif = writeSarifReport(audit, runDir);
+  if (ciSet.has("jsonl")) ciOutputs.jsonl = writeJsonLinesReport(audit, runDir);
+  if (ciSet.has("gha")) ciOutputs.gha = writeGithubAnnotationsReport(audit, runDir);
+
+  // When running inside GitHub Actions, also stream the annotations to
+  // stderr so they attach inline to PR diffs without the user needing to
+  // wire a separate workflow step. Other CI vendors don't have an
+  // equivalent inline-annotation stdio convention.
+  if (detectCiEnvironment() === "github-actions" && audit.summary.total_issues > 0) {
+    for (const line of renderGithubAnnotations(audit)) {
+      process.stderr.write(line + "\n");
+    }
+  }
+
   await notifySlack(audit);
   await notifyTelegram(audit);
 
@@ -880,6 +917,9 @@ async function runCommand(opts: RunOpts): Promise<void> {
   console.log(`  HTML:    ${htmlPath}`);
   console.log(`  SPA:     ${spaPath}`);
   console.log(`  Summary: ${mdPath}`);
+  for (const [name, p] of Object.entries(ciOutputs)) {
+    console.log(`  ${name.toUpperCase().padEnd(7)} ${p}`);
+  }
   console.log("");
   console.log(
     `  ${chalk.green("PASS")} ${audit.summary.pass}  ` +
@@ -933,6 +973,29 @@ async function runCommand(opts: RunOpts): Promise<void> {
 
 function collect(value: string, prev: string[]): string[] {
   return prev.concat([value]);
+}
+
+const CI_FORMATS = ["junit", "sarif", "jsonl", "gha"] as const;
+
+/**
+ * Resolve --ci-format into the set of formats to emit.
+ *
+ * Default ("auto" / unset): emit all four when CI is detected, none
+ * otherwise — keeps developer laptop runs clean.
+ * "all" / "none" / comma-separated subset are explicit overrides.
+ */
+function resolveCiFormats(raw: string | undefined): Set<string> {
+  if (raw === undefined || raw === "auto") {
+    return detectCiEnvironment() ? new Set(CI_FORMATS) : new Set();
+  }
+  if (raw === "none") return new Set();
+  if (raw === "all") return new Set(CI_FORMATS);
+  const requested = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const out = new Set<string>();
+  for (const r of requested) {
+    if ((CI_FORMATS as readonly string[]).includes(r)) out.add(r);
+  }
+  return out;
 }
 
 function parseIntOpt(value: string): number {
