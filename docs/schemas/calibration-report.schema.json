@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/calibration-report.schema.json",
   "title": "CalibrationReport",
   "description": "Full calibration run report with per-sample agreement details.",
-  "x-result-schema-version": "1.0.0",
+  "x-result-schema-version": "1.1.0",
   "$ref": "#/definitions/CalibrationReport",
   "definitions": {
     "CalibrationReport": {

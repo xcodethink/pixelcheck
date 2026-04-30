@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/judge-result.schema.json",
   "title": "JudgeResult",
   "description": "MCP tool envelope returned by `judge` (N-8 primitive). Single-page rubric-driven critic — captures a screenshot+DOM and runs one vision call against the chosen rubric(s) (aesthetic, dark_pattern, custom), returning per-criterion verdicts (0..10 score + rationale + evidence) and severity-graded findings.",
-  "x-result-schema-version": "1.0.0",
+  "x-result-schema-version": "1.1.0",
   "$ref": "#/definitions/JudgeResult",
   "definitions": {
     "JudgeResult": {
@@ -308,6 +308,32 @@
         "duration_ms": {
           "type": "number",
           "minimum": 0
+        },
+        "cache": {
+          "type": "object",
+          "properties": {
+            "hit": {
+              "type": "boolean"
+            },
+            "age_ms": {
+              "type": "number",
+              "minimum": 0
+            },
+            "key": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "cost_saved_usd": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "hit",
+            "age_ms",
+            "key"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/scenario-run-result.schema.json",
   "title": "ScenarioRunResult",
   "description": "Per-(scenario, persona) execution result — nested under AuditRun.results[].",
-  "x-result-schema-version": "1.0.0",
+  "x-result-schema-version": "1.1.0",
   "$ref": "#/definitions/ScenarioRunResult",
   "definitions": {
     "ScenarioRunResult": {

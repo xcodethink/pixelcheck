@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { saveAuditToHistory, loadHistory, diffRuns } from "../src/core/history.js";
+import { RESULT_SCHEMA_VERSION } from "../src/core/result-schema.js";
 import type { AuditRun, ProjectConfig } from "../src/core/types.js";
 
 function makeTmpDir(): string {
@@ -223,14 +224,16 @@ describe("history", () => {
     expect(found!.schemaVersion).toBe("1.0.0");
   });
 
-  it("backfills schema_version with default '1.0.0' when audit lacks it", () => {
-    // Older AuditRun shape (no schema_version on the object)
+  it("stamps the current RESULT_SCHEMA_VERSION when audit lacks one", () => {
+    // Older AuditRun shape (no schema_version on the object): the saver
+    // backfills with whatever RESULT_SCHEMA_VERSION is current. As that
+    // constant bumps over time, so does the value persisted here.
     const old = makeAuditRun({ run_id: "no_version" });
     delete (old as { schema_version?: string }).schema_version;
     saveAuditToHistory(old, tmpDir);
     const entries = loadHistory(tmpDir);
     const found = entries.find((e) => e.id === "no_version");
     expect(found).toBeDefined();
-    expect(found!.schemaVersion).toBe("1.0.0");
+    expect(found!.schemaVersion).toBe(RESULT_SCHEMA_VERSION);
   });
 });

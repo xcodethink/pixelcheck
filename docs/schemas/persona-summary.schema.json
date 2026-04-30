@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/persona-summary.schema.json",
   "title": "PersonaSummary",
   "description": "Short persona descriptor used inside ListPersonasResult.",
-  "x-result-schema-version": "1.0.0",
+  "x-result-schema-version": "1.1.0",
   "$ref": "#/definitions/PersonaSummary",
   "definitions": {
     "PersonaSummary": {
