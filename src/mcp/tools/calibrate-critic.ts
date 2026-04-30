@@ -52,6 +52,16 @@ export const calibrateCriticTool: ToolDefinition = {
     "Run the critic calibration gate against labeled screenshot fixtures. Returns pass/fail + metrics.",
   kind: "meta",
   resultSchema: "CalibrateCriticResult",
+  cacheable: false,
+  costEstimateUsd: {
+    typical: 0.5,
+    min: 0.1,
+    max: 2.0,
+    unit: "per_call",
+    notes: "1 vision call per fixture; depends on fixture set size.",
+  },
+  sideEffects: ["network_egress", "fs_reads", "fs_writes_artifacts"],
+  requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: false },
   inputSchema,
   handler,
 };

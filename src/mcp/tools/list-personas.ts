@@ -40,6 +40,10 @@ export const listPersonasTool: ToolDefinition = {
   description: "List all personas available in the project's personas/ directory.",
   kind: "meta",
   resultSchema: "ListPersonasResult",
+  cacheable: false,
+  costEstimateUsd: { typical: 0, min: 0, max: 0, unit: "per_call" },
+  sideEffects: ["fs_reads"],
+  requires: { apiKeys: [], browser: false, personasDir: true },
   inputSchema,
   handler,
 };
