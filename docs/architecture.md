@@ -332,3 +332,23 @@ Ledger is stamped with `COST_LEDGER_SCHEMA_VERSION = "1.0.0"` (per ADR-007's Sem
 This layer is independent of the runner's `budget_usd` setting, which is a unit-scheduling hint that stops *new* units from starting; the cost guard is a hard cap at the LLM-call boundary that also catches direct MCP tool calls and computer-use loops not orchestrated by the runner.
 
 See ADR-008 for the full design rationale.
+
+## Result Cache
+
+Three primitives — `judge`, `extract`, `see` (when `goal` is set) — are wrapped with a persistent local cache (`src/core/result-cache.ts`). Same logical inputs return the prior result instantly with `cost_usd` zeroed and `cache.cost_saved_usd` populated, so repeat tool calls during AI reasoning loops cost $0.
+
+**Key derivation.** `cacheKeyFor(primitive, inputs) = sha256(canonical-JSON({ primitive, inputs }))`. `canonicalJsonStringify` recursively sorts object keys before stringify (arrays preserve order). Each primitive defines `cacheKeyInputs(opts)` listing the fields that affect output (URL, schema, rubrics, persona / viewport / locale, model). Performance-only options (timeout, headless, artifactsRoot) are excluded so the same logical call hits cache regardless of how it was scheduled.
+
+**Storage.** SQLite at `~/.ai-browser-auditor/result-cache.db` (override `AUDIT_RESULT_CACHE_PATH`). One table `result_cache(key PK, primitive, value_json, schema_version, created_at)` with indexes on `created_at` (TTL prune) and `primitive` (diagnostics). WAL transition is file-locked per the M9-3 follow-up pattern.
+
+**TTL & invalidation.** Default 24h via `AUDIT_RESULT_CACHE_TTL_MS`. Entries written under a different `RESULT_SCHEMA_VERSION` are misses and pruned on read. Opportunistic prune at most once per opened DB per hour.
+
+**Atomic writes.** `INSERT ... ON CONFLICT(key) DO UPDATE` — one statement, SQLite serialises it; concurrent writers on the same key converge cleanly.
+
+**Cache-aware result envelope.** `RESULT_SCHEMA_VERSION` 1.0.0 → 1.1.0. Each primitive envelope (`see` / `act` / `extract` / `judge` / `compare`) gained an optional `cache?: { hit, age_ms, key, cost_saved_usd? }` field. On hit, the envelope's `cost_usd` is set to 0 and the original cost moves to `cache.cost_saved_usd` so cost aggregators (e.g. `compare` summing two `judge` calls) do not double-count cached work.
+
+**Bypass.** `AUDIT_RESULT_CACHE_DISABLED=1` (global), per-call `cache: false` (skip read + write), per-call `cacheBust: true` (skip read, persist new result). MCP tools surface these as `cache` / `cache_bust` / `cache_ttl_ms`.
+
+**Not cached.** `act` (state-changing imperatives), `compare` directly (its `judge` sub-calls hit cache transparently), `audit_url` / `explore_url` (heavyweight, deferred).
+
+See ADR-015 for the full design rationale.
