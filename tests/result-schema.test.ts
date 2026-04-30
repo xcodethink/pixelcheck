@@ -60,8 +60,8 @@ describe("result-schema — version constant", () => {
     expect(RESULT_SCHEMA_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("RESULT_SCHEMA_VERSION is 1.0.0 at the v1 baseline", () => {
-    expect(RESULT_SCHEMA_VERSION).toBe("1.0.0");
+  it("RESULT_SCHEMA_VERSION is 1.1.0 (M9-4: added optional cache field)", () => {
+    expect(RESULT_SCHEMA_VERSION).toBe("1.1.0");
   });
 });
 
@@ -1061,5 +1061,188 @@ describe("result-schema — CompareResultSchema (N-3)", () => {
   it("schema_version is optional (legacy fixtures must still validate)", () => {
     const { schema_version: _v, ...rest } = minimalCompare;
     expect(() => CompareResultSchema.parse(rest)).not.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// M9-4 — ResultCacheMetaSchema + cache field on primitive envelopes
+// ─────────────────────────────────────────────────────────────
+
+import { ResultCacheMetaSchema } from "../src/core/result-schema.js";
+
+describe("result-schema — ResultCacheMetaSchema (M9-4)", () => {
+  const validKey = "a".repeat(64);
+
+  it("accepts a minimal hit:false miss", () => {
+    expect(() =>
+      ResultCacheMetaSchema.parse({ hit: false, age_ms: 0, key: validKey }),
+    ).not.toThrow();
+  });
+
+  it("accepts a hit with cost_saved_usd", () => {
+    expect(() =>
+      ResultCacheMetaSchema.parse({
+        hit: true,
+        age_ms: 12345,
+        key: validKey,
+        cost_saved_usd: 0.0123,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a non-hex key", () => {
+    expect(() =>
+      ResultCacheMetaSchema.parse({ hit: false, age_ms: 0, key: "not-hex" }),
+    ).toThrow();
+  });
+
+  it("rejects a key with wrong length", () => {
+    expect(() =>
+      ResultCacheMetaSchema.parse({ hit: false, age_ms: 0, key: "abc" }),
+    ).toThrow();
+  });
+
+  it("rejects negative age_ms", () => {
+    expect(() =>
+      ResultCacheMetaSchema.parse({ hit: false, age_ms: -1, key: validKey }),
+    ).toThrow();
+  });
+
+  it("rejects negative cost_saved_usd", () => {
+    expect(() =>
+      ResultCacheMetaSchema.parse({
+        hit: true,
+        age_ms: 0,
+        key: validKey,
+        cost_saved_usd: -0.01,
+      }),
+    ).toThrow();
+  });
+});
+
+describe("result-schema — primitive envelopes accept optional cache", () => {
+  const validKey = "f".repeat(64);
+  const cacheHit = { hit: true, age_ms: 1500, key: validKey, cost_saved_usd: 0.005 };
+  const cacheMiss = { hit: false, age_ms: 0, key: validKey };
+
+  it("SeeResultSchema accepts cache on hit and miss", () => {
+    const base = {
+      url_input: "https://example.com",
+      url_final: "https://example.com/",
+      title: "Example",
+      loaded_at: "2026-04-30T08:00:00.000Z",
+      status: "ok" as const,
+      dom: null,
+      console: null,
+      screenshot: null,
+      note: null,
+      persona_id: "us-desktop",
+      artifacts_dir: "/tmp/sees/x",
+      cost_usd: 0,
+      duration_ms: 1,
+    };
+    expect(() => SeeResultSchema.parse({ ...base, cache: cacheHit })).not.toThrow();
+    expect(() => SeeResultSchema.parse({ ...base, cache: cacheMiss })).not.toThrow();
+    // cache is optional — absence still validates
+    expect(() => SeeResultSchema.parse(base)).not.toThrow();
+  });
+
+  it("ActResultSchema accepts cache (envelope uniformity even though act never sets hit:true)", () => {
+    const base = {
+      url_input: "https://example.com",
+      url_final: "https://example.com/",
+      title: "Example",
+      started_at: "2026-04-30T08:00:00.000Z",
+      finished_at: "2026-04-30T08:00:01.000Z",
+      status: "ok" as const,
+      engine: "playwright" as const,
+      steps: [],
+      dom: null,
+      console: null,
+      screenshot: null,
+      persona_id: "us-desktop",
+      artifacts_dir: "/tmp/acts/x",
+      cost_usd: 0,
+      duration_ms: 1,
+    };
+    expect(() => ActResultSchema.parse({ ...base, cache: cacheMiss })).not.toThrow();
+    expect(() => ActResultSchema.parse(base)).not.toThrow();
+  });
+
+  it("ExtractResultSchema accepts cache on hit and miss", () => {
+    const base = {
+      url_input: "https://example.com",
+      url_final: "https://example.com/",
+      title: "Example",
+      loaded_at: "2026-04-30T08:00:00.000Z",
+      status: "ok" as const,
+      engine: "stagehand" as const,
+      data: { name: "x" },
+      dom: null,
+      console: null,
+      screenshot: null,
+      persona_id: "us-desktop",
+      artifacts_dir: "/tmp/extracts/x",
+      cost_usd: 0,
+      duration_ms: 1,
+    };
+    expect(() => ExtractResultSchema.parse({ ...base, cache: cacheHit })).not.toThrow();
+    expect(() => ExtractResultSchema.parse(base)).not.toThrow();
+  });
+
+  it("JudgeResultSchema accepts cache on hit and miss", () => {
+    const base = {
+      url_input: "https://example.com",
+      url_final: "https://example.com/",
+      title: "Example",
+      loaded_at: "2026-04-30T08:00:00.000Z",
+      status: "ok" as const,
+      rubrics: ["aesthetic" as const],
+      criteria: [],
+      verdicts: [],
+      findings: [],
+      overall_score: null,
+      summary: null,
+      dom: null,
+      console: null,
+      screenshot: null,
+      persona_id: "judge-default-desktop",
+      artifacts_dir: "/tmp/judges/x",
+      model: "claude-sonnet-4-6",
+      cost_usd: 0,
+      duration_ms: 1,
+    };
+    expect(() => JudgeResultSchema.parse({ ...base, cache: cacheHit })).not.toThrow();
+    expect(() => JudgeResultSchema.parse(base)).not.toThrow();
+  });
+
+  it("CompareResultSchema accepts cache on synthesis call", () => {
+    const sideA = {
+      url_input: "https://a.example.com",
+      url_final: "https://a.example.com/",
+      title: "A",
+      judge: null,
+      screenshot: null,
+      artifacts_dir: "/tmp/compares/x/a",
+    };
+    const base = {
+      mode: "double_blind" as const,
+      rubrics: ["aesthetic" as const],
+      criteria: [],
+      started_at: "2026-04-30T08:00:00.000Z",
+      finished_at: "2026-04-30T08:00:05.000Z",
+      status: "ok" as const,
+      side_a: sideA,
+      side_b: { ...sideA, url_input: "https://b.example.com", url_final: "https://b.example.com/", title: "B", artifacts_dir: "/tmp/compares/x/b" },
+      per_criterion: [],
+      overall_winner: "tie" as const,
+      summary: null,
+      artifacts_dir: "/tmp/compares/x",
+      model: "claude-sonnet-4-6",
+      cost_usd: 0,
+      duration_ms: 1,
+    };
+    expect(() => CompareResultSchema.parse({ ...base, cache: cacheHit })).not.toThrow();
+    expect(() => CompareResultSchema.parse(base)).not.toThrow();
   });
 });

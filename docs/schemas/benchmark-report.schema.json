@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/benchmark-report.schema.json",
   "title": "BenchmarkReport",
   "description": "Aggregate benchmark report (pass@1, by_difficulty, by_tag, durations).",
-  "x-result-schema-version": "1.0.0",
+  "x-result-schema-version": "1.1.0",
   "$ref": "#/definitions/BenchmarkReport",
   "definitions": {
     "BenchmarkReport": {
