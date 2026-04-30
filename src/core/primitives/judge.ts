@@ -38,6 +38,7 @@ import type {
   JudgeResultShape,
   JudgeVerdict,
 } from "../result-schema.js";
+import { withResultCache } from "../result-cache.js";
 import {
   see,
   type SeeOptions,
@@ -95,6 +96,16 @@ export interface JudgeOptions {
 
   /** Vision critic model id. Default `"claude-sonnet-4-6"`. */
   model?: string;
+
+  /**
+   * Result cache (M9-4). Caching is on by default. The cache key
+   * covers url (or capture screenshot sha + url_final), rubrics,
+   * customCriteria, persona/viewport, and model — anything that
+   * would change the verdict.
+   */
+  cache?: boolean;
+  cacheBust?: boolean;
+  cacheTtlMs?: number;
 
   /** Test seams. */
   _see?: typeof see;
@@ -264,7 +275,63 @@ Return JSON only, matching the schema in the system prompt. The verdicts array M
 // Primitive
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Build the cache-key inputs for a `judge` call. When the caller
+ * supplies a pre-captured screenshot the screenshot path's contents
+ * hash IS the cache discriminator (different screenshot bytes →
+ * different verdict), so we hash the file contents as part of the key.
+ * For the URL path the URL itself is enough.
+ */
+function judgeCacheKeyInputs(opts: JudgeOptions): unknown {
+  const persona = opts.persona ?? {};
+  const captureFingerprint = opts.capture
+    ? {
+        url_final: opts.capture.url_final,
+        screenshot_sha256: hashScreenshotPath(opts.capture.screenshot_path),
+      }
+    : undefined;
+  return {
+    url: opts.url,
+    capture: captureFingerprint,
+    rubrics: opts.rubrics ?? DEFAULT_RUBRICS,
+    custom_criteria: opts.customCriteria ?? [],
+    waitFor: opts.waitFor,
+    fullPage: opts.fullPage,
+    includeDom: opts.includeDom,
+    includeConsole: opts.includeConsole,
+    viewport: opts.viewport ?? persona.viewport,
+    locale: persona.locale,
+    timezone: persona.timezone,
+    user_agent: persona.user_agent,
+    persona_id: persona.id,
+    model: opts.model ?? DEFAULT_JUDGE_MODEL,
+  };
+}
+
+function hashScreenshotPath(p: string): string {
+  try {
+    const buf = fs.readFileSync(p);
+    return crypto.createHash("sha256").update(buf).digest("hex");
+  } catch {
+    // If the file isn't readable here, the compute path will surface the
+    // real error with a better message. Use the raw path so the key still
+    // varies between distinct paths.
+    return `path:${p}`;
+  }
+}
+
 export async function judge(opts: JudgeOptions): Promise<JudgeResult> {
+  return withResultCache<JudgeResult>({
+    primitive: "judge",
+    cacheKeyInputs: judgeCacheKeyInputs(opts),
+    cacheEnabled: opts.cache !== false,
+    cacheBust: opts.cacheBust,
+    ttlMs: opts.cacheTtlMs,
+    compute: () => computeJudge(opts),
+  });
+}
+
+async function computeJudge(opts: JudgeOptions): Promise<JudgeResult> {
   const t0 = Date.now();
   const startedAt = new Date().toISOString();
 
