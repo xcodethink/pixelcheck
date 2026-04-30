@@ -236,6 +236,17 @@ export const judgeTool: ToolDefinition = {
     "Single-page rubric-driven critic. Captures a URL (or accepts a pre-captured snapshot) and runs one vision call against the chosen rubric(s). Built-in rubrics: 'aesthetic' (8 criteria — visual hierarchy, typography, alignment, contrast, spacing, polish, density, brand cohesion) and 'dark_pattern' (12 criteria — forced continuity, hidden costs, pre-selected options, fake urgency, confirmshaming, obstruction, misdirection, trick questions, disguised ads, bait & switch, privacy zuckering, nagging). Caller-supplied custom criteria are also supported. Returns per-criterion verdicts (0..10 score + rationale + evidence) plus severity-graded findings with on-screen locations. 1 vision call per invocation.",
   kind: "primitive",
   resultSchema: "JudgeResult",
+  cacheable: true,
+  costEstimateUsd: {
+    typical: 0.02,
+    min: 0.01,
+    max: 0.06,
+    unit: "per_call",
+    notes:
+      "1 vision call per invocation regardless of rubric count. M9-4 result cache always engaged (key includes url|capture-bytes + rubrics + criteria + persona + model).",
+  },
+  sideEffects: ["navigation", "network_egress", "fs_writes_artifacts"],
+  requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },
   inputSchema,
   handler,
 };
