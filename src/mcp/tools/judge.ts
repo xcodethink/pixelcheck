@@ -100,6 +100,21 @@ const inputSchema = {
       description:
         "LLM model id used for the vision call. Default 'claude-sonnet-4-6'. Must be a key in the cost-guard PRICING table.",
     },
+    cache: {
+      type: "boolean",
+      description:
+        "Result cache (M9-4). Default true. Set false to bypass for one call.",
+    },
+    cache_bust: {
+      type: "boolean",
+      description:
+        "Force a fresh compute, but still write the new result to the cache. Default false.",
+    },
+    cache_ttl_ms: {
+      type: "number",
+      description:
+        "Per-call cache TTL override (ms). Default: AUDIT_RESULT_CACHE_TTL_MS env or 24h.",
+    },
   },
 };
 
@@ -202,6 +217,9 @@ async function handler(args: Record<string, unknown>): Promise<ToolResult> {
     timeoutMs: typeof args.timeout_ms === "number" ? args.timeout_ms : undefined,
     headless: typeof args.headless === "boolean" ? args.headless : undefined,
     model: asString(args.model),
+    cache: typeof args.cache === "boolean" ? args.cache : undefined,
+    cacheBust: typeof args.cache_bust === "boolean" ? args.cache_bust : undefined,
+    cacheTtlMs: typeof args.cache_ttl_ms === "number" ? args.cache_ttl_ms : undefined,
   };
 
   const w = typeof args.viewport_width === "number" ? args.viewport_width : undefined;

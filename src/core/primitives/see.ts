@@ -35,7 +35,8 @@ import { extractDomSummary } from "../../agent/dom-summary.js";
 import { callVision, type VisionResponse } from "../llm.js";
 import { compressForVision } from "../image.js";
 import type { ConsoleError } from "../types.js";
-import { RESULT_SCHEMA_VERSION } from "../result-schema.js";
+import { RESULT_SCHEMA_VERSION, type ResultCacheMeta } from "../result-schema.js";
+import { withResultCache } from "../result-cache.js";
 
 const log = getLogger("primitive.see");
 
@@ -89,6 +90,16 @@ export interface SeeOptions {
   criticModel?: string;
 
   /**
+   * Result cache (M9-4). Only applied when `goal` is set, because
+   * without a goal `see` makes no LLM call and a cached snapshot
+   * could mislead the caller with stale page state. Defaults: cache
+   * enabled, no bust, TTL from env.
+   */
+  cache?: boolean;
+  cacheBust?: boolean;
+  cacheTtlMs?: number;
+
+  /**
    * Test seam: replace the Playwright launch + navigate path. Returns the
    * loaded `Page`, the running list of console errors, and a `close()`
    * teardown. When set, defaults browser/context/proxy logic is skipped.
@@ -125,6 +136,8 @@ export interface SeeResult {
   artifacts_dir: string;
   cost_usd: number;
   duration_ms: number;
+  /** Result-cache annotation (M9-4). Absent when caching not applicable. */
+  cache?: ResultCacheMeta;
 }
 
 export type OpenFn = (cfg: {
@@ -171,7 +184,50 @@ function makeRunDir(root: string): string {
 // Primitive
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Build the cache-key inputs for a `see` call. Extracted so callers
+ * (and tests) can reason about exactly what makes two calls equivalent
+ * for caching purposes. Excludes timeout / headless / artifactsRoot —
+ * those affect performance / file location, not the observable result.
+ */
+function seeCacheKeyInputs(opts: SeeOptions): unknown {
+  const persona = opts.persona ?? {};
+  return {
+    url: opts.url,
+    goal: opts.goal,
+    waitFor: opts.waitFor ?? "networkidle",
+    fullPage: opts.fullPage ?? true,
+    includeDom: opts.includeDom ?? true,
+    includeConsole: opts.includeConsole ?? true,
+    viewport: opts.viewport ?? persona.viewport ?? { width: 1280, height: 800 },
+    locale: persona.locale ?? DEFAULT_LOCALE,
+    timezone: persona.timezone ?? DEFAULT_TIMEZONE,
+    user_agent: persona.user_agent,
+    persona_id: persona.id,
+    critic_model: opts.criticModel ?? DEFAULT_CRITIC_MODEL,
+  };
+}
+
 export async function see(opts: SeeOptions): Promise<SeeResult> {
+  // Cache only when a goal triggered a vision call. Without a goal,
+  // see makes no LLM call and the result is a fresh page snapshot —
+  // serving a cached one would mislead callers with possibly-stale
+  // state.
+  const eligible = typeof opts.goal === "string" && opts.goal.length > 0;
+  if (!eligible) {
+    return computeSee(opts);
+  }
+  return withResultCache<SeeResult>({
+    primitive: "see",
+    cacheKeyInputs: seeCacheKeyInputs(opts),
+    cacheEnabled: opts.cache !== false,
+    cacheBust: opts.cacheBust,
+    ttlMs: opts.cacheTtlMs,
+    compute: () => computeSee(opts),
+  });
+}
+
+async function computeSee(opts: SeeOptions): Promise<SeeResult> {
   const t0 = Date.now();
   const startedAt = new Date().toISOString();
 
