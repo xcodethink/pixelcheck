@@ -408,6 +408,17 @@
               "exclusiveMinimum": 0,
               "default": 30000
             },
+            "default_locale": {
+              "type": "string",
+              "enum": [
+                "en",
+                "zh-CN",
+                "ja",
+                "es",
+                "de"
+              ],
+              "default": "en"
+            },
             "models": {
               "type": "object",
               "properties": {
