@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M1-2 Phase 2 — `core/instruction-mutator.ts` extended unit tests)
+
+- `tests/instruction-mutator-extended.test.ts` — 37 tests complementing the existing `tests/instruction-mutator.test.ts` (which covered only `mutateSpecific` + `mutateDecompose` happy paths). The original tests stay; this file adds the orchestration / LLM / autoDiscovery / verb-swap surfaces that were previously untested.
+- Coverage: `core/instruction-mutator.ts` 41.58 → **86.13% statements / 65.33% branches / 92.85% functions / 85.71% lines**. The remaining 14% is the inner `getInteractiveElements` `page.evaluate(callback)` body (browser-only — same constraint as `page-stability.ts`, deferred per ADR-017).
+- Test surface added:
+  - `generateMutations` orchestration (without cost): merges specific + decompose + rephrase variants in priority order; emits decompose only when input matches a "then"/"and" pattern; never duplicates rephrase when an upstream mutation already returned one; stamps `schema_version` on every result; calls `page.evaluate` exactly once for DOM context; falls back to `(unable to read DOM)` literal when `page.evaluate` throws.
+  - `generateMutations` LLM path (with cost): includes LLM-rewrite as the first result when the model returns a non-empty different instruction; ignores no-op rewrites (identical to original); ignores empty-after-trim output; silently swallows LLM errors / cost-guard `checkBudget` throws and falls through to local mutations; never calls `recordUsage` on failure; never invokes the LLM when the cost accumulator is omitted; forwards original instruction + DOM context truncated to 1500 chars to Haiku 4.5 with `max_tokens=256` and the documented system prompt.
+  - `autoDiscoverSelectors`: maps Stagehand observe results to selectors; filters empty/missing selectors; slices to at most 5; returns `[]` on `observe()` throw or empty result.
+  - `rephrase` verb-swap matrix exercised through `mutateDecompose`'s no-pattern fallback: 15 verb-pair rewrites (click↔press, tap→click, select↔choose, navigate↔go, open, find, enter↔type, scroll-down-to, look-for) + 3 hint-appending fallbacks (button visible-area, link clickable-text, generic try-different-approach).
+
+Coverage threshold ratcheted per ADR-017 contract: statements 58→59, branches 52→53, functions 58→59, lines 58→59. Current baseline 60.65/53.89/63.24/61.39 leaves 1-2 points headroom. 973/973 tests pass (936 → 973, +37).
+
 ### Added (M1-2 Phase 2 — `core/llm.ts` unit tests)
 
 - `tests/llm.test.ts` — 38 tests for the Anthropic SDK wrapper. Mocks `@anthropic-ai/sdk` (FakeAnthropic class with `messages.create` capture) and `./cost-guard.js` (controllable `checkBudget` + `recordUsage`). Uses `vi.resetModules` + dynamic `await import("../src/core/llm.js")` per test so the module-level singleton `client` cache is fresh on every run — previously the singleton was untestable from the public API without an explicit reset seam.
