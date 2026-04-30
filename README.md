@@ -669,6 +669,19 @@ The open-source landscape has excellent **browser automation frameworks** (brows
 
 No existing open-source project combines multi-persona simulation, AI vision scoring, WCAG analysis, stealth fingerprints, and historical trend tracking. This is the first tool designed specifically for **post-deployment product quality auditing**.
 
+## Test Coverage
+
+Run with measurement:
+
+```bash
+npm run test:coverage          # writes ./coverage/index.html
+npm run test:coverage:check    # CI gate — fails on regression below thresholds
+```
+
+Coverage is enforced via `vitest.config.ts > coverage.thresholds` (provider `v8`). Entry-points (`cli.ts`, `index.ts`, `mcp/server.ts`) and pure-type contracts (`core/types.ts`, `core/result-schema.ts`) are excluded — they are tested through consumers (CLI smoke + MCP `tools/list` handshake + schema round-trip tests). Counting them would dilute the signal.
+
+The threshold floor sits at or below the current global baseline so the gate catches regression but doesn't block the build. Each new test PR ratchets the floor up after pushing it. Per-module coverage is visible in the text-table report or `coverage/index.html`. See [docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md](docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md) for the M1-2 phase plan.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
