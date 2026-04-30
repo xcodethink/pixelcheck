@@ -128,4 +128,74 @@ describe("writeSpaReport", () => {
     expect(html).not.toContain("secret-token-abcdef123");
     expect(html).toContain("[REDACTED]");
   });
+
+  it("does not run redaction when redact_patterns is empty (skips deep walk)", () => {
+    // patterns.length === 0 → fast path returns audit unchanged
+    const audit = mkAudit({ redact_patterns: [] });
+    audit.results[0]!.issues[0]!.description = "secret-not-redacted";
+    const p = writeSpaReport(audit, tmp);
+    const html = fs.readFileSync(p, "utf8");
+    expect(html).toContain("secret-not-redacted");
+  });
+
+  it("does not run redaction when redact_patterns is undefined", () => {
+    const audit = mkAudit();
+    delete (audit as { redact_patterns?: unknown }).redact_patterns;
+    audit.results[0]!.issues[0]!.description = "another-untouched-secret";
+    const p = writeSpaReport(audit, tmp);
+    const html = fs.readFileSync(p, "utf8");
+    expect(html).toContain("another-untouched-secret");
+  });
+});
+
+describe("writeSpaReport — escapeHtml on header metadata", () => {
+  // escapeHtml only runs on audit.project_name and audit.run_id (the two
+  // <title> + header text interpolations outside the <script type=json>
+  // block). The JSON itself is escaped via < / >. This block
+  // covers each switch case explicitly so all four characters' branches
+  // are exercised.
+  it("escapes & in the project_name", () => {
+    const audit = mkAudit({ project_name: "Marketing & Sales" });
+    const html = fs.readFileSync(writeSpaReport(audit, tmp), "utf8");
+    expect(html).toContain("Marketing &amp; Sales");
+    expect(html).not.toContain("Marketing & Sales</title>");
+  });
+
+  it("escapes < in the project_name (defense against title injection)", () => {
+    const audit = mkAudit({ project_name: "Less<Than" });
+    const html = fs.readFileSync(writeSpaReport(audit, tmp), "utf8");
+    expect(html).toContain("Less&lt;Than");
+  });
+
+  it("escapes > in the run_id", () => {
+    const audit = mkAudit({ run_id: "run>2026" });
+    const html = fs.readFileSync(writeSpaReport(audit, tmp), "utf8");
+    expect(html).toContain("run&gt;2026");
+  });
+
+  it('escapes " in the project_name', () => {
+    const audit = mkAudit({ project_name: 'Quote"Test' });
+    const html = fs.readFileSync(writeSpaReport(audit, tmp), "utf8");
+    expect(html).toContain("Quote&quot;Test");
+  });
+
+  it("leaves plain ASCII unchanged in the title", () => {
+    const audit = mkAudit({ project_name: "Plain ASCII", run_id: "abc-123" });
+    const html = fs.readFileSync(writeSpaReport(audit, tmp), "utf8");
+    expect(html).toContain("Plain ASCII");
+    expect(html).toContain("abc-123");
+  });
+
+  it("escapes a mix of all four special chars in one string", () => {
+    const audit = mkAudit({
+      project_name: 'A&B<C>D"E',
+      run_id: '<run>',
+    });
+    const html = fs.readFileSync(writeSpaReport(audit, tmp), "utf8");
+    // Title + header pick up project_name; run_id is escaped too
+    expect(html).toContain("A&amp;B&lt;C&gt;D&quot;E");
+    expect(html).toContain("&lt;run&gt;");
+    // No raw injection survives
+    expect(html).not.toContain('A&B<C>D"E');
+  });
 });
