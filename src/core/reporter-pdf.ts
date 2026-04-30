@@ -25,6 +25,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuditRun, Issue, ScenarioRunResult } from "./types.js";
 import { redactDeep } from "./secrets.js";
+import { DEFAULT_LOCALE, t, type Locale } from "./i18n.js";
 
 // ─────────────────────────────────────────────────────────────
 // Public API
@@ -37,6 +38,8 @@ export interface PdfReportOptions {
   logoDataUri?: string;
   /** Cap on findings shown in the "Top critical findings" section. Default 5. */
   maxTopFindings?: number;
+  /** Locale for the report skeleton (labels, headings, disclaimers). Default 'en'. */
+  locale?: Locale;
   /**
    * Override Playwright launch — the audit's already-running browser
    * can be reused if passed in, avoiding a 2 s cold-start per run.
@@ -74,6 +77,7 @@ export function renderPdfHtml(
   const audit = applyRedaction(inputAudit);
   const brand = opts.brandColor ?? "#1e3a8a";
   const maxTopFindings = opts.maxTopFindings ?? 5;
+  const locale = opts.locale ?? DEFAULT_LOCALE;
   const overall = computeOverallScore(audit);
   const scoreColor = colourForScore(overall);
   const topFindings = collectTopFindings(audit, maxTopFindings);
@@ -84,10 +88,10 @@ export function renderPdfHtml(
     PDF_HEADER_OPEN,
     `<style>${pdfStylesheet(brand)}</style>`,
     PDF_HEADER_CLOSE,
-    coverSection(audit, overall, scoreColor, opts.logoDataUri),
-    findingsSection(topFindings, brand),
-    scenarioSections(audit),
-    methodologySection(audit, personasUsed, scenariosUsed),
+    coverSection(audit, overall, scoreColor, locale, opts.logoDataUri),
+    findingsSection(topFindings, brand, locale),
+    scenarioSections(audit, locale),
+    methodologySection(audit, personasUsed, scenariosUsed, locale),
     PDF_FOOTER,
   ].join("\n");
 }
@@ -113,13 +117,14 @@ export async function writePdfReport(
   try {
     page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle" });
+    const locale = opts.locale ?? DEFAULT_LOCALE;
     await page.pdf({
       path: filePath,
       format: "A4",
       printBackground: true,
       margin: { top: "1.5cm", right: "1.5cm", bottom: "1.8cm", left: "1.5cm" },
       displayHeaderFooter: true,
-      headerTemplate: pdfHeaderTemplate(audit),
+      headerTemplate: pdfHeaderTemplate(audit, locale),
       footerTemplate: pdfFooterTemplate(audit),
     });
   } finally {
@@ -228,11 +233,11 @@ function pdfStylesheet(brand: string): string {
   `;
 }
 
-function pdfHeaderTemplate(audit: AuditRun): string {
+function pdfHeaderTemplate(audit: AuditRun, locale: Locale): string {
   // Chromium's headerTemplate runs in print context; it can use only a
   // subset of CSS (no external resources). Inline minimal styling.
   return `<div style="font-size: 8pt; color: #888; padding: 0 1.5cm; width: 100%; display: flex; justify-content: space-between;">
-    <span>${escapeHtml(audit.project_name)} — Audit Report</span>
+    <span>${escapeHtml(audit.project_name)} — ${escapeHtml(t("audit_report_title", locale))}</span>
     <span>${escapeHtml(audit.started_at.split("T")[0] ?? audit.started_at)}</span>
   </div>`;
 }
@@ -248,6 +253,7 @@ function coverSection(
   audit: AuditRun,
   overall: number,
   scoreColor: string,
+  locale: Locale,
   logoDataUri?: string,
 ): string {
   const dateStr = audit.started_at.split("T")[0] ?? audit.started_at;
@@ -260,75 +266,77 @@ function coverSection(
 
   return `<section class="cover">
     ${logo}
-    <h1>AI Browser Audit Report</h1>
+    <h1>${escapeHtml(t("audit_report_title", locale))}</h1>
     <div class="meta">
-      <div><strong>Project:</strong> ${escapeHtml(audit.project_name)}</div>
-      <div><strong>URL:</strong> ${escapeHtml(audit.base_url)}</div>
-      <div><strong>Run date:</strong> ${escapeHtml(dateStr)}</div>
-      <div><strong>Duration:</strong> ${durationStr}</div>
+      <div><strong>${escapeHtml(t("project_label", locale))}:</strong> ${escapeHtml(audit.project_name)}</div>
+      <div><strong>${escapeHtml(t("url_label", locale))}:</strong> ${escapeHtml(audit.base_url)}</div>
+      <div><strong>${escapeHtml(t("date_label", locale))}:</strong> ${escapeHtml(dateStr)}</div>
+      <div><strong>${escapeHtml(t("duration", locale))}:</strong> ${durationStr}</div>
     </div>
 
     <div class="score-block">
       <div class="score-number" style="color: ${scoreColor};">${overall.toFixed(1)}</div>
-      <div class="score-label">Overall score · 0–10</div>
+      <div class="score-label">${escapeHtml(t("overall_score", locale))} · ${escapeHtml(t("score_scale", locale))}</div>
     </div>
 
     <div class="summary-card">
       <table>
-        <tr><td>Total scenarios run</td><td>${audit.summary.total}</td></tr>
-        <tr><td>Pass</td><td>${audit.summary.pass}</td></tr>
-        <tr><td>Pass with issues</td><td>${audit.summary.pass_with_issues}</td></tr>
-        <tr><td>Fail</td><td>${audit.summary.fail}</td></tr>
-        <tr><td>Critical issues</td><td>${audit.summary.critical_issues}</td></tr>
-        <tr><td>Total issues</td><td>${audit.summary.total_issues}</td></tr>
-        <tr><td>Total cost</td><td>${cost}</td></tr>
+        <tr><td>${escapeHtml(t("total_scenarios", locale))}</td><td>${audit.summary.total}</td></tr>
+        <tr><td>${escapeHtml(t("pass", locale))}</td><td>${audit.summary.pass}</td></tr>
+        <tr><td>${escapeHtml(t("pass_with_issues", locale))}</td><td>${audit.summary.pass_with_issues}</td></tr>
+        <tr><td>${escapeHtml(t("fail", locale))}</td><td>${audit.summary.fail}</td></tr>
+        <tr><td>${escapeHtml(t("critical_issues", locale))}</td><td>${audit.summary.critical_issues}</td></tr>
+        <tr><td>${escapeHtml(t("total_issues", locale))}</td><td>${audit.summary.total_issues}</td></tr>
+        <tr><td>${escapeHtml(t("total_cost", locale))}</td><td>${cost}</td></tr>
       </table>
     </div>
   </section>`;
 }
 
-function findingsSection(findings: Array<Issue & { run: ScenarioRunResult }>, brand: string): string {
+function findingsSection(
+  findings: Array<Issue & { run: ScenarioRunResult }>,
+  brand: string,
+  locale: Locale,
+): string {
   if (findings.length === 0) {
     return `<section class="section findings">
-      <h2>Critical findings</h2>
-      <p>No issues found in this run. The audit completed cleanly across all scenario × persona combinations.</p>
+      <h2>${escapeHtml(t("pdf_top_findings_title", locale))}</h2>
+      <p>${escapeHtml(t("no_issues_found", locale))}</p>
     </section>`;
   }
   const items = findings
     .map(
       (f) => `<div class="finding ${f.severity}">
-        <span class="severity-tag ${f.severity}">${f.severity}</span>
+        <span class="severity-tag ${f.severity}">${escapeHtml(t(f.severity, locale))}</span>
         <strong>${escapeHtml(f.run.scenario_name)}</strong>
         <span style="color:#555"> · ${escapeHtml(f.run.persona_display_name)}</span>
         <p style="margin-top: 4pt;">${escapeHtml(f.description)}</p>
-        <div class="recommendation">Recommendation: ${escapeHtml(f.recommendation)}</div>
+        <div class="recommendation">${escapeHtml(t("recommendation", locale))}: ${escapeHtml(f.recommendation)}</div>
       </div>`,
     )
     .join("\n");
   return `<section class="section findings">
-    <h2>Top findings</h2>
-    <p style="color: #555; font-size: 11pt;">Sorted by severity. Critical / high issues are blockers; medium / low are improvement opportunities.</p>
+    <h2>${escapeHtml(t("pdf_top_findings_title", locale))}</h2>
+    <p style="color: #555; font-size: 11pt;">${escapeHtml(t("pdf_findings_subtitle", locale))}</p>
     ${items}
   </section>`;
 }
 
-function scenarioSections(audit: AuditRun): string {
+function scenarioSections(audit: AuditRun, locale: Locale): string {
   if (audit.results.length === 0) {
     return `<section class="section">
-      <h2>Scenario results</h2>
-      <p>No scenarios ran in this audit.</p>
+      <h2>${escapeHtml(t("pdf_scenario_results_title", locale))}</h2>
+      <p>${escapeHtml(t("pdf_no_scenarios", locale))}</p>
     </section>`;
   }
-  const blocks = audit.results
-    .map((r) => renderScenarioBlock(r))
-    .join("\n");
+  const blocks = audit.results.map((r) => renderScenarioBlock(r, locale)).join("\n");
   return `<section class="section">
-    <h2>Scenario results</h2>
+    <h2>${escapeHtml(t("pdf_scenario_results_title", locale))}</h2>
     ${blocks}
   </section>`;
 }
 
-function renderScenarioBlock(r: ScenarioRunResult): string {
+function renderScenarioBlock(r: ScenarioRunResult, locale: Locale): string {
   const dimRows = r.scores
     .map(
       (s) =>
@@ -337,23 +345,32 @@ function renderScenarioBlock(r: ScenarioRunResult): string {
     .join("");
   const issuesText =
     r.issues.length === 0
-      ? `<p style="color:#555; font-size:10pt;">No issues raised.</p>`
+      ? `<p style="color:#555; font-size:10pt;">${escapeHtml(t("no_issues_raised", locale))}</p>`
       : r.issues
           .map(
             (i) =>
               `<div class="finding ${i.severity}" style="margin: 4pt 0;">
-                <span class="severity-tag ${i.severity}">${i.severity}</span>
+                <span class="severity-tag ${i.severity}">${escapeHtml(t(i.severity, locale))}</span>
                 ${escapeHtml(i.description)}
                 <div class="recommendation">→ ${escapeHtml(i.recommendation)}</div>
               </div>`,
           )
           .join("\n");
+  // Status badge: use the localised full-name form for screen readers /
+  // PDF text search; the underlying CSS class still carries the canonical
+  // english key so styling stays consistent.
+  const statusKey =
+    r.status === "pass"
+      ? "status_pass_full"
+      : r.status === "pass_with_issues"
+        ? "status_warn_full"
+        : "status_fail_full";
   return `<div class="scenario-block">
     <div class="scenario-hdr">
       <h3>${escapeHtml(r.scenario_name)} <span style="color:#555; font-weight: 400;">×</span> ${escapeHtml(r.persona_display_name)}</h3>
-      <span class="status ${r.status}">${r.status.replace(/_/g, " ")}</span>
+      <span class="status ${r.status}">${escapeHtml(t(statusKey as "status_pass_full" | "status_warn_full" | "status_fail_full", locale))}</span>
     </div>
-    <div class="scenario-meta">Score ${r.overall_score.toFixed(1)} / 10  ·  Cost $${r.cost_usd.toFixed(3)}  ·  ${(r.duration_ms / 1000).toFixed(1)} s  ·  ${r.steps.length} steps</div>
+    <div class="scenario-meta">${escapeHtml(t("score", locale))} ${r.overall_score.toFixed(1)} / 10  ·  ${escapeHtml(t("cost", locale))} $${r.cost_usd.toFixed(3)}  ·  ${(r.duration_ms / 1000).toFixed(1)} s  ·  ${r.steps.length} ${escapeHtml(t("steps", locale))}</div>
     ${dimRows ? `<table class="dim-table">${dimRows}</table>` : ""}
     ${issuesText}
   </div>`;
@@ -363,23 +380,24 @@ function methodologySection(
   audit: AuditRun,
   personas: string[],
   scenarios: string[],
+  locale: Locale,
 ): string {
   return `<section class="section methodology">
-    <h2>Methodology</h2>
-    <p>The AI Browser Auditor launches real Chromium browser sessions configured with persona-specific device fingerprints and runs scripted user journeys end-to-end. After each run, screenshots and DOM data are scored by Anthropic's Claude vision model against a defined rubric.</p>
+    <h2>${escapeHtml(t("pdf_methodology_title", locale))}</h2>
+    <p>${escapeHtml(t("pdf_methodology_intro", locale))}</p>
 
-    <h3>Personas in this run (${personas.length})</h3>
+    <h3>${escapeHtml(t("pdf_personas_in_run", locale))} (${personas.length})</h3>
     <ul>
       ${personas.map((p) => `<li>${escapeHtml(p)}</li>`).join("\n      ")}
     </ul>
 
-    <h3>Scenarios in this run (${scenarios.length})</h3>
+    <h3>${escapeHtml(t("pdf_scenarios_in_run", locale))} (${scenarios.length})</h3>
     <ul>
       ${scenarios.map((s) => `<li>${escapeHtml(s)}</li>`).join("\n      ")}
     </ul>
 
     <p class="disclaimer">
-      AI scoring is calibrated against a labelled fixture set and trends to within ±1 point of human review on a 10-point scale. Scores reflect what an experienced reviewer would see in a single user session — they do not guarantee absence of regressions in untested flows. For full evidence (screenshots, video, console logs), open <code>audit-explorer.html</code> in the same run directory. Run id: <code>${escapeHtml(audit.run_id)}</code>.
+      ${escapeHtml(t("pdf_disclaimer", locale))} ${escapeHtml(t("pdf_run_id_archival", locale))}: <code>${escapeHtml(audit.run_id)}</code>.
     </p>
   </section>`;
 }

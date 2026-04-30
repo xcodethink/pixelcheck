@@ -504,6 +504,70 @@ describe("renderTrendsHtml — populated history", () => {
 // writeTrendsDashboard — disk write integration
 // ─────────────────────────────────────────────────────────────
 
+describe("renderTrendsHtml — i18n integration (M2-4)", () => {
+  function buildHistory(): HistoryEntry[] {
+    return [
+      makeEntry({
+        startedAt: "2026-05-10T10:00:00.000Z",
+        overallScore: 8.0,
+        totalIssues: 1,
+      }),
+      makeEntry({
+        startedAt: "2026-05-05T10:00:00.000Z",
+        overallScore: 7.5,
+        totalIssues: 2,
+      }),
+    ];
+  }
+
+  it("renders titles + cards in zh-CN", () => {
+    const html = renderTrendsHtml(buildHistory(), "demo-shop", "zh-CN");
+    expect(html).toContain("AI 浏览器审计 — 趋势");
+    expect(html).toContain("最新评分");
+    expect(html).toContain("近 7 次平均");
+    expect(html).toContain("总评分"); // first chart title
+    expect(html).toContain("通过 / 警告 / 失败分布");
+    expect(html).toContain("各维度评分");
+  });
+
+  it("renders titles + cards in ja", () => {
+    const html = renderTrendsHtml(buildHistory(), "demo-shop", "ja");
+    expect(html).toContain("AIブラウザ監査 — トレンド");
+    expect(html).toContain("最新スコア");
+    expect(html).toContain("総合スコア");
+  });
+
+  it("renders titles + cards in de", () => {
+    const html = renderTrendsHtml(buildHistory(), "demo-shop", "de");
+    expect(html).toContain("KI-Browser-Audit — Trends");
+    expect(html).toContain("Gesamtpunktzahl");
+  });
+
+  it("uses locale-correct singular for 1 run in es", () => {
+    const html = renderTrendsHtml([buildHistory()[0]!], "demo", "es");
+    expect(html).toContain("1 ejecución");
+  });
+
+  it("uses locale-correct plural for >1 in es", () => {
+    const html = renderTrendsHtml(buildHistory(), "demo", "es");
+    expect(html).toContain("2 ejecuciones");
+  });
+
+  it("default locale (no arg) renders English", () => {
+    const html = renderTrendsHtml(buildHistory());
+    expect(html).toContain("AI Browser Auditor — Trends");
+    expect(html).toContain("Latest score");
+    expect(html).toContain("2 runs");
+  });
+
+  it("empty-state translates correctly per locale", () => {
+    const zh = renderTrendsHtml([], "demo-shop", "zh-CN");
+    expect(zh).toContain("尚无审计历史");
+    const ja = renderTrendsHtml([], "demo-shop", "ja");
+    expect(ja).toContain("監査履歴がまだありません");
+  });
+});
+
 describe("writeTrendsDashboard", () => {
   function seedHistory(reportsDir: string, runs: number = 3): void {
     fs.mkdirSync(reportsDir, { recursive: true });
