@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M2-1 — Stakeholder-facing PDF report)
+
+- New module `src/core/reporter-pdf.ts` (~360 LoC) renders an A4 portrait PDF for non-technical readers (PMs, executives, customers, sales / CS) — the audience that won't open `audit.html` but will read an emailed PDF on their phone or paste it into a slide deck.
+- 4-section layout, page-break-controlled so sections never split awkwardly:
+  - **Cover**: project + URL + run date + duration; centred big colour-coded score (green ≥ 8 / amber 5–8 / red < 5); 7-counter summary card.
+  - **Top findings**: severity-sorted (critical → high → medium → low), capped at 5 by default. Each cites scenario × persona context + recommendation. Clean-run path emits an explicit "no issues" message.
+  - **Per-scenario results**: one block per (scenario × persona). Status badge, score + cost, per-dimension table, all issues.
+  - **Methodology**: how the audit works, sorted unique persona list, sorted unique scenario list, AI calibration disclaimer, run_id for archival.
+- Vector text via Playwright's chromium PDF export — selectable, searchable, accessible. No new dependencies (we already ship Playwright).
+- Helvetica fallback chain (every PDF reader has these), 12pt body, 1.5 cm margins. No font embedding → file size stays small → emailable.
+- Header / footer on every page (chromium printHeader / Footer templates): project name + run date in header; run_id + page X/Y in footer.
+- Public API: `writePdfReport(audit, runDir, opts?)` + pure `renderPdfHtml(audit, opts?)` + type `PdfReportOptions` (brand colour, optional logo data URI, max top findings cap, custom `launchBrowser` injection so embedders can reuse an already-running chromium).
+- All audit data goes through `redactDeep` (M1-4 secrets layer) so the PDF can't leak anything the JSON report already redacts.
+- New CLI flag `--no-pdf` on `ai-audit run`. **Default is ON** — every audit run writes `audit.pdf` for stakeholder distribution, matching the priority of who consumes which artefact (engineers already have JSON / HTML / SPA; the PDF is what reaches the layer above).
+- Render failures are non-fatal: downgraded to a yellow warning so the audit exit code is unchanged. PDF is generated *after* JSON / HTML so a chromium issue never loses audit data.
+- Public surface grows 45 → 47 exports (`writePdfReport`, `renderPdfHtml`).
+- 1186 → 1225 tests pass (+39). Coverage on the new file: 92.39% statements / 87.17% branches / 87.09% functions. The uncovered ~8% is the actual chromium spawn path (real Playwright launch — out of scope for unit tests).
+- See [ADR-020](docs/decisions/ADR-020-pdf-stakeholder-report.md) for the full design rationale and 8 alternatives rejected (pdfkit / wkhtmltopdf / default-off / US Letter / embed screenshots / one-page / PDF/A / third-party templating libs).
+
 ### Added (M2-6 — CI-friendly output formats)
 
 - New module `src/core/ci-reporters.ts` (~400 LoC) emits four CI/CD-standard formats alongside the existing `audit.json` / `audit.html` / `summary.md`:
