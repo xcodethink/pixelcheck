@@ -188,6 +188,8 @@ Every audit produces a full evidence package:
 reports/2026-04-11_post-deploy/
  |-- audit.json              # Machine-readable, all scores and issues
  |-- audit.html              # Dark-theme dashboard with trend sparklines
+ |-- audit-explorer.html     # Filterable SPA view of every (scenario × persona)
+ |-- audit.pdf               # Stakeholder-facing summary (A4, 12pt, vector text)
  |-- summary.md              # Terminal-friendly overview
  |-- jp-japanese-pro-desktop__signup-flow/
       |-- 01-open_home.png          # Timestamped screenshot
@@ -198,6 +200,21 @@ reports/2026-04-11_post-deploy/
 ```
 
 `audit.json` and every MCP tool response carries a top-level `schema_version` field (SemVer). The contract is documented in [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md); machine-readable JSON Schemas live in [docs/schemas/](./docs/schemas/) and can be regenerated with `npm run schemas`.
+
+### PDF report (audit.pdf)
+
+A 4-section A4 portrait PDF aimed at the layer of decision-makers above engineering — PMs, executives, customers, sales / CS reps. The format every email client renders inline, every slide deck embeds, every phone opens.
+
+| Section | Contents |
+|---|---|
+| Cover | Project + URL + run date + colour-coded overall score (green ≥ 8, amber 5–8, red < 5) + 7-counter summary card |
+| Top findings | Severity-sorted (critical → high → medium → low), capped at 5; each cites scenario × persona context + recommendation |
+| Scenario results | One block per (scenario × persona): status badge, score + cost, per-dimension table, all issues |
+| Methodology | How the audit works, persona list, scenario list, calibration disclaimer, run id for archival |
+
+Vector text (selectable / searchable / accessible) — not a screenshot of HTML. No screenshots embedded so the file stays under ~1 MB and emailable; for visual evidence, the recipient opens `audit-explorer.html` (cited in the methodology disclaimer).
+
+Default: ON every run. Pass `--no-pdf` to skip during fast local iteration. See [ADR-020](docs/decisions/ADR-020-pdf-stakeholder-report.md) for the full design.
 
 ### Historical Trends
 
