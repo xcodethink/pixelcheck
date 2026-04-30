@@ -101,6 +101,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "loadPersonas",
   "loadProjectConfig",
   "loadScenarios",
+  "renderPdfHtml",
   "resolvePersonaSecrets",
   "runAudit",
   "saveAuditToHistory",
@@ -112,6 +113,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "writeJsonReport",
   "writeJunitXmlReport",
   "writeMarkdownSummary",
+  "writePdfReport",
   "writeSarifReport",
   "writeSpaReport",
 ] as const;
@@ -122,8 +124,8 @@ describe("public surface snapshot — src/index.ts", () => {
     expect(actual).toEqual([...EXPECTED_RUNTIME_EXPORTS]);
   });
 
-  it("ships exactly 45 runtime exports (bump this when intentionally adding a public symbol)", () => {
-    expect(Object.keys(lib)).toHaveLength(45);
+  it("ships exactly 47 runtime exports (bump this when intentionally adding a public symbol)", () => {
+    expect(Object.keys(lib)).toHaveLength(47);
   });
 
   const functionExports: Array<keyof typeof lib> = [
@@ -138,6 +140,7 @@ describe("public surface snapshot — src/index.ts", () => {
     "loadPersonas",
     "loadProjectConfig",
     "loadScenarios",
+    "renderPdfHtml",
     "resolvePersonaSecrets",
     "runAudit",
     "saveAuditToHistory",
@@ -149,6 +152,7 @@ describe("public surface snapshot — src/index.ts", () => {
     "writeJsonReport",
     "writeJunitXmlReport",
     "writeMarkdownSummary",
+    "writePdfReport",
     "writeSarifReport",
     "writeSpaReport",
   ];
