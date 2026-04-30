@@ -330,10 +330,9 @@ Add to `~/.mcp.json` (or your client's equivalent):
 | `compare` | primitive | You want an A/B comparison of two URLs against the same rubric. Default `double_blind` mode judges each side independently then synthesises a comparison (3 vision calls, free of anchoring bias). `fast` mode is 1 call (cheaper, anchored). |
 | `list_personas` | meta | Discover which personas are installed in a project. |
 | `list_scenarios` | meta | Discover which scenarios are installed in a project. |
+| `list_capabilities` | meta | Self-describe the server: every shipped tool with kind / cacheability / static cost band / side-effects / dependency declarations, plus the public env-var table and live result-cache state. Pure introspection — call it once on first connect to plan the rest of your session. |
 | `calibrate_critic` | meta | Run the critic calibration gate against labeled fixtures (returns pass/fail + agreement metrics). |
 | `get_last_report` | meta | Read the most recent audit's summary JSON from the local history DB. |
-
-M9-5 `list_capabilities` is the next item on the v1 roadmap.
 
 #### `see` — one-shot navigation snapshot
 
@@ -481,6 +480,45 @@ Run an A/B comparison of two pages against a shared rubric. Default mode is **`d
 Per-side `viewport` lets you compare e.g. desktop A vs mobile B. Either side may be a pre-captured snapshot from a prior `see` / `extract` / `judge` call (`{ "capture": { ... } }`); the tool will skip the browser for that side.
 
 Returns a `CompareResult` (see [docs/schemas/compare-result.schema.json](./docs/schemas/compare-result.schema.json)) with `mode`, `rubrics`, `criteria`, `side_a` / `side_b` (each carrying the embedded JudgeResult in double_blind mode + per-side screenshot + artefacts dir), `per_criterion[]` (`{ criterion_id, score_a, score_b, winner: "a"|"b"|"tie", rationale }`), `overall_winner`, `summary`, and total `cost_usd`. Artefacts land under `$AUDIT_COMPARES_DIR` or `~/.ai-browser-auditor/compares/<UTC-iso>-<rand6>/` with `a/` and `b/` subdirs and a `compare.json` sidecar.
+
+#### `list_capabilities` — self-describe (M9-5)
+
+Call once on first connect to get a structured map of the whole server: every tool with its kind, input schema, result schema title, **cacheability**, **static cost-estimate band**, **side-effects**, and **dependency declarations**; plus the public env-var table and live state of the M9-4 result cache.
+
+```jsonc
+// MCP tools/call arguments — none required
+{}
+```
+
+Returns a `ListCapabilitiesResult` (see [docs/schemas/list-capabilities-result.schema.json](./docs/schemas/list-capabilities-result.schema.json)):
+
+```jsonc
+{
+  "schema_version": "1.2.0",
+  "server": { "name": "ai-browser-auditor", "version": "0.3.0" },
+  "result_schema_version": "1.2.0",
+  "tools": [
+    {
+      "name": "judge",
+      "kind": "primitive",
+      "result_schema": "JudgeResult",
+      "cacheable": true,
+      "cost_estimate_usd": { "typical": 0.02, "min": 0.01, "max": 0.06, "unit": "per_call", "notes": "..." },
+      "side_effects": ["navigation", "network_egress", "fs_writes_artifacts"],
+      "requires": { "api_keys": ["ANTHROPIC_API_KEY"], "browser": true }
+      /* …plus name / description / input_schema */
+    }
+    /* …11 more rows */
+  ],
+  "env": [
+    { "name": "ANTHROPIC_API_KEY", "scope": "auth", "default": "", "required": true, "description": "..." }
+    /* …20 more rows across auth / cache / cost_guard / artifacts / logging / memory / reports */
+  ],
+  "cache": { "enabled": true, "ttl_ms_default": 86400000, "path": "~/.ai-browser-auditor/result-cache.db" }
+}
+```
+
+**Pure introspection.** No LLM, no browser, no probe of secret presence. Secret env vars are *named* (so you know what to set) but values are never returned. The cache file path *is* exposed because paths are not secrets — agents writing diagnostic / cleanup scripts genuinely need them. See [ADR-016](./docs/decisions/ADR-016-mcp-self-describe.md) for design rationale, including why `tools/list` keeps the strict-spec subset and why runtime secret-presence is deliberately not probed.
 
 Every tool response carries a top-level `schema_version` field per [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md). Two parallel tool calls in one server process see independent run-USD cost caps (per [ADR-009](./docs/decisions/ADR-009-concurrency-safety.md)) but share the persistent daily ledger.
 
