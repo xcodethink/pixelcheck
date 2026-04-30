@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/see-result.schema.json",
   "title": "SeeResult",
   "description": "MCP tool envelope returned by `see` (N-1 primitive). One-shot navigation snapshot: DOM summary, console errors, screenshot, and an optional vision note.",
-  "x-result-schema-version": "1.0.0",
+  "x-result-schema-version": "1.1.0",
   "$ref": "#/definitions/SeeResult",
   "definitions": {
     "SeeResult": {
@@ -175,6 +175,32 @@
         "duration_ms": {
           "type": "number",
           "minimum": 0
+        },
+        "cache": {
+          "type": "object",
+          "properties": {
+            "hit": {
+              "type": "boolean"
+            },
+            "age_ms": {
+              "type": "number",
+              "minimum": 0
+            },
+            "key": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "cost_saved_usd": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "hit",
+            "age_ms",
+            "key"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

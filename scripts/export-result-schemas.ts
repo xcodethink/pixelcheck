@@ -45,6 +45,7 @@ import {
   ExtractResultSchema,
   JudgeResultSchema,
   CompareResultSchema,
+  ResultCacheMetaSchema,
 } from "../src/core/result-schema.js";
 
 interface SchemaEntry {
@@ -208,6 +209,13 @@ const ENTRIES: SchemaEntry[] = [
     title: "PersonaSummary",
     description: "Short persona descriptor used inside ListPersonasResult.",
     schema: PersonaSummarySchema,
+  },
+  {
+    slug: "result-cache-meta",
+    title: "ResultCacheMeta",
+    description:
+      "Annotation attached by the result cache (M9-4) to primitive result envelopes (see / act / extract / judge / compare). Distinguishes cache hit / miss / not-applicable. On hit the original cost moves to `cost_saved_usd` and the envelope's `cost_usd` is zeroed.",
+    schema: ResultCacheMetaSchema,
   },
 ];
 

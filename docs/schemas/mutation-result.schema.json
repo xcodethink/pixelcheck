@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/mutation-result.schema.json",
   "title": "MutationResult",
   "description": "Single instruction-mutation variant (rephrase | decompose | specific).",
-  "x-result-schema-version": "1.0.0",
+  "x-result-schema-version": "1.1.0",
   "$ref": "#/definitions/MutationResult",
   "definitions": {
     "MutationResult": {
