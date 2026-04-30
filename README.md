@@ -218,14 +218,31 @@ Default: ON every run. Pass `--no-pdf` to skip during fast local iteration. See 
 
 ### Historical Trends
 
-Scores are tracked in a local SQLite database. Compare any two runs:
+Scores are tracked in a local SQLite database. Three ways to look at history:
 
 ```bash
-ai-audit history                    # Recent runs with scores
+ai-audit history                    # Terminal table of recent runs with scores
 ai-audit diff run_0412 run_0411     # Score deltas, new/resolved issues
+ai-audit trends                     # Full HTML dashboard with 5 charts (writes <reports>/trends.html)
 ```
 
-The HTML report includes SVG sparkline charts for the last 20 runs.
+`ai-audit trends` reads `<reports>/history.db` and writes a standalone HTML dashboard answering "did our UX get better or worse?" Five inline-SVG charts (no Chart.js / external CDN — opens behind any firewall, emails / prints / archives cleanly):
+
+| Chart | Answer it gives |
+|---|---|
+| Overall score line | Trending up or down? |
+| Pass / Warn / Fail stacked bars | Consistent or flaky? |
+| Issues over time (total + critical) | Where are the regression hot spots? |
+| Cost over time | Is efficiency drifting? |
+| Per-dimension multi-line | Which scoring dimension is the cause? |
+
+Plus six summary cards at the top (latest score, mean last 7, mean last 30, total cost, total issues, total critical issues) and a recent-runs table for navigation. See [ADR-021](docs/decisions/ADR-021-trends-dashboard.md) for the full design.
+
+```bash
+ai-audit trends --project myapp -n 90 --dashboard reports/trends.html
+```
+
+The per-run `audit.html` also includes inline sparkline charts for at-a-glance trends within that single report.
 
 ### Quality Gate
 
