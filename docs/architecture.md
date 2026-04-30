@@ -364,3 +364,13 @@ Three primitives — `judge`, `extract`, `see` (when `goal` is set) — are wrap
 **Not cached.** `act` (state-changing imperatives), `compare` directly (its `judge` sub-calls hit cache transparently), `audit_url` / `explore_url` (heavyweight, deferred).
 
 See ADR-015 for the full design rationale.
+
+## Test coverage
+
+Unit tests run with `vitest`; coverage is provided by `@vitest/coverage-v8` and gated through `vitest.config.ts > coverage.thresholds`. `npm run test:coverage` writes a `./coverage/index.html` report; `npm run test:coverage:check` enforces the thresholds (CI gate).
+
+**What's counted.** `src/**/*.ts` minus entry-points (`cli.ts` / `index.ts` / `mcp/server.ts`) and pure-type contracts (`core/types.ts` / `core/result-schema.ts`). The exclusions are tested through consumer paths (CLI subcommand smoke + MCP `tools/list` handshake + schema round-trip tests); counting them again would dilute the signal without telling us anything about logic correctness.
+
+**Threshold ratchet.** Floors sit at or below the current global baseline. Each M1-2 phase commit (see [ADR-017](decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md)) raises the floor by at least the gain it just produced, so the gate actively protects the gain rather than auto-deflating to whatever the latest test set produces.
+
+**M1-2 phase scope.** Phase 1 covered all small/utility modules — `scenario` / `config` / `throttle` / `url-preflight` / `image` / `persona` / `secrets` / `page-stability` / `visual-diff` / `notify` / `email` / `stagehand-wrapper` — to ≥ 80% on the testable surface. Phase 2 covers the LLM-heavy modules (`critic` / `llm` / `instruction-mutator`) via mocked Anthropic SDK. Phase 3 covers the orchestration layer (`runner` / `computer-use` / `reporter` / `agent-loop`) — these need substantial Playwright + Stagehand + history-DB mocking.
