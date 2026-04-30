@@ -30,6 +30,14 @@ import { resolvePersonaSecrets } from "./core/persona.js";
 import { buildRedactPatterns, getStripeSecrets, redact } from "./core/secrets.js";
 import { saveAuditToHistory, loadHistory, diffRuns } from "./core/history.js";
 import { writeTrendsDashboard } from "./core/reporter-trends.js";
+import {
+  renderDiffHtml,
+  renderDiffJson,
+  renderDiffMarkdown,
+  renderDiffText,
+  writeDiffReport,
+  type DiffReportFormat,
+} from "./core/reporter-diff.js";
 import { registerSecret } from "./core/logger.js";
 
 dotenv.config();
@@ -210,53 +218,118 @@ program
   .command("diff <runA> <runB>")
   .description("Compare two audit runs")
   .option("-o, --out <dir>", "Reports directory", "reports")
+  .option(
+    "-f, --format <format>",
+    "Output format: text | markdown | html | json (default: text)",
+  )
+  .option(
+    "--output <path>",
+    "Write the diff to this file instead of stdout (format inferred from extension when --format is not set)",
+  )
+  .option(
+    "--max-issues <n>",
+    "Cap on items shown in new/resolved issue lists (default 10)",
+    parseIntOpt,
+  )
   .action(
-    (runA: string, runB: string, diffOpts: { out: string }) => {
+    (
+      runA: string,
+      runB: string,
+      diffOpts: {
+        out: string;
+        format?: string;
+        output?: string;
+        maxIssues?: number;
+      },
+    ) => {
       const reportsDir = path.resolve(diffOpts.out);
       const result = diffRuns(reportsDir, runA, runB);
       if (!result) {
         console.log(chalk.red("One or both runs not found in history."));
         process.exit(1);
       }
-      console.log(chalk.cyan(`\n[ai-audit] Diff: ${runA} → ${runB}\n`));
-      const delta = (v: number, unit: string, invert = false) => {
-        const sign = v > 0 ? "+" : "";
-        const color =
-          v === 0
-            ? chalk.gray
-            : (invert ? v < 0 : v > 0)
-              ? chalk.green
-              : chalk.red;
-        return color(`${sign}${v}${unit}`);
-      };
-      console.log(`  Overall Score: ${result.runA.overallScore.toFixed(1)} → ${result.runB.overallScore.toFixed(1)} (${delta(result.scoreDelta, "")})`);
-      console.log(`  Issues:        ${result.runA.totalIssues} → ${result.runB.totalIssues} (${delta(result.issuesDelta, "", true)})`);
-      console.log(`  Cost:          $${result.runA.totalCostUsd.toFixed(3)} → $${result.runB.totalCostUsd.toFixed(3)} (${delta(result.costDelta, "", true)})`);
-      console.log(`  Duration:      ${(result.runA.durationMs / 1000).toFixed(0)}s → ${(result.runB.durationMs / 1000).toFixed(0)}s`);
 
-      if (Object.keys(result.dimensionDeltas).length > 0) {
-        console.log(chalk.gray("\n  Dimension deltas:"));
-        for (const [dim, d] of Object.entries(result.dimensionDeltas)) {
-          console.log(`    ${dim}: ${delta(d, "")}`);
-        }
-      }
-      if (result.newIssues.length > 0) {
-        console.log(chalk.red(`\n  New issues (${result.newIssues.length}):`));
-        for (const i of result.newIssues.slice(0, 10)) {
-          console.log(chalk.red(`    [${i.severity}] ${i.description.slice(0, 100)}`));
-        }
-      }
-      if (result.resolvedIssues.length > 0) {
-        console.log(
-          chalk.green(
-            `\n  Resolved issues (${result.resolvedIssues.length}):`,
-          ),
+      const format = (diffOpts.format ?? "text") as DiffReportFormat;
+      const opts = { maxIssues: diffOpts.maxIssues };
+
+      if (diffOpts.output) {
+        const outPath = writeDiffReport(
+          result,
+          path.resolve(diffOpts.output),
+          diffOpts.format ? format : undefined,
+          opts,
         );
-        for (const i of result.resolvedIssues.slice(0, 10)) {
-          console.log(chalk.green(`    [${i.severity}] ${i.description.slice(0, 100)}`));
+        console.log(chalk.cyan(`\n[ai-audit] Diff written to:\n  ${outPath}\n`));
+        return;
+      }
+
+      // No --output → render to stdout. text format keeps the legacy
+      // colored-terminal layout via chalk; the other formats are
+      // emitted as plain UTF-8 (downstream consumers redirect or pipe).
+      switch (format) {
+        case "markdown":
+          process.stdout.write(renderDiffMarkdown(result, opts) + "\n");
+          break;
+        case "html":
+          process.stdout.write(renderDiffHtml(result, opts) + "\n");
+          break;
+        case "json":
+          process.stdout.write(renderDiffJson(result) + "\n");
+          break;
+        case "text":
+        default: {
+          // Legacy chalk-coloured terminal layout — preserved bit-for-bit
+          // so users who pipe `ai-audit diff | less -R` see the same output.
+          console.log(chalk.cyan(`\n[ai-audit] Diff: ${runA} → ${runB}\n`));
+          const delta = (v: number, unit: string, invert = false) => {
+            const sign = v > 0 ? "+" : "";
+            const color =
+              v === 0
+                ? chalk.gray
+                : (invert ? v < 0 : v > 0)
+                  ? chalk.green
+                  : chalk.red;
+            return color(`${sign}${v}${unit}`);
+          };
+          console.log(
+            `  Overall Score: ${result.runA.overallScore.toFixed(1)} → ${result.runB.overallScore.toFixed(1)} (${delta(result.scoreDelta, "")})`,
+          );
+          console.log(
+            `  Issues:        ${result.runA.totalIssues} → ${result.runB.totalIssues} (${delta(result.issuesDelta, "", true)})`,
+          );
+          console.log(
+            `  Cost:          $${result.runA.totalCostUsd.toFixed(3)} → $${result.runB.totalCostUsd.toFixed(3)} (${delta(result.costDelta, "", true)})`,
+          );
+          console.log(
+            `  Duration:      ${(result.runA.durationMs / 1000).toFixed(0)}s → ${(result.runB.durationMs / 1000).toFixed(0)}s`,
+          );
+          if (Object.keys(result.dimensionDeltas).length > 0) {
+            console.log(chalk.gray("\n  Dimension deltas:"));
+            for (const [dim, d] of Object.entries(result.dimensionDeltas)) {
+              console.log(`    ${dim}: ${delta(d, "")}`);
+            }
+          }
+          if (result.newIssues.length > 0) {
+            console.log(chalk.red(`\n  New issues (${result.newIssues.length}):`));
+            for (const i of result.newIssues.slice(0, 10)) {
+              console.log(
+                chalk.red(`    [${i.severity}] ${i.description.slice(0, 100)}`),
+              );
+            }
+          }
+          if (result.resolvedIssues.length > 0) {
+            console.log(
+              chalk.green(`\n  Resolved issues (${result.resolvedIssues.length}):`),
+            );
+            for (const i of result.resolvedIssues.slice(0, 10)) {
+              console.log(
+                chalk.green(`    [${i.severity}] ${i.description.slice(0, 100)}`),
+              );
+            }
+          }
+          console.log("");
         }
       }
-      console.log("");
     },
   );
 
