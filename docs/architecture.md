@@ -230,11 +230,11 @@ All report formats pass through the redaction layer (`secrets.redactDeep`) befor
 | `helpers.ts` | `requireString` (argument coercion) + `resolvePersona` (id → persona with sensible fallback). |
 | `tools/<name>.ts` | One file per tool. Exports a `ToolDefinition` with `name` / `description` / `inputSchema` / `kind` / optional `resultSchema` / `handler`. |
 
-**Tool kinds** (used today by the catalog, surfaced by the future M9-5 `list_capabilities`):
+**Tool kinds** (used today by the catalog, surfaced by `list_capabilities`):
 
 - **preset** — composed pipelines. Today: `audit_url` (full audit) and `explore_url` (autonomous goal-driven run).
 - **primitive** — single-capability building blocks. Today: `see` (N-1 — see [ADR-011](decisions/ADR-011-see-primitive.md)), `act` (N-2 — see [ADR-012](decisions/ADR-012-act-primitive.md)), `extract` (N-4 — see [ADR-013](decisions/ADR-013-extract-primitive.md)), `judge` + `compare` (N-8 + N-3 — see [ADR-014](decisions/ADR-014-judge-and-compare-primitives.md)).
-- **meta** — introspection / discovery. Today: `list_personas`, `list_scenarios`, `get_last_report`, `calibrate_critic`.
+- **meta** — introspection / discovery. Today: `list_personas`, `list_scenarios`, `list_capabilities` (M9-5 — see [ADR-016](decisions/ADR-016-mcp-self-describe.md)), `get_last_report`, `calibrate_critic`.
 
 **Adding a new tool**:
 
@@ -243,7 +243,7 @@ All report formats pass through the redaction layer (`secrets.redactDeep`) befor
 
 That's it — `tools/list` and the dispatcher both pick it up automatically. No switch-case edit, no inline JSON Schema in `server.ts`.
 
-The `ListTools` response only emits the spec-compliant `{ name, description, inputSchema }` subset; `kind` and `resultSchema` stay on the registry for `list_capabilities` and unit-test invariants. `tests/mcp-registry.test.ts` enforces that every declared `resultSchema` matches a JSON Schema in [docs/schemas/](schemas/), so a tool can never claim a result shape that isn't published.
+The `ListTools` response only emits the spec-compliant `{ name, description, inputSchema }` subset; `kind`, `resultSchema`, `cacheable`, `costEstimateUsd`, `sideEffects` and `requires` stay on the registry. The `list_capabilities` meta tool is the proper exit for those richer fields (see [ADR-016](decisions/ADR-016-mcp-self-describe.md)). `tests/mcp-registry.test.ts` enforces that every declared `resultSchema` matches a JSON Schema in [docs/schemas/](schemas/), `network_egress ⇔ apiKeys non-empty`, `browser ⇒ navigation`, the M9-4 cacheable matrix is preserved, and the cost band is well-formed (`min ≤ typical ≤ max ≥ 0`, unit ∈ {`per_call`, `per_step`, `per_persona_scenario`}). A tool can never ship without consistent metadata.
 
 Per-tool dynamic imports keep the cold-start path lean: heavy modules (`runner`, `reporter-spa`, `calibration/runner`, `history`) are only loaded when their tool is invoked. `list_personas` / `list_scenarios` cost a couple of milliseconds.
 
@@ -260,6 +260,18 @@ The shipped primitives are:
 - **`compare` (N-3)** — A/B comparison primitive built on top of `judge`. Default mode `double_blind` judges each side independently in parallel with the same rubric, then runs ONE synthesis vision call that sees both screenshots side-by-side with the prior judgements as context — 3 vision calls total (wall-clock ≈ 2 calls), free of anchoring bias (commercial UX-review practice from Nielsen Norman / Baymard). `fast` mode collapses to 1 vision call seeing both sides — cheaper but anchored. Embedded JudgeResult per side in double_blind mode enables future M9-4 result-cache reuse (judge once, compare many times). See [ADR-014](decisions/ADR-014-judge-and-compare-primitives.md).
 
 Adding a new primitive is a four-commit recipe: schema entry in `result-schema.ts` (+ `npm run schemas`), primitive module under `src/core/primitives/`, MCP tool wrapper under `src/mcp/tools/` with `kind: "primitive"`, ADR + CHANGELOG.
+
+### Self-describe (`list_capabilities`, M9-5)
+
+`list_capabilities` is a `meta` tool that returns a structured snapshot of every shipped tool's capabilities plus the public env-var table and live cache state. AI agents call it once on first connect to plan the rest of the session — they get cost band, side-effect set, dependency declarations, and result-schema title for every tool, all without trial-and-error.
+
+**Static vs live.** Per-tool fields (`cacheable`, `cost_estimate_usd`, `side_effects`, `requires`) are static metadata declared on each `ToolDefinition` literal. The 21-row env table is a hand-curated list in `src/mcp/tools/list-capabilities.ts` covering every `AUDIT_*` / `LOG_*` / `ANTHROPIC_API_KEY` env var the codebase reads — a completeness test in `tests/list-capabilities.test.ts` forces the set to stay in sync. The `cache.{enabled, ttl_ms_default, path}` block is read live from `process.env` so the report reflects the calling process's actual configuration.
+
+**Privacy.** `requires.api_keys` declares a *static dependency* on env-var names; it does NOT probe whether each is currently set (would leak secret-presence to every caller). The env table follows the same rule: secret names appear, values never do. The result-cache file path *is* exposed because paths are not secrets — agents writing diagnostic / cleanup scripts genuinely need them. A planted-secret test in `tests/list-capabilities.test.ts` asserts that a fake `ANTHROPIC_API_KEY=sk-ant-FAKE-LEAK-SENTINEL-…` value never appears in output, while the *name* `ANTHROPIC_API_KEY` does.
+
+**Naming.** Internal TypeScript uses camelCase (`costEstimateUsd`, `sideEffects`); the output JSON uses snake_case (`cost_estimate_usd`, `side_effects`) to match the rest of the MCP envelope conventions. The handler does the translation.
+
+**Why not in `tools/list`.** Strict MCP clients may reject unknown fields on `Tool` records. The richer fields stay on the registry. See [ADR-016](decisions/ADR-016-mcp-self-describe.md) for the full design (including 8 alternatives rejected — runtime-presence probes, in-memory caching, HTTP content negotiation, etc.).
 
 ## Logging
 
