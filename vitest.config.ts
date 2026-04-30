@@ -42,10 +42,11 @@ export default defineConfig({
         //   M1-2 Phase 1 entry (pre-tests): 51 / 45 / 54 / 52 → floor 50/45/50/50
         //   M1-2 Phase 1 close (12 modules):  57 / 51 / 60 / 58
         //   M1-2 Phase 2 critic:              58 / 51 / 61 / 59 → floor 55/50/55/55
-        statements: 55,
-        branches: 50,
-        functions: 55,
-        lines: 55,
+        //   M1-2 Phase 2 llm:                 60 / 53 / 62 / 60 → floor 58/52/58/58
+        statements: 58,
+        branches: 52,
+        functions: 58,
+        lines: 58,
       },
     },
   },
