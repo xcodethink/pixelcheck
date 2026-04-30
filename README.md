@@ -201,6 +201,33 @@ reports/2026-04-11_post-deploy/
 
 `audit.json` and every MCP tool response carries a top-level `schema_version` field (SemVer). The contract is documented in [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md); machine-readable JSON Schemas live in [docs/schemas/](./docs/schemas/) and can be regenerated with `npm run schemas`.
 
+### Localised reports
+
+Stakeholder reports (PDF / trends dashboard / PR diff Markdown / PR diff HTML) emit in the language of your audience. v1 supports 5 locales:
+
+| Code | Language | Used for |
+|---|---|---|
+| `en` | English (default) | Baseline |
+| `zh-CN` | Simplified Chinese | China-market teams |
+| `ja` | Japanese | Japan-market product orgs |
+| `es` | Spanish | Spain + Latin America |
+| `de` | German | DACH-region enterprises |
+
+```bash
+ai-audit run --project myapp --locale ja          # Japanese PDF + reports
+ai-audit trends --project myapp --locale zh-CN     # Chinese trends dashboard
+ai-audit diff <a> <b> --format markdown --locale es  # Spanish PR comment
+```
+
+Or pin a default in `config.yaml`:
+```yaml
+project_name: myapp
+base_url: https://myapp.com
+default_locale: ja    # any audit run on this project defaults to ja
+```
+
+What's translated: report skeleton — section titles, table headers, status / severity badges, disclaimer prose. What's NOT translated: the auditor's findings themselves (those come from the LLM in whatever language you asked Claude for) and numeric values / dates / run IDs. See [ADR-023](docs/decisions/ADR-023-report-localisation.md) for the full design.
+
 ### PDF report (audit.pdf)
 
 A 4-section A4 portrait PDF aimed at the layer of decision-makers above engineering — PMs, executives, customers, sales / CS reps. The format every email client renders inline, every slide deck embeds, every phone opens.

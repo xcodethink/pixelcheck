@@ -78,11 +78,13 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "CheckEmailStepSchema",
   "ComputerUseStepSchema",
   "CustomStepSchema",
+  "DEFAULT_LOCALE",
   "ExtractStepSchema",
   "HintSchema",
   "ObserveStepSchema",
   "PersonaSchema",
   "ProjectConfigSchema",
+  "SUPPORTED_LOCALES",
   "ScenarioSchema",
   "ScoringDimensionEnum",
   "ScreenshotStepSchema",
@@ -97,11 +99,13 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "diffRuns",
   "extractDomSummary",
   "formatDomSummary",
+  "formatRunsCount",
   "generateMutations",
   "loadHistory",
   "loadPersonas",
   "loadProjectConfig",
   "loadScenarios",
+  "normaliseLocale",
   "renderDiffHtml",
   "renderDiffJson",
   "renderDiffMarkdown",
@@ -112,6 +116,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "runAudit",
   "saveAuditToHistory",
   "substituteTemplate",
+  "t",
   "waitForPageStable",
   "writeDiffReport",
   "writeGithubAnnotationsReport",
@@ -132,8 +137,8 @@ describe("public surface snapshot — src/index.ts", () => {
     expect(actual).toEqual([...EXPECTED_RUNTIME_EXPORTS]);
   });
 
-  it("ships exactly 55 runtime exports (bump this when intentionally adding a public symbol)", () => {
-    expect(Object.keys(lib)).toHaveLength(55);
+  it("ships exactly 60 runtime exports (bump this when intentionally adding a public symbol)", () => {
+    expect(Object.keys(lib)).toHaveLength(60);
   });
 
   const functionExports: Array<keyof typeof lib> = [
@@ -144,11 +149,13 @@ describe("public surface snapshot — src/index.ts", () => {
     "diffRuns",
     "extractDomSummary",
     "formatDomSummary",
+    "formatRunsCount",
     "generateMutations",
     "loadHistory",
     "loadPersonas",
     "loadProjectConfig",
     "loadScenarios",
+    "normaliseLocale",
     "renderDiffHtml",
     "renderDiffJson",
     "renderDiffMarkdown",
@@ -159,6 +166,7 @@ describe("public surface snapshot — src/index.ts", () => {
     "runAudit",
     "saveAuditToHistory",
     "substituteTemplate",
+    "t",
     "waitForPageStable",
     "writeDiffReport",
     "writeGithubAnnotationsReport",
