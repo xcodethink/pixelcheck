@@ -62,7 +62,7 @@ Net Phase 1 result: **686 → 874 tests** (+188), global coverage **51.5% → 57
 
 | Module | LoC | Why deferred |
 |---|---|---|
-| `core/critic.ts` | 248 | Vision-Critic scoring loop — heavy Anthropic SDK mocking, fixture-driven score validation. Plan A.5 of `PixelCheck-完善与执行方案.md` budgets 2–3 days. |
+| ~~`core/critic.ts`~~ | ~~248~~ | **Done in Phase 2 (2026-04-30):** `tests/critic.test.ts` 24 tests, 3.33 → 100% stmt / 93% branch. `vi.hoisted` shared-capture mock of `./llm.js`; `extractJson` + `compressForVision` stay real; covers happy path / multi-image label convention / verdict.violations mapping / malformed-JSON resilience / schema validation reject / prompt construction (anti-hallucination + data-exposure + persona context) / callVision error propagation / `result.raw` preservation. Threshold ratcheted 50/45/50/50 → 55/50/55/55. |
 | `core/llm.ts` | 304 | Anthropic SDK call wrapper, computer-use beta loop, vision-call fan-out. |
 | `core/instruction-mutator.ts` | 373 | Already 41% via `tests/instruction-mutator.test.ts`; need to push the LLM-rewrite branch + complex generation paths. |
 | `core/runner.ts` | 565 | The audit orchestrator — scenario × persona × step matrix, retries, fallbacks. Heavy Playwright + Stagehand + history mocking. Plan B.4. |
