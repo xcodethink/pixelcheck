@@ -574,6 +574,40 @@ PixelCheck is safe to run from multiple processes at once — two parallel `ai-a
 
 If a process crashes while holding the cost-ledger lock, the lock auto-recovers after 30 seconds (or sooner if the holder pid is no longer alive). See [ADR-009](docs/decisions/ADR-009-concurrency-safety.md) for design.
 
+## Result Cache
+
+A persistent local cache memoises results from the deterministic primitives so repeated identical calls return instantly with `cost_usd = 0`. AI agents can plan more aggressively without burning fresh vision tokens on every tool call.
+
+**Cached primitives:**
+
+| Primitive | Cached | Notes |
+|---|---|---|
+| `judge`   | ✅ | Same URL + rubrics + custom criteria + persona/model → same verdict. |
+| `extract` | ✅ | Same URL + schema + instruction + selector + persona/model → same `data`. |
+| `see`     | ✅ when `goal` is set | Without a goal there is no LLM cost — caching a snapshot would risk staleness. |
+| `act`     | ❌ | State-changing semantics; always runs fresh. |
+| `compare` | Transparent | Its two per-side `judge` calls hit cache automatically; the synthesis call is not separately cached. |
+
+**Hit/miss semantics:** every cache-aware result carries an optional `cache?: { hit, age_ms, key, cost_saved_usd? }` field. On hit the result's own `cost_usd` is **zeroed** and the original cost moves to `cache.cost_saved_usd` — so callers summing nested costs (e.g. `compare`) do not double-count cached work.
+
+**Configuration:**
+
+| Env var | Default | Effect |
+|---|---|---|
+| `AUDIT_RESULT_CACHE_PATH` | `~/.ai-browser-auditor/result-cache.db` | SQLite path; isolate per environment |
+| `AUDIT_RESULT_CACHE_TTL_MS` | `86400000` (24h) | Entries older than this are misses + pruned |
+| `AUDIT_RESULT_CACHE_DISABLED` | unset | `1` / `true` to bypass entirely (read = miss, write = no-op) |
+
+**Per-call overrides** (also exposed on each MCP tool as `cache` / `cache_bust` / `cache_ttl_ms`):
+
+- `cache: false` — skip read and write for this one call.
+- `cacheBust: true` — skip read but persist the new result so subsequent identical calls hit cache.
+- `cacheTtlMs: number` — override the TTL for this call.
+
+**Schema-version invalidation:** entries written under a different `RESULT_SCHEMA_VERSION` are treated as misses and removed at the next prune. The cache survives additive minor bumps automatically; major bumps invalidate everything.
+
+See [ADR-015](docs/decisions/ADR-015-result-cache.md) for design.
+
 ## Built With
 
 - [Playwright](https://playwright.dev/) — browser automation
