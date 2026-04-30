@@ -60,8 +60,8 @@ describe("result-schema — version constant", () => {
     expect(RESULT_SCHEMA_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("RESULT_SCHEMA_VERSION is 1.1.0 (M9-4: added optional cache field)", () => {
-    expect(RESULT_SCHEMA_VERSION).toBe("1.1.0");
+  it("RESULT_SCHEMA_VERSION is 1.2.0 (M9-5: added list_capabilities envelope)", () => {
+    expect(RESULT_SCHEMA_VERSION).toBe("1.2.0");
   });
 });
 
@@ -1244,5 +1244,231 @@ describe("result-schema — primitive envelopes accept optional cache", () => {
     };
     expect(() => CompareResultSchema.parse({ ...base, cache: cacheHit })).not.toThrow();
     expect(() => CompareResultSchema.parse(base)).not.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// M9-5 — list_capabilities envelope schemas
+// ─────────────────────────────────────────────────────────────
+
+import {
+  CostEstimateSchema,
+  ToolSideEffectSchema,
+  ToolRequirementsSchema,
+  ToolCapabilitySchema,
+  EnvVarDocSchema,
+  CacheInfoSchema,
+  ListCapabilitiesResultSchema,
+} from "../src/core/result-schema.js";
+
+describe("result-schema — CostEstimateSchema (M9-5)", () => {
+  it("accepts a typical estimate with all fields", () => {
+    expect(() =>
+      CostEstimateSchema.parse({
+        typical: 0.02,
+        min: 0.01,
+        max: 0.06,
+        unit: "per_call",
+        notes: "1 vision call",
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts an estimate without notes", () => {
+    expect(() =>
+      CostEstimateSchema.parse({ typical: 0, min: 0, max: 0, unit: "per_call" }),
+    ).not.toThrow();
+  });
+
+  it("rejects negative numbers", () => {
+    expect(() =>
+      CostEstimateSchema.parse({ typical: -0.01, min: 0, max: 0, unit: "per_call" }),
+    ).toThrow();
+  });
+
+  it("rejects an unknown unit", () => {
+    expect(() =>
+      CostEstimateSchema.parse({
+        typical: 0,
+        min: 0,
+        max: 0,
+        unit: "per_galaxy",
+      }),
+    ).toThrow();
+  });
+});
+
+describe("result-schema — ToolSideEffectSchema (M9-5)", () => {
+  it.each([
+    "navigation",
+    "state_changing",
+    "fs_writes_artifacts",
+    "fs_writes_history",
+    "fs_reads",
+    "network_egress",
+  ])("accepts %s", (kind) => {
+    expect(() => ToolSideEffectSchema.parse(kind)).not.toThrow();
+  });
+
+  it("rejects an unknown effect", () => {
+    expect(() => ToolSideEffectSchema.parse("blow_up_universe")).toThrow();
+  });
+});
+
+describe("result-schema — ToolRequirementsSchema (M9-5)", () => {
+  it("accepts a minimal requirement (api_keys + browser only)", () => {
+    expect(() =>
+      ToolRequirementsSchema.parse({ api_keys: [], browser: false }),
+    ).not.toThrow();
+  });
+
+  it("accepts the full shape", () => {
+    expect(() =>
+      ToolRequirementsSchema.parse({
+        api_keys: ["ANTHROPIC_API_KEY"],
+        browser: true,
+        personas_dir: true,
+        scenarios_dir: false,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects when api_keys contains a non-string", () => {
+    expect(() =>
+      ToolRequirementsSchema.parse({ api_keys: [42 as unknown as string], browser: true }),
+    ).toThrow();
+  });
+});
+
+describe("result-schema — ToolCapabilitySchema (M9-5)", () => {
+  const minimalCap = {
+    name: "see",
+    description: "look at a URL",
+    kind: "primitive" as const,
+    input_schema: { type: "object", properties: { url: { type: "string" } } },
+    cacheable: true,
+    cost_estimate_usd: { typical: 0, min: 0, max: 0.005, unit: "per_call" as const },
+    side_effects: ["navigation", "fs_writes_artifacts"] as const,
+    requires: { api_keys: [], browser: true },
+  };
+
+  it("accepts a minimal primitive capability", () => {
+    expect(() => ToolCapabilitySchema.parse(minimalCap)).not.toThrow();
+  });
+
+  it("accepts result_schema when set", () => {
+    expect(() =>
+      ToolCapabilitySchema.parse({ ...minimalCap, result_schema: "SeeResult" }),
+    ).not.toThrow();
+  });
+
+  it("rejects an unknown kind", () => {
+    expect(() =>
+      ToolCapabilitySchema.parse({ ...minimalCap, kind: "weird" }),
+    ).toThrow();
+  });
+
+  it("rejects an empty name", () => {
+    expect(() => ToolCapabilitySchema.parse({ ...minimalCap, name: "" })).toThrow();
+  });
+
+  it("rejects when cacheable is missing", () => {
+    const { cacheable: _ignored, ...withoutCacheable } = minimalCap;
+    expect(() => ToolCapabilitySchema.parse(withoutCacheable)).toThrow();
+  });
+});
+
+describe("result-schema — EnvVarDocSchema (M9-5)", () => {
+  const minimalDoc = {
+    name: "ANTHROPIC_API_KEY",
+    description: "Anthropic API key",
+    scope: "auth" as const,
+    default: "",
+    required: true,
+  };
+
+  it("accepts a minimal entry", () => {
+    expect(() => EnvVarDocSchema.parse(minimalDoc)).not.toThrow();
+  });
+
+  it.each(["auth", "cache", "cost_guard", "artifacts", "logging", "memory", "reports"])(
+    "accepts scope %s",
+    (scope) => {
+      expect(() => EnvVarDocSchema.parse({ ...minimalDoc, scope })).not.toThrow();
+    },
+  );
+
+  it("rejects an unknown scope", () => {
+    expect(() => EnvVarDocSchema.parse({ ...minimalDoc, scope: "weather" })).toThrow();
+  });
+});
+
+describe("result-schema — CacheInfoSchema (M9-5)", () => {
+  it("accepts a populated entry", () => {
+    expect(() =>
+      CacheInfoSchema.parse({
+        enabled: true,
+        ttl_ms_default: 86400000,
+        path: "/tmp/cache.db",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects negative ttl", () => {
+    expect(() =>
+      CacheInfoSchema.parse({ enabled: true, ttl_ms_default: -1, path: "/tmp/cache.db" }),
+    ).toThrow();
+  });
+});
+
+describe("result-schema — ListCapabilitiesResultSchema (M9-5)", () => {
+  const minimalCap = {
+    name: "list_personas",
+    description: "...",
+    kind: "meta" as const,
+    input_schema: { type: "object", properties: {} },
+    cacheable: false,
+    cost_estimate_usd: { typical: 0, min: 0, max: 0, unit: "per_call" as const },
+    side_effects: ["fs_reads"] as const,
+    requires: { api_keys: [], browser: false },
+  };
+
+  const minimalEnvelope = {
+    schema_version: "1.2.0",
+    server: { name: "ai-browser-auditor", version: "0.3.0" },
+    result_schema_version: "1.2.0",
+    tools: [minimalCap],
+    env: [
+      {
+        name: "ANTHROPIC_API_KEY",
+        description: "Anthropic API key",
+        scope: "auth" as const,
+        default: "",
+        required: true,
+      },
+    ],
+    cache: { enabled: true, ttl_ms_default: 86400000, path: "/tmp/cache.db" },
+  };
+
+  it("accepts a minimal envelope", () => {
+    expect(() => ListCapabilitiesResultSchema.parse(minimalEnvelope)).not.toThrow();
+  });
+
+  it("accepts an envelope with no tools and no env (lower-bound shape)", () => {
+    expect(() =>
+      ListCapabilitiesResultSchema.parse({ ...minimalEnvelope, tools: [], env: [] }),
+    ).not.toThrow();
+  });
+
+  it("rejects when result_schema_version is missing", () => {
+    const broken: Record<string, unknown> = { ...minimalEnvelope };
+    delete broken.result_schema_version;
+    expect(() => ListCapabilitiesResultSchema.parse(broken)).toThrow();
+  });
+
+  it("rejects when cache field is missing", () => {
+    const broken: Record<string, unknown> = { ...minimalEnvelope };
+    delete broken.cache;
+    expect(() => ListCapabilitiesResultSchema.parse(broken)).toThrow();
   });
 });

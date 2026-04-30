@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/critic-result.schema.json",
   "title": "CriticResult",
   "description": "Output of the vision critic (runCritic).",
-  "x-result-schema-version": "1.1.0",
+  "x-result-schema-version": "1.2.0",
   "$ref": "#/definitions/CriticResult",
   "definitions": {
     "CriticResult": {
