@@ -29,6 +29,15 @@ export {
   type TrendsSummary,
 } from "./core/reporter-trends.js";
 export {
+  writeDiffReport,
+  renderDiffMarkdown,
+  renderDiffHtml,
+  renderDiffJson,
+  renderDiffText,
+  type DiffReportFormat,
+  type DiffReportOptions,
+} from "./core/reporter-diff.js";
+export {
   writeJunitXmlReport,
   writeSarifReport,
   writeJsonLinesReport,
