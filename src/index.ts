@@ -17,6 +17,11 @@ export {
 } from "./core/reporter.js";
 export { writeSpaReport } from "./core/reporter-spa.js";
 export {
+  writePdfReport,
+  renderPdfHtml,
+  type PdfReportOptions,
+} from "./core/reporter-pdf.js";
+export {
   writeJunitXmlReport,
   writeSarifReport,
   writeJsonLinesReport,
