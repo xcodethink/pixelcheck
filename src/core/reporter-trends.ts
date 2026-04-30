@@ -24,6 +24,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { HistoryEntry } from "./history.js";
 import { loadHistory } from "./history.js";
+import { DEFAULT_LOCALE, formatRunsCount, t, type Locale } from "./i18n.js";
 
 // ─────────────────────────────────────────────────────────────
 // Public API
@@ -36,6 +37,8 @@ export interface TrendsDashboardOptions {
   limit?: number;
   /** Output path. Default <reportsDir>/trends.html. */
   outPath?: string;
+  /** Locale for the dashboard skeleton. Default 'en'. */
+  locale?: Locale;
 }
 
 /**
@@ -45,19 +48,24 @@ export interface TrendsDashboardOptions {
  * Entries are expected newest-first (matching loadHistory's default).
  * Internally reverses for left-to-right time-series rendering.
  */
-export function renderTrendsHtml(entries: HistoryEntry[], project?: string): string {
+export function renderTrendsHtml(
+  entries: HistoryEntry[],
+  project?: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   const ordered = [...entries].reverse(); // chronological for charts
   const projectLabel = project ?? (entries[0]?.projectName ?? "all projects");
   const summary = computeSummary(ordered);
 
   return [
     HTML_OPEN,
+    `<title>${escapeHtml(t("trends_title", locale))}</title>`,
     `<style>${stylesheet()}</style>`,
     HTML_HEAD_CLOSE,
-    headerSection(projectLabel, ordered.length, summary),
-    summaryCards(summary),
-    chartsSection(ordered),
-    tableSection(entries.slice(0, 25)),
+    headerSection(projectLabel, ordered.length, summary, locale),
+    summaryCards(summary, locale),
+    chartsSection(ordered, locale),
+    tableSection(entries.slice(0, 25), locale),
     HTML_FOOTER,
   ].join("\n");
 }
@@ -73,7 +81,7 @@ export function writeTrendsDashboard(
   const limit = opts.limit ?? 100;
   const entries = loadHistory(reportsDir, { limit, project: opts.project });
   const outPath = opts.outPath ?? path.join(reportsDir, "trends.html");
-  const html = renderTrendsHtml(entries, opts.project);
+  const html = renderTrendsHtml(entries, opts.project, opts.locale);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, html);
   return outPath;
@@ -399,8 +407,7 @@ const HTML_OPEN = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI Browser Auditor — Trends</title>`;
+<meta name="viewport" content="width=device-width,initial-scale=1">`;
 
 const HTML_HEAD_CLOSE = `</head><body>`;
 
@@ -452,6 +459,7 @@ function headerSection(
   projectLabel: string,
   totalRuns: number,
   summary: TrendsSummary,
+  locale: Locale,
 ): string {
   const span =
     summary.windowStart && summary.windowEnd
@@ -459,14 +467,18 @@ function headerSection(
       : "";
   return `<div class="container">
 <header>
-  <h1>AI Browser Auditor — Trends</h1>
-  <div class="meta">${escapeHtml(projectLabel)} · ${totalRuns} run${totalRuns === 1 ? "" : "s"}${span}</div>
+  <h1>${escapeHtml(t("trends_title", locale))}</h1>
+  <div class="meta">${escapeHtml(projectLabel)} · ${formatRunsCount(totalRuns, locale)}${span}</div>
 </header>`;
 }
 
-function summaryCards(s: TrendsSummary): string {
+function summaryCards(s: TrendsSummary, locale: Locale): string {
   if (s.totalRuns === 0) {
-    return `<div class="empty">No audit history found yet. Run <code>ai-audit run</code> to seed the trend dashboard.</div></div>`;
+    const msg = t("trends_empty_state", locale).replace(
+      /`ai-audit run`/g,
+      "<code>ai-audit run</code>",
+    );
+    return `<div class="empty">${msg}</div></div>`;
   }
   const delta = s.scoreDeltaVsFirst ?? 0;
   const dCls = delta > 0.1 ? "up" : delta < -0.1 ? "down" : "flat";
@@ -479,16 +491,16 @@ function summaryCards(s: TrendsSummary): string {
   const m7 = s.meanLast7 !== null ? s.meanLast7.toFixed(1) : "—";
   const m30 = s.meanLast30 !== null ? s.meanLast30.toFixed(1) : "—";
   return `<div class="cards">
-  <div class="card"><div class="label">Latest score</div><div class="value">${s.latestScore.toFixed(1)} <span class="delta ${dCls}">${dStr}</span></div></div>
-  <div class="card"><div class="label">Mean last 7</div><div class="value">${m7}</div></div>
-  <div class="card"><div class="label">Mean last 30</div><div class="value">${m30}</div></div>
-  <div class="card"><div class="label">Total cost</div><div class="value">$${s.totalCostUsd.toFixed(2)}</div></div>
-  <div class="card"><div class="label">Total issues</div><div class="value">${s.totalIssues}</div></div>
-  <div class="card"><div class="label">Critical issues</div><div class="value">${s.totalCriticalIssues}</div></div>
+  <div class="card"><div class="label">${escapeHtml(t("latest_score", locale))}</div><div class="value">${s.latestScore.toFixed(1)} <span class="delta ${dCls}">${dStr}</span></div></div>
+  <div class="card"><div class="label">${escapeHtml(t("mean_last_7", locale))}</div><div class="value">${m7}</div></div>
+  <div class="card"><div class="label">${escapeHtml(t("mean_last_30", locale))}</div><div class="value">${m30}</div></div>
+  <div class="card"><div class="label">${escapeHtml(t("total_cost", locale))}</div><div class="value">$${s.totalCostUsd.toFixed(2)}</div></div>
+  <div class="card"><div class="label">${escapeHtml(t("total_issues", locale))}</div><div class="value">${s.totalIssues}</div></div>
+  <div class="card"><div class="label">${escapeHtml(t("critical_issues", locale))}</div><div class="value">${s.totalCriticalIssues}</div></div>
 </div>`;
 }
 
-function chartsSection(orderedAsc: HistoryEntry[]): string {
+function chartsSection(orderedAsc: HistoryEntry[], locale: Locale): string {
   if (orderedAsc.length === 0) return "";
 
   const scorePts = orderedAsc.map((r, i) => ({ x: i, y: r.overallScore }));
@@ -499,9 +511,9 @@ function chartsSection(orderedAsc: HistoryEntry[]): string {
   // Pass / Warn / Fail stacked bars
   const stackBars: StackBar[] = orderedAsc.map((r) => ({
     segments: [
-      { value: r.passCount, color: "#15803d", label: "Pass" },
-      { value: r.warnCount, color: "#a16207", label: "Warn" },
-      { value: r.failCount, color: "#b91c1c", label: "Fail" },
+      { value: r.passCount, color: "#15803d", label: t("pass", locale) },
+      { value: r.warnCount, color: "#a16207", label: t("pass_with_issues", locale) },
+      { value: r.failCount, color: "#b91c1c", label: t("fail", locale) },
     ],
   }));
 
@@ -521,50 +533,50 @@ function chartsSection(orderedAsc: HistoryEntry[]): string {
   return `<div class="charts">
 
   <div class="chart-card">
-    <h2>Overall score</h2>
-    <p class="hint">0–10 scale. Higher is better. Trends across the last ${orderedAsc.length} runs.</p>
+    <h2>${escapeHtml(t("trends_chart_score_title", locale))}</h2>
+    <p class="hint">${escapeHtml(t("trends_chart_score_hint", locale))}</p>
     ${lineChartSvg(scorePts, { yMin: 0, yMax: 10, color: "#1e3a8a" })}
   </div>
 
   <div class="chart-card">
-    <h2>Pass / Warn / Fail breakdown</h2>
-    <p class="hint">Counts of audit units by status, per run. Tall green bars = consistent runs; growing red = regression.</p>
+    <h2>${escapeHtml(t("trends_chart_pwf_title", locale))}</h2>
+    <p class="hint">${escapeHtml(t("trends_chart_pwf_hint", locale))}</p>
     ${stackedBarsSvg(stackBars)}
     <div class="legend">
-      <span><span class="swatch" style="background:#15803d"></span>Pass</span>
-      <span><span class="swatch" style="background:#a16207"></span>Pass with issues</span>
-      <span><span class="swatch" style="background:#b91c1c"></span>Fail</span>
+      <span><span class="swatch" style="background:#15803d"></span>${escapeHtml(t("pass", locale))}</span>
+      <span><span class="swatch" style="background:#a16207"></span>${escapeHtml(t("pass_with_issues", locale))}</span>
+      <span><span class="swatch" style="background:#b91c1c"></span>${escapeHtml(t("fail", locale))}</span>
     </div>
   </div>
 
   <div class="chart-card">
-    <h2>Issues over time</h2>
-    <p class="hint">Total issues raised, with critical issues called out. Lower is better.</p>
+    <h2>${escapeHtml(t("trends_chart_issues_title", locale))}</h2>
+    <p class="hint">${escapeHtml(t("trends_chart_issues_hint", locale))}</p>
     ${multiLineChartSvg(
       [
-        { label: "Total", color: "#1e3a8a", points: issuePts },
-        { label: "Critical", color: "#b91c1c", points: critPts },
+        { label: t("total", locale), color: "#1e3a8a", points: issuePts },
+        { label: t("critical", locale), color: "#b91c1c", points: critPts },
       ],
       { yMin: 0 },
     )}
   </div>
 
   <div class="chart-card">
-    <h2>Cost over time</h2>
-    <p class="hint">USD spent on AI inference per run. Drift up suggests inefficient scoring or larger scenarios.</p>
-    ${lineChartSvg(costPts, { yMin: 0, color: "#0f766e", yLabel: "USD" })}
+    <h2>${escapeHtml(t("trends_chart_cost_title", locale))}</h2>
+    <p class="hint">${escapeHtml(t("trends_chart_cost_hint", locale))}</p>
+    ${lineChartSvg(costPts, { yMin: 0, color: "#0f766e", yLabel: t("cost_unit_usd", locale) })}
   </div>
 
   <div class="chart-card">
-    <h2>Per-dimension scores</h2>
-    <p class="hint">One line per scoring dimension (visual, completion, localisation, etc). Spot when a single dimension regresses while the overall stays flat.</p>
+    <h2>${escapeHtml(t("trends_chart_dim_title", locale))}</h2>
+    <p class="hint">${escapeHtml(t("trends_chart_dim_hint", locale))}</p>
     ${multiLineChartSvg(dimSeries, { yMin: 0, yMax: 10 })}
   </div>
 
 </div>`;
 }
 
-function tableSection(recent: HistoryEntry[]): string {
+function tableSection(recent: HistoryEntry[], locale: Locale): string {
   if (recent.length === 0) return "</div>"; // close .container
   const rows = recent
     .map((r) => {
@@ -587,7 +599,7 @@ function tableSection(recent: HistoryEntry[]): string {
     .join("\n");
   return `<table class="runs">
   <thead>
-    <tr><th>Date</th><th>Run</th><th>Score</th><th>Pass</th><th>Warn</th><th>Fail</th><th>Issues</th><th>Critical</th><th>Cost</th><th>Tag</th></tr>
+    <tr><th>${escapeHtml(t("date_label", locale))}</th><th>${escapeHtml(t("run_label", locale))}</th><th>${escapeHtml(t("score", locale))}</th><th>${escapeHtml(t("pass", locale))}</th><th>${escapeHtml(t("pass_with_issues", locale))}</th><th>${escapeHtml(t("fail", locale))}</th><th>${escapeHtml(t("issues", locale))}</th><th>${escapeHtml(t("critical", locale))}</th><th>${escapeHtml(t("cost", locale))}</th><th>${escapeHtml(t("tag", locale))}</th></tr>
   </thead>
   <tbody>${rows}</tbody>
 </table>
