@@ -43,10 +43,11 @@ export default defineConfig({
         //   M1-2 Phase 1 close (12 modules):  57 / 51 / 60 / 58
         //   M1-2 Phase 2 critic:              58 / 51 / 61 / 59 → floor 55/50/55/55
         //   M1-2 Phase 2 llm:                 60 / 53 / 62 / 60 → floor 58/52/58/58
-        statements: 58,
-        branches: 52,
-        functions: 58,
-        lines: 58,
+        //   M1-2 Phase 2 instruction-mutator: 61 / 54 / 63 / 61 → floor 59/53/59/59
+        statements: 59,
+        branches: 53,
+        functions: 59,
+        lines: 59,
       },
     },
   },
