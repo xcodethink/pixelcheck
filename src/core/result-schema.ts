@@ -50,8 +50,12 @@ import { getLogger } from "./logger.js";
  *           (see / act / extract / judge / compare). Additive minor
  *           per ADR-007 SemVer policy. Producers without a cache layer
  *           (audit, critic, etc.) are unaffected.
+ *   1.2.0 — added the `list_capabilities` self-describe tool envelope
+ *           (ListCapabilitiesResult + ToolCapability + EnvVarDoc +
+ *           CostEstimate + CacheInfo). Additive minor — no existing
+ *           envelope changed. (M9-5 / ADR-016)
  */
-export const RESULT_SCHEMA_VERSION = "1.1.0";
+export const RESULT_SCHEMA_VERSION = "1.2.0";
 
 const SchemaVersionField = z
   .string()
@@ -792,6 +796,162 @@ export const PersonaSummarySchema = z.object({
 
 export const ListPersonasResultSchema = z.array(PersonaSummarySchema);
 export const ListScenariosResultSchema = z.array(z.string());
+
+// ─────────────────────────────────────────────────────────────
+// `list_capabilities` self-describe tool (M9-5 / ADR-016)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Static cost estimate for one invocation of a tool. The numbers are
+ * rough USD ranges meant to support AI plan-stage decisions ("can I
+ * afford 50 of these?") — they are NOT measured per-call. Real spend
+ * is reported per-result via `cost_usd` on each tool's envelope.
+ *
+ * `unit` describes the scope:
+ *   - `per_call` — one invocation of the tool
+ *   - `per_step` — one entry in a sequence (e.g. one `act`/`note` step)
+ *   - `per_persona_scenario` — one persona × one scenario (audit_url)
+ *
+ * `notes` is optional one-line context (e.g. "vision call only when
+ * `goal` is set" for `see`).
+ */
+export const CostEstimateSchema = z.object({
+  typical: z.number().nonnegative(),
+  min: z.number().nonnegative(),
+  max: z.number().nonnegative(),
+  unit: z.enum(["per_call", "per_step", "per_persona_scenario"]),
+  notes: z.string().optional(),
+});
+
+/**
+ * Side effects a tool may produce. The list is exhaustive: tools must
+ * surface every effect they can cause so an AI agent can reason about
+ * idempotency / undo strategies / sandboxing without inspecting source.
+ *
+ *   - `navigation`         — drives a browser to a URL
+ *   - `state_changing`     — mutates remote state (form submit, click
+ *                            "delete", login, etc.)
+ *   - `fs_writes_artifacts`— writes screenshots / DOM / per-call sidecar
+ *                            JSON to a primitive artifacts dir
+ *   - `fs_writes_history`  — appends to the local history DB / reports
+ *                            tree
+ *   - `fs_reads`           — reads project files (personas, scenarios,
+ *                            history, fixtures) — pure read, no writes
+ *   - `network_egress`     — calls an LLM provider (Anthropic) or other
+ *                            third party. Implied by every tool that
+ *                            uses vision / Stagehand, but called out
+ *                            explicitly so callers can isolate
+ *                            offline-only tools.
+ *
+ * Only effects the tool itself produces are listed. Cross-tool effects
+ * (e.g. `compare` calls `judge` which writes artifacts) are NOT
+ * propagated up — the tool's own row covers what its handler does.
+ */
+export const ToolSideEffectSchema = z.enum([
+  "navigation",
+  "state_changing",
+  "fs_writes_artifacts",
+  "fs_writes_history",
+  "fs_reads",
+  "network_egress",
+]);
+
+/**
+ * Static dependency declarations — what a caller must have configured
+ * before this tool can succeed. INTENTIONALLY does not probe runtime
+ * state (whether each env var is currently set) because that would
+ * leak secret-presence to every caller. Agents who hit a missing
+ * dependency get a normal error from the tool body.
+ */
+export const ToolRequirementsSchema = z.object({
+  /** Env var names this tool's code path will read (e.g. "ANTHROPIC_API_KEY"). */
+  api_keys: z.array(z.string()),
+  /** Whether the handler launches a Chromium instance. */
+  browser: z.boolean(),
+  /** Whether the project is expected to ship a personas/ directory. */
+  personas_dir: z.boolean().optional(),
+  /** Whether the project is expected to ship a scenarios/ directory. */
+  scenarios_dir: z.boolean().optional(),
+});
+
+/**
+ * Per-tool capability descriptor. Same `name` / `description` /
+ * `input_schema` the MCP `tools/list` returns, plus the richer fields
+ * that are deliberately kept off the spec-level catalog (see
+ * server.ts comment).
+ */
+export const ToolCapabilitySchema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1),
+  kind: z.enum(["preset", "primitive", "meta"]),
+  /** Raw JSON Schema the MCP catalog publishes for `arguments`. */
+  input_schema: z.record(z.unknown()),
+  /** Title of the published JSON Schema in `docs/schemas/`. */
+  result_schema: z.string().optional(),
+  /** Whether the M9-4 result cache will key on this tool's inputs. */
+  cacheable: z.boolean(),
+  /** Static cost band for one invocation. */
+  cost_estimate_usd: CostEstimateSchema,
+  /** Effects the handler itself may produce. */
+  side_effects: z.array(ToolSideEffectSchema),
+  /** Static dependency declarations (no runtime state probed). */
+  requires: ToolRequirementsSchema,
+});
+
+/**
+ * One env var entry in the capabilities envelope. `default` is shown
+ * as a string to keep the contract stable across number / path /
+ * boolean defaults; an empty string means "no built-in default — the
+ * tool falls back to its own internal value".
+ *
+ * `scope` indicates which subsystem reads the variable so callers can
+ * filter (e.g. "show me only the cache knobs").
+ *
+ * Secret names appear here (`ANTHROPIC_API_KEY`) but their values
+ * never do; `required: true` simply marks the variable as a
+ * dependency, not a presence probe.
+ */
+export const EnvVarDocSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1),
+  scope: z.enum([
+    "auth",
+    "cache",
+    "cost_guard",
+    "artifacts",
+    "logging",
+    "memory",
+    "reports",
+  ]),
+  default: z.string(),
+  required: z.boolean(),
+});
+
+/** Live state of the M9-4 result cache. Path is exposed (paths are not secrets); secrets never are. */
+export const CacheInfoSchema = z.object({
+  enabled: z.boolean(),
+  ttl_ms_default: z.number().nonnegative(),
+  path: z.string(),
+});
+
+/** The MCP server identity stamped onto every capability response. */
+export const ServerInfoSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+});
+
+export const ListCapabilitiesResultSchema = z.object({
+  schema_version: SchemaVersionField,
+  server: ServerInfoSchema,
+  /** Same RESULT_SCHEMA_VERSION above; surfaced so callers can plan for migrations without parsing schema_version. */
+  result_schema_version: z.string(),
+  /** Stable insertion-ordered list of every shipped tool. */
+  tools: z.array(ToolCapabilitySchema),
+  /** Public env vars that influence behaviour. Secrets named, never valued. */
+  env: z.array(EnvVarDocSchema),
+  /** M9-4 result cache state. */
+  cache: CacheInfoSchema,
+});
 
 // HistoryEntry — used by get_last_report. Match history.ts shape.
 export const HistoryEntrySchema = z.object({
