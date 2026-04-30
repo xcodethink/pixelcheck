@@ -14,6 +14,8 @@
     "audit": "tsx src/cli.ts",
     "test": "npm run lint:no-console && vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:check": "vitest run --coverage --coverage.thresholdAutoUpdate=false",
     "lint:no-console": "bash scripts/check-no-console.sh",
     "schemas": "tsx scripts/export-result-schemas.ts",
     "clean": "rm -rf dist"
@@ -55,6 +57,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^4.1.5",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.4",
