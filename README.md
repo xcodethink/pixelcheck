@@ -293,6 +293,39 @@ Or dispatch to a central auditor repo that audits all your projects:
 
 Exit codes: `0` = pass, `1` = fail, `2` = warn.
 
+### CI output formats
+
+When the auditor detects a CI environment (`CI=true`, `GITHUB_ACTIONS=true`, `GITLAB_CI=true`, `CIRCLECI=true`, `TF_BUILD=True`, or `JENKINS_URL`), it automatically emits four standard formats alongside `audit.json`/`audit.html`:
+
+| File | Format | Consumed by |
+|---|---|---|
+| `junit.xml` | JUnit XML | Jenkins, GitLab CI, Azure DevOps, CircleCI |
+| `audit.sarif` | SARIF 2.1.0 | GitHub Code Scanning, GitLab SAST |
+| `audit.jsonl` | JSON Lines (one record per line) | jq, log aggregators, custom dashboards |
+| `github-annotations.txt` | GHA workflow commands | GitHub Actions inline PR annotations |
+
+Inside GitHub Actions the workflow-command lines are also streamed to stderr so issues attach inline to PR diffs without a separate annotation step.
+
+Override behaviour explicitly:
+- `--ci-format auto` — default; emit all 4 in CI, none on developer laptop
+- `--ci-format all` — force-emit all 4 regardless of environment
+- `--ci-format none` — skip CI formats
+- `--ci-format junit,sarif` — comma-separated subset
+
+Severity mapping: `critical`/`high` → SARIF `error` / GHA `error`; `medium` → `warning`/`warning`; `low` → `note`/`notice`. See [ADR-019](docs/decisions/ADR-019-ci-friendly-output-formats.md) for the full design.
+
+Example — upload SARIF to GitHub Code Scanning:
+
+```yaml
+- run: npx ai-audit run --project .audit
+  env:
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+- uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: reports/<run-id>/audit.sarif
+```
+
 Notifications: Slack webhook and Telegram bot on completion.
 
 ## MCP Server
