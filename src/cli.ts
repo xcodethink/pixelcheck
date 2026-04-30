@@ -38,6 +38,7 @@ import {
   writeDiffReport,
   type DiffReportFormat,
 } from "./core/reporter-diff.js";
+import { normaliseLocale, type Locale } from "./core/i18n.js";
 import { registerSecret } from "./core/logger.js";
 
 dotenv.config();
@@ -130,6 +131,10 @@ program
     "--no-pdf",
     "Skip PDF report generation (default: generate audit.pdf for stakeholder distribution)",
   )
+  .option(
+    "--locale <code>",
+    "Report language: en | zh-CN | ja | es | de (default: en, or project config's default_locale)",
+  )
   .action(async (opts) => {
     try {
       await runCommand(opts);
@@ -193,12 +198,17 @@ program
   .option("--dashboard <path>", "Output path for the HTML file (default: <reports>/trends.html)")
   .option("-n, --limit <n>", "Cap on history rows used for charts", parseIntOpt)
   .option("--project <name>", "Filter by project name")
+  .option(
+    "--locale <code>",
+    "Dashboard language: en | zh-CN | ja | es | de (default: en)",
+  )
   .action(
     (trendsOpts: {
       out: string;
       dashboard?: string;
       limit?: number;
       project?: string;
+      locale?: string;
     }) => {
       const reportsDir = path.resolve(trendsOpts.out);
       const outPath = writeTrendsDashboard(reportsDir, {
@@ -207,6 +217,7 @@ program
           : undefined,
         limit: trendsOpts.limit,
         project: trendsOpts.project,
+        locale: trendsOpts.locale ? normaliseLocale(trendsOpts.locale) : undefined,
       });
       console.log(
         chalk.cyan(`\n[ai-audit] Trends dashboard written to:\n  ${outPath}\n`),
@@ -231,6 +242,10 @@ program
     "Cap on items shown in new/resolved issue lists (default 10)",
     parseIntOpt,
   )
+  .option(
+    "--locale <code>",
+    "Diff language: en | zh-CN | ja | es | de (default: en)",
+  )
   .action(
     (
       runA: string,
@@ -240,6 +255,7 @@ program
         format?: string;
         output?: string;
         maxIssues?: number;
+        locale?: string;
       },
     ) => {
       const reportsDir = path.resolve(diffOpts.out);
@@ -250,7 +266,10 @@ program
       }
 
       const format = (diffOpts.format ?? "text") as DiffReportFormat;
-      const opts = { maxIssues: diffOpts.maxIssues };
+      const opts = {
+        maxIssues: diffOpts.maxIssues,
+        locale: diffOpts.locale ? normaliseLocale(diffOpts.locale) : undefined,
+      };
 
       if (diffOpts.output) {
         const outPath = writeDiffReport(
@@ -799,6 +818,7 @@ interface RunOpts {
   minScore?: number;
   ciFormat?: string;
   pdf: boolean;
+  locale?: string;
 }
 
 async function runCommand(opts: RunOpts): Promise<void> {
@@ -983,6 +1003,13 @@ async function runCommand(opts: RunOpts): Promise<void> {
   const mdPath = writeMarkdownSummary(audit, runDir);
   const spaPath = writeSpaReport(audit, runDir);
 
+  // Resolve locale: --locale CLI arg overrides config.default_locale,
+  // which itself defaults to 'en'. Unknown codes fall back to 'en' via
+  // normaliseLocale (handles "zh", "ja-JP", case mismatches, etc).
+  const reportLocale: Locale = normaliseLocale(
+    opts.locale ?? config.default_locale,
+  );
+
   // Stakeholder-facing PDF (default: on; --no-pdf to skip during local
   // iteration). PDF generation spawns a fresh chromium for the print
   // render — adds ~2s but the result is the artefact PMs / executives
@@ -991,7 +1018,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   let pdfPath: string | null = null;
   if (opts.pdf !== false) {
     try {
-      pdfPath = await writePdfReport(audit, runDir);
+      pdfPath = await writePdfReport(audit, runDir, { locale: reportLocale });
     } catch (err) {
       console.warn(
         chalk.yellow(
