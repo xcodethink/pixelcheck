@@ -273,7 +273,7 @@ describe("renderPdfHtml — cover page", () => {
   it("renders the summary card with all 7 audit-level counters", () => {
     const html = renderPdfHtml(makeAudit());
     expect(html).toMatch(/Total scenarios run/);
-    expect(html).toMatch(/Pass with issues/);
+    expect(html).toMatch(/pass with issues/i);
     expect(html).toMatch(/Critical issues/);
     expect(html).toMatch(/Total cost/);
     expect(html).toMatch(/\$0\.050/);
@@ -404,7 +404,7 @@ describe("renderPdfHtml — scenario results section", () => {
     expect(html).toMatch(/completion[^<]*<\/td><td>4\.0/);
   });
 
-  it("emits a status badge with the unit's status", () => {
+  it("emits a status badge with the unit's status (using i18n full-name)", () => {
     const audit = makeAudit({
       results: [
         makeScenario({ status: "pass", issues: [] }),
@@ -413,9 +413,14 @@ describe("renderPdfHtml — scenario results section", () => {
       ],
     });
     const html = renderPdfHtml(audit);
-    expect(html).toMatch(/<span class="status pass">pass<\/span>/);
-    expect(html).toMatch(/<span class="status pass_with_issues">pass with issues<\/span>/);
-    expect(html).toMatch(/<span class="status fail">fail<\/span>/);
+    // CSS class still encodes the canonical English status; the visible
+    // text is the localised full-form label (default 'en' → "Passed" /
+    // "Passed with issues" / "Failed"). Localised in C2 of M2-4.
+    expect(html).toMatch(/<span class="status pass">Passed<\/span>/);
+    expect(html).toMatch(
+      /<span class="status pass_with_issues">Passed with issues<\/span>/,
+    );
+    expect(html).toMatch(/<span class="status fail">Failed<\/span>/);
   });
 
   it("falls back to 'No issues raised' when a unit has zero issues", () => {
@@ -526,6 +531,66 @@ describe("renderPdfHtml — redaction", () => {
     const html = renderPdfHtml(audit);
     expect(html).not.toContain("sk-ant-pdf-secret-9999");
     expect(html).toContain("[REDACTED]");
+  });
+});
+
+describe("renderPdfHtml — i18n integration (M2-4)", () => {
+  it("renders the cover labels in zh-CN when locale is set", () => {
+    const html = renderPdfHtml(makeAudit(), { locale: "zh-CN" });
+    expect(html).toContain("AI 浏览器审计报告");
+    expect(html).toContain("项目"); // Project label
+    expect(html).toContain("总评分"); // Overall score
+    expect(html).toContain("总场景数"); // Total scenarios
+    // English text shouldn't be there in localised form
+    expect(html).not.toContain("AI Browser Audit Report");
+  });
+
+  it("renders the cover labels in ja", () => {
+    const html = renderPdfHtml(makeAudit(), { locale: "ja" });
+    expect(html).toContain("AIブラウザ監査レポート");
+    expect(html).toContain("プロジェクト");
+    expect(html).toContain("総合スコア");
+  });
+
+  it("renders the cover labels in es", () => {
+    const html = renderPdfHtml(makeAudit(), { locale: "es" });
+    expect(html).toContain("Informe de Auditoría AI Browser");
+    expect(html).toContain("Proyecto");
+    expect(html).toContain("Puntuación general");
+  });
+
+  it("renders the cover labels in de", () => {
+    const html = renderPdfHtml(makeAudit(), { locale: "de" });
+    expect(html).toContain("KI-Browser-Audit-Bericht");
+    expect(html).toContain("Projekt");
+    expect(html).toContain("Gesamtpunktzahl");
+  });
+
+  it("severity tags are translated in the issue cards", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          status: "fail",
+          issues: [makeIssue({ severity: "critical" })],
+        }),
+      ],
+    });
+    const zh = renderPdfHtml(audit, { locale: "zh-CN" });
+    expect(zh).toContain(">严重<"); // critical → 严重
+    const ja = renderPdfHtml(audit, { locale: "ja" });
+    expect(ja).toContain(">致命的<");
+  });
+
+  it("methodology disclaimer is translated", () => {
+    const html = renderPdfHtml(makeAudit(), { locale: "zh-CN" });
+    expect(html).toContain("方法说明"); // Methodology
+    expect(html).toContain("校准"); // 'calibrated' from disclaimer
+  });
+
+  it("default locale (no opts) is English", () => {
+    const html = renderPdfHtml(makeAudit());
+    expect(html).toContain("AI Browser Audit Report");
+    expect(html).toContain("Methodology");
   });
 });
 
