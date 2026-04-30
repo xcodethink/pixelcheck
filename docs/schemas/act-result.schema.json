@@ -3,7 +3,7 @@
   "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/act-result.schema.json",
   "title": "ActResult",
   "description": "MCP tool envelope returned by `act` (N-2 primitive). Per-step outcome of an action sequence (goto / click / fill / press / wait / wait_for / scroll / screenshot / act / note) plus a final DOM summary, console errors, and screenshot.",
-  "x-result-schema-version": "1.0.0",
+  "x-result-schema-version": "1.1.0",
   "$ref": "#/definitions/ActResult",
   "definitions": {
     "ActResult": {
@@ -265,6 +265,32 @@
         "duration_ms": {
           "type": "number",
           "minimum": 0
+        },
+        "cache": {
+          "type": "object",
+          "properties": {
+            "hit": {
+              "type": "boolean"
+            },
+            "age_ms": {
+              "type": "number",
+              "minimum": 0
+            },
+            "key": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "cost_saved_usd": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "hit",
+            "age_ms",
+            "key"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

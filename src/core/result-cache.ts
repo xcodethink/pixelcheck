@@ -61,34 +61,11 @@ import Database from "better-sqlite3";
 
 import { withFileLockSync } from "./file-lock.js";
 import { getLogger } from "./logger.js";
-import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
+import { RESULT_SCHEMA_VERSION, type ResultCacheMeta } from "./result-schema.js";
 
 const log = getLogger("result-cache");
 
-// ─────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Annotation attached to a cached result. Always present on
- * cache-aware primitive results regardless of hit or miss so callers
- * can distinguish "cache disabled / not applicable" (field absent)
- * from "cache miss" (`hit: false`) from "cache hit" (`hit: true`).
- */
-export interface ResultCacheMeta {
-  /** True when the result was served from cache. */
-  hit: boolean;
-  /** Milliseconds since the cached entry was written. 0 on miss. */
-  age_ms: number;
-  /** sha256 of the canonical input — same key for same inputs across machines. */
-  key: string;
-  /**
-   * On hit: the original result's `cost_usd` (i.e. dollars saved by the
-   * cache hit). Omitted on miss. Lets downstream callers (`compare`)
-   * surface aggregate savings without double-counting.
-   */
-  cost_saved_usd?: number;
-}
+export type { ResultCacheMeta };
 
 export interface ResultCacheConfig {
   /** Override the SQLite path. Defaults to env or `~/.ai-browser-auditor/result-cache.db`. */

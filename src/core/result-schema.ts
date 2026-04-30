@@ -43,13 +43,42 @@ import { getLogger } from "./logger.js";
  *
  * Distinct from `SCHEMA_VERSION` in `history.ts`, which is a SQLite
  * `user_version` integer for DB migrations.
+ *
+ * Version history:
+ *   1.0.0 — initial release (M9-2)
+ *   1.1.0 — added optional `cache` field to primitive result envelopes
+ *           (see / act / extract / judge / compare). Additive minor
+ *           per ADR-007 SemVer policy. Producers without a cache layer
+ *           (audit, critic, etc.) are unaffected.
  */
-export const RESULT_SCHEMA_VERSION = "1.0.0";
+export const RESULT_SCHEMA_VERSION = "1.1.0";
 
 const SchemaVersionField = z
   .string()
   .regex(/^\d+\.\d+\.\d+$/, "schema_version must be SemVer (x.y.z)")
   .optional();
+
+// ─────────────────────────────────────────────────────────────
+// Cross-cutting metadata
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Annotation attached by the result cache (M9-4) to primitive result
+ * envelopes. Always present on cache-aware primitives regardless of
+ * whether the call was a hit or miss, so consumers can distinguish
+ * "cache disabled / not applicable" (field absent) from "cache miss"
+ * (`hit: false`) from "cache hit" (`hit: true`).
+ *
+ * On hit the source primitive's `cost_usd` is zeroed and the original
+ * cost moves to `cache.cost_saved_usd` so downstream aggregators (e.g.
+ * `compare` summing two judge calls) do not double-count cached work.
+ */
+export const ResultCacheMetaSchema = z.object({
+  hit: z.boolean(),
+  age_ms: z.number().nonnegative(),
+  key: z.string().regex(/^[0-9a-f]{64}$/, "key must be a 64-char sha256 hex"),
+  cost_saved_usd: z.number().nonnegative().optional(),
+});
 
 // ─────────────────────────────────────────────────────────────
 // Leaf schemas — match shapes already exported by core/types.ts
@@ -446,6 +475,8 @@ export const SeeResultSchema = z.object({
   artifacts_dir: z.string(),
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
+  /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
+  cache: ResultCacheMetaSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -556,6 +587,12 @@ export const ActResultSchema = z.object({
   artifacts_dir: z.string(),
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
+  /**
+   * Result-cache annotation (M9-4). Always optional and never `hit:true`
+   * for `act` because state-changing steps are not cacheable; the field
+   * is included for envelope uniformity across primitives.
+   */
+  cache: ResultCacheMetaSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -595,6 +632,8 @@ export const ExtractResultSchema = z.object({
   artifacts_dir: z.string(),
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
+  /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
+  cache: ResultCacheMetaSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -670,6 +709,8 @@ export const JudgeResultSchema = z.object({
   model: z.string(),
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
+  /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
+  cache: ResultCacheMetaSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -733,6 +774,11 @@ export const CompareResultSchema = z.object({
   model: z.string(),
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
+  /**
+   * Result-cache annotation (M9-4). Reflects the synthesis call only;
+   * each side's `judge` already carries its own `cache` field.
+   */
+  cache: ResultCacheMetaSchema.optional(),
 });
 
 export const PersonaSummarySchema = z.object({
@@ -857,3 +903,4 @@ export type CompareWinner = z.infer<typeof CompareWinnerSchema>;
 export type CompareCriterionVerdict = z.infer<typeof CompareCriterionVerdictSchema>;
 export type CompareSide = z.infer<typeof CompareSideSchema>;
 export type CompareResultShape = z.infer<typeof CompareResultSchema>;
+export type ResultCacheMeta = z.infer<typeof ResultCacheMetaSchema>;
