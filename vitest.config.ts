@@ -32,16 +32,20 @@ export default defineConfig({
         "src/**/*.d.ts",
       ],
       thresholds: {
-        // Global floor — all files combined. Bumped per M1-2 phase.
-        // Floor set ≤ current baseline so the gate catches regression
-        // without instantly blocking the build. Each subsequent M1-2
-        // commit raises the floor a few points after pushing it up.
-        // M1-2 Phase 1 entry baseline (pre-tests): ~51% stmt / 45% br /
-        // 54% func / 52% line. ADR-017 records the upgrade path.
-        statements: 50,
-        branches: 45,
-        functions: 50,
-        lines: 50,
+        // Global floor — all files combined. Ratcheted per M1-2 phase
+        // commit per ADR-017's contract ("raise the floor by at least
+        // the gain it just produced"). Floor sits a few points below
+        // current baseline so natural week-to-week fluctuation doesn't
+        // trip the gate, but a real regression does.
+        //
+        // History:
+        //   M1-2 Phase 1 entry (pre-tests): 51 / 45 / 54 / 52 → floor 50/45/50/50
+        //   M1-2 Phase 1 close (12 modules):  57 / 51 / 60 / 58
+        //   M1-2 Phase 2 critic:              58 / 51 / 61 / 59 → floor 55/50/55/55
+        statements: 55,
+        branches: 50,
+        functions: 55,
+        lines: 55,
       },
     },
   },
