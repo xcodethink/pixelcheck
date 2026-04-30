@@ -14,17 +14,18 @@
  *   tools/<name>.ts — one file per tool, exports ToolDefinition
  *
  * Tools registered (kind in parens):
- *   - audit_url        (preset)    — full audit pipeline against a URL
- *   - explore_url      (preset)    — autonomous agent run with a goal
- *   - see              (primitive) — one-shot navigation snapshot (N-1)
- *   - act              (primitive) — execute a sequence of actions (N-2)
- *   - extract          (primitive) — schema-bound structured extraction (N-4)
- *   - judge            (primitive) — rubric-driven page critic (N-8)
- *   - compare          (primitive) — A/B page comparison (N-3)
- *   - list_personas    (meta)      — enumerate installed personas
- *   - list_scenarios   (meta)      — enumerate installed scenarios
- *   - calibrate_critic (meta)      — run the critic calibration gate
- *   - get_last_report  (meta)      — read the most recent audit summary
+ *   - audit_url         (preset)    — full audit pipeline against a URL
+ *   - explore_url       (preset)    — autonomous agent run with a goal
+ *   - see               (primitive) — one-shot navigation snapshot (N-1)
+ *   - act               (primitive) — execute a sequence of actions (N-2)
+ *   - extract           (primitive) — schema-bound structured extraction (N-4)
+ *   - judge             (primitive) — rubric-driven page critic (N-8)
+ *   - compare           (primitive) — A/B page comparison (N-3)
+ *   - list_personas     (meta)      — enumerate installed personas
+ *   - list_scenarios    (meta)      — enumerate installed scenarios
+ *   - list_capabilities (meta)      — self-describe the MCP server (M9-5)
+ *   - calibrate_critic  (meta)      — run the critic calibration gate
+ *   - get_last_report   (meta)      — read the most recent audit summary
  *
  * Adding a new tool: drop a file under `src/mcp/tools/<name>.ts` exporting
  * a `ToolDefinition`, then push it into the `ALL_TOOLS` array below.
@@ -60,6 +61,7 @@ import { judgeTool } from "./tools/judge.js";
 import { compareTool } from "./tools/compare.js";
 import { listPersonasTool } from "./tools/list-personas.js";
 import { listScenariosTool } from "./tools/list-scenarios.js";
+import { listCapabilitiesTool } from "./tools/list-capabilities.js";
 import { calibrateCriticTool } from "./tools/calibrate-critic.js";
 import { getLastReportTool } from "./tools/get-last-report.js";
 
@@ -85,6 +87,7 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   compareTool,
   listPersonasTool,
   listScenariosTool,
+  listCapabilitiesTool,
   calibrateCriticTool,
   getLastReportTool,
 ];

@@ -100,7 +100,7 @@ describe("ToolRegistry", () => {
 });
 
 describe("ALL_TOOLS catalog invariants", () => {
-  it("contains the 11 shipped tools in stable order", () => {
+  it("contains the 12 shipped tools in stable order", () => {
     expect(ALL_TOOLS.map((t) => t.name)).toEqual([
       "audit_url",
       "explore_url",
@@ -111,6 +111,7 @@ describe("ALL_TOOLS catalog invariants", () => {
       "compare",
       "list_personas",
       "list_scenarios",
+      "list_capabilities",
       "calibrate_critic",
       "get_last_report",
     ]);
@@ -234,6 +235,7 @@ describe("ALL_TOOLS catalog invariants", () => {
       compare: false,
       list_personas: false,
       list_scenarios: false,
+      list_capabilities: false,
       calibrate_critic: false,
       get_last_report: false,
     };
