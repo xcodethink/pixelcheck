@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M1-2 Phase 2 close — `core/reporter-spa.ts` HTML-escape coverage)
+
+- `tests/reporter-spa.test.ts` extended from 5 → 13 tests. Coverage: `core/reporter-spa.ts` 60 → **93.33% statements / 100% branches / 100% functions / 93.33% lines**. The remaining ~7% is the unreachable `default:` return inside `escapeHtml`'s switch (the calling regex `[&<>"]` only passes those four chars, so the default branch is dead defensive code).
+- Test surface added:
+  - `escapeHtml` exercised through `audit.project_name` and `audit.run_id` (the only two `escapeHtml` call sites — every other text interpolation goes through the JSON `<` / `>` escape): `&` → `&amp;`, `<` → `&lt;`, `>` → `&gt;`, `"` → `&quot;`, plus a mixed-special-chars case and a plain-ASCII no-op case.
+  - `redact_patterns` fast-path: empty array bypasses `redactDeep` (verified by checking that an unredacted secret string survives in the output) and undefined `redact_patterns` likewise bypasses.
+- This commit closes M1-2 Phase 2's LLM-heavy quartet: `critic` (100%) + `llm` (87%) + `instruction-mutator` (86%) + `reporter-spa` (93%). Threshold stays at 59/53/59/59 — the sub-1pt gain (60.65 → 60.75) doesn't warrant a ratchet under ADR-017's contract.
+- 980/980 tests pass (973 → 980, +7).
+
 ### Added (M1-2 Phase 2 — `core/instruction-mutator.ts` extended unit tests)
 
 - `tests/instruction-mutator-extended.test.ts` — 37 tests complementing the existing `tests/instruction-mutator.test.ts` (which covered only `mutateSpecific` + `mutateDecompose` happy paths). The original tests stay; this file adds the orchestration / LLM / autoDiscovery / verb-swap surfaces that were previously untested.
