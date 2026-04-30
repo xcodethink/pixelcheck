@@ -22,6 +22,13 @@ export {
   type PdfReportOptions,
 } from "./core/reporter-pdf.js";
 export {
+  writeTrendsDashboard,
+  renderTrendsHtml,
+  computeSummary,
+  type TrendsDashboardOptions,
+  type TrendsSummary,
+} from "./core/reporter-trends.js";
+export {
   writeJunitXmlReport,
   writeSarifReport,
   writeJsonLinesReport,
