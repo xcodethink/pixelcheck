@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M2-5 — PR diff report)
+
+- New module `src/core/reporter-diff.ts` (~310 LoC) renders an audit `RunDiff` into 4 formats CI / PR-review tooling actually consumes:
+  - **Markdown** (`renderDiffMarkdown`) — primary use case is direct posting as a PR comment via GitHub Actions (`marocchino/sticky-pull-request-comment` or `gh pr comment --body-file`). GitHub-Flavored-Markdown tables, ▲/▼ trend arrows with ✅/⚠️ polarity emoji, severity tags as **[critical]** bold text. Renders identically on GitHub / GitLab / Bitbucket.
+  - **HTML** (`renderDiffHtml`) — standalone file for email / Slack / archival. Light theme matching reporter-pdf + reporter-trends; severity-coloured issue cards (critical / high red, medium amber, low grey, resolved green); cross-project warning banner when `runA.projectName !== runB.projectName`.
+  - **JSON** (`renderDiffJson`) — `{ kind: "audit_diff", rendered_at, diff }` envelope preserving the structured RunDiff verbatim. For tools that want to chart / aggregate.
+  - **Text** (`renderDiffText`) — ANSI-free version of the legacy CLI output for file redirection / log aggregators.
+- Plus `writeDiffReport(diff, outPath, format?, opts?)` — disk-write helper that infers format from extension when `format` is omitted (`.md` → markdown, `.html` → html, `.json` → json, anything else → text). Creates parent directories. Returns absolute path.
+- Delta-arrow polarity is **value-aware**: score / dimension up = good (▲ green / ✅), issues / cost / duration up = bad (▲ red / ⚠️), zero delta renders as "—" muted. Colour is *additional* signal, not the only one — arrow direction + polarity emoji together encode the meaning even for colour-blind readers.
+- CLI extended: `ai-audit diff <runA> <runB>` gains `--format <text|markdown|html|json>` (default text, preserves the legacy chalk-coloured terminal output for backwards compat), `--output <path>` to write to a file (format inferred from extension when `--format` is omitted), and `--max-issues <n>` to cap new/resolved issue lists (default 10).
+- Public API surface grows 50 → 55 exports: `renderDiffMarkdown`, `renderDiffHtml`, `renderDiffJson`, `renderDiffText`, `writeDiffReport` + types `DiffReportFormat` / `DiffReportOptions`.
+- 1269 → 1319 tests pass (+50). Coverage on the new file: 98.08% statements / 94.16% branches / 100% functions.
+- Typical CI workflow now reduces to 5 lines of YAML:
+  ```yaml
+  - run: ai-audit diff $MAIN_RUN $PR_RUN --format markdown --output diff.md
+  - uses: marocchino/sticky-pull-request-comment@v2
+    with: { path: diff.md }
+  ```
+- See [ADR-022](docs/decisions/ADR-022-pr-diff-report.md) for the full design rationale and 8 alternatives rejected (bake into `runDir` / templating engine / inline HTML in Markdown / drop text format / auto-post via `gh pr comment` / embed screenshots / direction-only polarity / third-party Markdown library).
+
 ### Added (M2-3 — Long-running trends dashboard)
 
 - New CLI subcommand `ai-audit trends` reads the project's `history.db` (already populated by every audit run since v0.3) and renders a standalone HTML dashboard answering "did our UX trend up or down over the last quarter?". Output: `<reports>/trends.html` by default; `--dashboard <path>` overrides; `--project <name>` filters; `-n <limit>` caps history rows for chart density (default 100, ~3 months of daily runs).
