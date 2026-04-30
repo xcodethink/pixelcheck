@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M2-6 — CI-friendly output formats)
+
+- New module `src/core/ci-reporters.ts` (~400 LoC) emits four CI/CD-standard formats alongside the existing `audit.json` / `audit.html` / `summary.md`:
+  - **JUnit XML** (`junit.xml`) for Jenkins / GitLab CI / Azure DevOps / CircleCI legacy reporters. One `<testcase>` per `(scenario × persona)`; `status: "fail"` → `<failure type="error">`, `"pass_with_issues"` → `<failure type="warning">`; `<system-out>` carries score + cost + per-dimension breakdown.
+  - **SARIF 2.1.0** (`audit.sarif`) for GitHub Code Scanning + GitLab SAST. One result per Issue with severity-mapped `level`; ruleId derived from `issue.dimension` as kebab-case (`audit/visual-polish`); rules deduped; result properties carry scenario/persona/score/cost. Custom tool-driver overrides supported.
+  - **JSONL** (`audit.jsonl`) for streaming consumers. First line is a `kind: "summary"` header; subsequent lines are one `kind: "scenario_result"` per audit unit, each independently `JSON.parse`-able (jq-friendly).
+  - **GitHub Actions workflow commands** (`github-annotations.txt`) for inline PR annotations. Severity → level (`critical`/`high` → `error`, `medium` → `warning`, `low` → `notice`); per-spec encoding of `%`/`\r`/`\n`/`:`/`,` (% escaped first).
+- New CLI flag `--ci-format <formats>` accepts `auto` (default — emit all when CI detected, none on developer laptop), `all`, `none`, or a comma-separated subset (`junit,sarif,jsonl,gha`). Formats land in `runDir` alongside the existing artefacts.
+- When running inside `GITHUB_ACTIONS`, the CLI also streams the annotation lines to stderr so they attach inline to PR diffs without a separate workflow step.
+- New helper `detectCiEnvironment()` recognises GitHub Actions / GitLab CI / CircleCI / Azure Pipelines / Jenkins / generic-CI via the standard env-var signals. Returns `null` on developer laptops so the default `auto` mode keeps local iteration clean.
+- Single `SEVERITY_LEVELS` lookup table is the source of truth for severity → SARIF/GHA mapping; adding a 5th format is mechanical.
+- All four writers go through `redactDeep` so the M1-4 redaction layer covers CI formats too — planted-secret tests verify substrings like `sk-ant-secret-9999` never leak through any format.
+- Public API surface grows 40 → 45 exports: `writeJunitXmlReport` / `writeSarifReport` / `writeJsonLinesReport` / `writeGithubAnnotationsReport` / `detectCiEnvironment` (+ `SarifToolDriver` type) all re-exported from `src/index.ts` for embedders that want only specific formats.
+- 1132 → 1186 tests pass (+54). Global coverage 60.93 → 61.82% statements (+0.89). See [ADR-019](docs/decisions/ADR-019-ci-friendly-output-formats.md) for the full design rationale and 8 alternatives rejected.
+
 ### Added (M1-5 — Public API contract tests)
 
 - Two new test files guard the *external consumer* perspective on the published JSON Schemas (Ajv-validated) and the runtime export surface of `src/index.ts`:
