@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M1-2 Phase 1 — coverage tooling + small/utility module unit tests)
+
+- `@vitest/coverage-v8` ^4.1.5 dev dep. `vitest.config.ts` enables coverage with provider `v8`, three reporters (`text-summary` / `html` / `json-summary`), `./coverage` output dir. Includes `src/**/*.ts` minus entry-points (`cli.ts` / `index.ts` / `mcp/server.ts`) and pure-type contracts (`core/types.ts` / `core/result-schema.ts`) — counting them dilutes the signal.
+- Two new npm scripts: `test:coverage` (writes report) and `test:coverage:check` (enforces global thresholds; fails CI on regression).
+- Threshold gate set at conservative entry baseline (statements 50 / branches 45 / functions 50 / lines 50). Each subsequent M1-2 phase commit ratchets the floor up. `coverage/` added to `.gitignore`.
+- 12 new module-level test files added: `tests/scenario.test.ts`, `tests/config.test.ts`, `tests/throttle.test.ts`, `tests/url-preflight.test.ts`, `tests/image.test.ts`, `tests/persona.test.ts`, `tests/secrets.test.ts`, `tests/page-stability.test.ts`, `tests/visual-diff.test.ts`, `tests/notify.test.ts`, `tests/email.test.ts`, `tests/stagehand-wrapper.test.ts`. 188 new tests total.
+- Per-module coverage uplift: `scenario` 0 → 100%, `config` 0 → 100%, `throttle` 0 → 95%, `url-preflight` 0 → 100%, `image` 44 → 88%, `persona` 45 → 100%, `secrets` 57 → ~100%, `page-stability` 0 → 40% (Node-side 100%, page-side `evaluate(callback)` bodies are browser-only and run in real Playwright integration tests), `visual-diff` 62 → 79%, `notify` 0 → 100%, `email` 0 → 100%, `stagehand-wrapper` 0 → 90% (via `vi.mock` + `vi.hoisted` Stagehand stub). 
+- Global coverage 51.5% → 57.5% statements / 45.75% → 51.27% branches. ADR-017 records the M1-2 phase plan and lists which big modules (critic / llm / runner / computer-use / reporter / agent-loop / etc.) stay for Phase 2/3.
+- `stagehand-wrapper.test.ts` mocks `@browserbasehq/stagehand` with a hoisted shared-capture object so the wrapper exercises init / addInitScript / cookies / tracing / close / video.path without launching Chromium. stealth-core stays unmocked so `resolveFingerprintForPersona` + `buildStealthLaunchOptions` are genuinely covered. Includes "Stagehand not installed" error path + addInitScript-throw resilience path.
+
 ### Added (M9-5 MCP self-describe / `list_capabilities`)
 
 - New MCP tool `list_capabilities` (`kind: "meta"`) — twelfth shipped tool. Pure introspection: no LLM, no browser, no probe of secret presence. AI agents call it once on first connect to plan the rest of the session: every tool with kind, input schema, result schema title, **cacheability**, **static cost-estimate band**, **side-effects**, and **dependency declarations**; plus the public env-var table and live state of the M9-4 result cache.
