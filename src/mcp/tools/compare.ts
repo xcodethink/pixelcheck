@@ -243,6 +243,17 @@ export const compareTool: ToolDefinition = {
     "A/B page comparison primitive. Each side is `{url}` or a pre-captured `{capture}`. Default mode `double_blind` judges each side independently with the same rubric (parallel) then runs ONE synthesis vision call seeing both screenshots — 3 vision calls total, free of anchoring bias (commercial UX-review practice). `fast` mode collapses to 1 side-by-side vision call (cheaper, anchored). Built-in rubrics: 'aesthetic' (8 criteria) and 'dark_pattern' (12 criteria); custom criteria also supported. Returns per-criterion winner (a/b/tie) + rationale + per-side scores + overall winner + summary, with the embedded JudgeResult for each side in double_blind mode.",
   kind: "primitive",
   resultSchema: "CompareResult",
+  cacheable: false,
+  costEstimateUsd: {
+    typical: 0.06,
+    min: 0.01,
+    max: 0.18,
+    unit: "per_call",
+    notes:
+      "double_blind: 2 judge calls + 1 synthesis call (~3× judge cost). fast: 1 side-by-side call (~1× judge cost, anchored). Cache: compare itself is NOT cached, but each side's `judge` sub-call IS cached transparently — repeat compares with the same A & B pay only the synthesis call.",
+  },
+  sideEffects: ["navigation", "network_egress", "fs_writes_artifacts"],
+  requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },
   inputSchema,
   handler,
 };

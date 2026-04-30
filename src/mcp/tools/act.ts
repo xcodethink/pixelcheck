@@ -316,6 +316,22 @@ export const actTool: ToolDefinition = {
     "Execute a sequence of actions on a URL: goto / click / fill / press / wait / wait_for / scroll / screenshot, plus AI steps `act` (Stagehand natural language) and `note` (one vision call). Returns per-step status, final DOM summary, console errors, and a final screenshot. Engine auto-selects: Stagehand only if any step.type='act'.",
   kind: "primitive",
   resultSchema: "ActResult",
+  cacheable: false,
+  costEstimateUsd: {
+    typical: 0.01,
+    min: 0,
+    max: 0.05,
+    unit: "per_step",
+    notes:
+      "Deterministic steps (goto/click/fill/press/wait/...) cost $0. AI steps: `act` ~$0.005-0.02 (Stagehand), `note` ~$0.005 (1 vision call). Total = sum across steps. NOT cached — act is state-changing.",
+  },
+  sideEffects: [
+    "navigation",
+    "state_changing",
+    "network_egress",
+    "fs_writes_artifacts",
+  ],
+  requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },
   inputSchema,
   handler,
 };

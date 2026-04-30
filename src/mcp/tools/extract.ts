@@ -195,6 +195,17 @@ export const extractTool: ToolDefinition = {
     "Schema-bound structured extraction from a URL. Caller hands us a JSON Schema describing the desired payload shape; the tool runs Stagehand's extract() under the hood and returns matching `data` plus DOM summary, console errors, and a screenshot. Single LLM call per invocation. Single engine: Stagehand. When `schema` is omitted, returns Stagehand's free-form `{ extraction: string }` driven by `instruction`.",
   kind: "primitive",
   resultSchema: "ExtractResult",
+  cacheable: true,
+  costEstimateUsd: {
+    typical: 0.02,
+    min: 0.005,
+    max: 0.1,
+    unit: "per_call",
+    notes:
+      "1 Stagehand extract call. Cost scales with schema complexity and page DOM size. M9-4 result cache always engaged (key includes url + schema + instruction).",
+  },
+  sideEffects: ["navigation", "network_egress", "fs_writes_artifacts"],
+  requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },
   inputSchema,
   handler,
 };
