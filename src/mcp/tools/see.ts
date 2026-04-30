@@ -162,6 +162,17 @@ export const seeTool: ToolDefinition = {
     "Look at a URL once and return DOM summary + screenshot + console errors + an optional vision note. Lightweight primitive: 0 LLM cost when goal is omitted, ~1 vision call when set. Faster than audit_url / explore_url for one-shot inspection.",
   kind: "primitive",
   resultSchema: "SeeResult",
+  cacheable: true,
+  costEstimateUsd: {
+    typical: 0,
+    min: 0,
+    max: 0.01,
+    unit: "per_call",
+    notes:
+      "Free without `goal`. With `goal`: ~1 vision call (~$0.005 with Sonnet 4.6). M9-4 result cache is engaged only when `goal` is set.",
+  },
+  sideEffects: ["navigation", "network_egress", "fs_writes_artifacts"],
+  requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },
   inputSchema,
   handler,
 };

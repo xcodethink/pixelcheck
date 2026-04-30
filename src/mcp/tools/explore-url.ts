@@ -108,6 +108,27 @@ export const exploreUrlTool: ToolDefinition = {
     "Send the autonomous agent to explore a URL with a free-form goal. Faster than audit_url; no scenario file required.",
   kind: "preset",
   resultSchema: "ExploreUrlResult",
+  cacheable: false,
+  costEstimateUsd: {
+    typical: 0.15,
+    min: 0.02,
+    max: 2.0,
+    unit: "per_call",
+    notes:
+      "Autonomous agent loop with free-form goal — cost scales with action count and replan rate. The per-call `budget_usd` cap (default $2) hard-limits worst case.",
+  },
+  sideEffects: [
+    "navigation",
+    "state_changing",
+    "network_egress",
+    "fs_writes_artifacts",
+    "fs_writes_history",
+  ],
+  requires: {
+    apiKeys: ["ANTHROPIC_API_KEY"],
+    browser: true,
+    personasDir: true,
+  },
   inputSchema,
   handler,
 };
