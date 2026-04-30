@@ -102,6 +102,10 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "loadPersonas",
   "loadProjectConfig",
   "loadScenarios",
+  "renderDiffHtml",
+  "renderDiffJson",
+  "renderDiffMarkdown",
+  "renderDiffText",
   "renderPdfHtml",
   "renderTrendsHtml",
   "resolvePersonaSecrets",
@@ -109,6 +113,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "saveAuditToHistory",
   "substituteTemplate",
   "waitForPageStable",
+  "writeDiffReport",
   "writeGithubAnnotationsReport",
   "writeHtmlReport",
   "writeJsonLinesReport",
@@ -127,8 +132,8 @@ describe("public surface snapshot — src/index.ts", () => {
     expect(actual).toEqual([...EXPECTED_RUNTIME_EXPORTS]);
   });
 
-  it("ships exactly 50 runtime exports (bump this when intentionally adding a public symbol)", () => {
-    expect(Object.keys(lib)).toHaveLength(50);
+  it("ships exactly 55 runtime exports (bump this when intentionally adding a public symbol)", () => {
+    expect(Object.keys(lib)).toHaveLength(55);
   });
 
   const functionExports: Array<keyof typeof lib> = [
@@ -144,6 +149,10 @@ describe("public surface snapshot — src/index.ts", () => {
     "loadPersonas",
     "loadProjectConfig",
     "loadScenarios",
+    "renderDiffHtml",
+    "renderDiffJson",
+    "renderDiffMarkdown",
+    "renderDiffText",
     "renderPdfHtml",
     "renderTrendsHtml",
     "resolvePersonaSecrets",
@@ -151,6 +160,7 @@ describe("public surface snapshot — src/index.ts", () => {
     "saveAuditToHistory",
     "substituteTemplate",
     "waitForPageStable",
+    "writeDiffReport",
     "writeGithubAnnotationsReport",
     "writeHtmlReport",
     "writeJsonLinesReport",
