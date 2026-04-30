@@ -38,6 +38,15 @@ export {
   type DiffReportOptions,
 } from "./core/reporter-diff.js";
 export {
+  t,
+  normaliseLocale,
+  formatRunsCount,
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+  type Locale,
+  type TranslationKey,
+} from "./core/i18n.js";
+export {
   writeJunitXmlReport,
   writeSarifReport,
   writeJsonLinesReport,
