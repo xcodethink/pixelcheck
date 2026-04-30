@@ -360,6 +360,27 @@ Example — upload SARIF to GitHub Code Scanning:
     sarif_file: reports/<run-id>/audit.sarif
 ```
 
+### PR diff report
+
+Posting a "did this PR make UX better or worse?" summary as a PR comment is two commands:
+
+```yaml
+# Audit main → audit PR → diff → post
+- run: ai-audit run --tag main && ai-audit run --tag pr
+- run: ai-audit diff <MAIN_RUN_ID> <PR_RUN_ID> --format markdown --output diff.md
+- uses: marocchino/sticky-pull-request-comment@v2
+  with: { path: diff.md }
+```
+
+The Markdown contains:
+- A headline metrics table (overall score / issues / critical issues / cost / duration) with ▲ / ▼ polarity arrows
+- Per-dimension changes (sorted by absolute delta magnitude)
+- 🆕 New issues raised by this PR (with severity tags + recommendations)
+- ✅ Resolved issues fixed by this PR
+- A "no meaningful UX changes" message when both lists are empty
+
+Other output formats: `--format html` for email / Slack, `--format json` for downstream charting, `--format text` (default) for terminal. Use `--output <path>` to write directly to a file (extension auto-detects format) or omit to print to stdout. See [ADR-022](docs/decisions/ADR-022-pr-diff-report.md) for the full design.
+
 Notifications: Slack webhook and Telegram bot on completion.
 
 ## MCP Server
