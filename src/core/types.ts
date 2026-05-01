@@ -126,9 +126,25 @@ export const ComputerUseStepSchema = BaseStepSchema.extend({
 
 export const AssertA11yStepSchema = BaseStepSchema.extend({
   type: z.literal("assert_a11y"),
-  /** WCAG conformance level to test against. Default: wcag2aa */
+  /**
+   * WCAG conformance level to test against. Default: wcag2aa.
+   *
+   * Note: axe-core's `runOnly` tag matching is exact, but conformance
+   * levels are cumulative ("WCAG 2.2 AA" includes Level A). Internally
+   * `handleAssertA11y` expands the value via `expandAxeStandard()`
+   * (src/core/wcag.ts) before passing to axe — see ADR-030 / R-NEW-11.
+   */
   standard: z
-    .enum(["wcag2a", "wcag2aa", "wcag2aaa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+    .enum([
+      "wcag2a",
+      "wcag2aa",
+      "wcag2aaa",
+      "wcag21a",
+      "wcag21aa",
+      "wcag22a",
+      "wcag22aa",
+      "best-practice",
+    ])
     .default("wcag2aa"),
   /** CSS selectors to exclude from analysis (e.g. cookie banners, third-party widgets) */
   exclude: z.array(z.string()).default([]),
