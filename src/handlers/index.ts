@@ -13,6 +13,7 @@ import type { StagehandLike } from "../core/stagehand-wrapper.js";
 import type { Recorder } from "../core/recorder.js";
 import type { TempInbox } from "../core/email.js";
 import { runCritic, type CriticResult } from "../core/critic.js";
+import { parseAxeTags } from "../core/wcag.js";
 import { runComputerUseTask } from "../core/computer-use.js";
 import { substituteTemplate } from "../core/scenario.js";
 import { withRetry } from "stealth-core";
@@ -572,7 +573,10 @@ async function handleAssertA11y(
   const moderateCount = violations.filter((v) => v.impact === "moderate").length;
   const minorCount = violations.filter((v) => v.impact === "minor").length;
 
-  // Convert to our Issue format
+  // Convert to our Issue format. Each violation gets WCAG attribution
+  // (level + dotted criterion id) extracted from its axe tags so
+  // downstream reporters can group by WCAG level / principle / SC for
+  // ADA / EAA compliance reporting (M2-2 / ADR-024).
   const issues = violations.map((v) => {
     const severity: "critical" | "high" | "medium" | "low" =
       v.impact === "critical"
@@ -592,12 +596,16 @@ async function handleAssertA11y(
       .map((n) => n.target.join(" > "))
       .join("; ");
 
+    const wcag = parseAxeTags(v.tags);
+
     return {
       severity,
       dimension: "accessibility" as const,
       step_id: step.id,
       description: `[${v.id}] ${v.description} (${instances} instance${instances > 1 ? "s" : ""}: ${sampleTargets})`,
       recommendation: `${v.help}. ${wcagTags.length > 0 ? `WCAG: ${wcagTags.join(", ")}. ` : ""}Reference: ${v.helpUrl}`,
+      wcag_level: wcag.level,
+      wcag_criterion: wcag.criterion?.id,
     };
   });
 

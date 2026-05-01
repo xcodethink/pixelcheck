@@ -534,6 +534,126 @@ describe("renderPdfHtml — redaction", () => {
   });
 });
 
+describe("renderPdfHtml — WCAG compliance section (M2-2)", () => {
+  it("omits the WCAG section when there are no accessibility issues", () => {
+    const html = renderPdfHtml(makeAudit());
+    // Default fixture has only a non-a11y issue (no wcag fields)
+    expect(html).not.toContain('class="section wcag"');
+    expect(html).not.toContain("WCAG compliance summary");
+  });
+
+  it("emits the WCAG section when accessibility issues are present", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          status: "fail",
+          issues: [
+            makeIssue({
+              severity: "high",
+              dimension: "accessibility",
+              wcag_level: "AA",
+              wcag_criterion: "1.4.3",
+              description: "Contrast 3.2:1 on hero CTA",
+            }),
+            makeIssue({
+              severity: "critical",
+              dimension: "accessibility",
+              wcag_level: "A",
+              wcag_criterion: "2.1.1",
+              description: "Modal close button not keyboard accessible",
+            }),
+            makeIssue({
+              severity: "medium",
+              dimension: "accessibility",
+              wcag_level: "AA",
+              wcag_criterion: "1.4.3",
+            }),
+          ],
+        }),
+      ],
+    });
+    const html = renderPdfHtml(audit);
+    expect(html).toContain("WCAG compliance summary");
+    expect(html).toContain('class="section wcag"');
+  });
+
+  it("includes a by-level table with correct counts", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          issues: [
+            makeIssue({ wcag_level: "A", wcag_criterion: "1.1.1" }),
+            makeIssue({ wcag_level: "AA", wcag_criterion: "1.4.3" }),
+            makeIssue({ wcag_level: "AA", wcag_criterion: "1.4.3" }),
+            makeIssue({ wcag_level: "AAA", wcag_criterion: "1.4.6" }),
+          ],
+        }),
+      ],
+    });
+    const html = renderPdfHtml(audit);
+    const wcagSec = html.split('class="section wcag"')[1] ?? "";
+    expect(wcagSec).toMatch(/<td>A<\/td><td>1<\/td>/);
+    expect(wcagSec).toMatch(/<td>AA<\/td><td>2<\/td>/);
+    expect(wcagSec).toMatch(/<td>AAA<\/td><td>1<\/td>/);
+  });
+
+  it("includes top criteria table sorted by count desc with W3C deep links", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          issues: [
+            makeIssue({ wcag_level: "AA", wcag_criterion: "1.4.3" }),
+            makeIssue({ wcag_level: "AA", wcag_criterion: "1.4.3" }),
+            makeIssue({ wcag_level: "AA", wcag_criterion: "1.4.3" }),
+            makeIssue({ wcag_level: "A", wcag_criterion: "2.1.1" }),
+          ],
+        }),
+      ],
+    });
+    const html = renderPdfHtml(audit);
+    expect(html).toContain(
+      'href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum"',
+    );
+    expect(html).toContain("Contrast (Minimum)");
+    expect(html).toContain("(AA)");
+    // 1.4.3 has 3 violations vs 2.1.1's 1 — appears first
+    const wcagSec = html.split('class="section wcag"')[1] ?? "";
+    expect(wcagSec.indexOf("1.4.3")).toBeLessThan(wcagSec.indexOf("2.1.1"));
+  });
+
+  it("includes by-principle counts (Perceivable / Operable / etc)", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          issues: [
+            makeIssue({ wcag_level: "AA", wcag_criterion: "1.4.3" }), // perceivable
+            makeIssue({ wcag_level: "A", wcag_criterion: "2.1.1" }), // operable
+            makeIssue({ wcag_level: "A", wcag_criterion: "4.1.2" }), // robust
+          ],
+        }),
+      ],
+    });
+    const html = renderPdfHtml(audit);
+    expect(html).toContain("Perceivable");
+    expect(html).toContain("Operable");
+    expect(html).toContain("Robust");
+  });
+
+  it("translates the WCAG section in zh-CN", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          issues: [makeIssue({ wcag_level: "AA", wcag_criterion: "1.4.3" })],
+        }),
+      ],
+    });
+    const html = renderPdfHtml(audit, { locale: "zh-CN" });
+    expect(html).toContain("WCAG 合规摘要");
+    expect(html).toContain("按一致性级别");
+    expect(html).toContain("可感知");
+  });
+});
+
 describe("renderPdfHtml — i18n integration (M2-4)", () => {
   it("renders the cover labels in zh-CN when locale is set", () => {
     const html = renderPdfHtml(makeAudit(), { locale: "zh-CN" });
