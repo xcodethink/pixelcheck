@@ -22,7 +22,7 @@ critical security patches for **6 months**, then enters end-of-life.
 Use one of these private channels:
 
 1. **GitHub Security Advisories** (preferred):
-   - Visit: `https://github.com/<org>/ai-browser-auditor/security/advisories/new`
+   - Visit: `https://github.com/xcodethink/ai-browser-auditor/security/advisories/new`
    - Allows private discussion + coordinated disclosure
 2. **Email**: `security@<TBD>`
 

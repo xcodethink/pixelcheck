@@ -221,7 +221,7 @@ export interface SarifToolDriver {
 const DEFAULT_TOOL: SarifToolDriver = {
   name: "ai-browser-auditor",
   version: "0.3.0",
-  informationUri: "https://github.com/anthropics/ai-browser-auditor",
+  informationUri: "https://github.com/xcodethink/ai-browser-auditor",
 };
 
 /**

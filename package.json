@@ -4,10 +4,43 @@
   "description": "AI-driven post-deployment UX audit. Real browser, real personas, real scenarios, commercial-grade evaluation.",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "ai-audit": "dist/cli.js",
     "ai-audit-mcp": "dist/mcp/server.js"
   },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "files": [
+    "dist/",
+    "docs/schemas/",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xcodethink/ai-browser-auditor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xcodethink/ai-browser-auditor/issues"
+  },
+  "homepage": "https://github.com/xcodethink/ai-browser-auditor#readme",
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",

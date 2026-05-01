@@ -7,7 +7,7 @@
         "driver": {
           "name": "ai-browser-auditor",
           "version": "0.3.0",
-          "informationUri": "https://github.com/anthropics/ai-browser-auditor",
+          "informationUri": "https://github.com/xcodethink/ai-browser-auditor",
           "rules": [
             {
               "id": "wcag/1-1-1",

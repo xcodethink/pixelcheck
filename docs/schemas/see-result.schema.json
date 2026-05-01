@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/see-result.schema.json",
+  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/see-result.schema.json",
   "title": "SeeResult",
   "description": "MCP tool envelope returned by `see` (N-1 primitive). One-shot navigation snapshot: DOM summary, console errors, screenshot, and an optional vision note.",
   "x-result-schema-version": "1.2.0",
