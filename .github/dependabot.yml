@@ -1,0 +1,78 @@
+# Dependabot — automated dependency updates
+#
+# Scans weekly:
+#   - npm dependencies (production + dev)
+#   - GitHub Actions workflow versions
+#
+# Config rationale:
+#   - Weekly cadence (not daily): single-maintainer project, daily PR floods
+#     drown out signal. Weekly is reviewable.
+#   - Group minor + patch updates per ecosystem: cuts PR count from
+#     ~20/week → ~3/week. Major updates still get individual PRs (each
+#     deserves a review).
+#   - Production only for `npm` to avoid "dev tool drift" PR noise.
+#     dev-deps are scanned but updates batched.
+#   - Open-PR limit 5: cap concurrent review load.
+#   - Reviewers / assignees: empty for now (single maintainer); fill on
+#     team growth.
+#
+# Target reviews: PRs auto-created Mondays; reviewer triages within 7 days
+# or merges (covered by the existing CHANGELOG / commit conventions).
+
+version: 2
+updates:
+  # ───────────────────────────────────────────────────────────────────
+  # npm production dependencies
+  # ───────────────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
+    groups:
+      # Group all minor + patch updates together — single PR/week
+      production-minor-and-patch:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development-minor-and-patch:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Stagehand v3 is a dedicated migration task (T-NEW-1), don't auto-PR
+      - dependency-name: "@browserbasehq/stagehand"
+        update-types: ["version-update:semver-major"]
+      # Zod v4 is a dedicated evaluation task (T-NEW-2)
+      - dependency-name: "zod"
+        update-types: ["version-update:semver-major"]
+      # @types/node major bumps follow Node LTS upgrades (rare + manual)
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+
+  # ───────────────────────────────────────────────────────────────────
+  # GitHub Actions workflow versions
+  # ───────────────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(actions)"
+    labels:
+      - "dependencies"
+      - "github-actions"
