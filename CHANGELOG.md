@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T27 + T28 + T29 合并 — license CI gate + Dependabot 文档 + SBOM workflow)
+
+- **关闭 RISK-REGISTER R28 (Dependabot 已激活) + R29 (SBOM 生成) + 加固 R30 (license CI gate)** ✅；T27 npm audit gate 已在 T26 ci.yml 加入。
+- **`license-checker` + `@cyclonedx/cyclonedx-npm` 装入 dev deps**：替换 T0.6 的 `npx --yes` 一次性用法，CI gate 才能稳定调用。
+- **package.json scripts 加 3 个**：
+  - `license:check` — 16 SPDX allowlist（与 T0.6 一致），`--production` 只查发布树，0 GPL/AGPL 守不变
+  - `license:csv` — 重生 `docs/third-party-licenses.csv` audit trail
+  - `sbom` — `cyclonedx-npm --output-file sbom.json --omit dev --ignore-npm-errors`（647KB CycloneDX 1.6 JSON）；`--ignore-npm-errors` 必须，否则 transitive `string-width@5.1.2` extraneous 警告让 npm ls exit 1
+- **ci.yml 加 license 检查 step**（ubuntu × Node 20 only — license metadata 跨平台一致，12x 浪费）
+- **新 workflow `.github/workflows/sbom.yml`**（~50 LoC）：
+  - 触发：release tag (`v*.*.*`) push + workflow_dispatch
+  - Steps: checkout → setup-node → npm ci → npm run sbom → upload artifact (90d retention)
+  - tag push 时自动 `softprops/action-gh-release` 把 sbom.json 附在 GitHub Release 页面（与 npm package 一起下载）
+  - permissions: contents: write（attach release artifact 必需）
+- **.gitignore 加 sbom.json**：每次 release 重生，不入 git history
+- **Dependabot 已激活**（T0.6 已 commit `.github/dependabot.yml`）—— T27 验证：weekly Mon 09:00 Asia/Shanghai 扫 npm + GHA / group minor+patch / ignore Stagehand/Zod/@types/node major bumps；首次 push 后 GitHub Settings → Security & analysis 显示 "Active"。
+- 完整回归: typecheck ✓ / vitest 1555/1555 ✓ / **license:check 0 fail** / **sbom.json 647KB 生成** / 0 schemas diff / 0 bench regression / npm pack 522 KB / 299 files。
+
 ### Added (T26 — Wave 4 GitHub Actions CI 矩阵 (3 workflows))
 
 - **关闭 RISK-REGISTER R43** ✅。**项目第一次有自己的 CI 工作流**——pre-T26 `.github/workflows/` 只有一个用于下游 SaaS 的 `post-deploy-audit.yml`，1555 测试全过 + 16 playwright 全过的"green"完全靠本地 M-series Mac 验证。任何 Windows 路径分隔符 / Linux glibc / Node 18 vs 22 差异 / macOS Intel vs arm64 native binary 不匹配的回归全部静默漏过。**T26 把"测试全过"从 dev claim 升为 CI gate**。
