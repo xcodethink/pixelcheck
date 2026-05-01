@@ -136,9 +136,9 @@ test.describe("integration scaffold smoke", () => {
     const raw = fs.readFileSync(fixturePath, "utf8");
     const entries = JSON.parse(raw) as Array<{
       id: string;
-      project_name: string;
-      overall_score: number;
-      schema_version: string;
+      projectName: string;
+      overallScore: number;
+      schemaVersion: string;
       dimensionAverages: Record<string, number>;
     }>;
 
@@ -146,9 +146,9 @@ test.describe("integration scaffold smoke", () => {
 
     const first = entries[0]!;
     expect(first.id).toMatch(/^run-\d{3}-[0-9a-f]{6}$/);
-    expect(first.schema_version).toBe("1.2.0");
-    expect(first.overall_score).toBeGreaterThanOrEqual(0);
-    expect(first.overall_score).toBeLessThanOrEqual(10);
+    expect(first.schemaVersion).toBe("1.2.0");
+    expect(first.overallScore).toBeGreaterThanOrEqual(0);
+    expect(first.overallScore).toBeLessThanOrEqual(10);
 
     // Has all 6 dimensions
     expect(Object.keys(first.dimensionAverages).sort()).toEqual([

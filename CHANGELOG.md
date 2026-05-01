@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T7 — Wave 2 4 子项 e2e: cost-guard + MCP stdio + GH PR diff + trends-perf)
+
+- **关闭 RISK-REGISTER R7 / R8 / R9 / R10** ✅（4 个 P1 一次性收口）。**全 4 子项不烧 ANTHROPIC_API_KEY**——cost-guard 用极小 budget 验拦截路径；MCP stdio 用 list_capabilities pure introspection；GH diff 写 fixture + 手动 SOP；trends 是纯渲染。
+- **T7a `tests/integration/cost-guard-e2e.test.ts`** (~190 LoC, 3 tests): 真 CostGuard 实例 + 极小 budget ($0.001)。1️⃣ checkBudget 在累积过 cap 后 throw（双拦截路径：recordUsage 自身 throw + 后续 checkBudget throw）；2️⃣ 跨 CostGuard 实例 ledger 持久化（worker A $0.0028 → ledger.json → worker B 读到 day 累计 → 再加 $0.0028 trip $0.005 day cap）；3️⃣ withCostRun AsyncLocalStorage 隔离（Run A tiny + Run B busted per-run cap → A 不受影响）。**修了 3 个 API 假设错误**：(a) `recordUsage` 自身 throw 不只 checkBudget；(b) ledger.days 是 `Record<string,DayEntry>` 不是 array；(c) 字段名 `maxDailyUsd` / `maxDailyTokens` 不是 `maxDayUsd`。
+- **T7b `tests/integration/mcp-stdio-e2e.test.ts`** (~170 LoC, 4 tests): 真 spawn `dist/mcp/server.js` + MCP client SDK (`StdioClientTransport`) + JSON-RPC 握手。1️⃣ tools/list 返回 ≥ 5 个工具（含 list_capabilities / audit_url / see）+ 每工具有 name / description / inputSchema 完整；2️⃣ tools/call list_capabilities 返回 ListCapabilitiesResult 完整 envelope（server / result_schema_version=1.2.0 / tools / env / cache）+ 每 tool 含 M9-5 metadata（kind / cacheable / cost_estimate_usd / side_effects / requires）+ env 含 ANTHROPIC_API_KEY；3️⃣ unknown tool name 干净拒绝（throw OR isError=true 都接受）；4️⃣ 拒绝 missing args 后 server 仍活（next call 仍正常）。**关键决策：用 list_capabilities 不烧 LLM**，audit_url 真 URL 留 T3 cassette 阶段。
+- **T7c GitHub PR diff fixture + manual SOP**:
+  - `scripts/gen-diff-fixture.ts` (~110 LoC) 用 renderDiffMarkdown / renderDiffJson 生成 fixture diff（baseline release-v0.9 → pr-1234 显示 score +1.2 / issues 4→2 / cost +$0.06 / 6 维度全部上升）
+  - `docs/integration/fixture-diff.md` (1.1KB) — GitHub PR comment 格式 markdown
+  - `docs/integration/fixture-diff.json` (2.3KB) — 程序化 diff JSON
+  - `docs/integration/diff-pr-comment-verified.md` (~110 LoC) — 8 步手动 GHCS 上传 SOP + 10 项 UI checklist + sticky-pull-request-comment 验证 + 失败排查表（5 种 mode → cause + fix）+ 推荐生产 GHA workflow + 验证日志（screenshot 待 v1.0-rc1 reviewer）
+- **T7d `tests/integration/playwright/trends-perf.test.ts`** (~150 LoC, 2 tests): 100-row history fixture → renderTrendsHtml → 真 chromium page.goto file:// 测加载时间。1️⃣ load + paint < 1.5s（实测 405ms 远低于 budget）+ DOM 含 ≥ 5 svg + ≥ 6 cards + ≥ 10 rows + 0 console error；2️⃣ 含 fixture project name + schema_version 1.2.0。**修了 fixture 字段命名错误**（snake_case → camelCase 与 HistoryEntry interface 对齐）。
+- **新发现的 fixture bug**：`scripts/gen-history-fixture.ts` 之前生成 snake_case 字段（SQLite 列名）但 `reporter-trends.ts` 消费的是 `HistoryEntry` camelCase（`projectName` / `overallScore` / `schemaVersion`）—— renderTrendsHtml 跑生产 fixture 会 NaN/null。改 fixture 生成器 + 重生 + smoke test 同步。
+- 完整回归：tsc ✓ / build ✓ / **vitest 1548 → 1555** (+7) / **playwright 14 → 16** (+2) / 0 schemas diff / 0 bench regression / npm pack 1.2 MB / 611 files。
+
 ### Fixed (T-NEW-11 — handleAssertA11y axe runOnly 漏 Level A 违规 P0)
 
 - **关闭 RISK-REGISTER R-NEW-11** ✅（T6 衍生发现的 production bug）：`handleAssertA11y` 默认 `standard: "wcag2aa"` 直接传给 axe-core 作为单元素数组，axe `runOnly` 是精确匹配，**只跑 wcag2aa 标记规则不含 Level A**。生产 audit 用户的所有 audit 都漏检 image-alt / label / button-name / link-name 等 Level A 违规。
