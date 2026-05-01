@@ -1,0 +1,95 @@
+# Continuous Integration — runs on every PR + push to main.
+#
+# Matrix: 4 platforms × 3 Node versions = 12 configurations.
+# Steps: clean install → build → unit tests → schemas idempotence
+#        → npm audit (production, level=high).
+#
+# Why this exists (T26 closes RISK-REGISTER R43):
+# Pre-T26 the project had ZERO CI workflows running its own tests —
+# `npm test` 1555/1555 was only ever validated locally on the
+# maintainer's M-series Mac. Any cross-platform regression (Windows
+# path separator, Linux glibc version, Node 18 vs 22 difference,
+# native binary mismatch on macOS Intel vs arm64) would slip through
+# until a user reported it. This workflow makes "1555 测试全过" a
+# CI gate, not a dev claim.
+#
+# Branch protection (configured in repo Settings → Branches):
+#   - Require this workflow to pass before merging to main
+#   - Require integration.yml to pass (Playwright + file-lock-race)
+#   - Require coverage.yml to pass (test:coverage:check)
+#   - No force pushes to main
+#
+# Cost: ~12 min × 12 configs = ~2.4h CI minutes per PR. Within free
+# GitHub Actions tier for OSS repos (2000 min/month).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs on the same ref to avoid wasting compute when
+# a PR is rapidly updated.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }} · Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Don't fail the entire matrix when one config fails — surface ALL
+      # platform issues, not just the first.
+      fail-fast: false
+      matrix:
+        # macos-13 = Intel x64; macos-14 = Apple Silicon arm64. We run both
+        # because better-sqlite3 + sharp ship distinct prebuilt binaries
+        # per arch.
+        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
+        node: [18, 20, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+      - name: Schemas idempotence
+        # `npm run schemas` regenerates docs/schemas/*.json from the
+        # Zod source. If running it produces uncommitted changes,
+        # someone forgot to commit a regeneration after editing a
+        # schema source — fail loudly instead of silently shipping
+        # diff between source code and published JSON Schemas.
+        shell: bash
+        run: |
+          npm run schemas
+          if ! git diff --quiet docs/schemas/; then
+            echo "::error::npm run schemas produced uncommitted changes."
+            echo "::error::Run \`npm run schemas\` locally and commit the regenerated docs/schemas/*.json"
+            git diff docs/schemas/
+            exit 1
+          fi
+
+      - name: npm audit (production, high+)
+        # T0.5 / T0.6 / SECURITY.md known-accepted risks live in
+        # `audit-level=high`. The 3 transitive moderate vulns from
+        # Stagehand v2.5.8 (ai SDK / jsondiffpatch / 1 low) are
+        # documented as non-exploitable in our use case. When
+        # T-NEW-1 ships Stagehand v3 in v1.1, tighten this to
+        # `--audit-level=moderate`.
+        run: npm audit --production --audit-level=high
