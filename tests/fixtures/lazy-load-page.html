@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lazy-load fixture (T4 recorder browser-only test)</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, sans-serif; }
+    section {
+      min-height: 80vh;
+      padding: 40px;
+      border-bottom: 1px solid #ddd;
+    }
+    section:nth-child(odd) { background: #f5f5f5; }
+    img.lazy {
+      display: block;
+      width: 200px;
+      height: 150px;
+      background: #ccc;
+      transition: opacity 0.3s;
+      opacity: 0;
+    }
+    img.lazy.loaded { opacity: 1; }
+    .placeholder {
+      display: block;
+      width: 200px;
+      height: 150px;
+      background: #eee;
+      color: #999;
+      text-align: center;
+      line-height: 150px;
+    }
+  </style>
+</head>
+<body>
+  <section data-testid="hero">
+    <h1>Hero — visible immediately</h1>
+    <p>This section is above-the-fold and loads on initial render.</p>
+  </section>
+
+  <section data-testid="lazy-1">
+    <h2>Lazy section 1</h2>
+    <p>Image below loads when scrolled into view via IntersectionObserver.</p>
+    <span class="placeholder" data-lazy-target="1">loading...</span>
+  </section>
+
+  <section data-testid="lazy-2">
+    <h2>Lazy section 2</h2>
+    <p>Same lazy-load mechanism — content fills in on scroll.</p>
+    <span class="placeholder" data-lazy-target="2">loading...</span>
+  </section>
+
+  <section data-testid="lazy-3">
+    <h2>Lazy section 3</h2>
+    <p>Test that <code>recorder.screenshotSegments()</code> captures
+       the loaded content, not the placeholder.</p>
+    <span class="placeholder" data-lazy-target="3">loading...</span>
+  </section>
+
+  <section data-testid="lazy-4">
+    <h2>Lazy section 4</h2>
+    <p>Tests that <code>triggerLazyLoad()</code> scrolls all the way
+       through before capturing.</p>
+    <span class="placeholder" data-lazy-target="4">loading...</span>
+  </section>
+
+  <section data-testid="footer">
+    <h2>Footer</h2>
+    <p>Bottom marker — used to verify segment-count math reaches the end.</p>
+  </section>
+
+  <script>
+    // IntersectionObserver-driven lazy load. Mimics real-world Astro /
+    // Next.js / Webflow lazy hydration behaviour. Recorder must scroll
+    // through to trigger ALL these before screenshot to avoid empty
+    // placeholders in segments.
+    const obs = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const target = e.target;
+        const id = target.dataset.lazyTarget;
+        target.textContent = `Loaded content #${id} — full text content goes here`;
+        target.classList.add("loaded");
+        obs.unobserve(target);
+      }
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll(".placeholder").forEach((el) => obs.observe(el));
+  </script>
+</body>
+</html>
