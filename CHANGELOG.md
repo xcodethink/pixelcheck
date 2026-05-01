@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M6-7 — Performance regression suite)
+
+- New `tests/perf.bench.ts` (~200 LoC) — 9 vitest benchmarks covering the report-rendering + aggregation hot paths most likely to regress: `renderPdfHtml` / `renderTrendsHtml` / `renderDiffMarkdown` / `renderDiffHtml` / `renderJunitXml` / `renderSarif` / `summarizeWcag` / `computeSummary` / `t() i18n lookup`. Pre-built fixtures (20-unit audit, 100-row history, 50 a11y issues across 8 SCs) keep measurements isolated to the function under test.
+- New `src/perf/compare.ts` + `scripts/check-perf.ts` — pure-function comparison core + CLI wrapper that reads vitest's bench JSON output (`docs/perf-current.json`) and compares against a checked-in baseline (`docs/perf-baseline.json`). Flags `regression` / `improvement` / `ok` / `new` / `removed` per benchmark with signed delta percentages.
+- New npm scripts:
+  - `npm run bench` — run the bench suite, write `docs/perf-current.json`
+  - `npm run bench:check` — compare current vs baseline, exit 1 on any regression beyond tolerance
+  - `npm run bench:update` — bake current run into the baseline (after intentional perf changes)
+- Default tolerance: 50%. Justified by measured 8–53% run-to-run variance on quiet hardware with pre-built fixtures — tighter tolerance produces false positives that operators learn to ignore. 50% reliably catches catastrophic regressions (O(N²) loop, sync I/O slip into hot path) without flagging noise. Override via `--tolerance 0.30` for stricter local checks.
+- Initial baseline recorded as **min-of-5 consecutive runs** on a quiet M-series MacBook so regressions register as "slower than we've ever been" rather than "slower than the median run". `docs/perf-current.json` is gitignored — only the baseline is checked in.
+- 33 new unit tests for `src/perf/compare.ts`; coverage 100% statements / 82% branches / 100% functions. The CLI script itself is end-to-end-tested via the bench → check → update workflow.
+- Reproducible workflow for a contributor: run `npm run bench` after a refactor, run `npm run bench:check` to see if anything regressed > 50%, run `npm run bench:update` if the slowdown was intentional and you want to bake it in.
+- See [ADR-025](docs/decisions/ADR-025-performance-regression-suite.md) for the full design rationale and 10 alternatives rejected (microbench library / ad-hoc console.time / run-on-every-test / end-to-end audit timing / p99-based detection / adaptive tolerance / fail-on-any-regression / memory tracking / bare-metal CI / per-PR bot).
+
 ### Added (M2-2 — WCAG clause grouping)
 
 - New module `src/core/wcag.ts` (~270 LoC) provides a curated WCAG 2.1 + 2.2 success-criterion catalog (50+ entries covering 1.1.1 alt text / 1.4.3 contrast / 2.1.1 keyboard / 2.4.7 focus visible / 4.1.2 ARIA name-role-value / WCAG 2.2's net-new 2.4.11 / 2.5.7 / 2.5.8 / 3.3.7), an `parseAxeTags()` helper that extracts structured WCAG attribution from axe-core tag lists, and `summarizeWcag()` which aggregates issues by conformance level / principle / criterion.
