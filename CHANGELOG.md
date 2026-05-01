@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T30 — Wave 4 收尾 INSTALLATION.md: corporate proxy + air-gapped + Docker + 5 platforms)
+
+- **关闭 RISK-REGISTER R48 / R59 / R62** ✅。**Wave 4 完整收尾 5/5**。
+- `docs/INSTALLATION.md`（~430 LoC）覆盖企业 / 跨平台 / 离线场景：
+  - **System requirements** 表（Node 18+ / npm 8+ / 500MB disk / 2GB RAM / Chromium runtime libs）+ Tier-1 (CI 矩阵 12 平台) vs Tier-2 (Alpine / ARM64 / WSL2 best-effort)
+  - **5 平台 prereqs**：macOS (Intel + Apple Silicon, `xcode-select --install`) / Ubuntu/Debian (NodeSource setup_20.x + `npx playwright install-deps chromium`) / **Alpine Linux**（musl libc + `apk add python3 make g++ chromium nss freetype` + `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` + `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`）/ Windows (MSVC Build Tools + Git Bash 推荐 + PowerShell 语法 fallback) / WSL2 (Linux 同款 + 不挂 Windows 文件系统的性能 tip)
+  - **Docker** 两路：multi-stage build with `mcr.microsoft.com/playwright:v1.49.0-jammy` (官方 image，Chromium + libs 预装) + lightweight `node:20-alpine` (~150MB vs 350MB trade-off)；BuildKit secrets 防 API key 进 image
+  - **Corporate proxy**: `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` env vars + `npm config set proxy` 持久化；自签 CA 用 `NODE_EXTRA_CA_CERTS`；最后 resort `NODE_TLS_REJECT_UNAUTHORIZED=0` 警示禁用
+  - **Air-gapped install**: 4 步流程（互联网机准备 → tar 含 ~/.cache/ms-playwright → sneakernet → `npm install --offline --prefer-offline`）+ Anthropic API 在 air-gapped 网络的 3 个选项（纯 deterministic / 自托管 relay / M4-4 v1.x local LLM fallback）
+  - **11 个 install 错误排查表**：EACCES / Failed to launch chromium / node-gyp Win/Mac/Alpine / better-sqlite3 module not found 三平台 / chromium ENOENT / 自签 cert / DNS getaddrinfo / ESM require / ERESOLVE peer dep — 每条 likely cause + fix
+  - **3 步验证 install**：version check / `doctor` / 不烧 API 的 smoke (visit + assert_a11y) — 让用户 5 分钟内验通环境
+- README.md "Install" 加链接到 `docs/INSTALLATION.md`（针对 corporate / Alpine / Docker / air-gapped 场景导引）
+- **Wave 4 完整收尾 5/5**：T25 (package.json 完整化 R39-R42 + R-NEW-3) + T26 (CI 矩阵 R43) + T27 (npm audit gate, T26 已含) + T28 (license-checker CI R30) + T29 (SBOM workflow R29) + Dependabot R28 + **T30 (INSTALLATION.md R48 + R59 + R62)**
+- 完整回归: vitest 1555/1555 ✓ / npm pack 523 KB / 299 files / 0 schemas diff / 0 bench regression。
+
 ### Added (T27 + T28 + T29 合并 — license CI gate + Dependabot 文档 + SBOM workflow)
 
 - **关闭 RISK-REGISTER R28 (Dependabot 已激活) + R29 (SBOM 生成) + 加固 R30 (license CI gate)** ✅；T27 npm audit gate 已在 T26 ci.yml 加入。
