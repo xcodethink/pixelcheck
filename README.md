@@ -309,6 +309,9 @@ npm install ai-browser-auditor
 npx playwright install chromium
 ```
 
+> For corporate proxy / Alpine Linux / Docker / air-gapped environments,
+> see [docs/INSTALLATION.md](docs/INSTALLATION.md).
+
 ### 2. Set your API key
 
 ```bash
