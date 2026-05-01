@@ -108,6 +108,10 @@ export const IssueSchema = z.object({
   description: z.string(),
   screenshot: z.string().optional(),
   recommendation: z.string(),
+  // M2-2: WCAG attribution for accessibility issues. Absent on
+  // vision-critic and other non-a11y issues. See src/core/wcag.ts.
+  wcag_level: z.enum(["A", "AA", "AAA"]).optional(),
+  wcag_criterion: z.string().optional(),
 });
 
 const StepTypeEnum = z.enum([
