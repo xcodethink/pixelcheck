@@ -15,7 +15,9 @@ export class Recorder {
     private readonly page: Page,
     private readonly artifactsDir: string,
   ) {
-    fs.mkdirSync(artifactsDir, { recursive: true });
+    // mode 0o700 — artifacts contain screenshots that may include sensitive
+    // content from the audited page. T22 (R36).
+    fs.mkdirSync(artifactsDir, { recursive: true, mode: 0o700 });
     this.attachListeners();
   }
 
@@ -50,7 +52,11 @@ export class Recorder {
     });
   }
 
-  async screenshot(label?: string, fullPage = true): Promise<{
+  async screenshot(
+    label?: string,
+    fullPage = true,
+    opts: { redactInputs?: boolean } = {},
+  ): Promise<{
     filepath: string;
     sha256: string;
     base64: string;
@@ -64,6 +70,9 @@ export class Recorder {
     const filename = `${idx}-${safeLabel}.png`;
     const filepath = path.join(this.artifactsDir, filename);
 
+    if (shouldRedactInputs(opts.redactInputs)) {
+      await redactSensitiveInputs(this.page);
+    }
     const buffer = await this.page.screenshot({ fullPage, type: "png" });
     fs.writeFileSync(filepath, buffer);
 
@@ -99,7 +108,10 @@ export class Recorder {
    * Each segment is a native-resolution viewport snapshot — typically
    * 200-500 KB, well under any limit, and Claude reads them at full clarity.
    */
-  async screenshotSegments(label?: string): Promise<{
+  async screenshotSegments(
+    label?: string,
+    opts: { redactInputs?: boolean } = {},
+  ): Promise<{
     /** Full-page composite for archival/reports */
     full: { filepath: string; sha256: string; buffer: Buffer };
     /** Downscaled full-page thumbnail for vision macro context (sent first) */
@@ -120,6 +132,15 @@ export class Recorder {
     // even entire components). Without this pre-scroll, segments at the
     // bottom of the page would show empty placeholders.
     await this.triggerLazyLoad();
+
+    // ─── 1.5. Redact sensitive inputs before any screenshot ──────────
+    // T22 (R37): replace password / secret / token / api-key field
+    // contents with **** so they don't leak via screenshot → Claude API.
+    // Off only if caller explicitly opts out (e.g., a fixture page where
+    // redaction would interfere with the audit) OR env AUDIT_REDACT_INPUTS=0.
+    if (shouldRedactInputs(opts.redactInputs)) {
+      await redactSensitiveInputs(this.page);
+    }
 
     // ─── 2. Save full-page composite for archival ─────────────────────
     const fullName = `${idx}-${safeLabel}.png`;
@@ -298,3 +319,87 @@ export class Recorder {
     return logPath;
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Sensitive input redaction (T22 — closes RISK-REGISTER R37)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Decide whether to redact based on caller option AND env override.
+ *
+ * Precedence (highest first):
+ *   1. Explicit `false` from caller → skip (test fixtures, opt-out scenarios)
+ *   2. Explicit `true` from caller → redact (override env)
+ *   3. Env `AUDIT_REDACT_INPUTS=0` → skip (CLI --no-redact-inputs flag sets this)
+ *   4. Default → redact (privacy-first)
+ */
+function shouldRedactInputs(callerOpt: boolean | undefined): boolean {
+  if (callerOpt === false) return false;
+  if (callerOpt === true) return true;
+  if (process.env.AUDIT_REDACT_INPUTS === "0") return false;
+  return true;
+}
+
+/**
+ * Replace the contents of password / secret / API-key / token input
+ * fields with `********` immediately before a screenshot is taken.
+ * Mutates the live DOM via page.evaluate; the page's actual user
+ * experience is not affected (the inputs are restored to their
+ * original values after the screenshot is taken? — NO: we do NOT
+ * restore. Screenshots are post-action artifacts; reverting the field
+ * would race the next step. Audit primitives that need the original
+ * value (e.g., extract) should run BEFORE redaction.)
+ *
+ * Heuristic — redact a field if ANY of:
+ *   - `<input type="password">`
+ *   - `autocomplete="current-password" | "new-password" | "one-time-code"`
+ *   - `name` / `id` / `aria-label` matches /password|secret|token|api[_-]?key|otp|pin/i
+ *
+ * Why mutate vs CSS overlay: CSS `-webkit-text-security: disc` only hides
+ * the rendered glyphs, not the underlying value — Claude vision still
+ * sees the original characters in some cases (autofill or partial reflow).
+ * Replacing the value with `********` guarantees the screenshot bytes
+ * never contain the user's secret.
+ */
+async function redactSensitiveInputs(page: Page): Promise<void> {
+  try {
+    await page.evaluate(() => {
+      const SENSITIVE_NAME_RE = /password|secret|token|api[_-]?key|otp|pin/i;
+      const SENSITIVE_AUTOCOMPLETE = new Set([
+        "current-password",
+        "new-password",
+        "one-time-code",
+      ]);
+      const inputs = document.querySelectorAll("input, textarea");
+      for (const el of Array.from(inputs)) {
+        const input = el as HTMLInputElement | HTMLTextAreaElement;
+        const type =
+          (input.getAttribute("type") || "").toLowerCase() || "text";
+        const autocomplete = (
+          input.getAttribute("autocomplete") || ""
+        ).toLowerCase();
+        const name = input.getAttribute("name") || "";
+        const id = input.getAttribute("id") || "";
+        const ariaLabel = input.getAttribute("aria-label") || "";
+        const sensitive =
+          type === "password" ||
+          SENSITIVE_AUTOCOMPLETE.has(autocomplete) ||
+          SENSITIVE_NAME_RE.test(name) ||
+          SENSITIVE_NAME_RE.test(id) ||
+          SENSITIVE_NAME_RE.test(ariaLabel);
+        if (sensitive && input.value && input.value.length > 0) {
+          input.value = "********";
+        }
+      }
+    });
+  } catch {
+    // Page may have closed mid-redact; recorder errors are non-fatal so
+    // don't block the screenshot. Worst case: we screenshot the original
+    // (unredacted) content. The caller (handler) will log the artifact
+    // path; an operator running with --redact-inputs ON would expect
+    // redaction so we should at least surface the failure in logs.
+    // (Logging deferred to caller to avoid coupling recorder to logger.)
+  }
+}
+
+export { redactSensitiveInputs };

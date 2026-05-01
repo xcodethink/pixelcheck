@@ -45,6 +45,7 @@ import {
   runInitInteractive,
   writeSampleScenario,
 } from "./commands/init-interactive.js";
+import { ensureConsent } from "./core/consent.js";
 
 dotenv.config();
 
@@ -140,10 +141,46 @@ program
     "--locale <code>",
     "Report language: en | zh-CN | ja | es | de (default: en, or project config's default_locale)",
   )
+  .option(
+    "--auto-consent",
+    "Skip first-run privacy consent prompt (also AUDIT_AUTO_CONSENT=1). Use only after reading PRIVACY.md.",
+    false,
+  )
+  .option(
+    "--no-redact-inputs",
+    "Disable automatic password/secret/token field redaction in screenshots. NOT recommended for production audits.",
+  )
   .action(async (opts) => {
     try {
       await runCommand(opts);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Friendly catch for ANTHROPIC_API_KEY missing (R47): rather
+      // than dump a stack trace, point the user to console.anthropic.com
+      // and the doctor command.
+      if (
+        err instanceof Error &&
+        msg.includes("Missing required environment variables") &&
+        msg.includes("ANTHROPIC_API_KEY")
+      ) {
+        safeError(chalk.red("\n[ai-audit] ANTHROPIC_API_KEY not set."));
+        safeError(
+          chalk.gray(
+            "  Get a key at https://console.anthropic.com → set " +
+              "ANTHROPIC_API_KEY=sk-ant-...",
+          ),
+        );
+        safeError(
+          chalk.gray("  Run `ai-audit doctor` to verify your environment."),
+        );
+        process.exit(1);
+      }
+      // Friendly catch for ConsentDeclinedError (T22 R34): user
+      // explicitly said "no" to the consent prompt — exit cleanly.
+      if (err instanceof Error && err.name === "ConsentDeclinedError") {
+        safeError(chalk.yellow("\n[ai-audit] " + msg));
+        process.exit(1);
+      }
       safeError(
         chalk.red("\n[FATAL]"),
         err instanceof Error ? err.message : String(err),
@@ -909,9 +946,35 @@ interface RunOpts {
   ciFormat?: string;
   pdf: boolean;
   locale?: string;
+  /** T22 — bypass first-run consent prompt (also AUDIT_AUTO_CONSENT=1 env). */
+  autoConsent: boolean;
+  /**
+   * T22 — Commander's `--no-redact-inputs` flag becomes opts.redactInputs=false;
+   * default (when flag not passed) is redactInputs=true (intentional).
+   */
+  redactInputs: boolean;
 }
 
 async function runCommand(opts: RunOpts): Promise<void> {
+  // T22: validate API key before consent — if no API key, no point prompting.
+  // The friendly error catcher above will surface the ANTHROPIC_API_KEY guidance.
+  validateEnv(["ANTHROPIC_API_KEY"]);
+
+  // T22: consent gate — first run prompts the operator (or auto-consents in
+  // CI / non-TTY / via env / via flag). See PRIVACY.md and ADR-031 (TBD).
+  // Only consent here, NOT before --dry-run (no data leaves the machine).
+  if (!opts.dryRun) {
+    await ensureConsent({ cliAutoConsent: opts.autoConsent });
+  }
+
+  // T22: surface --no-redact-inputs as an env var so deeply-nested handlers
+  // (recorder.screenshot / recorder.screenshotSegments) can read it without
+  // threading it through every signature. Default is ON; setting "0"
+  // explicitly disables.
+  if (opts.redactInputs === false) {
+    process.env.AUDIT_REDACT_INPUTS = "0";
+  }
+
   // --project shorthand: resolve config/scenarios/personas from project dir
   if (opts.project) {
     const projectDir = path.resolve(opts.project);
