@@ -353,3 +353,74 @@ export function wcagHelpUrl(criterion: WcagSuccessCriterion | string): string {
 export function isWcagIssue(issue: Issue): boolean {
   return issue.wcag_criterion !== undefined || issue.wcag_level !== undefined;
 }
+
+// ─────────────────────────────────────────────────────────────
+// axe-core standard → tag expansion (T-NEW-11 — closes RISK-REGISTER R-NEW-11)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Conformance levels under each WCAG version that axe-core understands as
+ * tags. Axe's `runOnly: { type: "tag", values: [...] }` is **exact match** —
+ * passing `["wcag2aa"]` only runs rules tagged with `wcag2aa`, NOT A-level
+ * rules. To cover the cumulative meaning of "WCAG 2.x AA conformance"
+ * (which includes Level A by definition), callers must pass every tag
+ * up to and including the requested version × level.
+ *
+ * This function expands a single `standard` into the full cumulative set.
+ *
+ *   expandAxeStandard("wcag2aa")  → ["wcag2a", "wcag2aa"]
+ *   expandAxeStandard("wcag22aa") → ["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22a","wcag22aa"]
+ *
+ * Pre-T-NEW-11 the production handler passed `[standard]` directly, which
+ * meant a `standard: "wcag2aa"` audit silently missed Level A violations
+ * (image-alt / label / button-name etc). The integration test in
+ * tests/integration/playwright/wcag-axe.test.ts caught this.
+ *
+ * "best-practice" is axe's own opinionated rule set (e.g. duplicate-id-
+ * active, region) and does not have a WCAG cumulative meaning — it
+ * expands to itself.
+ */
+export type AxeStandard =
+  | "wcag2a"
+  | "wcag2aa"
+  | "wcag2aaa"
+  | "wcag21a"
+  | "wcag21aa"
+  | "wcag22a"
+  | "wcag22aa"
+  | "best-practice";
+
+const STANDARD_EXPANSIONS: Record<AxeStandard, ReadonlyArray<string>> = {
+  // WCAG 2.0
+  wcag2a: ["wcag2a"],
+  wcag2aa: ["wcag2a", "wcag2aa"],
+  wcag2aaa: ["wcag2a", "wcag2aa", "wcag2aaa"],
+  // WCAG 2.1 (cumulative over 2.0)
+  wcag21a: ["wcag2a", "wcag21a"],
+  wcag21aa: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+  // WCAG 2.2 (cumulative over 2.1)
+  wcag22a: ["wcag2a", "wcag21a", "wcag22a"],
+  wcag22aa: [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22a",
+    "wcag22aa",
+  ],
+  // best-practice = axe's own rules, no cumulative meaning
+  "best-practice": ["best-practice"],
+};
+
+/**
+ * Expand an axe-core conformance standard into the cumulative set of
+ * tags that should be passed to `axe.run({ runOnly: { type: "tag", values } })`.
+ * Unknown standards fall through unchanged (the caller's input is
+ * preserved).
+ */
+export function expandAxeStandard(
+  standard: AxeStandard | string,
+): string[] {
+  const known = STANDARD_EXPANSIONS[standard as AxeStandard];
+  return known ? [...known] : [standard];
+}
