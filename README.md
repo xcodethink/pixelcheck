@@ -842,7 +842,9 @@ The default 50% tolerance is calibrated against measured run-to-run variance (8�
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
+full developer guide (dev setup, commit conventions, PR process, ADR
+practice, branch protection).
 
 Areas where help is especially appreciated:
 - New personas for underrepresented regions/demographics
@@ -850,9 +852,21 @@ Areas where help is especially appreciated:
 - Report format improvements
 - Cost optimization strategies
 
+For installation troubleshooting (corporate proxy, Alpine, air-gapped, etc),
+see [docs/INSTALLATION.md](docs/INSTALLATION.md).
+
+## Security
+
+Found a vulnerability? Please use GitHub Security Advisories (private
+disclosure) — see [SECURITY.md](SECURITY.md). Do **not** file public
+issues for security reports.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for full text.
+
+Third-party dependencies and their licenses are documented in
+[docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
 
 ---
 
