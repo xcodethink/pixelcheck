@@ -487,3 +487,198 @@ describe("RESULT_SCHEMA_VERSION sanity", () => {
     expect(RESULT_SCHEMA_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
+
+describe("LRU disk-quota prune (T17 — closes R49)", () => {
+  it("bumps last_used_at on a hit so re-touched entries survive eviction", () => {
+    const dbPath = tmpDb();
+    try {
+      // Write 5 rows
+      for (let i = 0; i < 5; i++) {
+        storeCache({
+          key: `k${i}`,
+          primitive: "judge",
+          value: { i },
+          now: 1000 + i,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+      }
+      // Touch k0 — its last_used_at should now be the freshest
+      const hit = lookupCache({
+        key: "k0",
+        now: 9999,
+        config: { dbPath, ttlMs: 1_000_000 },
+      });
+      expect(hit.hit).toBe(true);
+
+      // Prune with maxRows=3 → 2 rows must be evicted. k0 (touched
+      // at 9999) survives; k1 + k2 (oldest last_used_at) get evicted.
+      const result = pruneCache({
+        dbPath,
+        now: 10000,
+        maxRows: 3,
+        maxDiskMb: 0,
+      });
+      expect(result.lruEvicted).toBe(2);
+
+      const after0 = lookupCache({
+        key: "k0",
+        now: 10001,
+        config: { dbPath, ttlMs: 1_000_000 },
+      });
+      const after1 = lookupCache({
+        key: "k1",
+        now: 10001,
+        config: { dbPath, ttlMs: 1_000_000 },
+      });
+      expect(after0.hit).toBe(true);
+      expect(after1.hit).toBe(false);
+    } finally {
+      cleanup(dbPath);
+    }
+  });
+
+  it("evicts oldest when row-count cap is exceeded", () => {
+    const dbPath = tmpDb();
+    try {
+      for (let i = 0; i < 10; i++) {
+        storeCache({
+          key: `k${i}`,
+          primitive: "judge",
+          value: { i },
+          now: 1000 + i,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+      }
+      const result = pruneCache({
+        dbPath,
+        now: 2000,
+        maxRows: 4,
+        maxDiskMb: 0,
+      });
+      expect(result.lruEvicted).toBe(6);
+
+      // The 4 newest (k6..k9) should remain
+      for (let i = 0; i < 6; i++) {
+        const r = lookupCache({
+          key: `k${i}`,
+          now: 2001,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+        expect(r.hit).toBe(false);
+      }
+      for (let i = 6; i < 10; i++) {
+        const r = lookupCache({
+          key: `k${i}`,
+          now: 2001,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+        expect(r.hit).toBe(true);
+      }
+    } finally {
+      cleanup(dbPath);
+    }
+  });
+
+  it("maxRows=0 disables row-count cap", () => {
+    const dbPath = tmpDb();
+    try {
+      for (let i = 0; i < 5; i++) {
+        storeCache({
+          key: `k${i}`,
+          primitive: "judge",
+          value: { i },
+          now: 1000 + i,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+      }
+      const result = pruneCache({
+        dbPath,
+        now: 2000,
+        maxRows: 0,
+        maxDiskMb: 0,
+      });
+      expect(result.lruEvicted).toBe(0);
+    } finally {
+      cleanup(dbPath);
+    }
+  });
+
+  it("env vars AUDIT_RESULT_CACHE_MAX_ROWS / MAX_DISK_MB drive defaults", () => {
+    const dbPath = tmpDb();
+    try {
+      for (let i = 0; i < 6; i++) {
+        storeCache({
+          key: `k${i}`,
+          primitive: "judge",
+          value: { i },
+          now: 1000 + i,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+      }
+      process.env.AUDIT_RESULT_CACHE_MAX_ROWS = "2";
+      process.env.AUDIT_RESULT_CACHE_MAX_DISK_MB = "0";
+      try {
+        const result = pruneCache({ dbPath, now: 2000 });
+        expect(result.lruEvicted).toBe(4);
+      } finally {
+        delete process.env.AUDIT_RESULT_CACHE_MAX_ROWS;
+        delete process.env.AUDIT_RESULT_CACHE_MAX_DISK_MB;
+      }
+    } finally {
+      cleanup(dbPath);
+    }
+  });
+
+  it("TTL prune runs first, then LRU on the remainder", () => {
+    const dbPath = tmpDb();
+    try {
+      // 3 ancient + 5 fresh
+      for (let i = 0; i < 3; i++) {
+        storeCache({
+          key: `old${i}`,
+          primitive: "judge",
+          value: { i },
+          now: 100,
+          config: { dbPath, ttlMs: 1_000 },
+        });
+      }
+      for (let i = 0; i < 5; i++) {
+        storeCache({
+          key: `fresh${i}`,
+          primitive: "judge",
+          value: { i },
+          now: 5000 + i,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+      }
+      const result = pruneCache({
+        dbPath,
+        now: 5100, // ancients are now ~5000ms old, > 1000ms TTL
+        maxAgeMs: 1000,
+        maxRows: 3,
+        maxDiskMb: 0,
+      });
+      expect(result.removed).toBe(3); // 3 ancient TTL-pruned
+      expect(result.lruEvicted).toBe(2); // 5 fresh - cap 3 = 2 evicted
+      // The 3 freshest (fresh2..fresh4) remain
+      for (let i = 0; i < 2; i++) {
+        const r = lookupCache({
+          key: `fresh${i}`,
+          now: 5101,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+        expect(r.hit).toBe(false);
+      }
+      for (let i = 2; i < 5; i++) {
+        const r = lookupCache({
+          key: `fresh${i}`,
+          now: 5101,
+          config: { dbPath, ttlMs: 1_000_000 },
+        });
+        expect(r.hit).toBe(true);
+      }
+    } finally {
+      cleanup(dbPath);
+    }
+  });
+});
