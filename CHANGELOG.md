@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T4 — Wave 2 recorder browser-only + reporter-pdf real chromium)
+
+- **关闭 RISK-REGISTER R3** ✅：recorder.ts 的 `page.evaluate` 内部 lazy-load + docHeight callback / reporter-pdf.ts 真 chromium PDF export 从此在 CI 跑 (待 T26 wired)。
+- `tests/integration/playwright/recorder.test.ts` (~280 LoC, 3 tests):
+  - **lazy-load fixture**：真 chromium 加载 + Recorder.screenshotSegments → 验 full PNG sidecar SHA + thumbnail buffer (sharp success path 或 fallback 都 OK) + 1-5 segments 全 PNG + 文件命名 `01-{label}-segNN.png`
+  - **dense-scroll fixture**：docHeight ≥ 20000 验 5-segment cap 准确 (stride=576, natural ≈ 41 → cap 5) + 5 segments hash 至少 4 个 distinct (不同 scroll position)
+  - **reporter-pdf**：真 writePdfReport(audit, runDir) → 验返回 string filepath = `<runDir>/audit.pdf` + PDF magic bytes `%PDF-` + 文件 ≥ 5KB
+- **page.evaluate inner browser-only callback 现在真在 chromium 跑过**：之前 recorder.ts func cov 61.9%（lazy-scroll await new Promise(setInterval) + docHeight 读取算未覆盖），现在 e2e 路径覆盖。
+- 完整回归：tsc ✓ / build ✓ / vitest 1536/1536 ✓ / playwright 9/9 ✓ in 18s / 0 bench regression / npm pack 1.2 MB / 598 files (T25 待修)。
+
 ### Added (T2 — Wave 1 M6-5 Integration tests scaffold)
 
 - **Playwright Test 装入**：`@playwright/test@^1.59.1` dev dep；chromium binary 已在系统缓存（playwright runtime 1.55 + Test runner 1.59 共享 binary）。
