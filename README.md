@@ -975,6 +975,14 @@ MIT — see [LICENSE](LICENSE) for full text.
 Third-party dependencies and their licenses are documented in
 [docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
 
+## Help & Reference
+
+- [FAQ.md](FAQ.md) — common questions on API key + cost, scenarios + personas, reports + output, privacy, native binaries
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — runtime errors and fixes (API + auth, audit run, browser, reports, CI, performance)
+- [docs/INSTALLATION.md](docs/INSTALLATION.md) — install matrix + corporate proxy + Alpine / Docker / air-gapped recipes
+- **API reference** — generate locally with `npm run docs:api` → `docs/api/index.html` (TypeDoc, not committed)
+- [docs/decisions/](docs/decisions/) — 26 Architecture Decision Records explaining design rationale
+
 ---
 
 <p align="center">
