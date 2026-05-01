@@ -312,13 +312,50 @@ npx playwright install chromium
 > For corporate proxy / Alpine Linux / Docker / air-gapped environments,
 > see [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
-### 2. Set your API key
+### 2. Verify your environment
+
+```bash
+npx ai-audit doctor
+```
+
+Reports Node version, API key, config / scenarios / personas, network
+proxy, and api.anthropic.com reachability. Exits 0 when ready, 1 when
+any check fails — useful in CI scripts to fail-fast before running an audit.
+
+Add `--verbose` for diagnostic detail, `--skip-network` for offline /
+air-gapped environments.
+
+### 3. Set up a project (interactive or scripted)
+
+**Interactive wizard** (recommended for first-time users):
+
+```bash
+npx ai-audit init
+# Walks you through project name, base URL, sample scenario, and runs
+# `doctor` at the end to confirm setup.
+```
+
+**Non-interactive** (CI / scripted):
+
+```bash
+npx ai-audit init my-project --name acme-shop --url https://acme.example.com
+```
+
+Either path scaffolds:
+- `config.yaml` (project name + base URL + model defaults + budget)
+- `scenarios/00-smoke.yaml` (starter visual + a11y check)
+
+### 4. Set your API key
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-### 3. Create your first audit
+Get a key at [console.anthropic.com](https://console.anthropic.com).
+The wizard above tells you when this is missing; `ai-audit doctor`
+re-checks it any time.
+
+### 5. Create your first audit
 
 ```bash
 npx ai-audit init projects/my-app --name "My App" --url "https://myapp.com"
@@ -326,7 +363,7 @@ npx ai-audit init projects/my-app --name "My App" --url "https://myapp.com"
 
 This generates a project directory with a config file and a starter scenario. Edit the scenario to match your app's flows.
 
-### 4. Run
+### 6. Run
 
 ```bash
 # Dry run — validate config, print the persona x scenario matrix
