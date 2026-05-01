@@ -13,7 +13,7 @@ import type { StagehandLike } from "../core/stagehand-wrapper.js";
 import type { Recorder } from "../core/recorder.js";
 import type { TempInbox } from "../core/email.js";
 import { runCritic, type CriticResult } from "../core/critic.js";
-import { parseAxeTags } from "../core/wcag.js";
+import { parseAxeTags, expandAxeStandard } from "../core/wcag.js";
 import { runComputerUseTask } from "../core/computer-use.js";
 import { substituteTemplate } from "../core/scenario.js";
 import { withRetry } from "stealth-core";
@@ -519,21 +519,29 @@ async function handleAssertA11y(
       await ctx.page.addScriptTag({ path: axeCorePath });
     }
 
-    // Run axe analysis
+    // Run axe analysis.
+    //
+    // axe `runOnly: ["wcag2aa"]` is EXACT match — only rules tagged
+    // wcag2aa run, NOT A-level rules. Pre-T-NEW-11 the handler passed
+    // `[standard]` which silently missed Level A violations
+    // (image-alt / label / button-name etc). Now we expand via
+    // expandAxeStandard so e.g. wcag2aa → ["wcag2a", "wcag2aa"] and
+    // wcag22aa → A+AA across 2.0/2.1/2.2. See ADR-030.
+    const axeTags = expandAxeStandard(standard);
     axeResults = await ctx.page.evaluate(
       (runOpts) => {
         const axe = (window as any).axe;
         if (!axe) throw new Error("axe-core not available after injection");
 
         return axe.run(document, {
-          runOnly: { type: "tag", values: [runOpts.standard] },
+          runOnly: { type: "tag", values: runOpts.tags },
           resultTypes: ["violations", "passes", "incomplete"],
           ...(runOpts.exclude.length > 0
             ? { exclude: runOpts.exclude.map((s: string) => [s]) }
             : {}),
         });
       },
-      { standard, exclude },
+      { tags: axeTags, exclude },
     );
   } catch (err) {
     // axe-core injection or execution failed — return diagnostic, don't crash
