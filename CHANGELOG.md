@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Changed (T25 — Wave 4 package.json 完整化 + GitHub org 占位符全替换)
+
+- **关闭 RISK-REGISTER R39 / R40 / R41 / R42 / R-NEW-3** ✅。npm publish-readiness 大跨步前进。
+- **package.json 加 7 个 release-critical 字段**：
+  - `engines: { node: ">=18.0.0", npm: ">=8.0.0" }` (R39) — Node 16 用户装上立即报错
+  - `os: ["darwin", "linux", "win32"]` (R40) — Windows ARM64 不支持就跳过
+  - `cpu: ["x64", "arm64"]` (R40)
+  - `repository: { type: "git", url: "git+https://github.com/xcodethink/ai-browser-auditor.git" }` (R41)
+  - `bugs: { url: "https://github.com/xcodethink/ai-browser-auditor/issues" }` (R41)
+  - `homepage: "https://github.com/xcodethink/ai-browser-auditor#readme"` (R41)
+  - `files: ["dist/", "docs/schemas/", "CHANGELOG.md", "LICENSE", "README.md", "SECURITY.md"]` (R42) — 把 tests/ docs/(非 schemas) scripts/ 等开发文件全踢出 npm 包
+  - `publishConfig: { access: "public" }` (R42)
+  - `types: "dist/index.d.ts"` — TypeScript 用户能直接 import type
+- **包体积大跌 1.2MB → 520KB (-57%) / 611 → 299 files (-50%)**：Top dirs: 264 dist + 31 docs/schemas + 4 root docs (CHANGELOG/SECURITY/README/package.json)。LICENSE 还没创（T19 任务），files 数组里已声明等 T19 加进。
+- **GitHub org 占位符全替换** (R-NEW-3 关闭)：
+  - 3 处 `anthropics` 硬编码（误）→ `xcodethink`：`src/core/ci-reporters.ts > DEFAULT_TOOL.informationUri` / `src/core/reporter-diff.ts > footer 2 处`
+  - 1 处 schema 生成器：`scripts/export-result-schemas.ts > $id` URL（影响 30 个 published JSON Schemas → npm run schemas 重生 30 schemas 全部 URL 更新）
+  - 2 处文档 `<org>` 占位：`docs/THIRD_PARTY_LICENSES.md` / `SECURITY.md`
+  - 同步重生：`docs/integration/fixture-sarif.json`（SARIF tool.driver.informationUri）+ `docs/integration/fixture-diff.md`（footer link）
+- **修 1 个被旧 URL 锁定的测试**：`tests/reporter-diff.test.ts > preserves the GitHub link in the footer` 字面字符串 pin 改为新 URL
+- **完整回归**: typecheck ✓ / build ✓ / vitest 1555/1555 ✓ / playwright 16/16 ✓ / bench:check 0 regression / schemas regen 0 diff (本次更新所有 30 schema URLs 算 surface-shape 漂移已 commit) / npm pack 520KB
+
 ### Added (T7 — Wave 2 4 子项 e2e: cost-guard + MCP stdio + GH PR diff + trends-perf)
 
 - **关闭 RISK-REGISTER R7 / R8 / R9 / R10** ✅（4 个 P1 一次性收口）。**全 4 子项不烧 ANTHROPIC_API_KEY**——cost-guard 用极小 budget 验拦截路径；MCP stdio 用 list_capabilities pure introspection；GH diff 写 fixture + 手动 SOP；trends 是纯渲染。
