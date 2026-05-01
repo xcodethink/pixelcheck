@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T20 — Wave 3 stability commitment + MIGRATION + DEPRECATION-POLICY)
+
+- **关闭 RISK-REGISTER R17 / R53 / R54 / R57** ✅。
+- **`MIGRATION.md`**（~150 LoC）：v0.3 → v1.0 升级指南，3 项 required action（Node 16 → 18+ / a11y 审计 violation 数会增加因 T-NEW-11 修复 / 检查 screenshot dimensions）+ 4 项 optional（CI workflows / Anthropic SDK 0.39→0.92 透明 / Stagehand v2.5.8 锁 / Zod v3 锁）+ URL 变更（anthropics → xcodethink 30 schemas $id 全更新）+ package metadata 变化（os/cpu/files）+ "What did NOT change" 段（Result Schema 1.2.0 / CLI flags / config / MCP tool surface / history.db migration auto）；before/after diff 示例 + tag-baseline-then-upgrade 推荐流程 + general upgrade tips。
+- **`docs/DEPRECATION-POLICY.md`**（~190 LoC）：scope 定义（CLI / config / Result Schema / MCP tool / library exports — 67 exports）+ 两版本 sunset 周期（announce minor → 至少两 minor 持续 warn → next major remove）+ 3 阶段流程（Phase 1 announce: CHANGELOG + runtime warning + JSDoc + MIGRATION preview / Phase 2 continued warnings / Phase 3 removal）+ 4 警告级别（inline annotation / once-per-process / once-per-call / strict-mode throw）+ 2 个完整示例（renaming a CLI flag / removing a deprecated library export）+ "what can / cannot be deprecated" 表。
+- **README.md** 加 "Stability Commitment" 段 + "Performance baseline (provisional, v1.0-rc1 calibration pending)" 段：5 个 stable surfaces 列表 + minor/patch backward compat 承诺 + 引 DEPRECATION-POLICY.md (deprecation cycle) + 引 MIGRATION.md (v0.3 → v1.0 升级)；perf baseline 表分两层（5-unit audit 整套 ~2-5 分钟 / $0.10-0.30 cost / < 1GB RAM v1.0-rc1 calibration pending；render hot-paths ops/sec 已通过 bench:check regression gate 跟踪）。
+- 完整回归: vitest 1555/1555 ✓ / npm pack 527 KB / 300 files / 0 schemas diff / 0 bench regression。
+
 ### Added (T19 — Wave 3 治理文档: LICENSE + CONTRIBUTING + SECURITY review + 26 ADR audit)
 
 - **关闭 RISK-REGISTER R12 / R13 / R14 review / R22 / R33** ✅。**Wave 3 第一颗子弹**。
