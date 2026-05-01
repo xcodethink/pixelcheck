@@ -201,6 +201,26 @@ reports/2026-04-11_post-deploy/
 
 `audit.json` and every MCP tool response carries a top-level `schema_version` field (SemVer). The contract is documented in [docs/contracts/RESULT_SCHEMA.md](./docs/contracts/RESULT_SCHEMA.md); machine-readable JSON Schemas live in [docs/schemas/](./docs/schemas/) and can be regenerated with `npm run schemas`.
 
+### WCAG compliance reporting
+
+The `assert_a11y` scenario step runs [axe-core](https://github.com/dequelabs/axe-core) to detect accessibility violations. As of v1, every violation carries structured WCAG attribution that flows through to all stakeholder reports:
+
+- **PDF report** — a "WCAG Compliance Summary" section grouped by conformance level (A / AA / AAA), by the four WCAG principles (Perceivable / Operable / Understandable / Robust), and a top-violated-criteria table with deep links to the W3C Understanding documents.
+- **SARIF (GitHub Code Scanning / GitLab SAST)** — per-criterion ruleIds like `wcag/1-4-3`, `wcag/2-1-1`. Filter by W3C clause directly in the Security tab. Each rule's detail panel shows "WCAG 1.4.3 Contrast (Minimum) (Level AA)" with a link to the W3C spec.
+- **audit.json** — every accessibility issue gets `wcag_level` and `wcag_criterion` fields alongside the existing `description` / `recommendation`.
+
+Catalog covers WCAG 2.1 (the production-deployed standard) plus the 9 net-new success criteria added in WCAG 2.2 (e.g. 2.4.11 Focus Not Obscured, 2.5.8 Target Size). Compliance teams reading reports in zh-CN / ja / es / de see the section headings translated; SC names and id numbers (1.4.3, 2.1.1) stay canonical for compliance-document consistency.
+
+Use case — answering an RFP that asks "Are you WCAG 2.1 AA compliant?":
+
+```bash
+ai-audit run --project myapp                                    # writes audit.pdf + audit.sarif
+# Open audit.pdf → "WCAG Compliance Summary" section shows A / AA / AAA counts
+# Or upload audit.sarif via github/codeql-action/upload-sarif → grouped under wcag/* ruleIds
+```
+
+See [ADR-024](docs/decisions/ADR-024-wcag-clause-grouping.md) for the full design.
+
 ### Localised reports
 
 Stakeholder reports (PDF / trends dashboard / PR diff Markdown / PR diff HTML) emit in the language of your audience. v1 supports 5 locales:
