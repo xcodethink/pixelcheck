@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T26 — Wave 4 GitHub Actions CI 矩阵 (3 workflows))
+
+- **关闭 RISK-REGISTER R43** ✅。**项目第一次有自己的 CI 工作流**——pre-T26 `.github/workflows/` 只有一个用于下游 SaaS 的 `post-deploy-audit.yml`，1555 测试全过 + 16 playwright 全过的"green"完全靠本地 M-series Mac 验证。任何 Windows 路径分隔符 / Linux glibc / Node 18 vs 22 差异 / macOS Intel vs arm64 native binary 不匹配的回归全部静默漏过。**T26 把"测试全过"从 dev claim 升为 CI gate**。
+- **`.github/workflows/ci.yml`** (~85 LoC) — **12 配置矩阵**: ubuntu-latest + macos-13 (Intel x64) + macos-14 (Apple Silicon arm64) + windows-latest × Node 18/20/22 = 12 平行 jobs。每 job 跑：checkout → setup-node (with cache: npm) → npm ci → build → vitest → `npm run schemas` idempotence (uncommitted diff = fail loud) → `npm audit --production --audit-level=high`。`fail-fast: false` 让 12 配置都跑完不止第一个 fail。`concurrency` cancel-in-progress 避免快速 PR 更新浪费 CI 分钟数。
+- **`.github/workflows/integration.yml`** (~65 LoC) — Playwright Test 真 chromium + vitest forks pool (file-lock-race) 跑 ubuntu-latest only。`npx playwright install chromium --with-deps` 一次安装（150MB），`build` step（race test 需 dist/core/file-lock.js）+ `test:integration:playwright` (16/16) + `test:integration` (M9-3.2 file-lock 2/2)。失败时 upload Playwright report + test-results artifact (7 days retention)。**weekly Mon 08:00 UTC cron** 跟 axe-core / chromium / Stagehand 上游漂移。
+- **`.github/workflows/coverage.yml`** (~40 LoC) — coverage 60/54/60/60 gate（per ADR-017 ratchet 契约），ubuntu × Node 20 单一配置避免 12x runtime；upload coverage report artifact (14 days)。失败 distinct from 测试失败信号——开发者能区分"代码全平台对，覆盖率 gate 不达"vs"测试本身有问题"。
+- **本地完整验证 ci.yml 各 step**：npm ci ✓ / npm run build ✓ / npm test 1555/1555 ✓ / npm run schemas idempotent ✓ (no diff)。所有 step 在 macOS arm64 跑通；GHA 上等首次 push 验证 12 配置矩阵。
+- **branch protection 待 GitHub UI 配置** (R44 + 治理 README): require ci.yml + integration.yml + coverage.yml pass before merge to main + no force pushes。3 workflow 加进库后等首次 push 触发 + GitHub Settings 启用。
+- 完整回归: typecheck ✓ / build ✓ / vitest 1555/1555 ✓ / playwright 16/16 ✓ / 0 bench regression / 0 schemas diff / npm pack 521 KB / 299 files。
+
 ### Changed (T25 — Wave 4 package.json 完整化 + GitHub org 占位符全替换)
 
 - **关闭 RISK-REGISTER R39 / R40 / R41 / R42 / R-NEW-3** ✅。npm publish-readiness 大跨步前进。
