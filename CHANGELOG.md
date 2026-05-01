@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Security & Dependencies (T0.5 — Wave 0 紧急止血)
+
+- **Anthropic SDK 0.39.0 → 0.92.0**（跨 53 minor 版本升级；CHANGELOG 跨整段无 ⚠ BREAKING CHANGES section；零代码改动跑通 1538/1538 测试）
+- **npm audit critical 修复**：protobufjs RCE (GHSA-xq3m-2v4x-88gg) + hono JSX SSR XSS (GHSA-458j-xx4x-4375) 两个 critical/moderate 通过 `npm audit fix` patch；剩 3 transitive vulns 来自 Stagehand v2.5.8 间接依赖（ai SDK + jsondiffpatch），在我们 use case 不可利用，记录到 `SECURITY.md` waiver。完整清需 Stagehand v3 升级（T-NEW-1，v1.1 任务）。
+- **Minor 升级**：commander 12 → 14、dotenv 16.4 → 16.6（保 Stagehand v2.5 peer 兼容）、p-limit 6 → 7、typescript 5.7 → 5.9、@types/node 22.0 → 22.19、odiff-bin 4.3.2 → 4.3.8、ora 8 → 9、axe-core 4.11.2 → 4.11.4、better-sqlite3 12.8 → 12.9
+- **Zod 锁定 v3**：v4 跨大版本影响 100+ 调用点 + zod-to-json-schema 兼容性 + 30 published JSON Schemas + Result Schema SemVer 决策；v1.0 ship Zod v3.25.76，v4 升级延后 v1.1 评估。决策入 [ADR-027](docs/decisions/ADR-027-zod-3-lock-in.md)。
+- **Stagehand 锁定 v2.5.8**：v3 大破坏（act/observe 签名变 + BYO Playwright + wrapper 重写 ~150 LoC）配合 M6-5 T5 真 e2e smoke 才能验证，独立任务 T-NEW-1 v1.1 早期。决策入 [ADR-028](docs/decisions/ADR-028-stagehand-v3-deferred.md)。
+- 全套回归：tsc ✓ / build ✓ / 1538/1538 测试 ✓ / `npm run schemas` 重生 0 diff / `npm run bench:check` 0 regression。
+
 ### Added (M1-2 Phase 3 — recorder.ts unit coverage)
 
 - New `tests/recorder.test.ts` (~530 LoC, 27 tests) lifts `src/core/recorder.ts` from 0% → 82.82% statements / 76.19% branches / 88.04% lines. The recorder is the per-Page artefact accumulator (console-error listeners, indexed screenshots with sha256 sidecars, full + thumbnail + 5 viewport segments for vision input, console-log flush). Function coverage stays at 61.9% because `page.evaluate()`'s inline browser-only callbacks (lazy-scroll + docHeight readers) are not invokable in Node — same constraint that already applied to `page-stability.test.ts`.
