@@ -40,6 +40,11 @@ import {
 } from "./core/reporter-diff.js";
 import { normaliseLocale, type Locale } from "./core/i18n.js";
 import { registerSecret } from "./core/logger.js";
+import { runDoctor, renderDoctorReport } from "./commands/doctor.js";
+import {
+  runInitInteractive,
+  writeSampleScenario,
+} from "./commands/init-interactive.js";
 
 dotenv.config();
 
@@ -352,15 +357,17 @@ program
     },
   );
 
-program
-  .command("init <dir>")
-  .description("Create a new project audit directory with template files")
-  .option("--name <name>", "Project name")
-  .option("--url <url>", "Base URL of the project")
-  .action((dir: string, initOpts: { name?: string; url?: string }) => {
-    const projectDir = path.resolve(dir);
-    const projectName = initOpts.name || path.basename(projectDir);
-    const baseUrl = initOpts.url || "https://example.com";
+/**
+ * Scaffold a project audit directory with config.yaml + a starter scenario.
+ * Used by both the non-interactive `ai-audit init <dir>` (CI / scripted)
+ * and the interactive wizard `ai-audit init` (no args, T23 R46).
+ */
+function scaffoldProject(args: {
+  projectDir: string;
+  projectName: string;
+  baseUrl: string;
+}): void {
+  const { projectDir, projectName, baseUrl } = args;
 
     fs.mkdirSync(path.join(projectDir, "scenarios"), { recursive: true });
     fs.writeFileSync(
@@ -420,10 +427,93 @@ program
     console.log(chalk.green(`\n[ai-audit] Project initialized: ${projectDir}`));
     console.log(chalk.gray(`  config.yaml — edit base_url, project_name, budget`));
     console.log(chalk.gray(`  scenarios/00-smoke.yaml — starter smoke test`));
-    console.log(chalk.gray(`\nRun: ai-audit run --project ${dir}`));
+    console.log(chalk.gray(`\nRun: ai-audit run --project ${projectDir}`));
     console.log(chalk.gray(`Built-in personas (6) will be used automatically.`));
     console.log(chalk.gray(`To customize personas, create a personas/ dir inside the project.`));
-  });
+}
+
+program
+  .command("init [dir]")
+  .description(
+    "Initialize a new audit project. With <dir>: non-interactive scaffold (CI-friendly). Without: interactive wizard.",
+  )
+  .option("--name <name>", "Project name (non-interactive only)")
+  .option("--url <url>", "Base URL of the project (non-interactive only)")
+  .action(
+    async (
+      dir: string | undefined,
+      initOpts: { name?: string; url?: string },
+    ) => {
+      // Non-interactive path — backward-compat with v0.3 `init <dir>`
+      if (dir) {
+        const projectDir = path.resolve(dir);
+        const projectName = initOpts.name || path.basename(projectDir);
+        const baseUrl = initOpts.url || "https://example.com";
+        scaffoldProject({ projectDir, projectName, baseUrl });
+        return;
+      }
+
+      // Interactive path (T23 R46) — readline wizard prompts user, then
+      // calls scaffoldProject with the answers.
+      const answers = await runInitInteractive({ startDir: process.cwd() });
+      scaffoldProject({
+        projectDir: answers.projectDir,
+        projectName: answers.projectName,
+        baseUrl: answers.baseUrl,
+      });
+
+      if (answers.createSampleScenario) {
+        const written = writeSampleScenario(
+          answers.projectDir,
+          answers.baseUrl,
+        );
+        if (written) {
+          console.log(chalk.gray(`  scenarios/homepage-smoke.yaml — sample`));
+        }
+      }
+
+      if (answers.runDoctorAfter) {
+        console.log("");
+        console.log(chalk.cyan("[ai-audit] Running doctor checks..."));
+        const report = await runDoctor({ projectDir: answers.projectDir });
+        for (const line of renderDoctorReport(report)) {
+          console.log(line);
+        }
+        if (report.exitCode !== 0) {
+          console.log("");
+          console.log(
+            chalk.yellow(
+              "Some doctor checks failed. Address them before running an audit.",
+            ),
+          );
+        }
+      }
+    },
+  );
+
+// ── doctor command: diagnose environment for run-readiness ──────────
+
+program
+  .command("doctor")
+  .description(
+    "Diagnose Node / API key / config / scenarios / network. Exits 0 if ready, 1 if any check fails.",
+  )
+  .option("--verbose", "Show diagnostic details (env values via redaction)")
+  .option("--skip-network", "Skip api.anthropic.com reachability check")
+  .action(
+    async (doctorOpts: { verbose?: boolean; skipNetwork?: boolean }) => {
+      const report = await runDoctor({
+        verbose: doctorOpts.verbose,
+        skipNetwork: doctorOpts.skipNetwork,
+      });
+      for (const line of renderDoctorReport(report, {
+        verbose: doctorOpts.verbose,
+      })) {
+        console.log(line);
+      }
+      process.exit(report.exitCode);
+    },
+  );
 
 // ── explore command: ad-hoc autonomous exploration ──────────────────
 
