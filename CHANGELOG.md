@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T24 — Wave 3 收尾: FAQ + TROUBLESHOOTING + typedoc API ref)
+
+- **关闭 RISK-REGISTER R18 / R19 / R20 / R21** ✅。**Wave 3 第五颗子弹（5/5 完整收尾）** —— 用户文档闭环 + 公开 API 参考可生成。
+- **`FAQ.md`**（~250 LoC，5 大类 ~20 题）：API key + cost（key 哪里拿 / 单次审计 cost 区间 / BudgetExceededError 处理 / 不同 LLM 是否支持 / 怎么完全不烧 token）/ scenarios + personas（差别 / 第一个 scenario / 自定义 personas / 过滤跑特定 unit）/ reports + output（写哪 / CI 集成 / PDF 定制 / trends）/ privacy + data（什么数据离开 / consent prompt 是什么 / 删除数据 / password 是否泄漏 / GDPR-CCPA 立场）/ native binaries + cross-platform（Alpine 修复 / chromium 启动失败 / Windows 选哪个 shell / 装得慢 / ARM64 支持）。每条题都引向 source-of-truth（INSTALLATION.md / TROUBLESHOOTING.md / PRIVACY.md / ADR）。
+- **`docs/TROUBLESHOOTING.md`**（~290 LoC，6 大类 24 错误）：API + auth（4 个：缺 key / 401 / 429 / self-signed cert）/ audit run（5 个：consent declined / 项目不存在 / scenario validation / BudgetExceededError / axe-core injection）/ Browser + Playwright（4 个：target page closed / Timeout 30000 / 黑屏 screenshot / file-lock race）/ reports + output（4 个：PDF 缺 / HTML 空白 / no trends / schema regen drift）/ CI integration（4 个：SARIF reject / JUnit reject / sticky comment dup / disk space）/ performance + cost（3 个：审计慢 / cost 偏高 / 内存峰值）。每条 symptom + cause + fix + 可选 verbose flag。与 INSTALLATION.md 错误表分工：INSTALLATION 专注"装不上"，TROUBLESHOOTING 专注"装上了跑不通"。
+- **公开 API 参考**：装 `typedoc@^0.28.19` dev dep + `typedoc.json` 配置（entry `src/index.ts` / out `docs/api` / hideGenerator / excludeInternal）+ `npm run docs:api` script + `.gitignore` 加 `docs/api/`（生成产物不入仓库不臃肿）+ `npm run clean` 顺手 rm `docs/api`。本地 `npm run docs:api` 一键产出 2.3MB 静态 HTML（67 公开 export 全有页面）+ 67 个 export 自动追踪。**不入 npm tarball、不入 git、用户/贡献者本地按需生成**——避免 50MB 文档 inflate package。
+- **`src/core/consent.ts` 改 `console.log` → `output.write`**：替换为 readline output stream 直写不依赖 eslint-disable + 通过 `lint:no-console` 强校验（ADR-005 logger discipline）；行为完全等价（stdout 写 + 换行）。
+- **README.md 加 "Help & Reference" 段**（License 段后）：5 个一键入口 — FAQ.md / docs/TROUBLESHOOTING.md / docs/INSTALLATION.md / `npm run docs:api` / docs/decisions/。覆盖"我用 / 我跑不通 / 我装不上 / 我集成 API / 我看决策"5 大入口场景。
+- 完整回归：tsc ✓ / build ✓ / **vitest 1608/1608 ✓** / lint:no-console ✓ / npm pack 549.9 KB / 309 files (FAQ / TROUBLESHOOTING / docs/api 不入 tarball 因 `files` 字段精确控制) / 0 schemas diff / 0 bench regression。
+
 ### Added (T22 — Wave 3 PRIVACY + first-run consent + PII redaction)
 
 - **关闭 RISK-REGISTER R15 / R34 / R35 / R36 / R37 / R38 / R60** ✅ (7 risks)。**Wave 3 第四颗子弹** —— GDPR/CCPA 合规 baseline + 用户数据保护实施。
