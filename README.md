@@ -817,6 +817,22 @@ Coverage is enforced via `vitest.config.ts > coverage.thresholds` (provider `v8`
 
 The threshold floor sits at or below the current global baseline so the gate catches regression but doesn't block the build. Each new test PR ratchets the floor up after pushing it. Per-module coverage is visible in the text-table report or `coverage/index.html`. See [docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md](docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md) for the M1-2 phase plan.
 
+## Performance regression gate
+
+Hot-path benchmarks live in `tests/perf.bench.ts` and run separately from the test suite (vitest's `*.bench.ts` discovery is independent from `*.test.ts`, so `npm test` stays fast). 9 benchmarks cover the report rendering + aggregation paths most likely to regress when someone refactors a template or adds an O(N²) loop:
+
+- `renderPdfHtml` / `renderTrendsHtml` / `renderDiffMarkdown` / `renderDiffHtml`
+- `renderJunitXml` / `renderSarif`
+- `summarizeWcag` / `computeSummary` / `t() i18n lookup`
+
+```bash
+npm run bench          # measure (writes docs/perf-current.json)
+npm run bench:check    # compare to docs/perf-baseline.json — exit 1 on regression > 50%
+npm run bench:update   # bake current as new baseline (after intentional perf changes)
+```
+
+The default 50% tolerance is calibrated against measured run-to-run variance (8–53% on quiet hardware). Stricter local checks via `--tolerance 0.30`. Initial baseline was recorded as **min-of-5 consecutive runs** so regressions register as "slower than we've ever been" — robust to noise above the floor. See [ADR-025](docs/decisions/ADR-025-performance-regression-suite.md) for the full design.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
