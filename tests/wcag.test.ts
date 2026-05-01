@@ -9,6 +9,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  expandAxeStandard,
   findWcagCriterion,
   isWcagIssue,
   parseAxeTags,
@@ -373,5 +374,71 @@ describe("isWcagIssue", () => {
 
   it("returns false for vision-critic-style issues with no wcag fields", () => {
     expect(isWcagIssue(makeIssue({ description: "blurry text" }))).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// expandAxeStandard (T-NEW-11 — closes RISK-REGISTER R-NEW-11)
+// ─────────────────────────────────────────────────────────────
+
+describe("expandAxeStandard", () => {
+  // Table-driven: every standard the AssertA11yStepSchema enum accepts →
+  // expected expansion. Tags must be cumulative across version × level
+  // (WCAG 2.2 AA includes Level A + 2.0/2.1 SCs by definition).
+  const cases: Array<[string, ReadonlyArray<string>]> = [
+    // WCAG 2.0
+    ["wcag2a", ["wcag2a"]],
+    ["wcag2aa", ["wcag2a", "wcag2aa"]],
+    ["wcag2aaa", ["wcag2a", "wcag2aa", "wcag2aaa"]],
+    // WCAG 2.1 (cumulative over 2.0)
+    ["wcag21a", ["wcag2a", "wcag21a"]],
+    ["wcag21aa", ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]],
+    // WCAG 2.2 (cumulative over 2.1)
+    ["wcag22a", ["wcag2a", "wcag21a", "wcag22a"]],
+    [
+      "wcag22aa",
+      ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"],
+    ],
+    // axe's own opinionated rules — no WCAG cumulative meaning
+    ["best-practice", ["best-practice"]],
+  ];
+
+  for (const [input, expected] of cases) {
+    it(`expands "${input}" to ${JSON.stringify(expected)}`, () => {
+      expect(expandAxeStandard(input)).toEqual([...expected]);
+    });
+  }
+
+  it("returns a fresh array (caller can mutate without poisoning the table)", () => {
+    const a = expandAxeStandard("wcag2aa");
+    const b = expandAxeStandard("wcag2aa");
+    a.push("mutated");
+    expect(b).toEqual(["wcag2a", "wcag2aa"]);
+  });
+
+  it("falls through unknown standards unchanged (defensive)", () => {
+    expect(expandAxeStandard("wcag3a" as never)).toEqual(["wcag3a"]);
+    expect(expandAxeStandard("custom-tag" as never)).toEqual(["custom-tag"]);
+  });
+
+  it("includes Level A in every AA expansion (T-NEW-11 regression guard)", () => {
+    // The R-NEW-11 bug was that wcag2aa expanded to ["wcag2aa"] only,
+    // missing Level A rules like image-alt / label / button-name.
+    // This test pins the cumulative semantic so the bug can't regress.
+    for (const aa of ["wcag2aa", "wcag21aa", "wcag22aa"]) {
+      expect(expandAxeStandard(aa)).toContain("wcag2a");
+    }
+  });
+
+  it("wcag22aa expands to all 6 cumulative tags (full WCAG 2.2 AA)", () => {
+    // Most common commercial standard: WCAG 2.2 AA conformance.
+    expect(expandAxeStandard("wcag22aa")).toEqual([
+      "wcag2a",
+      "wcag2aa",
+      "wcag21a",
+      "wcag21aa",
+      "wcag22a",
+      "wcag22aa",
+    ]);
   });
 });

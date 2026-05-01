@@ -34,7 +34,7 @@ import * as path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-import { parseAxeTags } from "../../../src/core/wcag.js";
+import { expandAxeStandard, parseAxeTags } from "../../../src/core/wcag.js";
 import { renderSarif } from "../../../src/core/ci-reporters.js";
 import {
   writeSarifReport,
@@ -91,18 +91,20 @@ test.describe("real axe-core scan of a11y-broken fixture", () => {
     const axePath = resolveAxeCorePath();
     await page.addScriptTag({ path: axePath });
 
-    const results = (await page.evaluate(() => {
+    // Use the SAME expansion the production handler uses
+    // (handlers/index.ts handleAssertA11y) to guarantee we're testing
+    // the actual code path users hit. T-NEW-11 fixed a bug where
+    // [standard] alone (no expansion) silently missed Level A rules.
+    const tags = expandAxeStandard("wcag2aa");
+    expect(tags).toContain("wcag2a"); // pin the cumulative semantic
+
+    const results = (await page.evaluate((axeTags) => {
       const axe = (window as unknown as { axe: { run: Function } }).axe;
-      // Note: axe `runOnly: ["wcag2aa"]` is EXACT match — it returns ONLY
-      // rules tagged wcag2aa, NOT A-level rules. To get both A + AA we
-      // pass both tags. Production handler (handlers/index.ts
-      // handleAssertA11y) defaults `standard: "wcag2aa"` — which means
-      // it currently misses Level A violations. Tracked as R-NEW-11.
       return axe.run(document, {
-        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa"] },
+        runOnly: { type: "tag", values: axeTags },
         resultTypes: ["violations", "passes", "incomplete"],
       }) as Promise<AxeResults>;
-    })) as AxeResults;
+    }, tags)) as AxeResults;
 
     expect(results.violations.length).toBeGreaterThan(0);
 
@@ -111,6 +113,11 @@ test.describe("real axe-core scan of a11y-broken fixture", () => {
     // The fixture is hand-crafted to trip these rules. If axe-core changes
     // rule names in a major bump, this assertion will fail loudly instead
     // of silently drifting.
+    //
+    // image-alt + label are Level A rules — pre-T-NEW-11 they would NOT
+    // appear here because the production handler passed only ["wcag2aa"]
+    // to axe runOnly. Now that handler uses expandAxeStandard, both A
+    // and AA rules surface as expected.
     expect(ruleIds).toEqual(
       expect.arrayContaining(["image-alt", "label"]),
     );
@@ -132,12 +139,13 @@ test.describe("real axe-core scan of a11y-broken fixture", () => {
     await page.goto(fixtureUrl("a11y-broken-page.html"));
     await page.addScriptTag({ path: resolveAxeCorePath() });
 
-    const results = (await page.evaluate(() => {
+    const tags = expandAxeStandard("wcag2aa");
+    const results = (await page.evaluate((axeTags) => {
       const axe = (window as unknown as { axe: { run: Function } }).axe;
       return axe.run(document, {
-        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa"] },
+        runOnly: { type: "tag", values: axeTags },
       }) as Promise<AxeResults>;
-    })) as AxeResults;
+    }, tags)) as AxeResults;
 
     // For each violation, parseAxeTags should produce a non-empty
     // attribution (level + criterion) when axe emits standard wcag tags.
