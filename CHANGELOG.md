@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T2 — Wave 1 M6-5 Integration tests scaffold)
+
+- **Playwright Test 装入**：`@playwright/test@^1.59.1` dev dep；chromium binary 已在系统缓存（playwright runtime 1.55 + Test runner 1.59 共享 binary）。
+- **`playwright.config.ts`** (~70 LoC)：testDir tests/integration/playwright + 30s timeout + 2 retries + 2 workers + headless + trace-on-first-retry + screenshot/video on failure + 1280×720 viewport（与 reporter-pdf 生产对齐）+ list+html reporter（local）/ list+github（CI）+ Desktop Chrome project（M4-* 时再加 firefox/webkit）。
+- **5 个 fixture**：`tests/fixtures/lazy-load-page.html`（IntersectionObserver lazy load，T4 用）+ `dense-scroll-page.html`（20 sections × 1200px ≥ 24000px 验 5-segment cap，T4 用）+ `a11y-broken-page.html`（多 WCAG 违规含 1.1.1 / 1.4.3 / 2.4.4 / 2.4.7 / 2.5.5 / 3.3.2 / 4.1.2 / 1.3.1，T6 用）+ `form-page.html`（login form 含 email/password/select/textarea + submit→result，T5 用）+ `history-100-runs.json`（100 行确定性 fixture，74KB，T7d 用）。
+- **`scripts/gen-history-fixture.ts`** (~110 LoC)：seeded mulberry32 PRNG 生成确定性 100-runs history，重生 byte-for-byte 一致；upgrade HistoryEntry shape 时重跑。
+- **`tests/integration/playwright/smoke.test.ts`** (~140 LoC, 6 tests)：chromium launch + 4 fixture 加载 + 100-runs JSON shape 验证。**6/6 跑通 1.6s**。
+- **`tests/integration/playwright/README.md`** (~85 LoC)：何时加测 / 何时不加 / 运行命令 / fixture 表 / 与 vitest 边界 / 加新测流程 / CI 集成 placeholder。
+- **vitest.config.ts** exclude `tests/integration/playwright/**`（vitest glob 默认抓 *.test.ts，会和 @playwright/test 的 import 冲突）。
+- **package.json** scripts 加 `test:integration:playwright`；`.gitignore` 加 `test-results/` + `playwright-report/`。
+- **完整回归**：tsc ✓ / build ✓ / vitest 1536/1536 ✓ / playwright smoke 6/6 ✓ / bench:check 0 regression / npm pack 1.2 MB / 597 files（待 T25 加 files 字段精修）。
+
 ### Fixed (T1 — Wave 1 M9-3.2 file-lock cross-process race flake)
 
 - **6 个月老债关掉了**：`tests/file-lock.test.ts` 的跨进程 race 段落自 M9-3 ship 起在并行 vitest 跑下 ~10-15% 失败率（单跑 20/20 过）。STATUS 18 处任务收尾标"与本次无关"。**T1 现根治**。

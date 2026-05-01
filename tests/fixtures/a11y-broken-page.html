@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<!-- Intentionally missing lang attribute (axe rule: html-has-lang).
+     Used by T6 真 axe + SARIF GHCS validation. Each violation below
+     is annotated with its WCAG SC + axe rule for traceability. -->
+<head>
+  <meta charset="UTF-8">
+  <title>a11y-broken fixture (T6 axe + SARIF integration test)</title>
+  <style>
+    /* WCAG 1.4.3 contrast minimum failures */
+    body { background: #fff; color: #ccc; font-family: sans-serif; }
+    .low-contrast-badge {
+      background: #ddd;     /* 1.6:1 contrast ratio — fails AA */
+      color: #ee9;
+      padding: 4px 8px;
+    }
+    /* Hidden focus indicator — WCAG 2.4.7 */
+    button:focus { outline: none; }
+    /* Tiny tap target — WCAG 2.5.5 */
+    .tiny-button {
+      width: 12px; height: 12px;
+      padding: 0; margin: 1px;
+      background: #f00;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <!-- WCAG 1.1.1 alt: missing -->
+    <img src="logo.png">
+    <!-- WCAG 1.1.1 alt: empty alt for decorative image is OK -->
+    <img src="decoration.png" alt="">
+  </header>
+
+  <main>
+    <h1>Account Settings</h1>
+    <!-- WCAG 1.3.1 heading-order: skips h2 -->
+    <h3>Login credentials</h3>
+
+    <!-- WCAG 4.1.2 / 3.3.2 missing label -->
+    <input type="email" placeholder="Email">
+    <input type="password" placeholder="Password">
+
+    <!-- WCAG 1.3.1: form without grouping -->
+    <input type="text" id="phone">
+
+    <!-- WCAG 2.5.5 tiny target + WCAG 1.4.3 contrast on button text -->
+    <button class="tiny-button">×</button>
+
+    <!-- WCAG 2.4.4 link purpose: ambiguous link text -->
+    <p>For more details, <a href="/policy">click here</a>.</p>
+    <p>Read the terms <a href="/terms">click here</a>.</p>
+
+    <!-- WCAG 1.4.3 contrast minimum failure -->
+    <span class="low-contrast-badge">Low priority</span>
+
+    <!-- WCAG 4.1.2 button name: empty -->
+    <button id="submit-btn"></button>
+
+    <!-- WCAG 3.3.1 / 3.3.3: error not announced -->
+    <div style="color: #f00; display: none" id="error-msg">Validation failed</div>
+
+    <!-- WCAG 1.4.4: text-resize hostile (fixed px) — not directly axe-detected
+         but documents the page is intentionally broken on multiple fronts. -->
+    <p style="font-size: 8px">Tiny text that fails resize requirement.</p>
+  </main>
+
+  <!-- WCAG 1.3.1: table without proper headers -->
+  <table>
+    <tr><td>Name</td><td>Value</td></tr>
+    <tr><td>API Calls</td><td>1,234</td></tr>
+  </table>
+</body>
+</html>
