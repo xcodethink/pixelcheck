@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T19 — Wave 3 治理文档: LICENSE + CONTRIBUTING + SECURITY review + 26 ADR audit)
+
+- **关闭 RISK-REGISTER R12 / R13 / R14 review / R22 / R33** ✅。**Wave 3 第一颗子弹**。
+- **`LICENSE`**（21 行 MIT 标准文本，2026 xcodethink）：GitHub 仓库右侧从此显示 MIT 标识；`package.json files` 数组已声明 LICENSE 现在文件存在；npm pack 含 LICENSE (1.1KB)；`license: "MIT"` package.json 字段与 LICENSE 文件一致 (R33)。
+- **`CONTRIBUTING.md`**（~360 LoC）：dev setup (npm ci + build + test 命令清单 11 条) + 3 测试套区分 (vitest unit / vitest integration / Playwright Test) + ADR-017 60/54/60/60 coverage gate + Conventional Commits 规则（`feat`/`fix`/`docs`/`test`/`refactor`/`chore`/`ci`/`perf`）+ scope + Co-Authored-By trailer + 7 步 PR 流程 + 5 类必写 ADR / 5 类不写 ADR + branch protection 配置 checklist + release process 引用 + 6 提问渠道。
+- **`SECURITY.md` review**：T0.6 初稿改 GHSA only（移除 `security@<TBD>` placeholder 不阻塞 v1）；email 渠道留 v1.x 看用户需求加；保留 Known Accepted Risks 段（3 transitive moderate Stagehand vulns）+ closure plan T-NEW-1。
+- **`docs/decisions/README.md`**（~100 LoC ADR 总目录 + 一致性 audit）：26 ADR 按主题分组（Foundational / Architecture / Quality / Reporting / Engineering / Release-readiness）+ **2026-05-01 一次性 audit 结论**：所有 26 ADR Accepted 无 Superseded、主题分区干净无冲突、cross-references 一致（ADR-029 引 ADR-009 / ADR-030 建在 ADR-024 / ADR-007 被 ADR-018/019/020-024/026 消费 / ADR-027 与 ADR-018 解耦合 / ADR-008 与 ADR-026 不同存储层无冲突）+ 源码无 `// TODO: write ADR` 标记。R22 review note 入 STATUS。
+- **README.md** 加 Security 段 + 链接 [SECURITY.md](SECURITY.md) + License 段链接 [LICENSE](LICENSE) + [docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md) + Contributing 段链接 [CONTRIBUTING.md](CONTRIBUTING.md) + 引导 [docs/INSTALLATION.md](docs/INSTALLATION.md)。
+- 完整回归: vitest 1555/1555 ✓ / npm pack 525 KB / 300 files (含 LICENSE 1.1KB) / 0 schemas diff / 0 bench regression。
+
 ### Added (T30 — Wave 4 收尾 INSTALLATION.md: corporate proxy + air-gapped + Docker + 5 platforms)
 
 - **关闭 RISK-REGISTER R48 / R59 / R62** ✅。**Wave 4 完整收尾 5/5**。
