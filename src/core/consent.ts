@@ -234,8 +234,7 @@ export async function ensureConsent(
   }
 
   try {
-    // eslint-disable-next-line no-console
-    console.log(PROMPT_TEXT);
+    output.write(PROMPT_TEXT + "\n");
     const answer = await promptOnce("Acknowledge and continue? [y/N]: ");
     const yes = /^y(es)?$/i.test(answer);
     if (yes) {
