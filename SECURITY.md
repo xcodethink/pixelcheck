@@ -19,12 +19,17 @@ critical security patches for **6 months**, then enters end-of-life.
 
 **Do not file public GitHub issues for security reports.**
 
-Use one of these private channels:
+Use **GitHub Security Advisories** (the only supported private channel for
+v1.0):
 
-1. **GitHub Security Advisories** (preferred):
-   - Visit: `https://github.com/xcodethink/ai-browser-auditor/security/advisories/new`
-   - Allows private discussion + coordinated disclosure
-2. **Email**: `security@<TBD>`
+- Visit: `https://github.com/xcodethink/ai-browser-auditor/security/advisories/new`
+- Allows private discussion + coordinated disclosure with maintainers
+- Tracks the lifecycle (acknowledged → triaged → fixed → CVE issued)
+  natively within GitHub
+
+A dedicated email channel may be added in v1.x for users who can't access
+GitHub Security Advisories (regulated networks, etc). Until then, please
+use GHSA above.
 
 We aim to:
 - Acknowledge within **72 hours**
