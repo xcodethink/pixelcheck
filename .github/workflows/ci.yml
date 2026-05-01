@@ -93,3 +93,11 @@ jobs:
         # T-NEW-1 ships Stagehand v3 in v1.1, tighten this to
         # `--audit-level=moderate`.
         run: npm audit --production --audit-level=high
+
+      - name: License compliance (allowlist)
+        # Run only on Ubuntu × Node 20 — license metadata is the same
+        # across platforms; running on every matrix config is wasteful.
+        # Allowlist + rationale lives in
+        # docs/THIRD_PARTY_LICENSES.md.
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        run: npm run license:check
