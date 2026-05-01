@@ -26,6 +26,7 @@ import * as path from "node:path";
 import type { AuditRun, Issue, ScenarioRunResult } from "./types.js";
 import { redactDeep } from "./secrets.js";
 import { DEFAULT_LOCALE, t, type Locale } from "./i18n.js";
+import { summarizeWcag, wcagHelpUrl, type WcagSummary } from "./wcag.js";
 
 // ─────────────────────────────────────────────────────────────
 // Public API
@@ -84,12 +85,22 @@ export function renderPdfHtml(
   const personasUsed = uniquePersonas(audit);
   const scenariosUsed = uniqueScenarios(audit);
 
+  // M2-2: WCAG compliance summary appears between top findings and the
+  // per-scenario blocks when any accessibility issues are present in
+  // the run. Skipped entirely on runs that don't include an
+  // assert_a11y step (no a11y issues = no compliance section).
+  const allIssues: Issue[] = audit.results.flatMap((r) => r.issues);
+  const wcagSummary = summarizeWcag(allIssues);
+
   return [
     PDF_HEADER_OPEN,
     `<style>${pdfStylesheet(brand)}</style>`,
     PDF_HEADER_CLOSE,
     coverSection(audit, overall, scoreColor, locale, opts.logoDataUri),
     findingsSection(topFindings, brand, locale),
+    wcagSummary.totalIssues > 0
+      ? wcagSection(wcagSummary, locale)
+      : "",
     scenarioSections(audit, locale),
     methodologySection(audit, personasUsed, scenariosUsed, locale),
     PDF_FOOTER,
@@ -319,6 +330,99 @@ function findingsSection(
     <h2>${escapeHtml(t("pdf_top_findings_title", locale))}</h2>
     <p style="color: #555; font-size: 11pt;">${escapeHtml(t("pdf_findings_subtitle", locale))}</p>
     ${items}
+  </section>`;
+}
+
+function wcagSection(summary: WcagSummary, locale: Locale): string {
+  // 3 sub-blocks: by-level table, by-principle table, top criteria.
+  // Compact tables — this section sits between findings and the
+  // per-scenario detail and shouldn't dominate the PDF page count.
+  const principleKey = (
+    p: "perceivable" | "operable" | "understandable" | "robust" | "unknown",
+  ): "pdf_wcag_principle_perceivable" | "pdf_wcag_principle_operable"
+    | "pdf_wcag_principle_understandable" | "pdf_wcag_principle_robust"
+    | "pdf_wcag_principle_unknown" => {
+    switch (p) {
+      case "perceivable":
+        return "pdf_wcag_principle_perceivable";
+      case "operable":
+        return "pdf_wcag_principle_operable";
+      case "understandable":
+        return "pdf_wcag_principle_understandable";
+      case "robust":
+        return "pdf_wcag_principle_robust";
+      case "unknown":
+        return "pdf_wcag_principle_unknown";
+    }
+  };
+
+  const levelRows = (
+    [
+      ["A", summary.byLevel.A],
+      ["AA", summary.byLevel.AA],
+      ["AAA", summary.byLevel.AAA],
+      [t("pdf_wcag_level_unknown", locale), summary.byLevel.unknown],
+    ] as Array<[string, number]>
+  )
+    .filter(([, count]) => count > 0)
+    .map(
+      ([label, count]) =>
+        `<tr><td>${escapeHtml(label)}</td><td>${count}</td></tr>`,
+    )
+    .join("\n");
+
+  const principleRows = (
+    [
+      ["perceivable", summary.byPrinciple.perceivable],
+      ["operable", summary.byPrinciple.operable],
+      ["understandable", summary.byPrinciple.understandable],
+      ["robust", summary.byPrinciple.robust],
+      ["unknown", summary.byPrinciple.unknown],
+    ] as Array<
+      ["perceivable" | "operable" | "understandable" | "robust" | "unknown", number]
+    >
+  )
+    .filter(([, count]) => count > 0)
+    .map(
+      ([principle, count]) =>
+        `<tr><td>${escapeHtml(t(principleKey(principle), locale))}</td><td>${count}</td></tr>`,
+    )
+    .join("\n");
+
+  // Top 8 criteria — beyond that the PDF gets long and stakeholders
+  // glaze over. Engineers wanting the full list look at audit.json.
+  const topCriteria = summary.byCriterion.slice(0, 8);
+  const criterionRows = topCriteria
+    .map(
+      (entry) =>
+        `<tr><td><a href="${escapeHtml(wcagHelpUrl(entry.criterion))}">${escapeHtml(entry.criterion.id)}</a> ${escapeHtml(entry.criterion.name)} <span style="color:#555">(${entry.criterion.level})</span></td><td>${entry.count}</td></tr>`,
+    )
+    .join("\n");
+
+  return `<section class="section wcag">
+    <h2>${escapeHtml(t("pdf_wcag_section_title", locale))}</h2>
+    <p style="color: #555; font-size: 11pt;">${escapeHtml(t("pdf_wcag_section_intro", locale))}</p>
+
+    <h3>${escapeHtml(t("pdf_wcag_by_level", locale))}</h3>
+    ${
+      levelRows
+        ? `<table class="dim-table"><thead><tr><th>${escapeHtml(t("pdf_wcag_by_level", locale))}</th><th>${escapeHtml(t("pdf_wcag_count_label", locale))}</th></tr></thead><tbody>${levelRows}</tbody></table>`
+        : ""
+    }
+
+    <h3>${escapeHtml(t("pdf_wcag_by_principle", locale))}</h3>
+    ${
+      principleRows
+        ? `<table class="dim-table"><thead><tr><th>${escapeHtml(t("pdf_wcag_by_principle", locale))}</th><th>${escapeHtml(t("pdf_wcag_count_label", locale))}</th></tr></thead><tbody>${principleRows}</tbody></table>`
+        : ""
+    }
+
+    ${
+      topCriteria.length > 0
+        ? `<h3>${escapeHtml(t("pdf_wcag_by_criterion", locale))}</h3>
+    <table class="dim-table"><tbody>${criterionRows}</tbody></table>`
+        : ""
+    }
   </section>`;
 }
 

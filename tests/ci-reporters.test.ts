@@ -389,6 +389,79 @@ describe("SARIF 2.1.0 writer", () => {
     ]);
   });
 
+  it("uses wcag/X-Y-Z ruleId for accessibility issues with WCAG attribution (M2-2)", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          issues: [
+            makeIssue({
+              severity: "high",
+              dimension: "accessibility",
+              wcag_level: "AA",
+              wcag_criterion: "1.4.3",
+            }),
+            makeIssue({
+              severity: "critical",
+              dimension: "accessibility",
+              wcag_level: "A",
+              wcag_criterion: "2.1.1",
+            }),
+          ],
+        }),
+      ],
+    });
+    const sarif = renderSarif(audit);
+    const ruleIds = sarif.runs[0].results.map((r) => r.ruleId);
+    expect(ruleIds).toContain("wcag/1-4-3");
+    expect(ruleIds).toContain("wcag/2-1-1");
+    // No fallback to "audit/accessibility" when WCAG attribution exists
+    expect(ruleIds).not.toContain("audit/accessibility");
+  });
+
+  it("emits per-WCAG-criterion rule entries with W3C documentation in fullDescription", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          issues: [
+            makeIssue({
+              severity: "high",
+              dimension: "accessibility",
+              wcag_level: "AA",
+              wcag_criterion: "1.4.3",
+            }),
+          ],
+        }),
+      ],
+    });
+    const sarif = renderSarif(audit);
+    const rules = sarif.runs[0].tool.driver.rules;
+    const wcagRule = rules.find((r) => r.id === "wcag/1-4-3");
+    expect(wcagRule).toBeDefined();
+    expect(wcagRule!.shortDescription.text).toContain("Contrast (Minimum)");
+    expect(wcagRule!.shortDescription.text).toContain("Level AA");
+    expect(wcagRule!.fullDescription.text).toContain(
+      "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum",
+    );
+  });
+
+  it("falls back to dimension-based ruleId when WCAG attribution is missing", () => {
+    const audit = makeAudit({
+      results: [
+        makeScenario({
+          issues: [
+            makeIssue({
+              severity: "medium",
+              dimension: "accessibility",
+              // no wcag_criterion — e.g. axe best-practice rule
+            }),
+          ],
+        }),
+      ],
+    });
+    const sarif = renderSarif(audit);
+    expect(sarif.runs[0].results[0].ruleId).toBe("audit/accessibility");
+  });
+
   it("derives a stable kebab-case ruleId from issue.dimension", () => {
     const audit = makeAudit({
       results: [

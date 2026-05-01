@@ -152,6 +152,17 @@
               },
               "recommendation": {
                 "type": "string"
+              },
+              "wcag_level": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "AA",
+                  "AAA"
+                ]
+              },
+              "wcag_criterion": {
+                "type": "string"
               }
             },
             "required": [
