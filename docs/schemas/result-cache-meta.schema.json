@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/result-cache-meta.schema.json",
+  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/result-cache-meta.schema.json",
   "title": "ResultCacheMeta",
   "description": "Annotation attached by the result cache (M9-4) to primitive result envelopes (see / act / extract / judge / compare). Distinguishes cache hit / miss / not-applicable. On hit the original cost moves to `cost_saved_usd` and the envelope's `cost_usd` is zeroed.",
   "x-result-schema-version": "1.2.0",

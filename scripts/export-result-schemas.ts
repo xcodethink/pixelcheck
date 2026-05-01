@@ -282,7 +282,7 @@ function main(): void {
     // can match by $id / x-schema-version without parsing structure.
     const wrapped = {
       $schema: "http://json-schema.org/draft-07/schema#",
-      $id: `https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/${entry.slug}.schema.json`,
+      $id: `https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/${entry.slug}.schema.json`,
       title: entry.title,
       description: entry.description,
       "x-result-schema-version": RESULT_SCHEMA_VERSION,
