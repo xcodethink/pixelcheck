@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "recorded_at": "2026-05-01T04:19:29.108Z",
+  "recorded_on": "darwin arm64 (Node v24.12.0) — min of 5 consecutive runs",
+  "benchmarks": {
+    "renderPdfHtml — 20-unit audit + WCAG section": 11526,
+    "renderTrendsHtml — 100-row history with 5 charts": 1027,
+    "renderDiffMarkdown — typical PR diff": 87397,
+    "renderDiffHtml — typical PR diff": 103815,
+    "renderJunitXml — 20-unit audit": 13521,
+    "renderSarif — 20-unit audit (12 issues, 6 WCAG-tagged)": 191007,
+    "summarizeWcag — 50 a11y issues across 8 SCs": 251413,
+    "computeSummary — 100 history rows": 2075090,
+    "t() — 100 key lookups across 5 locales": 276761
+  }
+}

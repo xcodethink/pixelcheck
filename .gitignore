@@ -5,6 +5,7 @@ baselines/
 tmp/
 downloads/
 coverage/
+docs/perf-current.json
 .env
 *.log
 *.har
