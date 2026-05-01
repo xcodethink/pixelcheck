@@ -272,6 +272,18 @@ interface SarifRule {
   name: string;
   shortDescription: { text: string };
   fullDescription: { text: string };
+  /**
+   * Top-level URL rendered by GitHub Code Scanning as a "View documentation"
+   * link in the issue detail panel. For WCAG rules this is the canonical
+   * W3C Understanding URL. SARIF 2.1.0 § 3.49.13.
+   */
+  helpUri?: string;
+  /**
+   * Rich help shown when the user expands a result. GHCS / GitLab SAST
+   * render `help.markdown` directly. Used today for WCAG rules to inline
+   * a brief link snippet. SARIF 2.1.0 § 3.49.12.
+   */
+  help?: { text?: string; markdown?: string };
   defaultConfiguration: { level: "error" | "warning" | "note" };
 }
 
@@ -388,6 +400,15 @@ function buildRule(ruleId: string, issue: Issue): SarifRule {
         },
         fullDescription: {
           text: `Web Content Accessibility Guidelines ${sc.id} — ${sc.name}. Conformance level ${sc.level} under the ${sc.principle} principle. See ${helpUri}.`,
+        },
+        // T6: top-level helpUri + help.markdown render in GitHub Code
+        // Scanning's issue detail panel as a "View documentation" link +
+        // an inline expandable help section. Verified manually via
+        // docs/integration/sarif-upload-verified.md.
+        helpUri,
+        help: {
+          text: `WCAG ${sc.id} ${sc.name} (Level ${sc.level}). ${helpUri}`,
+          markdown: `**WCAG ${sc.id} ${sc.name}** (Level ${sc.level})\n\n[View on W3C](${helpUri})`,
         },
         defaultConfiguration: {
           level: SEVERITY_LEVELS[issue.severity].sarif === "note"
