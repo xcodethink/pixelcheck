@@ -935,6 +935,33 @@ Areas where help is especially appreciated:
 For installation troubleshooting (corporate proxy, Alpine, air-gapped, etc),
 see [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
+## Privacy & Data Handling
+
+`ai-browser-auditor` runs entirely on your machine. The only outbound
+network destination is `api.anthropic.com` for the audit calls you
+explicitly trigger. **Zero telemetry.**
+
+What leaves your machine when you run an audit:
+
+- Page screenshots + DOM summaries → Anthropic Claude API
+- Your scenario step text + persona profile fields → Claude API
+- Nothing else (URLs / env vars / paths / past audits stay local)
+
+Privacy-first defaults:
+
+- **Password / secret / API-key inputs are redacted** to `********` before
+  screenshots (`--redact-inputs`, on by default; opt out with
+  `--no-redact-inputs` only for fixture audits)
+- **First-run consent prompt** explicitly informs you what data goes to
+  Anthropic. Persisted in `~/.ai-browser-auditor/consent.json` so subsequent
+  runs don't re-prompt. Bypass for CI / non-TTY:
+  `AUDIT_AUTO_CONSENT=1` env or `--auto-consent` flag (read [PRIVACY.md](PRIVACY.md) first).
+- **Per-run reports stored at mode 0700** (owner-only) under
+  `<projectDir>/reports/`
+
+For full data-flow disclosure, GDPR / CCPA position, retention controls,
+and how to delete data — see [PRIVACY.md](PRIVACY.md).
+
 ## Security
 
 Found a vulnerability? Please use GitHub Security Advisories (private

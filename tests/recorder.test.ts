@@ -305,10 +305,10 @@ describe("screenshot()", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// screenshotSegments()
+// screenshotSegments(undefined, { redactInputs: false })
 // ─────────────────────────────────────────────────────────────
 
-describe("screenshotSegments()", () => {
+describe("screenshotSegments(undefined, { redactInputs: false })", () => {
   it("captures the full + thumbnail + viewport segments and writes them to disk", async () => {
     // Sequence: triggerLazyLoad's evaluate (we resolve immediately),
     // then dims object, then 1 scrollTo per segment, then reset scrollTo.
@@ -326,7 +326,7 @@ describe("screenshotSegments()", () => {
     });
     const r = new Recorder(page, tmpDir());
 
-    const result = await r.screenshotSegments("checkout");
+    const result = await r.screenshotSegments("checkout", { redactInputs: false });
 
     // Full-page composite written + sha256 sidecar
     expect(path.basename(result.full.filepath)).toBe("01-checkout.png");
@@ -364,7 +364,7 @@ describe("screenshotSegments()", () => {
     });
     const r = new Recorder(page, tmpDir());
 
-    const result = await r.screenshotSegments();
+    const result = await r.screenshotSegments(undefined, { redactInputs: false });
 
     expect(result.segments).toHaveLength(5);
   });
@@ -380,7 +380,7 @@ describe("screenshotSegments()", () => {
     });
     const r = new Recorder(page, tmpDir());
 
-    const result = await r.screenshotSegments("short-page");
+    const result = await r.screenshotSegments("short-page", { redactInputs: false });
 
     expect(result.segments).toHaveLength(1);
     expect(path.basename(result.segmentPaths[0]!)).toBe(
@@ -399,7 +399,7 @@ describe("screenshotSegments()", () => {
     });
     const r = new Recorder(page, tmpDir());
 
-    const result = await r.screenshotSegments();
+    const result = await r.screenshotSegments(undefined, { redactInputs: false });
 
     expect(path.basename(result.full.filepath)).toBe("01-step.png");
   });
@@ -418,7 +418,7 @@ describe("screenshotSegments()", () => {
     }) as Page["evaluate"];
     const r = new Recorder(page, tmpDir());
 
-    const result = await r.screenshotSegments("lazy-fail");
+    const result = await r.screenshotSegments("lazy-fail", { redactInputs: false });
 
     expect(result.segments).toHaveLength(1);
   });
@@ -434,8 +434,8 @@ describe("screenshotSegments()", () => {
     });
     const r = new Recorder(page, tmpDir());
 
-    await r.screenshot("first");
-    const segs = await r.screenshotSegments("second");
+    await r.screenshot("first", true, { redactInputs: false });
+    const segs = await r.screenshotSegments("second", { redactInputs: false });
 
     expect(path.basename(segs.full.filepath)).toBe("02-second.png");
   });
@@ -455,7 +455,7 @@ describe("screenshotSegments()", () => {
     });
     const r = new Recorder(page, tmpDir());
 
-    const result = await r.screenshotSegments();
+    const result = await r.screenshotSegments(undefined, { redactInputs: false });
 
     expect(result.thumbnail.equals(garbage)).toBe(true);
   });
