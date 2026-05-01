@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/console-error.schema.json",
+  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/console-error.schema.json",
   "title": "ConsoleError",
   "description": "A captured browser console error / pageerror / failed request.",
   "x-result-schema-version": "1.2.0",

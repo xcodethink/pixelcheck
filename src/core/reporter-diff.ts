@@ -162,9 +162,9 @@ export function renderDiffMarkdown(
     const linked = prefix.includes("AI Browser Auditor")
       ? prefix.replace(
           "AI Browser Auditor",
-          "[AI Browser Auditor](https://github.com/anthropics/ai-browser-auditor)",
+          "[AI Browser Auditor](https://github.com/xcodethink/ai-browser-auditor)",
         )
-      : `${prefix} ([AI Browser Auditor](https://github.com/anthropics/ai-browser-auditor))`;
+      : `${prefix} ([AI Browser Auditor](https://github.com/xcodethink/ai-browser-auditor))`;
     lines.push(
       `_${linked} · ${A.projectName} · ${t("diff_footer_tail", locale)} \`${A.id}\` → \`${B.id}\`_`,
     );
