@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Fixed (T1 — Wave 1 M9-3.2 file-lock cross-process race flake)
+
+- **6 个月老债关掉了**：`tests/file-lock.test.ts` 的跨进程 race 段落自 M9-3 ship 起在并行 vitest 跑下 ~10-15% 失败率（单跑 20/20 过）。STATUS 18 处任务收尾标"与本次无关"。**T1 现根治**。
+- 根因：vitest 默认 `pool: "threads"` 下 sibling worker threads 共享 OS-level 调度原语，sibling test 也在 spawn 子进程时（agent-loop-e2e / signals-e2e），race test 的 lock acquire 偶发失败。
+- 修法（行业最佳实践 vitest 4 官方 + better-sqlite3 自家测试模式）：精准切分——单进程 + sync 测留默认套；跨进程 race 移到 `tests/integration/file-lock-race.test.ts` + 专属 `vitest.integration.config.ts`（pool=forks + isolate=true + singleFork=true + fileParallelism=false）+ npm script `test:integration`。
+- **验证**：20 次连续 `npm run test:integration` 全 20/20 过 0 flake；默认 `npm test` 1536/1536 测全过（少了 race 2 个，移到 integration 套）。
+- 设计 + alternatives rejected 全文：[ADR-029](docs/decisions/ADR-029-file-lock-race-isolation.md)。
+
 ### Security & Compliance (T0.6 — Wave 0 license audit + Dependabot + SECURITY.md)
 
 - **License audit**：`license-checker --production` 全树 288 包审计 → **0 GPL / 0 AGPL / 0 SSPL contamination**。213 MIT / 34 Apache-2.0 / 19 BSD-3-Clause / 13 ISC / 3 BSD-2-Clause / 1 MPL-2.0（axe-core，weak copyleft 不感染）/ 1 LGPL-3.0-or-later（sharp 拉的 libvips bundled binary，动态链接豁免，文档化）/ 4 其他兼容（Apache* / Unlicense / MIT-or-WTFPL / AFL-2.1-or-BSD-3-Clause / BSD-2-or-MIT-or-Apache-2.0）。完整商用兼容。
