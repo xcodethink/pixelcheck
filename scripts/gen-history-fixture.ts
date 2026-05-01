@@ -48,29 +48,27 @@ const ROWS = 100;
 const ENDED_AT = new Date("2026-05-01T12:00:00Z").getTime();
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-interface DimensionAverage {
-  dimension: string;
-  average: number;
-}
-
+// HistoryEntry shape — must match `src/core/history.ts > HistoryEntry`
+// (camelCase). This is the shape `loadHistory()` returns and that
+// `reporter-trends.ts > renderTrendsHtml()` consumes. Pre-T7d fixture
+// was written in snake_case (SQLite column names) which broke
+// renderTrendsHtml at runtime.
 interface HistoryEntry {
   id: string;
   tag: string | null;
-  project_name: string;
-  base_url: string;
-  started_at: string;
-  finished_at: string;
-  duration_ms: number;
-  total_cost_usd: number;
-  total_units: number;
-  pass_count: number;
-  warn_count: number;
-  fail_count: number;
-  total_issues: number;
-  critical_issues: number;
-  overall_score: number;
-  schema_version: string;
+  projectName: string;
+  startedAt: string;
+  durationMs: number;
+  totalCostUsd: number;
+  totalUnits: number;
+  passCount: number;
+  warnCount: number;
+  failCount: number;
+  totalIssues: number;
+  criticalIssues: number;
+  overallScore: number;
   dimensionAverages: Record<string, number>;
+  schemaVersion?: string;
 }
 
 const entries: HistoryEntry[] = [];
@@ -111,20 +109,18 @@ for (let i = 0; i < ROWS; i++) {
       .toString(16)
       .padStart(6, "0")}`,
     tag: i % 7 === 0 ? `release-${Math.floor(i / 7) + 1}` : null,
-    project_name: PROJECT_NAMES[i % PROJECT_NAMES.length]!,
-    base_url: `https://${PROJECT_NAMES[i % PROJECT_NAMES.length]}.example.com`,
-    started_at: startedAt.toISOString(),
-    finished_at: finishedAt.toISOString(),
-    duration_ms: durationMs,
-    total_cost_usd: Number((0.05 + rng() * 0.45).toFixed(4)),
-    total_units: totalUnits,
-    pass_count: passCount,
-    warn_count: warnCount,
-    fail_count: failCount,
-    total_issues: totalIssues,
-    critical_issues: criticalIssues,
-    overall_score: Number(overallScore.toFixed(2)),
-    schema_version: "1.2.0",
+    projectName: PROJECT_NAMES[i % PROJECT_NAMES.length]!,
+    startedAt: startedAt.toISOString(),
+    durationMs: durationMs,
+    totalCostUsd: Number((0.05 + rng() * 0.45).toFixed(4)),
+    totalUnits: totalUnits,
+    passCount: passCount,
+    warnCount: warnCount,
+    failCount: failCount,
+    totalIssues: totalIssues,
+    criticalIssues: criticalIssues,
+    overallScore: Number(overallScore.toFixed(2)),
+    schemaVersion: "1.2.0",
     dimensionAverages: dimAvgs,
   });
 }
