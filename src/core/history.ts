@@ -14,104 +14,83 @@
 
 import * as path from "node:path";
 import * as fs from "node:fs";
-import Database from "better-sqlite3";
-import { withFileLockSync } from "./file-lock.js";
+import type Database from "better-sqlite3";
+import { openManagedDatabase, type Migration } from "./db-migrate.js";
 import type { AuditRun, DimensionScore, Issue } from "./types.js";
 import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 
 /**
- * SQLite `user_version` schema number — bumped per migration.
+ * Schema migrations. The PRAGMA user_version pragma tracks which have run.
  * Distinct from the result schema's SemVer string (`RESULT_SCHEMA_VERSION`).
- *
- *   1 — initial schema (audit_runs, dimension_scores, issues_history)
- *   2 — adds audit_runs.schema_version (M9-2 result schema column)
  */
-const SCHEMA_VERSION = 2;
+const MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    description: "initial schema (audit_runs, dimension_scores, issues_history)",
+    up: `
+      CREATE TABLE IF NOT EXISTS audit_runs (
+        id              TEXT PRIMARY KEY,
+        tag             TEXT,
+        project_name    TEXT NOT NULL,
+        base_url        TEXT NOT NULL,
+        started_at      TEXT NOT NULL,
+        finished_at     TEXT NOT NULL,
+        duration_ms     INTEGER NOT NULL,
+        total_cost_usd  REAL NOT NULL DEFAULT 0,
+        total_units     INTEGER NOT NULL DEFAULT 0,
+        pass_count      INTEGER NOT NULL DEFAULT 0,
+        warn_count      INTEGER NOT NULL DEFAULT 0,
+        fail_count      INTEGER NOT NULL DEFAULT 0,
+        total_issues    INTEGER NOT NULL DEFAULT 0,
+        critical_issues INTEGER NOT NULL DEFAULT 0,
+        overall_score   REAL NOT NULL DEFAULT 0,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS dimension_scores (
+        run_id       TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
+        persona_id   TEXT NOT NULL,
+        scenario_id  TEXT NOT NULL,
+        dimension    TEXT NOT NULL,
+        score        REAL NOT NULL,
+        PRIMARY KEY (run_id, persona_id, scenario_id, dimension)
+      );
+
+      CREATE TABLE IF NOT EXISTS issues_history (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id      TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
+        severity    TEXT NOT NULL,
+        dimension   TEXT,
+        description TEXT NOT NULL,
+        step_id     TEXT,
+        recommendation TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_scores_run ON dimension_scores(run_id);
+      CREATE INDEX IF NOT EXISTS idx_scores_dimension ON dimension_scores(dimension);
+      CREATE INDEX IF NOT EXISTS idx_issues_run ON issues_history(run_id);
+      CREATE INDEX IF NOT EXISTS idx_runs_project ON audit_runs(project_name);
+      CREATE INDEX IF NOT EXISTS idx_runs_started ON audit_runs(started_at);
+    `,
+  },
+  {
+    version: 2,
+    // M9-2: record the result schema version each row was written under.
+    // Backfilled to '1.0.0' for legacy rows; producers stamp current
+    // RESULT_SCHEMA_VERSION on new inserts. Default lets ad-hoc INSERTs skip
+    // the column without errors.
+    description: "M9-2 add audit_runs.schema_version",
+    up: `ALTER TABLE audit_runs ADD COLUMN schema_version TEXT NOT NULL DEFAULT '1.0.0';`,
+  },
+];
 
 function openDb(dbPath: string): Database.Database {
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath);
-  // M9-3 follow-up — see agent/memory.ts for full rationale on the
-  // busy_timeout + file-locked WAL transition pattern.
-  db.pragma("busy_timeout = 5000");
-  withFileLockSync(`${dbPath}.init.lock`, () => {
-    const mode = db.pragma("journal_mode", { simple: true }) as string;
-    if (mode !== "wal") {
-      db.pragma("journal_mode = WAL");
-    }
+  return openManagedDatabase({
+    dbPath,
+    migrations: MIGRATIONS,
+    foreignKeys: true,
   });
-  db.pragma("foreign_keys = ON");
-
-  // Migrate schema. Each migration runs once, advancing user_version.
-  const userVersion =
-    (db.pragma("user_version", { simple: true }) as number | null) ?? 0;
-  if (userVersion < 1) {
-    db.exec(MIGRATIONS[0]!);
-    db.pragma("user_version = 1");
-  }
-  if (userVersion < 2) {
-    db.exec(MIGRATIONS[1]!);
-    db.pragma("user_version = 2");
-  }
-
-  return db;
 }
-
-const MIGRATIONS = [
-  // Version 1: initial schema
-  `
-  CREATE TABLE IF NOT EXISTS audit_runs (
-    id              TEXT PRIMARY KEY,
-    tag             TEXT,
-    project_name    TEXT NOT NULL,
-    base_url        TEXT NOT NULL,
-    started_at      TEXT NOT NULL,
-    finished_at     TEXT NOT NULL,
-    duration_ms     INTEGER NOT NULL,
-    total_cost_usd  REAL NOT NULL DEFAULT 0,
-    total_units     INTEGER NOT NULL DEFAULT 0,
-    pass_count      INTEGER NOT NULL DEFAULT 0,
-    warn_count      INTEGER NOT NULL DEFAULT 0,
-    fail_count      INTEGER NOT NULL DEFAULT 0,
-    total_issues    INTEGER NOT NULL DEFAULT 0,
-    critical_issues INTEGER NOT NULL DEFAULT 0,
-    overall_score   REAL NOT NULL DEFAULT 0,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS dimension_scores (
-    run_id       TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
-    persona_id   TEXT NOT NULL,
-    scenario_id  TEXT NOT NULL,
-    dimension    TEXT NOT NULL,
-    score        REAL NOT NULL,
-    PRIMARY KEY (run_id, persona_id, scenario_id, dimension)
-  );
-
-  CREATE TABLE IF NOT EXISTS issues_history (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id      TEXT NOT NULL REFERENCES audit_runs(id) ON DELETE CASCADE,
-    severity    TEXT NOT NULL,
-    dimension   TEXT,
-    description TEXT NOT NULL,
-    step_id     TEXT,
-    recommendation TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_scores_run ON dimension_scores(run_id);
-  CREATE INDEX IF NOT EXISTS idx_scores_dimension ON dimension_scores(dimension);
-  CREATE INDEX IF NOT EXISTS idx_issues_run ON issues_history(run_id);
-  CREATE INDEX IF NOT EXISTS idx_runs_project ON audit_runs(project_name);
-  CREATE INDEX IF NOT EXISTS idx_runs_started ON audit_runs(started_at);
-  `,
-  // Version 2 (M9-2): record the result schema version each row was written
-  // under. Backfilled to '1.0.0' for legacy rows; producers stamp current
-  // RESULT_SCHEMA_VERSION on new inserts. Default lets ad-hoc INSERTs skip
-  // the column without errors.
-  `
-  ALTER TABLE audit_runs ADD COLUMN schema_version TEXT NOT NULL DEFAULT '1.0.0';
-  `,
-];
 
 /**
  * Save an audit run to the history database.

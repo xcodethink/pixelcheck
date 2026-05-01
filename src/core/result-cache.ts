@@ -53,13 +53,12 @@
  * downstream callers can report savings.
  */
 
-import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
 
-import { withFileLockSync } from "./file-lock.js";
+import { openManagedDatabase, type Migration } from "./db-migrate.js";
 import { getLogger } from "./logger.js";
 import { RESULT_SCHEMA_VERSION, type ResultCacheMeta } from "./result-schema.js";
 
@@ -215,18 +214,23 @@ export function cacheKeyFor(primitive: string, inputs: unknown): string {
 // SQLite layer
 // ─────────────────────────────────────────────────────────────
 
-const SCHEMA_USER_VERSION = 1;
-const TABLE_DDL = `
-  CREATE TABLE IF NOT EXISTS result_cache (
-    key            TEXT PRIMARY KEY,
-    primitive      TEXT NOT NULL,
-    value_json     TEXT NOT NULL,
-    schema_version TEXT NOT NULL,
-    created_at     INTEGER NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_cache_created ON result_cache(created_at);
-  CREATE INDEX IF NOT EXISTS idx_cache_primitive ON result_cache(primitive);
-`;
+const MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    description: "initial schema (result_cache)",
+    up: `
+      CREATE TABLE IF NOT EXISTS result_cache (
+        key            TEXT PRIMARY KEY,
+        primitive      TEXT NOT NULL,
+        value_json     TEXT NOT NULL,
+        schema_version TEXT NOT NULL,
+        created_at     INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_cache_created ON result_cache(created_at);
+      CREATE INDEX IF NOT EXISTS idx_cache_primitive ON result_cache(primitive);
+    `,
+  },
+];
 
 interface DbHandle {
   db: Database.Database;
@@ -237,27 +241,7 @@ interface DbHandle {
 const dbHandles = new Map<string, DbHandle>();
 
 function openDb(dbPath: string): Database.Database {
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath);
-  // M9-3 follow-up pattern: WAL transition is EXCLUSIVE-locked and does
-  // NOT walk the busy_timeout. Wrap it in a file-lock so concurrent
-  // openers serialise the journal_mode flip; once set, it persists
-  // in the file header and subsequent opens read-and-skip.
-  db.pragma("busy_timeout = 5000");
-  withFileLockSync(`${dbPath}.init.lock`, () => {
-    const mode = db.pragma("journal_mode", { simple: true }) as string;
-    if (mode !== "wal") {
-      db.pragma("journal_mode = WAL");
-    }
-  });
-
-  const userVersion =
-    (db.pragma("user_version", { simple: true }) as number | null) ?? 0;
-  if (userVersion < SCHEMA_USER_VERSION) {
-    db.exec(TABLE_DDL);
-    db.pragma(`user_version = ${SCHEMA_USER_VERSION}`);
-  }
-  return db;
+  return openManagedDatabase({ dbPath, migrations: MIGRATIONS });
 }
 
 function getDb(dbPath: string): DbHandle {
