@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/judge-result.schema.json",
+  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/judge-result.schema.json",
   "title": "JudgeResult",
   "description": "MCP tool envelope returned by `judge` (N-8 primitive). Single-page rubric-driven critic — captures a screenshot+DOM and runs one vision call against the chosen rubric(s) (aesthetic, dark_pattern, custom), returning per-criterion verdicts (0..10 score + rationale + evidence) and severity-graded findings.",
   "x-result-schema-version": "1.2.0",

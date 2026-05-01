@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/anthropics/ai-browser-auditor/blob/main/docs/schemas/critic-result.schema.json",
+  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/critic-result.schema.json",
   "title": "CriticResult",
   "description": "Output of the vision critic (runCritic).",
   "x-result-schema-version": "1.2.0",
