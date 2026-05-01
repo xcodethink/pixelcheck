@@ -281,3 +281,93 @@ test.describe("reporter-pdf — real chromium PDF export", () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// T22 — redactSensitiveInputs (real chromium DOM mutation)
+// ─────────────────────────────────────────────────────────────
+
+import { redactSensitiveInputs } from "../../../src/core/recorder.js";
+
+test.describe("redactSensitiveInputs — real chromium DOM mutation", () => {
+  test("password field value is replaced with ********", async ({ page }) => {
+    await page.goto(fixtureUrl("form-page.html"));
+    await page.fill("#password", "supersecret123");
+    expect(await page.locator("#password").inputValue()).toBe(
+      "supersecret123",
+    );
+
+    await redactSensitiveInputs(page);
+
+    expect(await page.locator("#password").inputValue()).toBe("********");
+  });
+
+  test("non-sensitive inputs (email / select / textarea) are NOT touched", async ({
+    page,
+  }) => {
+    await page.goto(fixtureUrl("form-page.html"));
+    await page.fill("#email", "user@example.com");
+    await page.selectOption("#role", "admin");
+    await page.fill("#notes", "regular notes");
+
+    await redactSensitiveInputs(page);
+
+    expect(await page.locator("#email").inputValue()).toBe(
+      "user@example.com",
+    );
+    expect(await page.locator("#role").inputValue()).toBe("admin");
+    expect(await page.locator("#notes").inputValue()).toBe("regular notes");
+  });
+
+  test("redacts inputs whose name/id matches /password|secret|token|api[_-]?key/", async ({
+    page,
+  }) => {
+    await page.goto("about:blank");
+    await page.setContent(`
+      <html><body>
+        <input type="text" id="api_key" value="sk-secret-123">
+        <input type="text" id="auth_token" value="bearer-foo">
+        <input type="text" id="my-secret" value="hush">
+        <input type="text" id="username" value="alice">
+      </body></html>
+    `);
+
+    await redactSensitiveInputs(page);
+
+    expect(await page.locator("#api_key").inputValue()).toBe("********");
+    expect(await page.locator("#auth_token").inputValue()).toBe("********");
+    expect(await page.locator("#my-secret").inputValue()).toBe("********");
+    expect(await page.locator("#username").inputValue()).toBe("alice");
+  });
+
+  test("Recorder.screenshotSegments redacts by default", async ({ page }) => {
+    await page.goto(fixtureUrl("form-page.html"));
+    await page.fill("#password", "should-not-leak");
+
+    const dir = tmpArtefactsDir();
+    try {
+      const recorder = new Recorder(page, dir);
+      await recorder.screenshotSegments("with-redact");
+      expect(await page.locator("#password").inputValue()).toBe("********");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("Recorder.screenshotSegments({ redactInputs: false }) skips redaction", async ({
+    page,
+  }) => {
+    await page.goto(fixtureUrl("form-page.html"));
+    await page.fill("#password", "should-stay-visible");
+
+    const dir = tmpArtefactsDir();
+    try {
+      const recorder = new Recorder(page, dir);
+      await recorder.screenshotSegments("no-redact", { redactInputs: false });
+      expect(await page.locator("#password").inputValue()).toBe(
+        "should-stay-visible",
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
