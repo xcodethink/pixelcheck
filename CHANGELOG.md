@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T22 — Wave 3 PRIVACY + first-run consent + PII redaction)
+
+- **关闭 RISK-REGISTER R15 / R34 / R35 / R36 / R37 / R38 / R60** ✅ (7 risks)。**Wave 3 第四颗子弹** —— GDPR/CCPA 合规 baseline + 用户数据保护实施。
+- **`PRIVACY.md`**（~290 LoC）：什么数据 / 哪里存 / 什么离开机器 / 数据最小化控制 / retention + 删除（GDPR Article 17）/ 0 telemetry / GDPR-CCPA 你是 controller 我们不在数据路径 / consent 模型 / 报告渠道 GHSA。
+- **新 `src/core/consent.ts`**（~200 LoC）：first-run consent 5 优先级（existing valid → AUDIT_AUTO_CONSENT=1 env → --auto-consent flag → non-TTY 隐式 → interactive prompt）+ versioned consent record (`~/.ai-browser-auditor/consent.json`，schema 1.0.0 + consent_version 1) + readline/promises 零 dep + `promptFn` 测试 seam + ConsentDeclinedError。**CONSENT_VERSION bump 触发现有用户重新 prompt**（重大隐私政策更新路径）。
+- **CLI run 命令加 `--auto-consent` + `--no-redact-inputs` flags**：consent 在 dryRun 之前 gate；ANTHROPIC_API_KEY 缺时友好 catch（指向 console.anthropic.com + doctor）；ConsentDeclinedError 友好 catch 不 stack trace。
+- **recorder.ts 加 `redactSensitiveInputs(page)`**（~50 LoC）：`<input type="password">` + `autocomplete=current-password|new-password|one-time-code` + name/id/aria-label 匹配 `/password|secret|token|api[_-]?key|otp|pin/i` 启发式；DOM mutate `value = '********'` 不仅 CSS overlay（避免 autofill / vision OCR 看穿）；page-closed 错误 try/catch 不 fatal。`screenshot()` + `screenshotSegments()` 加 `redactInputs?: boolean` opt + `shouldRedactInputs(callerOpt)` 4 优先级（caller false → caller true → env AUDIT_REDACT_INPUTS=0 → default ON）。
+- **runner / recorder mkdirSync mode 0o700**（R36）：runDir / unitDir / artifactsDir 全 owner-only；加 inline 注释引 T22 R36；macOS / Linux 实施；Windows chmod 是 best-effort。
+- **24 新单测**：`tests/consent.test.ts` 19 测（read/write/agreed_via 5 路径 / mode 0600 / 优先级 / older consent_version 重 prompt / forward-compat 不 prompt / decline 不 write）+ `tests/integration/playwright/recorder.test.ts` 5 redact 测（真 chromium DOM mutation password 替 ******** + 非敏感不动 + name/id 启发式 / 默认 ON / opt-out OK）+ 修 7 recorder 单测 queue 跟 redactSensitiveInputs 多 evaluate 一次同步。
+- **README "Privacy & Data Handling" 段**新加：放在 Security 段前；列 0 telemetry + 单一外部 destination + 隐私-first 默认 + 引 PRIVACY.md。
+- 完整回归：tsc ✓ / build ✓ / **vitest 1589 → 1608 (+19) ✓** / **playwright 16 → 21 (+5) ✓ in 25s** / 0 schemas diff / 0 bench regression / npm pack 547 KB / 309 files。
+
 ### Added (T23 — Wave 3 doctor + interactive init wizard + first-run UX)
 
 - **关闭 RISK-REGISTER R45 / R46 / R47 / R61** ✅。**Wave 3 第三颗子弹** —— first-run UX 入口完整。

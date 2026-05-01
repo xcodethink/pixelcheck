@@ -90,7 +90,9 @@ async function runAuditInner(
     .replace(/[^a-z0-9_-]/gi, "_")
     .toLowerCase()}`;
   const runDir = path.join(opts.outputRoot, runId);
-  fs.mkdirSync(runDir, { recursive: true });
+  // mode 0o700 — owner-only (T22 R36): per-run reports may contain
+  // screenshots / DOM / LLM responses about user-private content.
+  fs.mkdirSync(runDir, { recursive: true, mode: 0o700 });
 
   const stripeSecrets = getStripeSecrets();
   const redactPatterns = buildRedactPatterns(opts.config.redact_patterns);
@@ -274,7 +276,7 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
     opts.runDir,
     `${opts.persona.id}__${opts.scenario.id}`,
   );
-  fs.mkdirSync(unitDir, { recursive: true });
+  fs.mkdirSync(unitDir, { recursive: true, mode: 0o700 });
 
   const startedAt = new Date().toISOString();
   const startMs = Date.now();
