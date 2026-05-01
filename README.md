@@ -840,6 +840,49 @@ npm run bench:update   # bake current as new baseline (after intentional perf ch
 
 The default 50% tolerance is calibrated against measured run-to-run variance (8–53% on quiet hardware). Stricter local checks via `--tolerance 0.30`. Initial baseline was recorded as **min-of-5 consecutive runs** so regressions register as "slower than we've ever been" — robust to noise above the floor. See [ADR-025](docs/decisions/ADR-025-performance-regression-suite.md) for the full design.
 
+## Stability Commitment
+
+Starting **v1.0.0**, the following surfaces are stable per
+[Semantic Versioning](https://semver.org/):
+
+- **CLI** — flags, subcommands, exit codes, env var names
+- **Config schema** — `config.yaml` / `personas/*.yaml` / `scenarios/*.yaml`
+- **Result Schema** — version 1.2.0, the 30 published JSON Schemas in `docs/schemas/`
+- **MCP tool surface** — 12 tool names + input/output schemas
+- **Library exports** — 67 named exports from `src/index.ts`
+
+Breaking changes only land in **major version bumps** (v2.0, v3.0, ...). Minor
+and patch releases are guaranteed backward-compatible. Deprecation cycle is
+documented in [docs/DEPRECATION-POLICY.md](docs/DEPRECATION-POLICY.md):
+features deprecated in v1.x continue to work for **at least two minor
+releases** before being removed in the next major.
+
+Upgrading from v0.3 to v1.0? See [MIGRATION.md](MIGRATION.md).
+
+### Performance baseline (provisional, v1.0-rc1 calibration pending)
+
+A typical 5-unit audit (1 scenario × 5 personas, full AI pipeline) is
+expected to land in:
+
+| Metric | v1.0 target | Notes |
+|---|---|---|
+| Wall-clock time | ~2–5 minutes | Varies by site complexity, persona count, model. v1.0-rc1 calibration will set a hard SLA. |
+| API cost | ~$0.10–$0.30 | Claude Sonnet 4.6 vision; Computer Use spikes can push to $0.50+ |
+| Memory peak | < 1 GB RSS | Chromium ~500 MB + Node heap ~300 MB |
+
+**Render hot-paths** (already tracked via `npm run bench:check` regression gate):
+
+| Path | ops/sec on M-series | Notes |
+|---|---|---|
+| `renderPdfHtml` (20-unit audit) | ~12,000 | A4 portrait + WCAG section + 5 charts |
+| `renderTrendsHtml` (100-row history) | ~1,000 | 5 inline-SVG charts |
+| `renderDiffMarkdown` (typical PR) | ~90,000 | Sticky PR comment friendly |
+| `renderSarif` (20-unit, 12 issues) | ~190,000 | Per-WCAG-SC ruleIds |
+
+These are micro-benchmarks (single function call). Full audit pipeline
+(launch chromium → navigate → score) wall-clock baseline is being
+calibrated in v1.0-rc1.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
