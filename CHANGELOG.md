@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Security & Compliance (T0.6 — Wave 0 license audit + Dependabot + SECURITY.md)
+
+- **License audit**：`license-checker --production` 全树 288 包审计 → **0 GPL / 0 AGPL / 0 SSPL contamination**。213 MIT / 34 Apache-2.0 / 19 BSD-3-Clause / 13 ISC / 3 BSD-2-Clause / 1 MPL-2.0（axe-core，weak copyleft 不感染）/ 1 LGPL-3.0-or-later（sharp 拉的 libvips bundled binary，动态链接豁免，文档化）/ 4 其他兼容（Apache* / Unlicense / MIT-or-WTFPL / AFL-2.1-or-BSD-3-Clause / BSD-2-or-MIT-or-Apache-2.0）。完整商用兼容。
+- **`docs/THIRD_PARTY_LICENSES.md`**：完整 disclosure 含 libvips LGPL 豁免说明（动态链接 + 用户单独 npm install 拉 binary）+ Chromium 混合 license 说明（Playwright 自家 postinstall 拉，我们不分发）+ axe-core MPL 说明（weak copyleft 不感染我们 MIT）+ allowlist 政策含 v1.0 已审过的 16 个 SPDX。
+- **`docs/third-party-licenses.csv`**：289 行机器可读 license 清单（每包含 module / version / license / repository）—— release 每次 regen，作为 audit trail。
+- **`.github/dependabot.yml`**：weekly Mon 09:00 Asia/Shanghai 扫 npm + GitHub Actions；group minor+patch（cut PR count from ~20/week → ~3/week）；ignore Stagehand / Zod / @types/node major bumps（这些是 dedicated migration tasks T-NEW-1 / T-NEW-2）；commit-message prefix `chore(deps)` / `chore(actions)`；open-PR limit 5 npm / 3 GHA。
+- **`SECURITY.md`** 初稿：supported versions 表 + private report channel（GitHub Security Advisories preferred + email fallback）+ coordinated-disclosure timelines（72h ack / 7d initial / 30d critical fix / 90d moderate）+ Known Accepted Risks 段含 3 个 transitive vulns（Vercel ai SDK 文件类型 bypass / jsondiffpatch HtmlFormatter XSS / 1 low）full waiver rationale 含 closure plan T-NEW-1 + scope 范围（包括 / 不包括）。
+- 预备 T26+T27 + T28 + T29 的 CI gate（npm audit / license-checker / SBOM）—— config 已 ready，wire actual CI 是后续任务。
+- 全套回归：tsc ✓ / build ✓ / 1538/1538 测 ✓ / 0 schemas diff / 0 bench regression。
+
 ### Security & Dependencies (T0.5 — Wave 0 紧急止血)
 
 - **Anthropic SDK 0.39.0 → 0.92.0**（跨 53 minor 版本升级；CHANGELOG 跨整段无 ⚠ BREAKING CHANGES section；零代码改动跑通 1538/1538 测试）
