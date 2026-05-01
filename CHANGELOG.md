@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M2-2 — WCAG clause grouping)
+
+- New module `src/core/wcag.ts` (~270 LoC) provides a curated WCAG 2.1 + 2.2 success-criterion catalog (50+ entries covering 1.1.1 alt text / 1.4.3 contrast / 2.1.1 keyboard / 2.4.7 focus visible / 4.1.2 ARIA name-role-value / WCAG 2.2's net-new 2.4.11 / 2.5.7 / 2.5.8 / 3.3.7), an `parseAxeTags()` helper that extracts structured WCAG attribution from axe-core tag lists, and `summarizeWcag()` which aggregates issues by conformance level / principle / criterion.
+- `Issue` type extended with two optional fields: `wcag_level` ("A" | "AA" | "AAA") and `wcag_criterion` (dotted SC id like "1.4.3"). Populated by `handlers/index.ts > handleAssertA11y` on every axe violation; absent on non-accessibility issues. Schema additive — existing audit.json files still validate.
+- SARIF (`ci-reporters.ts`) now routes WCAG-attributed issues to per-criterion ruleIds: `wcag/1-4-3`, `wcag/2-1-1`. The corresponding `tool.driver.rules` entry carries the SC name + level + canonical W3C Understanding URL so GitHub Code Scanning's rule detail panel shows "WCAG 1.4.3 Contrast (Minimum) (Level AA)" with the W3C deep link. Compliance teams can filter / triage by W3C clause directly in GitHub Security tab / GitLab SAST.
+- PDF report (`reporter-pdf.ts`) gains a **WCAG Compliance Summary** section between Top Findings and Scenario Results when the run has any accessibility issues. Three sub-blocks: by conformance level (A / AA / AAA / Unknown), by principle (Perceivable / Operable / Understandable / Robust), and Top 8 violated criteria with W3C deep links. Skipped entirely on runs without an `assert_a11y` step.
+- 14 new i18n translation keys for the WCAG section, translated into all 5 supported locales (en / zh-CN / ja / es / de). `lintTranslations()` test stays green — every locale has every key.
+- Public API surface grows 60 → 67 exports: `WCAG_CATALOG`, `findWcagCriterion`, `parseAxeTags`, `summarizeWcag`, `wcagSarifRuleId`, `wcagHelpUrl`, `isWcagIssue` + 5 types (`WcagLevel`, `WcagPrinciple`, `WcagSuccessCriterion`, `WcagAttribution`, `WcagSummary`).
+- 1432 → 1445 tests pass (+38 wcag + 9 reporter integrations, with a few sample-pair tests adjusted for the schema additions). Coverage on the new file: 100% statements / 95.65% branches / 100% functions.
+- Answers the actually-commercial question every enterprise SaaS RFP asks: "Are we WCAG 2.1 AA compliant?" The auditor now emits structured AA / A / AAA conformance counts per run, per criterion, with W3C documentation links — usable directly by ADA / EAA / Section 508 compliance teams in their native language.
+- See [ADR-024](docs/decisions/ADR-024-wcag-clause-grouping.md) for the full design rationale and 8 alternatives rejected (hardcode in handler / pull metadata from axe at runtime / per-axe-rule ruleId / separate accessibility PDF / translate SC names / show all 50 SC / WCAG trend chart / auto-fail on AA).
+
 ### Added (M2-4 — Report localisation, 5 locales)
 
 - New module `src/core/i18n.ts` (~470 LoC, 90 keys × 5 locales = 450 translation entries) is the central source of truth for every visible label in the four stakeholder reports. Supported locales (v1 priority markets):
