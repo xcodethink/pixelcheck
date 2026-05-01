@@ -6,6 +6,8 @@ tmp/
 downloads/
 coverage/
 docs/perf-current.json
+test-results/
+playwright-report/
 .env
 *.log
 *.har

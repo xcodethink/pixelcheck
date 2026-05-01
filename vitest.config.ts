@@ -7,14 +7,21 @@ export default defineConfig({
     //
     // tests/integration/file-lock-race.test.ts is excluded because it needs
     // the stricter `pool: forks` config; it runs via `npm run test:integration`
-    // (vitest.integration.config.ts). All other tests/integration/*.test.ts
-    // files (agent-loop / signals e2e) continue to run under the default
-    // threads pool — they don't have the cross-process spawn dependency.
+    // (vitest.integration.config.ts).
+    //
+    // tests/integration/playwright/** is excluded because it uses
+    // @playwright/test (separate test runner with its own assertion API);
+    // it runs via `npm run test:integration:playwright` (playwright.config.ts).
+    //
+    // All other tests/integration/*.test.ts files (agent-loop / signals e2e)
+    // continue to run under the default threads pool — they're vitest tests
+    // and don't have the cross-process spawn dependency.
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
       "**/.claude/worktrees/**",
       "tests/integration/file-lock-race.test.ts",
+      "tests/integration/playwright/**",
     ],
     // Setup runs before each test file: disables the result cache
     // (M9-4) globally so primitive tests don't accidentally persist or

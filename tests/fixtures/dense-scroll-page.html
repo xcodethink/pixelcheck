@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dense scroll fixture (T4 recorder 5-segment cap test)</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, sans-serif; }
+    section {
+      min-height: 1200px;
+      padding: 40px;
+      border-bottom: 2px solid #999;
+    }
+    section:nth-child(odd) { background: #fafafa; }
+    section:nth-child(even) { background: #f0f0f0; }
+    h2 { color: #333; }
+    .marker {
+      font-size: 64px;
+      font-weight: bold;
+      color: #666;
+      text-align: center;
+      padding: 100px 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- 20+ sections × 1200px = 24000+ px tall page.
+       At viewportH = 720, naturalSegments = ceil((24000 - 144) / 576) = 42.
+       segmentCount = min(42, 5) = 5. Tests segment-cap clipping. -->
+
+  <section><h2>Section 1 of 20</h2><div class="marker">START</div></section>
+  <section><h2>Section 2 of 20</h2><div class="marker">2</div></section>
+  <section><h2>Section 3 of 20</h2><div class="marker">3</div></section>
+  <section><h2>Section 4 of 20</h2><div class="marker">4</div></section>
+  <section><h2>Section 5 of 20</h2><div class="marker">5</div></section>
+  <section><h2>Section 6 of 20</h2><div class="marker">6</div></section>
+  <section><h2>Section 7 of 20</h2><div class="marker">7</div></section>
+  <section><h2>Section 8 of 20</h2><div class="marker">8</div></section>
+  <section><h2>Section 9 of 20</h2><div class="marker">9</div></section>
+  <section><h2>Section 10 of 20</h2><div class="marker">10</div></section>
+  <section><h2>Section 11 of 20</h2><div class="marker">11</div></section>
+  <section><h2>Section 12 of 20</h2><div class="marker">12</div></section>
+  <section><h2>Section 13 of 20</h2><div class="marker">13</div></section>
+  <section><h2>Section 14 of 20</h2><div class="marker">14</div></section>
+  <section><h2>Section 15 of 20</h2><div class="marker">15</div></section>
+  <section><h2>Section 16 of 20</h2><div class="marker">16</div></section>
+  <section><h2>Section 17 of 20</h2><div class="marker">17</div></section>
+  <section><h2>Section 18 of 20</h2><div class="marker">18</div></section>
+  <section><h2>Section 19 of 20</h2><div class="marker">19</div></section>
+  <section><h2>Section 20 of 20</h2><div class="marker">END</div></section>
+</body>
+</html>
