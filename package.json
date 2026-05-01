@@ -56,7 +56,10 @@
     "bench:update": "tsx scripts/check-perf.ts --update-baseline",
     "lint:no-console": "bash scripts/check-no-console.sh",
     "schemas": "tsx scripts/export-result-schemas.ts",
-    "clean": "rm -rf dist"
+    "license:check": "license-checker --production --onlyAllow \"MIT;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;BSD;MPL-2.0;LGPL-3.0-or-later;Unlicense;CC-BY-3.0;CC-BY-4.0;CC0-1.0;0BSD;Apache*;(MIT OR WTFPL);(AFL-2.1 OR BSD-3-Clause);(BSD-2-Clause OR MIT OR Apache-2.0)\"",
+    "license:csv": "license-checker --production --csv --out docs/third-party-licenses.csv",
+    "sbom": "cyclonedx-npm --output-file sbom.json --omit dev --ignore-npm-errors",
+    "clean": "rm -rf dist sbom.json"
   },
   "keywords": [
     "ai",
@@ -92,6 +95,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "^4.2.1",
     "@playwright/test": "^1.59.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.17",
@@ -99,6 +103,7 @@
     "@vitest/coverage-v8": "^4.1.5",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "license-checker": "^25.0.1",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.4",
