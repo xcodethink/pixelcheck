@@ -8,6 +8,7 @@ coverage/
 docs/perf-current.json
 test-results/
 playwright-report/
+sbom.json
 .env
 .env.*
 !.env.example
