@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login form fixture (T5 Stagehand smoke test)</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 40px; }
+    .form-card {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 24px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    label { display: block; margin-top: 16px; font-weight: 600; }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      margin-top: 24px;
+      padding: 12px 24px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover { background: #0056b3; }
+    .result {
+      margin-top: 24px;
+      padding: 12px;
+      background: #e8f5e9;
+      border: 1px solid #4caf50;
+      border-radius: 4px;
+      display: none;
+    }
+    .result.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="form-card">
+    <h1>Sign In</h1>
+    <p>Test fixture for T5 Stagehand smoke (act + extract).</p>
+
+    <form id="login-form">
+      <label for="email">Email address</label>
+      <input type="email" id="email" name="email" placeholder="user@example.com" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+
+      <label for="role">Role</label>
+      <select id="role" name="role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+        <option value="reviewer">Reviewer</option>
+      </select>
+
+      <label for="notes">Notes (optional)</label>
+      <textarea id="notes" name="notes" rows="3"></textarea>
+
+      <button type="submit" id="submit-btn">Sign In</button>
+    </form>
+
+    <div class="result" id="result-card">
+      <h2 id="result-status">Signed in successfully</h2>
+      <p>Email: <span id="result-email"></span></p>
+      <p>Role: <span id="result-role"></span></p>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const role = document.getElementById("role").value;
+      document.getElementById("result-email").textContent = email;
+      document.getElementById("result-role").textContent = role;
+      document.getElementById("result-card").classList.add("show");
+    });
+  </script>
+</body>
+</html>
