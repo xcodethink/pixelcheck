@@ -57,6 +57,7 @@ formal ADR practice started at v0.3 maintenance).
 | 025 | Performance regression suite | M6-7 |
 | 026 | Unified SQLite migration runner | M5-7 |
 | 029 | File-lock cross-process race tests in dedicated forks-pool | M9-3.2 (T1) |
+| 031 | CI bench in observation mode (5-run calibration window) | T10 |
 
 ### v1.0 release-readiness (T-NEW-11 / Wave 0)
 

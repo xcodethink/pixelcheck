@@ -53,6 +53,7 @@
  * downstream callers can report savings.
  */
 
+import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
@@ -138,6 +139,8 @@ export interface WithResultCacheArgs<T> {
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const PRUNE_INTERVAL_MS = 60 * 60 * 1000; // prune once per opened DB per hour
+const DEFAULT_MAX_ROWS = 10000;
+const DEFAULT_MAX_DISK_MB = 500;
 
 export function defaultDbPath(): string {
   const env = process.env.AUDIT_RESULT_CACHE_PATH;
@@ -230,6 +233,16 @@ const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_cache_primitive ON result_cache(primitive);
     `,
   },
+  {
+    version: 2,
+    description:
+      "add last_used_at for LRU disk-quota prune (T17). Backfills with created_at.",
+    up: `
+      ALTER TABLE result_cache ADD COLUMN last_used_at INTEGER NOT NULL DEFAULT 0;
+      UPDATE result_cache SET last_used_at = created_at WHERE last_used_at = 0;
+      CREATE INDEX IF NOT EXISTS idx_cache_last_used ON result_cache(last_used_at);
+    `,
+  },
 ];
 
 interface DbHandle {
@@ -262,12 +275,22 @@ function shouldPrune(handle: DbHandle, now: number): boolean {
  * Drop entries older than `maxAgeMs` and entries written under a
  * stricter schema version mismatch. Cheap; runs opportunistically when
  * the DB is opened (or via {@link pruneCache}).
+ *
+ * Also enforces the disk-quota caps from T17:
+ *   - AUDIT_RESULT_CACHE_MAX_ROWS  (default 10000)
+ *   - AUDIT_RESULT_CACHE_MAX_DISK_MB (default 500)
+ *
+ * When either cap is exceeded, the oldest `last_used_at` rows are
+ * deleted (LRU eviction) until the cap is satisfied. Eviction is
+ * additive to TTL prune — TTL runs first, then LRU on the remainder.
  */
 export function pruneCache(opts: {
   dbPath?: string;
   maxAgeMs?: number;
   now?: number;
-} = {}): { removed: number } {
+  maxRows?: number;
+  maxDiskMb?: number;
+} = {}): { removed: number; lruEvicted: number } {
   const dbPath = opts.dbPath ?? defaultDbPath();
   const handle = getDb(dbPath);
   const now = opts.now ?? Date.now();
@@ -279,7 +302,104 @@ export function pruneCache(opts: {
   );
   const info = stmt.run(cutoff, RESULT_SCHEMA_VERSION);
   handle.lastPruneAt = now;
-  return { removed: Number(info.changes ?? 0) };
+  const removed = Number(info.changes ?? 0);
+
+  const maxRows =
+    opts.maxRows ?? readEnvNumber("AUDIT_RESULT_CACHE_MAX_ROWS", DEFAULT_MAX_ROWS);
+  const maxDiskMb =
+    opts.maxDiskMb ??
+    readEnvNumber("AUDIT_RESULT_CACHE_MAX_DISK_MB", DEFAULT_MAX_DISK_MB);
+  const lruEvicted = enforceLruCaps({
+    db: handle.db,
+    dbPath,
+    maxRows,
+    maxDiskMb,
+  });
+
+  return { removed, lruEvicted };
+}
+
+/**
+ * Evict oldest-`last_used_at` rows until both row-count and disk-MB
+ * caps are satisfied. Setting either cap to 0 disables that cap.
+ * Returns total rows evicted.
+ */
+function enforceLruCaps(args: {
+  db: Database.Database;
+  dbPath: string;
+  maxRows: number;
+  maxDiskMb: number;
+}): number {
+  let evicted = 0;
+  const { db, dbPath, maxRows, maxDiskMb } = args;
+
+  // Row-count cap
+  if (maxRows > 0) {
+    const row = db.prepare(`SELECT COUNT(*) as n FROM result_cache`).get() as
+      | { n: number }
+      | undefined;
+    const total = Number(row?.n ?? 0);
+    if (total > maxRows) {
+      const overshoot = total - maxRows;
+      const info = db
+        .prepare(
+          `DELETE FROM result_cache WHERE key IN (
+             SELECT key FROM result_cache ORDER BY last_used_at ASC LIMIT ?
+           )`,
+        )
+        .run(overshoot);
+      evicted += Number(info.changes ?? 0);
+    }
+  }
+
+  // Disk-MB cap — fs.statSync of the DB file is cheap and matches what
+  // a user `du -h` would report. We don't VACUUM here; freed pages are
+  // reused on the next write. If the user wants tight reclamation,
+  // they can run `sqlite3 result-cache.db "VACUUM"` manually.
+  if (maxDiskMb > 0) {
+    const cap = maxDiskMb * 1024 * 1024;
+    let size = 0;
+    try {
+      size = fs.statSync(dbPath).size;
+    } catch {
+      // Brand-new DB or fs error — skip
+      return evicted;
+    }
+    // Iteratively delete a percentage of remaining rows until under cap
+    // (or table is empty). Capped at 6 iterations to bound worst-case.
+    const startSize = size;
+    for (let i = 0; i < 6 && size > cap; i++) {
+      const row = db
+        .prepare(`SELECT COUNT(*) as n FROM result_cache`)
+        .get() as { n: number } | undefined;
+      const total = Number(row?.n ?? 0);
+      if (total === 0) break;
+      // Aim to free ~10% per round of the overshoot ratio
+      const overshoot = size - cap;
+      const fractionToEvict = Math.min(0.5, overshoot / Math.max(size, 1));
+      const targetEvict = Math.max(1, Math.ceil(total * fractionToEvict));
+      const info = db
+        .prepare(
+          `DELETE FROM result_cache WHERE key IN (
+             SELECT key FROM result_cache ORDER BY last_used_at ASC LIMIT ?
+           )`,
+        )
+        .run(targetEvict);
+      const justEvicted = Number(info.changes ?? 0);
+      if (justEvicted === 0) break;
+      evicted += justEvicted;
+      try {
+        size = fs.statSync(dbPath).size;
+      } catch {
+        break;
+      }
+      // Diminishing returns: if size barely changed (< 1% of start),
+      // SQLite isn't releasing pages — stop and let next prune retry.
+      if (i > 0 && Math.abs(size - startSize) < startSize * 0.01) break;
+    }
+  }
+
+  return evicted;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -362,6 +482,20 @@ export function lookupCache<T = unknown>(args: {
     return { hit: false };
   }
 
+  // Bump last_used_at for LRU eviction (T17). Best-effort — never fail
+  // a hit on a write failure (the row data we already have is still
+  // valid even if the touch fails).
+  try {
+    handle.db
+      .prepare(`UPDATE result_cache SET last_used_at = ? WHERE key = ?`)
+      .run(now, args.key);
+  } catch (err) {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "result-cache: last_used_at touch failed; continuing",
+    );
+  }
+
   return { hit: true, value: parsed as T, ageMs };
 }
 
@@ -398,15 +532,16 @@ export function storeCache(args: {
   try {
     handle.db
       .prepare(
-        `INSERT INTO result_cache (key, primitive, value_json, schema_version, created_at)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO result_cache (key, primitive, value_json, schema_version, created_at, last_used_at)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(key) DO UPDATE SET
            primitive = excluded.primitive,
            value_json = excluded.value_json,
            schema_version = excluded.schema_version,
-           created_at = excluded.created_at`,
+           created_at = excluded.created_at,
+           last_used_at = excluded.last_used_at`,
       )
-      .run(args.key, args.primitive, json, RESULT_SCHEMA_VERSION, now);
+      .run(args.key, args.primitive, json, RESULT_SCHEMA_VERSION, now, now);
   } catch (err) {
     log.warn(
       { err: err instanceof Error ? err.message : String(err), primitive: args.primitive },
