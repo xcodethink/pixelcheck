@@ -10,6 +10,7 @@ docs/api/
 test-results/
 playwright-report/
 sbom.json
+*.tgz
 .env
 .env.*
 !.env.example
