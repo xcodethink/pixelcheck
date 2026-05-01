@@ -47,10 +47,13 @@ export default defineConfig({
         //   M1-2 Phase 2 reporter-spa:        61 / 54 / 63 / 62 → floor unchanged
         //     (sub-1pt gain — ADR-017 contract bumps only on ≥ 1pt gains;
         //     keeps headroom for natural fluctuation)
-        statements: 59,
-        branches: 53,
-        functions: 59,
-        lines: 59,
+        //   M2-1/2-3/2-4/2-5/2-6/M2-2/M5-7/M6-7 — sub-1pt or non-coverage tasks; floor unchanged
+        //   M1-2 Phase 3 recorder:            67 / 59 / 71 / 68 → floor 60/54/60/60
+        //     (recorder.ts 0% → 82.82% stmt; +1.40 project gain)
+        statements: 60,
+        branches: 54,
+        functions: 60,
+        lines: 60,
       },
     },
   },
