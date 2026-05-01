@@ -91,6 +91,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "StepSchema",
   "SuccessCriterionSchema",
   "VisitStepSchema",
+  "WCAG_CATALOG",
   "WaitForStepSchema",
   "attachConsoleLogger",
   "buildExecutionMatrix",
@@ -98,14 +99,17 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "detectCiEnvironment",
   "diffRuns",
   "extractDomSummary",
+  "findWcagCriterion",
   "formatDomSummary",
   "formatRunsCount",
   "generateMutations",
+  "isWcagIssue",
   "loadHistory",
   "loadPersonas",
   "loadProjectConfig",
   "loadScenarios",
   "normaliseLocale",
+  "parseAxeTags",
   "renderDiffHtml",
   "renderDiffJson",
   "renderDiffMarkdown",
@@ -116,8 +120,11 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "runAudit",
   "saveAuditToHistory",
   "substituteTemplate",
+  "summarizeWcag",
   "t",
   "waitForPageStable",
+  "wcagHelpUrl",
+  "wcagSarifRuleId",
   "writeDiffReport",
   "writeGithubAnnotationsReport",
   "writeHtmlReport",
@@ -137,8 +144,8 @@ describe("public surface snapshot — src/index.ts", () => {
     expect(actual).toEqual([...EXPECTED_RUNTIME_EXPORTS]);
   });
 
-  it("ships exactly 60 runtime exports (bump this when intentionally adding a public symbol)", () => {
-    expect(Object.keys(lib)).toHaveLength(60);
+  it("ships exactly 67 runtime exports (bump this when intentionally adding a public symbol)", () => {
+    expect(Object.keys(lib)).toHaveLength(67);
   });
 
   const functionExports: Array<keyof typeof lib> = [
@@ -148,14 +155,17 @@ describe("public surface snapshot — src/index.ts", () => {
     "detectCiEnvironment",
     "diffRuns",
     "extractDomSummary",
+    "findWcagCriterion",
     "formatDomSummary",
     "formatRunsCount",
     "generateMutations",
+    "isWcagIssue",
     "loadHistory",
     "loadPersonas",
     "loadProjectConfig",
     "loadScenarios",
     "normaliseLocale",
+    "parseAxeTags",
     "renderDiffHtml",
     "renderDiffJson",
     "renderDiffMarkdown",
@@ -166,8 +176,11 @@ describe("public surface snapshot — src/index.ts", () => {
     "runAudit",
     "saveAuditToHistory",
     "substituteTemplate",
+    "summarizeWcag",
     "t",
     "waitForPageStable",
+    "wcagHelpUrl",
+    "wcagSarifRuleId",
     "writeDiffReport",
     "writeGithubAnnotationsReport",
     "writeHtmlReport",

@@ -47,6 +47,20 @@ export {
   type TranslationKey,
 } from "./core/i18n.js";
 export {
+  WCAG_CATALOG,
+  findWcagCriterion,
+  parseAxeTags,
+  summarizeWcag,
+  wcagSarifRuleId,
+  wcagHelpUrl,
+  isWcagIssue,
+  type WcagLevel,
+  type WcagPrinciple,
+  type WcagSuccessCriterion,
+  type WcagAttribution,
+  type WcagSummary,
+} from "./core/wcag.js";
+export {
   writeJunitXmlReport,
   writeSarifReport,
   writeJsonLinesReport,
