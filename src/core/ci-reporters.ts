@@ -30,6 +30,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuditRun, Issue, ScenarioRunResult } from "./types.js";
 import { redactDeep } from "./secrets.js";
+import { findWcagCriterion, wcagHelpUrl, wcagSarifRuleId } from "./wcag.js";
 
 // ─────────────────────────────────────────────────────────────
 // Severity mapping table
@@ -354,6 +355,15 @@ export function renderSarif(audit: AuditRun, tool: SarifToolDriver = DEFAULT_TOO
 }
 
 function ruleIdForIssue(issue: Issue): string {
+  // M2-2: WCAG-attributed accessibility issues route to a per-criterion
+  // SARIF ruleId (`wcag/1-4-3`, `wcag/2-1-1`, etc) so GitHub Code
+  // Scanning groups them under the actual WCAG SC the violation is
+  // graded against. ADA / EAA compliance teams can filter by the
+  // ruleId in GitHub Security tab (e.g. show only "wcag/1.4.3
+  // Contrast" violations) without parsing issue text.
+  if (issue.wcag_criterion !== undefined) {
+    return wcagSarifRuleId(issue.wcag_criterion);
+  }
   // Stable, kebab-case rule id — derived from the dimension when set,
   // otherwise from a generic "audit-issue" bucket.
   if (issue.dimension) {
@@ -363,6 +373,32 @@ function ruleIdForIssue(issue: Issue): string {
 }
 
 function buildRule(ruleId: string, issue: Issue): SarifRule {
+  // M2-2: when this is a WCAG-attributed rule, embed the SC name +
+  // canonical W3C Understanding URL so GitHub's rule detail panel
+  // shows the human-readable criterion alongside the violation.
+  if (issue.wcag_criterion !== undefined) {
+    const sc = findWcagCriterion(issue.wcag_criterion);
+    if (sc) {
+      const helpUri = wcagHelpUrl(sc);
+      return {
+        id: ruleId,
+        name: ruleId,
+        shortDescription: {
+          text: `WCAG ${sc.id} ${sc.name} (Level ${sc.level})`,
+        },
+        fullDescription: {
+          text: `Web Content Accessibility Guidelines ${sc.id} — ${sc.name}. Conformance level ${sc.level} under the ${sc.principle} principle. See ${helpUri}.`,
+        },
+        defaultConfiguration: {
+          level: SEVERITY_LEVELS[issue.severity].sarif === "note"
+            ? "note"
+            : SEVERITY_LEVELS[issue.severity].sarif === "warning"
+              ? "warning"
+              : "error",
+        },
+      };
+    }
+  }
   return {
     id: ruleId,
     name: ruleId,
