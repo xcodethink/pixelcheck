@@ -747,6 +747,10 @@ PixelCheck is safe to run from multiple processes at once — two parallel `ai-a
 
 If a process crashes while holding the cost-ledger lock, the lock auto-recovers after 30 seconds (or sooner if the holder pid is no longer alive). See [ADR-009](docs/decisions/ADR-009-concurrency-safety.md) for design.
 
+### SQLite stores share a unified migration runner
+
+PixelCheck uses four local SQLite files (`history.db` / `memory.db` / `plan-cache.db` / `result-cache.db`). They all open through `src/core/db-migrate.ts > openManagedDatabase()`, which handles the parent-directory creation, `busy_timeout` pragma, file-locked WAL transition, and a `PRAGMA user_version`-driven migration walk in one place. Each migration runs in its own `BEGIN IMMEDIATE` / `COMMIT` block so a SQL failure rolls every CREATE / ALTER / INSERT in that step back atomically — partial schema is impossible. Older binaries opening newer DBs fail loudly with `MigrationVersionError` instead of running broken queries against missing columns. See [ADR-026](docs/decisions/ADR-026-unified-db-migrations.md) for design.
+
 ## Result Cache
 
 A persistent local cache memoises results from the deterministic primitives so repeated identical calls return instantly with `cost_usd = 0`. AI agents can plan more aggressively without burning fresh vision tokens on every tool call.

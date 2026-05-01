@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Changed (M5-7 — Unified SQLite migration runner)
+
+- New internal module `src/core/db-migrate.ts` (~190 LoC) centralises the open-database sequence that four separate SQLite stores had each been hand-rolling: parent-directory creation, `busy_timeout` pragma, file-locked WAL transition (M9-3 follow-up pattern), and a `user_version`-driven migration walk. Exposes a typed `Migration` interface, `validateMigrations()` for sequence checks, `runMigrations()` for the walk itself, and `openManagedDatabase()` for the full open + migrate flow.
+- All four SQLite stores refactored to use it: `src/core/history.ts` (audit-history trends), `src/agent/memory.ts` (per-site agent facts), `src/agent/plan-cache.ts` (reusable autonomous plans), `src/core/result-cache.ts` (memoised primitive results). Each shed ~30 lines of duplicate boilerplate.
+- Each migration now runs inside its own `BEGIN IMMEDIATE` / `COMMIT` block. SQLite ≥ 3.25 supports DDL-in-transactions, so a failure rolls every CREATE / ALTER / INSERT in the migration back atomically. The previous `try/catch` defensive workaround in `memory.ts` (swallowing `/duplicate column|already exists/i`) is removed — `CREATE TABLE IF NOT EXISTS` plus correct `user_version` bookkeeping handles the legacy-DB case.
+- Downgrade refusal: opening a database with `user_version > max(known migrations)` now throws `MigrationVersionError` immediately rather than silently running queries against missing columns. Catches the "older binary against a newer database" case that the previous forward-walk code couldn't detect.
+- `validateMigrations()` enforces dense, 1-based, strictly-increasing version sequences before any DB I/O. Bad migration arrays surface at import time, not at production open.
+- 27 new unit tests in `tests/db-migrate.test.ts` cover validation rules, idempotent re-runs, atomic rollback on migration failure, downgrade refusal, and `openManagedDatabase` knobs (WAL toggle / foreign_keys / busy_timeout). 1478 → 1511 tests pass.
+- Public API surface unchanged at 67 exports — `db-migrate` is internal-only, used only by stores under `src/core/` and `src/agent/`.
+- See [ADR-026](docs/decisions/ADR-026-unified-db-migrations.md) for the full design rationale and 9 alternatives rejected (CONTRIBUTING checklist / third-party migration library / skip validation / down migrations / single outer transaction / async migrations / filename-based discovery / dry-run flag / per-migration metadata table).
+
 ### Added (M6-7 — Performance regression suite)
 
 - New `tests/perf.bench.ts` (~200 LoC) — 9 vitest benchmarks covering the report-rendering + aggregation hot paths most likely to regress: `renderPdfHtml` / `renderTrendsHtml` / `renderDiffMarkdown` / `renderDiffHtml` / `renderJunitXml` / `renderSarif` / `summarizeWcag` / `computeSummary` / `t() i18n lookup`. Pre-built fixtures (20-unit audit, 100-row history, 50 a11y issues across 8 SCs) keep measurements isolated to the function under test.
