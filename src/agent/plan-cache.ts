@@ -23,33 +23,36 @@
 
 import * as path from "node:path";
 import * as os from "node:os";
-import * as fs from "node:fs";
 import * as crypto from "node:crypto";
-import Database from "better-sqlite3";
-import { withFileLockSync } from "../core/file-lock.js";
+import type Database from "better-sqlite3";
+import { openManagedDatabase, type Migration } from "../core/db-migrate.js";
 import type { Plan } from "./planner.js";
 import type { Persona } from "../core/types.js";
 
-const SCHEMA_VERSION = 1;
+const MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    description: "initial schema (plan_cache)",
+    up: `
+      CREATE TABLE IF NOT EXISTS plan_cache (
+        key             TEXT PRIMARY KEY,
+        scenario_id     TEXT NOT NULL,
+        persona_class   TEXT NOT NULL,
+        host            TEXT NOT NULL,
+        dom_skeleton    TEXT NOT NULL,
+        plan_json       TEXT NOT NULL,
+        success_count   INTEGER NOT NULL DEFAULT 0,
+        failure_count   INTEGER NOT NULL DEFAULT 0,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+        last_used_at    TEXT NOT NULL DEFAULT (datetime('now')),
+        ttl_seconds     INTEGER NOT NULL DEFAULT 604800
+      );
 
-const MIGRATION_V1 = `
-CREATE TABLE IF NOT EXISTS plan_cache (
-  key             TEXT PRIMARY KEY,
-  scenario_id     TEXT NOT NULL,
-  persona_class   TEXT NOT NULL,
-  host            TEXT NOT NULL,
-  dom_skeleton    TEXT NOT NULL,
-  plan_json       TEXT NOT NULL,
-  success_count   INTEGER NOT NULL DEFAULT 0,
-  failure_count   INTEGER NOT NULL DEFAULT 0,
-  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-  last_used_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  ttl_seconds     INTEGER NOT NULL DEFAULT 604800
-);
-
-CREATE INDEX IF NOT EXISTS idx_plan_cache_scenario ON plan_cache(scenario_id);
-CREATE INDEX IF NOT EXISTS idx_plan_cache_host ON plan_cache(host);
-`;
+      CREATE INDEX IF NOT EXISTS idx_plan_cache_scenario ON plan_cache(scenario_id);
+      CREATE INDEX IF NOT EXISTS idx_plan_cache_host ON plan_cache(host);
+    `,
+  },
+];
 
 export interface PlanCacheOpts {
   dbPath?: string;
@@ -93,24 +96,11 @@ export class PlanCache {
 
   private _open(): Database.Database {
     if (this._db) return this._db;
-    fs.mkdirSync(path.dirname(this._dbPath), { recursive: true });
-    const db = new Database(this._dbPath);
-    // M9-3 follow-up — see agent/memory.ts for full rationale on the
-    // busy_timeout + file-locked WAL transition pattern.
-    db.pragma("busy_timeout = 5000");
-    withFileLockSync(`${this._dbPath}.init.lock`, () => {
-      const mode = db.pragma("journal_mode", { simple: true }) as string;
-      if (mode !== "wal") {
-        db.pragma("journal_mode = WAL");
-      }
+    this._db = openManagedDatabase({
+      dbPath: this._dbPath,
+      migrations: MIGRATIONS,
     });
-    const userVersion = (db.pragma("user_version", { simple: true }) as number | null) ?? 0;
-    if (userVersion < SCHEMA_VERSION) {
-      db.exec(MIGRATION_V1);
-      db.pragma("user_version = " + String(SCHEMA_VERSION));
-    }
-    this._db = db;
-    return db;
+    return this._db;
   }
 
   /**

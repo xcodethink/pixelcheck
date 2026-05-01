@@ -18,31 +18,34 @@
 
 import * as path from "node:path";
 import * as os from "node:os";
-import * as fs from "node:fs";
 import * as crypto from "node:crypto";
-import Database from "better-sqlite3";
-import { withFileLockSync } from "../core/file-lock.js";
+import type Database from "better-sqlite3";
+import { openManagedDatabase, type Migration } from "../core/db-migrate.js";
 
-const SCHEMA_VERSION = 1;
-
-const MIGRATION_V1 = `
-CREATE TABLE IF NOT EXISTS site_memory (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  host            TEXT NOT NULL,
-  persona_class   TEXT NOT NULL,
-  fact            TEXT NOT NULL,
-  fact_hash       TEXT NOT NULL,
-  source          TEXT NOT NULL DEFAULT 'agent',
-  confidence      REAL NOT NULL DEFAULT 0.5,
-  confirmations   INTEGER NOT NULL DEFAULT 1,
-  contradictions  INTEGER NOT NULL DEFAULT 0,
-  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-  last_used_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  ttl_seconds     INTEGER NOT NULL DEFAULT 2592000
-);
-CREATE INDEX IF NOT EXISTS idx_site_memory_host ON site_memory(host, persona_class);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_site_memory_fact ON site_memory(fact_hash);
-`;
+const MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    description: "initial schema (site_memory)",
+    up: `
+      CREATE TABLE IF NOT EXISTS site_memory (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        host            TEXT NOT NULL,
+        persona_class   TEXT NOT NULL,
+        fact            TEXT NOT NULL,
+        fact_hash       TEXT NOT NULL,
+        source          TEXT NOT NULL DEFAULT 'agent',
+        confidence      REAL NOT NULL DEFAULT 0.5,
+        confirmations   INTEGER NOT NULL DEFAULT 1,
+        contradictions  INTEGER NOT NULL DEFAULT 0,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+        last_used_at    TEXT NOT NULL DEFAULT (datetime('now')),
+        ttl_seconds     INTEGER NOT NULL DEFAULT 2592000
+      );
+      CREATE INDEX IF NOT EXISTS idx_site_memory_host ON site_memory(host, persona_class);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_site_memory_fact ON site_memory(fact_hash);
+    `,
+  },
+];
 
 export interface MemoryFact {
   id: number;
@@ -99,39 +102,11 @@ export class AgentMemory {
 
   private _open(): Database.Database {
     if (this._db) return this._db;
-    fs.mkdirSync(path.dirname(this._dbPath), { recursive: true });
-    const db = new Database(this._dbPath);
-    // M9-3 follow-up: protect concurrent writers in two layers.
-    // (1) busy_timeout retries internal lock waits up to 5s. Per-
-    //     connection setting; safe to call without contention.
-    // (2) WAL transition needs an EXCLUSIVE lock that does NOT honor
-    //     busy_timeout (SQLite uses a fast-fail path for journal-mode
-    //     changes). Serialize the one-time WAL switch across processes
-    //     via an init lockfile; once WAL is set on the file it
-    //     persists, so subsequent opens just observe and skip.
-    db.pragma("busy_timeout = 5000");
-    withFileLockSync(`${this._dbPath}.init.lock`, () => {
-      const mode = db.pragma("journal_mode", { simple: true }) as string;
-      if (mode !== "wal") {
-        db.pragma("journal_mode = WAL");
-      }
+    this._db = openManagedDatabase({
+      dbPath: this._dbPath,
+      migrations: MIGRATIONS,
     });
-    const userVersion = (db.pragma("user_version", { simple: true }) as number | null) ?? 0;
-    if (userVersion < SCHEMA_VERSION) {
-      // Run migration statements individually so "column already exists"
-      // doesn't abort on reopen.
-      for (const stmt of MIGRATION_V1.split(";").map((s) => s.trim()).filter(Boolean)) {
-        try {
-          db.exec(stmt);
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (!/duplicate column|already exists/i.test(msg)) throw e;
-        }
-      }
-      db.pragma("user_version = " + String(SCHEMA_VERSION));
-    }
-    this._db = db;
-    return db;
+    return this._db;
   }
 
   /**
