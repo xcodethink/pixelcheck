@@ -9,6 +9,8 @@ docs/perf-current.json
 test-results/
 playwright-report/
 .env
+.env.*
+!.env.example
 *.log
 *.har
 *.webm
