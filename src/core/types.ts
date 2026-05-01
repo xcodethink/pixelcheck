@@ -487,6 +487,19 @@ export interface Issue {
   description: string;
   screenshot?: string;
   recommendation: string;
+  /**
+   * WCAG 2.x conformance level the violation is graded at, when this
+   * issue came from an accessibility audit step (axe-core).
+   * Absent for vision-critic-only issues. See src/core/wcag.ts.
+   */
+  wcag_level?: "A" | "AA" | "AAA";
+  /**
+   * Dotted WCAG Success Criterion id ("1.4.3", "2.1.1", etc.) when
+   * the violation maps to a specific clause. Used by reporters to
+   * group accessibility issues for compliance teams (ADA / EAA /
+   * Section 508). See src/core/wcag.ts for the catalog.
+   */
+  wcag_criterion?: string;
 }
 
 export interface ScenarioRunResult {
