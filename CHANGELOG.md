@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (M1-2 Phase 3 — recorder.ts unit coverage)
+
+- New `tests/recorder.test.ts` (~530 LoC, 27 tests) lifts `src/core/recorder.ts` from 0% → 82.82% statements / 76.19% branches / 88.04% lines. The recorder is the per-Page artefact accumulator (console-error listeners, indexed screenshots with sha256 sidecars, full + thumbnail + 5 viewport segments for vision input, console-log flush). Function coverage stays at 61.9% because `page.evaluate()`'s inline browser-only callbacks (lazy-scroll + docHeight readers) are not invokable in Node — same constraint that already applied to `page-stability.test.ts`.
+- Tests use a small EventEmitter-style `MockedPage` helper that supports `.on('console', cb)` / `.fire('console', arg)` dispatch plus stub `.screenshot` / `.evaluate` / `.waitForTimeout` — the whole 27-test file runs in under 500 ms with no Chromium spawn.
+- Branch coverage drills the segment-count math (3 segments at docHeight=2000 / capped at 5 for tall pages / floor of 1 for short pages), the lazy-load failure path (page closed mid-scroll → recorder catches and continues), and the `buildThumbnail` sharp fallback (non-PNG buffer → sharp throws → returns input untouched).
+- Per ADR-017's ratchet contract (raise floor on ≥1pt project gain), the global coverage threshold moves **59 / 53 / 59 / 59 → 60 / 54 / 60 / 60**. Project coverage 65.66% → 67.06% statements (+1.40), 58.10% → 58.77% branches (+0.67), 69.18% → 70.60% functions (+1.42), 66.29% → 67.81% lines (+1.52). 1511 → 1538 tests pass.
+- This closes one of five 0%-coverage orchestration modules ahead of the rest of M1-2 Phase 3 (`reporter.ts` / `runner.ts` / `agent-loop.ts` / `handlers/index.ts` / `computer-use.ts` remain).
+
 ### Changed (M5-7 — Unified SQLite migration runner)
 
 - New internal module `src/core/db-migrate.ts` (~190 LoC) centralises the open-database sequence that four separate SQLite stores had each been hand-rolling: parent-directory creation, `busy_timeout` pragma, file-locked WAL transition (M9-3 follow-up pattern), and a `user_version`-driven migration walk. Exposes a typed `Migration` interface, `validateMigrations()` for sequence checks, `runMigrations()` for the walk itself, and `openManagedDatabase()` for the full open + migrate flow.
