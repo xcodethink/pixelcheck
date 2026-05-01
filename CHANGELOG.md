@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T23 — Wave 3 doctor + interactive init wizard + first-run UX)
+
+- **关闭 RISK-REGISTER R45 / R46 / R47 / R61** ✅。**Wave 3 第三颗子弹** —— first-run UX 入口完整。
+- **新 `ai-audit doctor` 命令**（`src/commands/doctor.ts` ~250 LoC）：8 项 health check 一次性诊断 first-run readiness：Node version / Platform / ANTHROPIC_API_KEY / config.yaml / scenarios/ / personas/ / Network proxy / Data directory writable / api.anthropic.com reachable。每 check 返回结构化 `DoctorCheck`（status: ok/warn/fail/skip + message + remedy + verbose detail）+ aggregate `DoctorReport.exitCode`（0 if 无 fail，1 if any）。`renderDoctorReport()` 是纯函数返回行数组（caller 控制输出方式）；CLI 用 chalk 着色 + `process.exit(report.exitCode)` 让 CI script 能 `if doctor; then run; fi`。`--verbose` 加诊断 detail（API key prefix / Node 完整 path / proxy URL）；`--skip-network` 离线 / air-gapped 跳过 reachability。
+- **新交互式 `ai-audit init`（无 args）**（`src/commands/init-interactive.ts` ~190 LoC）：Node 内置 `node:readline/promises` 实现 zero-dep 交互 wizard。问 5 个问题（项目目录 / 项目名 / base URL / 是否创 sample scenario / 是否跑 doctor 收尾），每个有合理 default + Enter 接受。`promptFn` 注入 seam 让单测 mock prompts 不读 stdin。`writeSampleScenario()` idempotent 写 `scenarios/homepage-smoke.yaml`（visit + assert_a11y wcag22aa + see goal）。**保留 v0.3 `ai-audit init <dir>` 非交互行为**（CI / scripted），signature 改为 `init [dir]` optional positional 实现 backward-compat。
+- **`scaffoldProject()` 抽出**为公共 helper（cli.ts 内部），交互 wizard + 非交互 `init <dir>` 共用同一 scaffolding 逻辑——避免双轨制。
+- **lint:no-console 加 src/commands/ 例外**：`src/commands/*.ts` 跟 cli.ts 同角色（用户面 UX 渲染层），允许 console.log；其他 src/ 文件仍强制用 `getLogger()`（ADR-005）。
+- **34 新单测**（`tests/doctor.test.ts` 21 测 + `tests/init-interactive.test.ts` 13 测）：覆盖每 individual check 的 ok/warn/fail/skip 状态 + aggregate exitCode + renderDoctorReport 行数组 + verbose detail + remedy 在 fail/warn 后追加 + summary tail；wizard 用 `promptFn` seam 测 defaults / 显式答案 / y/Y/yes/N/no 解析 / 相对路径 → 绝对路径 + sampleSmokeScenarioYaml shape + writeSampleScenario idempotent。**vitest 1555 → 1589 (+34) 全过**。
+- **README "Quick Start" 6 步**（旧 4 步）：1. Install / **2. Verify env (doctor)** / **3. Set up project (init interactive or scripted)** / 4. Set API key / 5. Create first audit / 6. Run。Doctor + init 显式入口在最高显示位置——首次用户 5 分钟内验通环境。
+- **Live test**: `node dist/cli.js doctor --skip-network` 输出 8 行结构化 check + 着色 + remedy + summary tail；exit 1 当 API key 缺。
+- 完整回归：tsc ✓ / build ✓ / vitest 1589/1589 ✓ / npm pack 537 KB / 306 files / 0 schemas diff / 0 bench regression。
+
 ### Added (T20 — Wave 3 stability commitment + MIGRATION + DEPRECATION-POLICY)
 
 - **关闭 RISK-REGISTER R17 / R53 / R54 / R57** ✅。
