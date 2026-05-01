@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Fixed (T-NEW-11 — handleAssertA11y axe runOnly 漏 Level A 违规 P0)
+
+- **关闭 RISK-REGISTER R-NEW-11** ✅（T6 衍生发现的 production bug）：`handleAssertA11y` 默认 `standard: "wcag2aa"` 直接传给 axe-core 作为单元素数组，axe `runOnly` 是精确匹配，**只跑 wcag2aa 标记规则不含 Level A**。生产 audit 用户的所有 audit 都漏检 image-alt / label / button-name / link-name 等 Level A 违规。
+- **修法**（行业惯例 + axe-core 官方 docs 对齐）：新加 `expandAxeStandard()` 到 `src/core/wcag.ts`（~70 LoC）—— standard 累积展开为完整 axe tag 列表。`wcag2aa` → `["wcag2a", "wcag2aa"]`；`wcag22aa` → `["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"]`。`best-practice` 不累积保持 `["best-practice"]`。`handleAssertA11y` 现在用 `expandAxeStandard(standard)` 替代 `[standard]`。
+- **Schema 变更**：`AssertA11yStepSchema.standard` enum 加 `wcag22a`（之前漏，axe 实际有此 tag）。schema 是输入约束（容忍度 7 → 8 个值），不是输出 Result Schema 契约，**不触发 SemVer major bump**。Result Schema 1.2.0 不变。
+- **12 个新单测**（`tests/wcag.test.ts > expandAxeStandard`）：表驱动覆盖 8 enum + 未知值 fallback + 数组隔离 + Level A regression guard + WCAG 2.2 AA 完整 6 标签（pin 累积语义防 R-NEW-11 回归）。
+- **集成测试更新**（`tests/integration/playwright/wcag-axe.test.ts`）：测试 1+2 改用 `expandAxeStandard("wcag2aa")` 走生产路径，不是手写 `["wcag2a", "wcag2aa"]` 双轨制。
+- **MIGRATION 提示**：v1.0 release notes / MIGRATION.md 须明确"v1.0 修了 a11y 漏检 bug；用户对相同站点的 audit 违规数会显著增加（之前 silent miss 现在正确检出）"。
+- 完整回归：tsc ✓ / build ✓ / **vitest 1536 → 1548**（+12 expandAxeStandard）/ playwright 14/14 ✓ in 17.9s / 0 schemas diff（input schema 不在 published list）/ 0 bench regression。
+- 设计 + 6 alternatives rejected 全文：[ADR-030](docs/decisions/ADR-030-axe-standard-cumulative-expansion.md)。
+
 ### Added (T6 — Wave 2 真 axe + SARIF GitHub Code Scanning 验证)
 
 - **关闭 RISK-REGISTER R6** ✅：真 axe-core 在 fixture 上跑过；SARIF 输出形状 + ruleIds + W3C help URLs 都通过 integration 测试验证；GHCS 手动上传 SOP 文档化（screenshot 待 v1.0-rc1 reviewer 上传）。
