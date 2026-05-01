@@ -199,3 +199,58 @@ describe("writeSpaReport — escapeHtml on header metadata", () => {
     expect(html).not.toContain('A&B<C>D"E');
   });
 });
+
+describe("SPA i18n integration (T18 — closes R65 partial)", () => {
+  it("inlines the 5-locale i18n dictionary as a JSON script tag", () => {
+    const html = fs.readFileSync(writeSpaReport(mkAudit(), tmp), "utf8");
+    expect(html).toContain('id="__AUDIT_I18N__"');
+    expect(html).toContain('"audit_explorer_title"');
+    // All 5 locales should be present in the embedded JSON
+    expect(html).toContain('"en":');
+    expect(html).toContain('"zh-CN":');
+    expect(html).toContain('"ja":');
+    expect(html).toContain('"es":');
+    expect(html).toContain('"de":');
+  });
+
+  it("declares the html lang attribute as the default locale", () => {
+    const html = fs.readFileSync(writeSpaReport(mkAudit(), tmp), "utf8");
+    expect(html).toMatch(/<html\s+lang="en"\s+data-default-lang="en"/);
+  });
+
+  it("annotates every static UI label with data-i18n attributes", () => {
+    const html = fs.readFileSync(writeSpaReport(mkAudit(), tmp), "utf8");
+    const expectedKeys = [
+      "audit_explorer_title",
+      "btn_collapse",
+      "btn_expand_all",
+      "filter_persona",
+      "filter_scenario",
+      "filter_status",
+      "filter_dim_max",
+      "filter_issue",
+      "filter_all",
+      "filter_any",
+    ];
+    for (const k of expectedKeys) {
+      expect(html).toContain(`data-i18n="${k}"`);
+    }
+  });
+
+  it("ships translations for the 27 SPA keys in zh-CN / ja / es / de", () => {
+    const html = fs.readFileSync(writeSpaReport(mkAudit(), tmp), "utf8");
+    // A few high-confidence native phrases that must appear in the
+    // inlined JSON (sanity check that translations didn't get truncated).
+    expect(html).toContain("审计浏览器"); // zh-CN audit_explorer_title
+    expect(html).toContain("監査エクスプローラー"); // ja
+    expect(html).toContain("Explorador de auditoría"); // es
+    expect(html).toContain("Audit-Explorer"); // de
+  });
+
+  it("references the URLSearchParams + navigator.language fallback in JS", () => {
+    const html = fs.readFileSync(writeSpaReport(mkAudit(), tmp), "utf8");
+    expect(html).toContain("URLSearchParams");
+    expect(html).toContain("navigator.language");
+    expect(html).toContain("DEFAULT_LOCALE");
+  });
+});

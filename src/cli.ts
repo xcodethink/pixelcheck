@@ -921,6 +921,26 @@ personaCmd
     }
   });
 
+// ── prune command: artifact retention cleanup ───────────────────────
+
+program
+  .command("prune")
+  .description(
+    "Delete primitive artifact directories (sees / acts / extracts / judges / compares) older than each kind's retention window (default 30 days, configurable via AUDIT_<KIND>_RETENTION_DAYS env vars; set to 0 to disable).",
+  )
+  .action(async () => {
+    const { pruneAllArtifacts, renderPruneReport } = await import(
+      "./core/artifacts-prune.js"
+    );
+    const result = pruneAllArtifacts({ skipStamp: true });
+    console.log("Prune summary:");
+    for (const line of renderPruneReport(result)) {
+      console.log(line);
+    }
+    const hasErrors = result.entries.some((e) => e.errors.length > 0);
+    process.exit(hasErrors ? 1 : 0);
+  });
+
 program.parse();
 
 interface RunOpts {
