@@ -4,7 +4,18 @@ export default defineConfig({
   test: {
     // Exclude nested git worktrees so `npm test` doesn't double-count their
     // test files. Worktrees live under .claude/worktrees/ by convention.
-    exclude: ["**/node_modules/**", "**/dist/**", "**/.claude/worktrees/**"],
+    //
+    // tests/integration/file-lock-race.test.ts is excluded because it needs
+    // the stricter `pool: forks` config; it runs via `npm run test:integration`
+    // (vitest.integration.config.ts). All other tests/integration/*.test.ts
+    // files (agent-loop / signals e2e) continue to run under the default
+    // threads pool — they don't have the cross-process spawn dependency.
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.claude/worktrees/**",
+      "tests/integration/file-lock-race.test.ts",
+    ],
     // Setup runs before each test file: disables the result cache
     // (M9-4) globally so primitive tests don't accidentally persist or
     // hit cache from prior runs. The cache tests opt-in by clearing

@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:coverage:check": "vitest run --coverage --coverage.thresholdAutoUpdate=false",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "bench": "vitest bench --run --outputJson=docs/perf-current.json",
     "bench:check": "tsx scripts/check-perf.ts",
     "bench:update": "tsx scripts/check-perf.ts --update-baseline",
