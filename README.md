@@ -188,7 +188,7 @@ Every audit produces a full evidence package:
 reports/2026-04-11_post-deploy/
  |-- audit.json              # Machine-readable, all scores and issues
  |-- audit.html              # Dark-theme dashboard with trend sparklines
- |-- audit-explorer.html     # Filterable SPA view of every (scenario × persona)
+ |-- audit-explorer.html     # Filterable SPA view of every (scenario × persona) — open with ?lang=zh-CN/ja/es/de for localised UI chrome
  |-- audit.pdf               # Stakeholder-facing summary (A4, 12pt, vector text)
  |-- summary.md              # Terminal-friendly overview
  |-- jp-japanese-pro-desktop__signup-flow/
@@ -247,6 +247,16 @@ default_locale: ja    # any audit run on this project defaults to ja
 ```
 
 What's translated: report skeleton — section titles, table headers, status / severity badges, disclaimer prose. What's NOT translated: the auditor's findings themselves (those come from the LLM in whatever language you asked Claude for) and numeric values / dates / run IDs. See [ADR-023](docs/decisions/ADR-023-report-localisation.md) for the full design.
+
+**Translations reviewed by**: machine-assisted draft pending native-speaker review. We track reviewer credits publicly — see [docs/translation-review-template.md](docs/translation-review-template.md) and the [translation-review issue template](.github/ISSUE_TEMPLATE/translation-review.yml). Confirmed reviewers will be listed below as the v1.x review pass completes.
+
+| Locale | Reviewer | Date | Corrections applied |
+|---|---|---|---|
+| `en` | (source — no review needed) | — | — |
+| `zh-CN` | _pending_ | _pending_ | _pending_ |
+| `ja` | _pending_ | _pending_ | _pending_ |
+| `es` | _pending_ | _pending_ | _pending_ |
+| `de` | _pending_ | _pending_ | _pending_ |
 
 ### PDF report (audit.pdf)
 
@@ -814,6 +824,8 @@ A persistent local cache memoises results from the deterministic primitives so r
 | `AUDIT_RESULT_CACHE_PATH` | `~/.ai-browser-auditor/result-cache.db` | SQLite path; isolate per environment |
 | `AUDIT_RESULT_CACHE_TTL_MS` | `86400000` (24h) | Entries older than this are misses + pruned |
 | `AUDIT_RESULT_CACHE_DISABLED` | unset | `1` / `true` to bypass entirely (read = miss, write = no-op) |
+| `AUDIT_RESULT_CACHE_MAX_ROWS` | `10000` | LRU cap; oldest `last_used_at` rows evicted past this. `0` disables. |
+| `AUDIT_RESULT_CACHE_MAX_DISK_MB` | `500` | LRU cap by DB size; same eviction order. `0` disables. |
 
 **Per-call overrides** (also exposed on each MCP tool as `cache` / `cache_bust` / `cache_ttl_ms`):
 
@@ -824,6 +836,29 @@ A persistent local cache memoises results from the deterministic primitives so r
 **Schema-version invalidation:** entries written under a different `RESULT_SCHEMA_VERSION` are treated as misses and removed at the next prune. The cache survives additive minor bumps automatically; major bumps invalidate everything.
 
 See [ADR-015](docs/decisions/ADR-015-result-cache.md) for design.
+
+## Artifact retention
+
+Each MCP primitive call (`see` / `act` / `extract` / `judge` / `compare`) writes a per-call subdirectory under `~/.ai-browser-auditor/<kind>/` containing screenshots, DOM dumps, payload JSON, and the LLM response. Long-running MCP servers can accumulate gigabytes over a month. PixelCheck enforces a 30-day retention window by default and prunes lazily.
+
+```bash
+ai-audit prune          # explicit cleanup; prints summary, exit 1 on errors
+```
+
+The MCP server runs the same prune at most once per 24 hours on startup
+(`prune-stamp.json` records the last run; subsequent connects within the
+window skip prune entirely).
+
+| Env var | Default | Effect |
+|---|---|---|
+| `AUDIT_SEES_RETENTION_DAYS` | 30 | Retention window for `see` artifacts; `0` disables |
+| `AUDIT_ACTS_RETENTION_DAYS` | 30 | Same, for `act` |
+| `AUDIT_EXTRACTS_RETENTION_DAYS` | 30 | Same, for `extract` |
+| `AUDIT_JUDGES_RETENTION_DAYS` | 30 | Same, for `judge` |
+| `AUDIT_COMPARES_RETENTION_DAYS` | 30 | Same, for `compare` |
+| `AUDIT_<KIND>_DIR` | `~/.ai-browser-auditor/<kind>` | Custom storage dir per kind |
+
+Setting a retention to `0` means **infinite retention** (skip prune for that kind), matching how every Linux retention tool behaves. To bulk-delete a kind, use `rm -rf ~/.ai-browser-auditor/<kind>` directly.
 
 ## Built With
 

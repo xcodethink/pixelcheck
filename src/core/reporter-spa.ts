@@ -17,6 +17,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuditRun } from "./types.js";
 import { redactDeep } from "./secrets.js";
+import {
+  SPA_I18N,
+  SPA_DEFAULT_LOCALE,
+  type SpaLocale,
+} from "./reporter-spa-i18n.js";
 
 export function writeSpaReport(audit: AuditRun, runDir: string): string {
   const filePath = path.join(runDir, "audit-explorer.html");
@@ -35,8 +40,12 @@ function renderSpa(audit: AuditRun): string {
   const jsonSafe = JSON.stringify(audit)
     .replace(/</g, "\\u003C")
     .replace(/>/g, "\\u003E");
+  const i18nJson = JSON.stringify(SPA_I18N)
+    .replace(/</g, "\\u003C")
+    .replace(/>/g, "\\u003E");
+  const defaultLocale: SpaLocale = SPA_DEFAULT_LOCALE;
   return `<!doctype html>
-<html lang="en">
+<html lang="${defaultLocale}" data-default-lang="${defaultLocale}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -133,7 +142,7 @@ function renderSpa(audit: AuditRun): string {
 <body>
 
 <header>
-  <h1>Audit Explorer</h1>
+  <h1 data-i18n="audit_explorer_title">Audit Explorer</h1>
   <span class="meta" id="metaProject"></span>
   <span class="meta" id="metaRun"></span>
 </header>
@@ -142,29 +151,29 @@ function renderSpa(audit: AuditRun): string {
   <div class="summary" id="summary"></div>
 
   <div class="filter-bar">
-    <label>persona</label>
-    <select id="fPersona"><option value="">all</option></select>
-    <label>scenario</label>
-    <select id="fScenario"><option value="">all</option></select>
-    <label>status</label>
+    <label data-i18n="filter_persona">persona</label>
+    <select id="fPersona"><option value="" data-i18n="filter_all">all</option></select>
+    <label data-i18n="filter_scenario">scenario</label>
+    <select id="fScenario"><option value="" data-i18n="filter_all">all</option></select>
+    <label data-i18n="filter_status">status</label>
     <select id="fStatus">
-      <option value="">all</option>
+      <option value="" data-i18n="filter_all">all</option>
       <option value="pass">pass</option>
       <option value="pass_with_issues">warn</option>
       <option value="fail">fail</option>
     </select>
-    <label>dim ≤</label>
+    <label data-i18n="filter_dim_max">dim ≤</label>
     <input id="fDimMax" type="number" min="0" max="10" step="0.5" placeholder="10" />
-    <label>issue</label>
+    <label data-i18n="filter_issue">issue</label>
     <select id="fSeverity">
-      <option value="">any</option>
+      <option value="" data-i18n="filter_any">any</option>
       <option value="critical">critical</option>
       <option value="high">high</option>
       <option value="medium">medium</option>
       <option value="low">low</option>
     </select>
-    <button onclick="expandAll()">Expand all</button>
-    <button onclick="collapseAll()">Collapse</button>
+    <button onclick="expandAll()" data-i18n="btn_expand_all">Expand all</button>
+    <button onclick="collapseAll()" data-i18n="btn_collapse">Collapse</button>
     <span class="count" id="count">0 of 0</span>
   </div>
 
@@ -172,25 +181,68 @@ function renderSpa(audit: AuditRun): string {
 </div>
 
 <script type="application/json" id="__AUDIT_DATA__">${jsonSafe}</script>
+<script type="application/json" id="__AUDIT_I18N__">${i18nJson}</script>
 <script>
 const audit = JSON.parse(document.getElementById('__AUDIT_DATA__').textContent);
+const I18N = JSON.parse(document.getElementById('__AUDIT_I18N__').textContent);
+const DEFAULT_LOCALE = ${JSON.stringify(defaultLocale)};
+
+// ── Locale resolution ──
+// Priority: ?lang=... query string → navigator.language family fallback → default.
+function resolveLocale() {
+  const params = new URLSearchParams(window.location.search);
+  const fromQs = params.get('lang') || params.get('locale');
+  const candidate = fromQs || (typeof navigator !== 'undefined' ? navigator.language : '');
+  if (!candidate) return DEFAULT_LOCALE;
+  if (I18N[candidate]) return candidate;
+  // Family fallback (zh-* → zh-CN, etc).
+  const lower = String(candidate).toLowerCase();
+  for (const k of Object.keys(I18N)) {
+    if (k.toLowerCase() === lower) return k;
+  }
+  if (lower.startsWith('zh')) return I18N['zh-CN'] ? 'zh-CN' : DEFAULT_LOCALE;
+  if (lower.startsWith('ja')) return I18N['ja'] ? 'ja' : DEFAULT_LOCALE;
+  if (lower.startsWith('es')) return I18N['es'] ? 'es' : DEFAULT_LOCALE;
+  if (lower.startsWith('de')) return I18N['de'] ? 'de' : DEFAULT_LOCALE;
+  return DEFAULT_LOCALE;
+}
+
+const LOCALE = resolveLocale();
+document.documentElement.lang = LOCALE;
+
+function t(key, vars) {
+  const dict = I18N[LOCALE] || I18N[DEFAULT_LOCALE];
+  let s = (dict && dict[key]) || I18N[DEFAULT_LOCALE][key] || key;
+  if (vars) {
+    s = s.replace(/\\{(\\w+)\\}/g, function (_m, k) {
+      return Object.prototype.hasOwnProperty.call(vars, k) ? String(vars[k]) : '{' + k + '}';
+    });
+  }
+  return s;
+}
+
+function applyStaticI18n() {
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  }
+}
 
 // ── Initial render ──
 document.getElementById('metaProject').textContent = audit.project_name;
-document.getElementById('metaRun').textContent = audit.run_id + ' · ' + new Date(audit.started_at).toLocaleString();
+document.getElementById('metaRun').textContent = audit.run_id + ' · ' + new Date(audit.started_at).toLocaleString(LOCALE);
 
 function renderSummary() {
   const s = audit.summary;
   const cards = [
-    ['Total', s.total, ''],
-    ['Pass', s.pass, 'pass'],
-    ['Warn', s.pass_with_issues, 'warn'],
-    ['Fail', s.fail, 'fail'],
-    ['Issues', s.total_issues, ''],
-    ['Cost', '$' + s.total_cost_usd.toFixed(3), ''],
+    [t('summary_total'), s.total, ''],
+    [t('summary_pass'), s.pass, 'pass'],
+    [t('summary_warn'), s.pass_with_issues, 'warn'],
+    [t('summary_fail'), s.fail, 'fail'],
+    [t('summary_issues'), s.total_issues, ''],
+    [t('summary_cost'), '$' + s.total_cost_usd.toFixed(3), ''],
   ];
   document.getElementById('summary').innerHTML = cards.map(([l,v,cls]) =>
-    '<div class="card"><div class="label">' + l + '</div><div class="value ' + cls + '">' + v + '</div></div>'
+    '<div class="card"><div class="label">' + esc(l) + '</div><div class="value ' + cls + '">' + esc(String(v)) + '</div></div>'
   ).join('');
 }
 
@@ -227,10 +279,10 @@ function filteredResults() {
 
 function renderUnits() {
   const results = filteredResults();
-  document.getElementById('count').textContent = results.length + ' of ' + audit.results.length;
+  document.getElementById('count').textContent = t('count_format', { n: results.length, total: audit.results.length });
   const container = document.getElementById('units');
   if (results.length === 0) {
-    container.innerHTML = '<div class="empty">No results match your filters.</div>';
+    container.innerHTML = '<div class="empty">' + esc(t('empty_no_results')) + '</div>';
     return;
   }
 
@@ -263,18 +315,26 @@ function renderUnit(r, globalMax) {
     (i.recommendation ? '<div class="rec">→ ' + esc(i.recommendation) + '</div>' : '') + '</div>'
   ).join('');
 
+  const stepHeader = '<tr>' +
+    '<th>' + esc(t('step_col_id')) + '</th>' +
+    '<th>' + esc(t('step_col_type')) + '</th>' +
+    '<th>' + esc(t('step_col_status')) + '</th>' +
+    '<th>' + esc(t('step_col_duration')) + '</th>' +
+    '<th>' + esc(t('step_col_timing')) + '</th>' +
+    '<th>' + esc(t('step_col_via')) + '</th></tr>';
+
   return '<div class="unit">' +
     '<div class="unit-hdr">' +
       '<h3>' + esc(r.scenario_name) + ' × ' + esc(r.persona_display_name) + '</h3>' +
       '<span class="score-pill">' + r.overall_score.toFixed(1) + '/10 · $' + r.cost_usd.toFixed(3) + ' · ' + (r.duration_ms/1000).toFixed(1) + 's</span>' +
-      '<span class="status-badge status-' + status + '">' + status.replace(/_/g, ' ') + '</span>' +
+      '<span class="status-badge status-' + status + '">' + esc(status.replace(/_/g, ' ')) + '</span>' +
     '</div>' +
     '<div class="unit-body">' +
-      (dims ? '<h4>Dimensions</h4><div class="dims">' + dims + '</div>' : '') +
-      (steps ? '<h4>Steps (' + r.steps.length + ')</h4>' +
-        '<table class="steps-table"><thead><tr><th>id</th><th>type</th><th>status</th><th>duration</th><th>timing</th><th>via</th></tr></thead>' +
+      (dims ? '<h4>' + esc(t('section_dimensions')) + '</h4><div class="dims">' + dims + '</div>' : '') +
+      (steps ? '<h4>' + esc(t('section_steps_n', { n: r.steps.length })) + '</h4>' +
+        '<table class="steps-table"><thead>' + stepHeader + '</thead>' +
         '<tbody>' + steps + '</tbody></table>' : '') +
-      (issues ? '<h4>Issues (' + r.issues.length + ')</h4><div class="issues">' + issues + '</div>' : '') +
+      (issues ? '<h4>' + esc(t('section_issues_n', { n: r.issues.length })) + '</h4><div class="issues">' + issues + '</div>' : '') +
     '</div>' +
   '</div>';
 }
@@ -289,6 +349,7 @@ for (const id of ['fPersona','fScenario','fStatus','fDimMax','fSeverity']) {
   document.getElementById(id).addEventListener('input', renderUnits);
 }
 
+applyStaticI18n();
 renderSummary();
 populateFilters();
 renderUnits();

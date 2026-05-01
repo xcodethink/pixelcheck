@@ -144,6 +144,29 @@ export async function runMcpServer(): Promise<void> {
     }) as unknown as Promise<Record<string, unknown>>;
   });
 
+  // Lazy prune of stale primitive artifact dirs (T9 — closes R50).
+  // At-most-once-per-24h via prune-stamp.json so we don't burn CPU on
+  // every MCP-server connect. Failures are logged and ignored — prune
+  // is a janitor task, never block server start.
+  try {
+    const { pruneIfStale } = await import("../core/artifacts-prune.js");
+    const result = pruneIfStale();
+    if (result) {
+      log.info(
+        {
+          totalDeleted: result.totalDeleted,
+          totalBytesFreed: result.totalBytesFreed,
+        },
+        "lazy-pruned stale primitive artifacts",
+      );
+    }
+  } catch (err) {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "lazy artifact prune failed",
+    );
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

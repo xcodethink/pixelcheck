@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (Wave 5 — P1 收口 5 件套：T11 + T10 + T9 + T17 + T18)
+
+- **关闭 RISK-REGISTER R11 / R49 / R50 / R51 / R52 / R53 / R65（partial）** ✅（7 risks）。**Wave 5 P1 收口** 5 个互不冲突的小任务并行推进：translation review template / CI bench observation / artifacts retention / result-cache LRU disk-quota / SPA core i18n.
+
+#### T11 — Native translation review template + GitHub issue template + README placeholder
+
+- **`docs/translation-review-template.md`**（~150 LoC）：reviewer 元数据 block + 90 keys 行级表（前 30 keys 行 + 自动生成剩余 60 keys 的命令）+ 5 cross-cutting feedback 段（style/register / cultural / number/unit/date / missing keys）+ sign-off checklist + 入库流程；每 reviewer 用文件 `docs/translation-review-<locale>-<reviewer>.md` 公开追踪。
+- **`.github/ISSUE_TEMPLATE/translation-review.yml`**：reviewer announce 渠道（避免两人撞同一 locale）+ profile / target date / questions 字段 + 3 acknowledgement checkboxes（已读 template / 会提 PR / 同意公开列名）。
+- **README "Localised reports" 段加 reviewer 表**：5 行（en source / zh-CN / ja / es / de），4 个 _pending_ 占位等 v1.x reviewer 反馈。
+
+#### T10 — CI bench observation workflow（5-run calibration window）
+
+- **新 `.github/workflows/bench.yml`**：weekly cron Sunday 03:17 UTC + workflow_dispatch + opt-in PR via `bench` label；ubuntu-latest Node 20 fixed runner profile；`npm run bench` + `npm run bench:check` continue-on-error；`docs/perf-current.json` 上传 90 天 retention artifact。
+- **新 `docs/decisions/ADR-031-ci-bench-observation-mode.md`**（~110 LoC）：5+ 次 observation 后做 promotion criteria（empirical p95 deviation × 1.5 → calibrated tolerance / 改 bench:check 为 required check / 加进 branch protection）+ "为什么不一开始就 gate" / "为什么不 skip" / "为什么不 12-config matrix" / "为什么不 every PR" 决策原则；docs/decisions/README.md Engineering 段补 ADR-031 行。
+
+#### T9 — Artifacts retention prune（CLI ai-audit prune + lazy MCP server prune）
+
+- **新 `src/core/artifacts-prune.ts`**（~250 LoC）：5 primitive kinds（sees / acts / extracts / judges / compares）每 kind 独立 retention（默认 30 天）+ 独立 dir override（`AUDIT_<KIND>_DIR`）；mtime > cutoff → recursive rm；`pruneOneKind` / `pruneAllArtifacts` / `pruneIfStale` 三层 API；`pruneIfStale` 通过 `~/.ai-browser-auditor/prune-stamp.json` 实现 at-most-once-per-24h（mode 0600）；`renderPruneReport` 渲染 multi-line 摘要 pure 函数；`formatBytes` B/KB/MB/GB 渲染。
+- **CLI `ai-audit prune`**：用户显式触发；exit 1 if any kind 有 errors；skipStamp:true 让连跑两次都真跑。
+- **MCP server lazy prune on startup**：transport.connect 前调 `pruneIfStale()`，结果 log.info；失败 log.warn 不 block 启动。
+- **环境变量**：`AUDIT_SEES_RETENTION_DAYS` / `AUDIT_ACTS_RETENTION_DAYS` / `AUDIT_EXTRACTS_RETENTION_DAYS` / `AUDIT_JUDGES_RETENTION_DAYS` / `AUDIT_COMPARES_RETENTION_DAYS`，默认 30，**`0` 表 infinite retention 不是"立刻删除"**（与 logrotate / journald 一致）。
+- **README 新 "Artifact retention" 段**：CLI + 5 env vars 表 + MCP lazy prune 说明 + bulk-delete 用 `rm -rf`。
+- **28 新单测**（`tests/artifacts-prune.test.ts`）：retention 默认 + env override + 0 表 infinite + dir env override + 5 kind 全跑 + stamp file mode 0600 + skipStamp + pruneIfStale 24h 窗口（fresh / stale / malformed / missing）+ renderPruneReport / formatBytes / ARTIFACT_KINDS 数组形状。
+
+#### T17 — Result-cache LRU disk-quota（MAX_ROWS / MAX_DISK_MB）
+
+- **`src/core/result-cache.ts` migration v2** 加 `last_used_at INTEGER NOT NULL DEFAULT 0` + 回填 `last_used_at = created_at` + `idx_cache_last_used` index；migration runner 一次性 idempotent 升级。
+- **新 `enforceLruCaps()`** 在 `pruneCache` 内部调用：先 row-count cap（DELETE oldest `last_used_at` LIMIT overshoot），后 disk-MB cap（fs.statSync(dbPath) → 迭代删 ≤ 6 轮直到 size < cap 或 diminishing returns < 1%）；TTL prune 先跑，LRU 跑剩余。
+- **`lookupCache` 命中后 bump `last_used_at = now`**：让真用的 entry 不被 LRU 误伤（best-effort 写失败不 fail hit）。
+- **`storeCache` 写入也设 `last_used_at = now`**（INSERT + ON CONFLICT 都设）。
+- **环境变量**：`AUDIT_RESULT_CACHE_MAX_ROWS`（默认 10000）+ `AUDIT_RESULT_CACHE_MAX_DISK_MB`（默认 500）；**`0` 表 disabled**（与 retention 一致）。
+- **README "Result Cache" 段加 2 行**：MAX_ROWS + MAX_DISK_MB env vars。
+- **5 新单测**（`tests/result-cache.test.ts`）：lookup hit bump last_used_at 让 touched entry 抗 LRU + row-count cap 删 oldest + 0 disables + env vars 驱动 + TTL+LRU 混合（TTL prune 先 LRU 后）。
+
+#### T18 — Audit-explorer.html SPA 核心 i18n（27 keys × 5 locales + query string detection）
+
+- **新 `src/core/reporter-spa-i18n.ts`**（~200 LoC）：27 SPA UI keys（audit_explorer_title / btn_collapse / btn_expand_all / count_format / empty_no_results / 5 filter labels + 2 dropdown words / 3 section headings + 6 step column headers / 6 summary cards）× 5 locales (en / zh-CN / ja / es / de)；`SPA_I18N` 字典 + `normaliseSpaLocale` family fallback (`zh-Hans`/`zh-TW` → `zh-CN`)；`spaInterpolate` `{n}` placeholder 替换；`spaT` lookup with en fallback；`lintSpaTranslations` 强制 100% key coverage。
+- **`src/core/reporter-spa.ts` 改 SPA HTML+JS**：每 static label 加 `data-i18n="<key>"` attr → `applyStaticI18n()` boot 时一次扫齐；inline 第二个 `<script type="application/json" id="__AUDIT_I18N__">` 装 5 locale 字典 JSON（< / > 字符 escape 防 XSS）；boot JS 加 `resolveLocale()` priority order：`?lang=` query → `?locale=` query → `navigator.language` family fallback → en；`document.documentElement.lang` 同步；`renderSummary` / `renderUnits` / `renderUnit` 全部走 `t(key, vars)`；`new Date(audit.started_at).toLocaleString(LOCALE)` 让日期格式跟 locale。
+- **17 新单测**（`tests/reporter-spa-i18n.test.ts` 11 + `tests/reporter-spa.test.ts` +6 集成）：5 locale × 27 keys 100% 覆盖 + sentinel keys 在 zh/ja 真翻译不与 en 同字符串 + `normaliseSpaLocale` 7 路 fallback + `spaInterpolate` 缺 key 保留 placeholder + `spaT` count_format / section_steps_n 插值 + SPA HTML 含 `id="__AUDIT_I18N__"` + 5 locale 都进 inlined JSON + `data-i18n` 标在 10 个静态 label + 4 国家 sentinel 翻译进 HTML（"审计浏览器" / "監査エクスプローラー" / "Explorador de auditoría" / "Audit-Explorer"）+ JS 引用 URLSearchParams + navigator.language。
+- **README `audit-explorer.html` 备注**：加 "open with `?lang=zh-CN/ja/es/de` for localised UI chrome"。
+
+完整回归：tsc ✓ / build ✓ / **vitest 1608 → 1664 (+56) ✓** / lint:no-console ✓ / 0 schemas diff / npm pack 565.5 KB / 315 files。
+
 ### Added (T24 — Wave 3 收尾: FAQ + TROUBLESHOOTING + typedoc API ref)
 
 - **关闭 RISK-REGISTER R18 / R19 / R20 / R21** ✅。**Wave 3 第五颗子弹（5/5 完整收尾）** —— 用户文档闭环 + 公开 API 参考可生成。
