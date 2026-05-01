@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Added (T6 — Wave 2 真 axe + SARIF GitHub Code Scanning 验证)
+
+- **关闭 RISK-REGISTER R6** ✅：真 axe-core 在 fixture 上跑过；SARIF 输出形状 + ruleIds + W3C help URLs 都通过 integration 测试验证；GHCS 手动上传 SOP 文档化（screenshot 待 v1.0-rc1 reviewer 上传）。
+- `tests/integration/playwright/wcag-axe.test.ts` (~330 LoC, 5 tests):
+  - **真 axe-core scan**：launch chromium → load `a11y-broken-page.html` → addScriptTag(axe.min.js) → page.evaluate(axe.run) → 验 violations 含 `image-alt` / `label` / `color-contrast` / `button-name` + 每条 violation 含 wcag tag
+  - **parseAxeTags 验 WcagAttribution shape**：每个 violation 的 tags 经 parseAxeTags → `attr.criterion` 是 WcagSuccessCriterion 对象（id 点分 / level A|AA|AAA / principle perceivable|operable|understandable|robust）
+  - **renderSarif emits wcag/X-Y-Z ruleIds**：6 issues / 5 unique WCAG SC → 5 rules 含 `wcag/1-1-1` / `wcag/4-1-2` / `wcag/1-4-3` / `wcag/2-4-4` / `wcag/1-3-1` + 每个 rule 含 W3C Understanding URL
+  - **writeSarifReport** persists 有效 SARIF JSON 到 `<runDir>/audit.sarif` ≥ 1KB + version 2.1.0
+  - **SARIF fixture byte-identical** 验证 `docs/integration/fixture-sarif.json` 跟 renderSarif 输出 byte-for-byte 一致 → 任何 SARIF 输出 shape 漂移立即在 CI fail
+- **SARIF 增强（src/core/ci-reporters.ts）**：rule 加 `helpUri` + `help.markdown` 字段（SARIF 2.1.0 § 3.49.12-13）。GHCS UI 用它们渲染顶部"View documentation"链接 + 展开 markdown 帮助段。WCAG rules 的 helpUri 自动填 W3C Understanding URL。
+- **`scripts/gen-sarif-fixture.ts`** (~85 LoC)：生成器 → `docs/integration/fixture-sarif.json` (10KB) → 任何 renderSarif 改动 → diff PR review 立即看到 SARIF shape 变化。
+- **`docs/integration/sarif-upload-verified.md`** (~110 LoC)：完整手动 GHCS 上传 SOP，含：8 步流程 + 5 项 UI 验证 checklist + 失败排查表（6 种 failure mode → likely cause + fix）+ 验证日志表（screenshots 待 v1.0-rc1）+ 见 also 链接 4 个相关文档。
+- **🆕 衍生发现 R-NEW-11**（P0）：跑 fixture 时发现 `handleAssertA11y` 默认 `runOnly: ["wcag2aa"]` 是 axe 精确匹配只跑 AA 标记规则 → **漏 A 级 WCAG 违规**（image-alt / label / button-name 都是 A 级，单 wcag2aa run 完全找不到）。生产 audit 结果可能严重低估 a11y 违规数。RISK-REGISTER-V2 入册 R-NEW-11，单独 T-NEW-11 任务（~30 分钟修：改 handler + 加单测 + 加 integration 验证）。
+- 完整回归：tsc ✓ / build ✓ / vitest 1536/1536 ✓ / playwright 14/14 ✓ in 18s / 0 schemas diff / 0 bench regression / npm pack 1.2 MB / 603 files。
+
 ### Added (T4 — Wave 2 recorder browser-only + reporter-pdf real chromium)
 
 - **关闭 RISK-REGISTER R3** ✅：recorder.ts 的 `page.evaluate` 内部 lazy-load + docHeight callback / reporter-pdf.ts 真 chromium PDF export 从此在 CI 跑 (待 T26 wired)。
