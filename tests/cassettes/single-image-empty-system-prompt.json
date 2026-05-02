@@ -1,0 +1,34 @@
+{
+  "case_name": "single-image-empty-system-prompt",
+  "recorded_at": "2026-05-02T13:30:20.390Z",
+  "schema_version": "1.0.0",
+  "model": "claude-sonnet-4-6",
+  "request": {
+    "url": "https://api.anthropic.com/v1/messages",
+    "method": "POST",
+    "body_hash": "<not-tracked-by-design>"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_single-image-empty-system-prompt_recorded",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-sonnet-4-6",
+      "content": [
+        {
+          "type": "text",
+          "text": "## Image Description\n\nThe image shows a **web page** called **\"AV Fixture Site\"**, which appears to be a testing/demo page (likely used for automated testing or QA purposes).\n\n### Page Structure:\n\n**Header:**\n- Title: \"AV Fixture Site\" (large, bold)\n\n**Navigation Links:**\n- Home\n- Success\n- Slow Page\n- Broken Page\n- Layout Shift\n\n### Two Content Sections (in bordered cards):\n\n1. **Signup Card**\n   - Heading: \"Signup\"\n   - Email input field with placeholder: `you@example.com`\n   - A **\"Sign up\"** button\n\n2. **Load Data Card**\n   - Heading: \"Load data\"\n   - A **\"Load\"** button\n\n### Overall Appearance:\n- Clean, minimal white design\n- Simple typography\n- Cards have rounded corners with light borders\n- Appears to be a **fixture/test page** commonly used in **end-to-end (E2E) testing** frameworks like Playwright, Cypress, or similar tools"
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 1351,
+        "output_tokens": 246,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}

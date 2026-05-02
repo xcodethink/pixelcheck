@@ -463,45 +463,36 @@ test.describe("redactSensitiveInputs — real chromium DOM mutation", () => {
 
     await redactSensitiveInputs(page);
 
-    // Sensitive fields MUST be redacted by the v1.0 6-dimension heuristic
-    // (type / autocomplete / name / id / aria-label matching
-    //  /password|secret|token|api[_-]?key|otp|pin/).
+    // Sensitive fields MUST be redacted by the v1.0 expanded 12-pattern
+    // heuristic (type / autocomplete / name / id / aria-label / placeholder
+    // matching the comprehensive sensitive-name regex covering password,
+    // secret, token, api-key, OTP, PIN, recovery/backup codes, MFA/2FA,
+    // AWS access/secret, private keys, passphrase, SSN, credit card,
+    // CVV/CVC).
     const REDACTED_IDS = [
       "password", // type=password
       "otp", // autocomplete=one-time-code + name=otp
+      "recovery_code", // name + aria-label "Recovery code" matches /recovery[_-]?code/
       "new_password", // type=password + autocomplete=new-password
       "stripe_live_key", // name=stripe_secret_key matches /secret/
+      "aws_access_key_id", // name=aws_access_key_id matches /aws[_-]?(access|secret)/
       "auth_token", // name+id has "token"
       "oauth-bearer-token", // name+id has "token"
       "api_key_label", // aria-label "API key" matches /api[_-]?key/
+      "cc_number", // autocomplete=cc-number
+      "cc_csc", // autocomplete=cc-csc
+      "cc_exp", // autocomplete=cc-exp
     ];
     for (const id of REDACTED_IDS) {
       const value = await page.locator(`#${id}`).inputValue();
       expect(value, `#${id} should be redacted`).toBe("********");
     }
 
-    // Known v1.0 heuristic gaps (documented; v1.x expansion candidates).
-    // The heuristic deliberately stays conservative — false positives
-    // (redacting harmless fields) erode visual fidelity. Recovery /
-    // backup codes / credit card numbers are not in v1.0 scope. Tested
-    // here so a future heuristic expansion making them ✅ has to update
-    // this assertion list, surfacing the change in code review.
-    expect(await page.locator("#recovery_code").inputValue()).toBe(
-      "abcd-efgh-ijkl-mnop",
-    );
-    expect(await page.locator("#aws_access_key_id").inputValue()).toBe(
-      "AKIAIOSFODNN7EXAMPLE",
-    );
-
     // Innocuous / non-sensitive fields MUST be untouched
     expect(await page.locator("#email").inputValue()).toBe(HARMLESS_EMAIL);
     expect(await page.locator("#cc_name").inputValue()).toBe(HARMLESS_CARDHOLDER);
     expect(await page.locator("#full_name").inputValue()).toBe(HARMLESS_NAME);
     expect(await page.locator("#address").inputValue()).toBe(HARMLESS_ADDRESS);
-    // Credit card fields are NOT in the heuristic (PCI tokenisation makes
-    // them less of a concern, and labels rarely match secret|token|api).
-    // A future v1.x expansion can add them — see R-NEW-58.
-    expect(await page.locator("#cc_number").inputValue()).toBe(FAKE_CC);
 
     // ── End-to-end via Recorder.screenshotSegments (default redact ON) ──
     const dir = tmpArtefactsDir();

@@ -1,0 +1,34 @@
+{
+  "case_name": "multi-image-with-system-prompt",
+  "recorded_at": "2026-05-02T13:30:09.444Z",
+  "schema_version": "1.0.0",
+  "model": "claude-sonnet-4-6",
+  "request": {
+    "url": "https://api.anthropic.com/v1/messages",
+    "method": "POST",
+    "body_hash": "<not-tracked-by-design>"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_multi-image-with-system-prompt_recorded",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-sonnet-4-6",
+      "content": [
+        {
+          "type": "text",
+          "text": "No differences detected — the two images are visually identical."
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 2726,
+        "output_tokens": 15,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}

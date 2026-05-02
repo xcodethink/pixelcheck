@@ -1,0 +1,84 @@
+name: Feature request
+description: Suggest a new feature, primitive, scenario step type, or scenario template.
+title: "[feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for thinking about how PixelCheck could be better.
+
+        Before filing, please skim:
+        - [README — How is this different?](https://github.com/xcodethink/pixelcheck#how-is-this-different) — to see the existing scope
+        - [docs/decisions/](https://github.com/xcodethink/pixelcheck/tree/main/docs/decisions) — Architecture Decision Records explain why some apparent gaps are intentional
+        - [Existing feature requests](https://github.com/xcodethink/pixelcheck/issues?q=is%3Aissue+label%3Aenhancement) — to avoid duplicates
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem you're trying to solve
+      description: |
+        What user goal does the current PixelCheck not support, or supports awkwardly? Describe the user / persona, not the implementation you'd like.
+      placeholder: |
+        I'm a QA lead running PixelCheck against our staging deploys. Today every audit re-fingerprints the browser from scratch, which adds ~3s per run × 50 PRs/week = 2.5 min/week of CI wall time. I wish there were a way to reuse a fingerprint across runs in the same project.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution (optional)
+      description: |
+        If you have a concrete proposal, sketch it here. Otherwise leave blank — maintainers may have a better-fitting design once we understand the underlying problem.
+      placeholder: |
+        Add a `--cache-fingerprint` flag that hashes (project + persona + base_url) and stores the fingerprint in ~/.pixelcheck/fingerprints/, expiring after 7 days.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: |
+        Have you tried workarounds? Are there other tools that solve this differently?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Best-fit scope
+      description: |
+        Which contract surface would the change touch?
+      options:
+        - "CLI flag / config option (additive, no breaking change)"
+        - "MCP tool surface (additive)"
+        - "New primitive (alongside see / act / extract / judge / compare)"
+        - "Scenario step type (alongside visit / assert_a11y / etc.)"
+        - "Result schema field (additive minor bump)"
+        - "Reporter format (HTML / PDF / SARIF / etc.)"
+        - "Build / dev experience (CI / lint / docs)"
+        - "Other / not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority for you
+      options:
+        - "Blocker — would adopt PixelCheck if this existed"
+        - "Strong wish — would notably improve our workflow"
+        - "Nice to have"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: "I have searched existing feature requests for duplicates."
+          required: true
+        - label: "I understand maintainer time is limited; a feature request is a discussion starter, not a commitment."
+          required: true
