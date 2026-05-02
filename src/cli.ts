@@ -47,6 +47,7 @@ import {
   writeSampleScenario,
 } from "./commands/init-interactive.js";
 import { ensureConsent } from "./core/consent.js";
+import { getPackageVersion } from "./core/version.js";
 
 // quiet: true silences dotenv 17's default load banner — `dotenv.config()`
 // without options writes a "[dotenv@17] injecting env (N) from .env" line
@@ -149,7 +150,7 @@ program
   .description(
     "MCP-first browser primitives for AI agents — real eyes and hands on the web. Local-first. Vendor-agnostic.",
   )
-  .version("1.0.1");
+  .version(getPackageVersion());
 
 program
   .command("run", { isDefault: true })
