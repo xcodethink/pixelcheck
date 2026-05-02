@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — v1 worktree (worktree-v1-ai-first)
 
-> Phase 1 (AI core) work-in-packaging for the Big Bang v1 release. Not yet shipped.
+> Phase 1 (AI core) + ship-prep + W1 brand alignment for the Big Bang v1 release. Not yet shipped.
+
+### BREAKING — Renamed to PixelCheck + Repositioned as AI-first MCP infrastructure (W1 ADR-033, 2026-05-01)
+
+- **npm package name**: `ai-browser-auditor` → `pixelcheck`
+- **CLI bin**: `ai-audit` → `pixelcheck`
+- **MCP server bin**: `ai-audit-mcp` → `pixelcheck-mcp`
+- **Default data home**: `~/.ai-browser-auditor/` → `~/.pixelcheck/` (with backward-compat alias env vars; see MIGRATION.md)
+- **Repository URL**: `github.com/xcodethink/ai-browser-auditor` → `github.com/xcodethink/pixelcheck` (GitHub auto-redirect from old URL)
+- **Product positioning** (per ADR-001 / ADR-002, formalised in ADR-033):
+  - Old framing: "AI-driven post-deployment UX audit tool for human developers"
+  - New framing: "MCP-first browser primitives for AI agents — real eyes and hands on the web. Vendor-agnostic. Local-first."
+  - Audit is now a *preset composition* of see / act / extract / judge primitives across personas (not the product core)
+- **Files affected**:
+  - `package.json` — name + description + keywords + bin entries + repository URL
+  - `README.md` — H1 + tagline + structure (AI agents primary use mode, audit preset secondary)
+  - `docs/launch-post.md` + `docs/launch-post-zh.md` + `docs/show-hn.md` — full rewrite for MCP-first / vendor-agnostic / local-first narrative
+  - `docs/decisions/ADR-033-rename-to-pixelcheck.md` — new (decision record)
+  - `docs/research/W1-pre-ship-positioning-audit.md` — new (research doc)
+  - `MIGRATION.md` — added v0.x → v1.0 command + path mapping section
+  - Source code: bin entry points, default data home paths (with backward-compat env var aliases)
+- **Migration for v0.x users**: see [MIGRATION.md](./MIGRATION.md). Net effect: replace `ai-audit` with `pixelcheck` in commands; `~/.ai-browser-auditor/` is auto-migrated on first run with backup; no data loss.
+- **Why now**: v1.0 ship is the brand-defining moment. Aligning npm package + README + launch materials + ADR-001 strategic positioning before publish avoids irreversible npm-name divergence and uses the 2026-Q2 MCP / vendor-agnostic narrative window.
 
 ### Added / Tested (Wave 7-pre — Ship 前 100% 自验通 / 测试加固 / 自动化防回归)
 

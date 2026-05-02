@@ -154,7 +154,11 @@ export interface CostGuardOptions {
 function defaultLedgerPath(): string {
   const env = process.env.AUDIT_COST_LEDGER_PATH;
   if (env && env.length > 0) return env;
-  return path.join(os.homedir(), ".ai-browser-auditor", "cost-ledger.json");
+  const home =
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
+  return path.join(home, "cost-ledger.json");
 }
 
 function readEnvNumber(name: string, fallback: number): number {

@@ -95,7 +95,7 @@ describe("runDoctor — individual checks", () => {
     const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
     const c = findCheck(r, "config.yaml");
     expect(c.status).toBe("warn");
-    expect(c.remedy).toContain("ai-audit init");
+    expect(c.remedy).toContain("pixelcheck init");
   });
 
   it("config.yaml: ok when present", async () => {

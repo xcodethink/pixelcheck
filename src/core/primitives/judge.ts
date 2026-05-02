@@ -91,7 +91,7 @@ export interface JudgeOptions {
   timeoutMs?: number;
   headless?: boolean;
 
-  /** Where to write per-call artifacts. Default: `$AUDIT_JUDGES_DIR` or `~/.ai-browser-auditor/judges/`. */
+  /** Where to write per-call artifacts. Default: `$AUDIT_JUDGES_DIR` or `~/.pixelcheck/judges/`. */
   artifactsRoot?: string;
 
   /** Vision critic model id. Default `"claude-sonnet-4-6"`. */
@@ -141,7 +141,11 @@ export const DEFAULT_RUBRICS: JudgeRubricKind[] = ["aesthetic"];
 export function defaultJudgeArtifactsRoot(): string {
   const envDir = process.env.AUDIT_JUDGES_DIR;
   if (envDir && envDir.length > 0) return envDir;
-  return path.join(os.homedir(), ".ai-browser-auditor", "judges");
+  const home =
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
+  return path.join(home, "judges");
 }
 
 function makeRunDir(root: string): string {

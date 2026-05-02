@@ -129,7 +129,7 @@ export interface ExtractOptions {
   waitFor?: WaitFor;
   /** Run headless. Default true. */
   headless?: boolean;
-  /** Where to write per-call artifacts. Default `$AUDIT_EXTRACTS_DIR` or `~/.ai-browser-auditor/extracts/`. */
+  /** Where to write per-call artifacts. Default `$AUDIT_EXTRACTS_DIR` or `~/.pixelcheck/extracts/`. */
   artifactsRoot?: string;
   /** LLM model id (must be a key in PRICING). Default `"claude-sonnet-4-6"`. */
   model?: string;
@@ -242,7 +242,11 @@ export const DEFAULT_MODEL = "claude-sonnet-4-6";
 export function defaultArtifactsRoot(): string {
   const envDir = process.env.AUDIT_EXTRACTS_DIR;
   if (envDir && envDir.length > 0) return envDir;
-  return path.join(os.homedir(), ".ai-browser-auditor", "extracts");
+  const home =
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
+  return path.join(home, "extracts");
 }
 
 function makeRunDir(root: string): string {
