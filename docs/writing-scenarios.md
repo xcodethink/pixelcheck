@@ -29,7 +29,7 @@ persistent_storage: false                    # set true for extension scenarios
 steps:
   - id: open-home                            # every step has a unique id
     type: visit                              # see step types below
-    url: https://scamlens.org/${persona.locale}
+    url: https://my-app.com/${persona.locale}
     wait_until: networkidle
 ```
 

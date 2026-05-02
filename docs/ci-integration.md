@@ -43,9 +43,9 @@ The auditor's startup check explicitly **refuses** any key starting with `pk_liv
 
 ### How to set up the Google OAuth test account
 
-1. Create a brand-new Google account dedicated to audits (e.g. `audit-us-scamlens@gmail.com`)
+1. Create a brand-new Google account dedicated to audits (e.g. `audit-us-myapp@gmail.com`)
 2. Enable 2FA-free recovery email
-3. Pre-authorize the ScamLens OAuth app once manually (otherwise consent screen blocks automation)
+3. Pre-authorize your OAuth app once manually (otherwise consent screen blocks automation)
 4. Add to repo secrets
 
 **Risk**: Google may eventually challenge automation. If you see CAPTCHA or "verify it's you" pages in audit reports, rotate to a new account or run the OAuth scenario less frequently (e.g. weekly instead of per-deploy).
@@ -83,7 +83,7 @@ For preview deployments, you can run a smaller subset on every PR. Add a job tha
 - name: Quick audit (PR)
   if: github.event_name == 'pull_request'
   run: |
-    npx ai-audit run \
+    npx pixelcheck run \
       --scenario 02-domain-check-flow \
       --persona us-english-free-mobile \
       --budget 0.50 \

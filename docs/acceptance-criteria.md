@@ -36,7 +36,7 @@
 |----|------|----------------|---------------|
 | P1-14 | Existing scripted runs emit step events | `step:start` and `step:complete` events emitted for each step | Run existing scenario with event listener, count events = 2 * step_count |
 | P1-15 | Session lifecycle events emitted | `session:start` at run begin, `session:end` at run end | Run scenario, verify first and last events |
-| P1-16 | Console logger output visible | Running with `--observe` flag shows colored event logs in terminal | Manual: `ai-audit run --project scamlens --headed`, verify colored output |
+| P1-16 | Console logger output visible | Running with `--observe` flag shows colored event logs in terminal | Manual: `pixelcheck run --project my-app --headed`, verify colored output |
 | P1-17 | Existing scenarios unaffected | All existing scripted scenarios produce identical results with/without event bus | Run same scenario twice, compare StepResult arrays |
 
 ---
@@ -84,8 +84,8 @@
 
 | ID | Test | Expected Result | How to Verify |
 |----|------|----------------|---------------|
-| P2-18 | `--observe` flag starts dashboard | `ai-audit run --observe` starts HTTP server, prints URL | Run command, verify "Observer: http://localhost:3847" printed |
-| P2-19 | `--observe-port` customizes port | Dashboard accessible on custom port | `ai-audit run --observe --observe-port 4000`, curl port 4000 |
+| P2-18 | `--observe` flag starts dashboard | `pixelcheck run --observe` starts HTTP server, prints URL | Run command, verify "Observer: http://localhost:3847" printed |
+| P2-19 | `--observe-port` customizes port | Dashboard accessible on custom port | `pixelcheck run --observe --observe-port 4000`, curl port 4000 |
 | P2-20 | Observer works with existing scripted scenarios | No errors or behavior changes in scripted mode | Run existing scenario with `--observe`, verify pass/fail unchanged |
 
 ---
@@ -164,8 +164,8 @@
 | P5-01 | Scenario loader handles autonomous mode | `mode: autonomous` YAML loads correctly | Load test autonomous YAML |
 | P5-02 | `--mode autonomous` filter works | Only autonomous scenarios run | Create mixed set, verify filtered |
 | P5-03 | `--mode scripted` filter works | Only scripted scenarios run | Same mixed set, verify filtered |
-| P5-04 | `explore` command works | `ai-audit explore --url X --goal Y --criteria Z` runs successfully | Manual test with real URL |
-| P5-05 | `replay` command works | `ai-audit replay <dir>` serves dashboard with historical events | Run then replay, verify dashboard loads |
+| P5-04 | `explore` command works | `pixelcheck explore --url X --goal Y --criteria Z` runs successfully | Manual test with real URL |
+| P5-05 | `replay` command works | `pixelcheck replay <dir>` serves dashboard with historical events | Run then replay, verify dashboard loads |
 | P5-06 | Config schema accepts new model fields | `planner`, `navigator`, `replan` model overrides work | Update config YAML, verify parsed |
 | P5-07 | Config schema accepts agent/observer sections | New sections parsed with defaults | Parse config with/without new sections |
 

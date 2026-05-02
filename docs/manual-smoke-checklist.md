@@ -21,7 +21,7 @@ npx tsx -e "import { startFixtureServer } from './tests/fixtures/test-site/serve
 FIXTURE_PID=$!
 
 # Run the autonomous smoke scenario against the fixture
-ai-audit run --scenario 10-autonomous-smoke --budget 0.5
+pixelcheck run --scenario 10-autonomous-smoke --budget 0.5
 
 kill $FIXTURE_PID
 ```
@@ -37,9 +37,9 @@ Check the produced `reports/<runId>/audit.html`:
 Run the same scenario in all three cost modes and compare outcomes:
 
 ```bash
-AUDIT_COST_MODE=max      ai-audit run --scenario 10-autonomous-smoke --tag smoke-max
-AUDIT_COST_MODE=balanced ai-audit run --scenario 10-autonomous-smoke --tag smoke-balanced
-AUDIT_COST_MODE=economy  ai-audit run --scenario 10-autonomous-smoke --tag smoke-economy
+AUDIT_COST_MODE=max      pixelcheck run --scenario 10-autonomous-smoke --tag smoke-max
+AUDIT_COST_MODE=balanced pixelcheck run --scenario 10-autonomous-smoke --tag smoke-balanced
+AUDIT_COST_MODE=economy  pixelcheck run --scenario 10-autonomous-smoke --tag smoke-economy
 ```
 
 Check `reports/`:
@@ -53,11 +53,11 @@ Check `reports/`:
 ```bash
 # First run — cache miss, Opus planner invoked
 rm -f ~/.ai-browser-auditor/plan-cache.db
-ai-audit run --scenario 10-autonomous-smoke --tag cache-first
+pixelcheck run --scenario 10-autonomous-smoke --tag cache-first
 # Note total cost
 
 # Second run — should hit cache, skip Opus planner
-ai-audit run --scenario 10-autonomous-smoke --tag cache-second
+pixelcheck run --scenario 10-autonomous-smoke --tag cache-second
 # Total cost should be meaningfully lower
 ```
 
@@ -71,7 +71,7 @@ Point at a real deployed URL you control:
 
 ```bash
 export BASE_URL=https://your-staging-site.example
-ai-audit run --scenario smoke --personas us-chatgpt-pro-macbook --budget 0.5
+pixelcheck run --scenario smoke --personas us-chatgpt-pro-macbook --budget 0.5
 ```
 
 - [ ] Browser launches, reaches target URL
@@ -83,7 +83,7 @@ ai-audit run --scenario smoke --personas us-chatgpt-pro-macbook --budget 0.5
 ## Benchmark smoke (local mini, ~$0.30)
 
 ```bash
-ai-audit benchmark --tasks benchmarks/local-mini \
+pixelcheck benchmark --tasks benchmarks/local-mini \
   --cost-mode balanced --per-task-budget 0.15
 ```
 
@@ -95,7 +95,7 @@ ai-audit benchmark --tasks benchmarks/local-mini \
 ## Critic calibration smoke (~$0.20)
 
 ```bash
-ai-audit calibrate --fixtures tests/fixtures/critic-calibration \
+pixelcheck calibrate --fixtures tests/fixtures/critic-calibration \
   --model claude-sonnet-4-6
 ```
 
@@ -106,7 +106,7 @@ ai-audit calibrate --fixtures tests/fixtures/critic-calibration \
 
 ## Observer dashboard smoke
 
-Start any `ai-audit run` with `--observe` and verify:
+Start any `pixelcheck run` with `--observe` and verify:
 
 - [ ] `http://localhost:3847/` opens the main dashboard; live feed appears
 - [ ] Timeline strip populates as steps complete; click any step → drawer opens with meta + events
@@ -130,7 +130,7 @@ In a Claude Code / Cursor session:
 cat > ~/.mcp.json <<EOF
 {
   "mcpServers": {
-    "ai-browser-auditor": { "command": "ai-audit-mcp" }
+    "pixelcheck": { "command": "pixelcheck-mcp" }
   }
 }
 EOF
@@ -143,24 +143,24 @@ EOF
 ## Persona generator smoke
 
 ```bash
-ai-audit persona generate --country=BR --device=mobile > /tmp/br.yaml
-ai-audit persona list-countries
+pixelcheck persona generate --country=BR --device=mobile > /tmp/br.yaml
+pixelcheck persona list-countries
 ```
 
 - [ ] Output YAML parses with `yaml` tool
-- [ ] Running `ai-audit run --personas /tmp/ --scenario smoke` picks up the persona
+- [ ] Running `pixelcheck run --personas /tmp/ --scenario smoke` picks up the persona
 
 ## Scenario recorder smoke
 
 - [ ] Load `extensions/scenario-recorder/` as unpacked extension in Chrome
 - [ ] Click **Start**, navigate through a flow on any site, click **Stop**
 - [ ] **Export YAML** downloads a syntactically valid scenario file
-- [ ] File parses through `ScenarioSchema` when loaded with `ai-audit run --scenario <file>`
+- [ ] File parses through `ScenarioSchema` when loaded with `pixelcheck run --scenario <file>`
 - [ ] Password fields were NOT captured (inspect the YAML)
 
 ## Rollback check
 
 - [ ] `git diff main..HEAD -- src/core/types.ts` shows only additive schema changes
-- [ ] Existing v0.2 scenarios still parse (run `ai-audit validate` on a v0.2 project)
+- [ ] Existing v0.2 scenarios still parse (run `pixelcheck validate` on a v0.2 project)
 - [ ] `tsc --noEmit` clean
 - [ ] `npm test` full suite passes

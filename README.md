@@ -705,7 +705,7 @@ Score one URL against a rubric — aesthetic polish, dark-pattern risk, or any c
   "custom_criteria": [                                // optional one-off rubric
     { "id": "pricing_clarity", "label": "Pricing clarity", "description": "Is total cost visible without scrolling?" }
   ],
-  "persona": "wayne-power-user",                      // optional — drives viewport/locale via personas/
+  "persona": "us-power-user-desktop",                  // optional — drives viewport/locale via personas/
   "wait_for": "networkidle"
 }
 ```

@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **R3 / R4 / R6 / R7-R10 / R12-R51（除 R26/R27/R44 partial）/ R57-R61 + R-NEW-V1-SHIP-1 全标 ✅** in RISK-REGISTER。剩 4 ⏳ 等 API key (R1/R2/R5) + 2 ⏳ 等 T33 publish (R55/R58) + 2 ⏸ ADR-027/028 v1.x (R26/R27)。
 - **vitest 1833 → 1853 (+20 测试) ✓ / Coverage 81/69.41/81.04/82.48 (vendor 排除 per ADR-032 / floor 66/60/66/66) / 1853/1853 ✓**
 - **新加 `.github/workflows/dogfood.yml`**：每 PR + push 跑 npm pack → fresh tmp 目录 install <tarball> → ai-audit --help / doctor / init 三个 binary 验证 + **1 MB tarball hard size gate**（exit 1 if > 1MB）防包体积膨胀。**自动化防 R-NEW-V1-SHIP-1 类 packaging bug 再发**。
-- **新加 `scripts/sync-vendor.sh`**：从 canonical /Users/wayne/Developer/stealth-core/src/ 同步到 src/vendor/stealth-core/，diff-aware 报告 added/updated/unchanged + 检测 vendor 有但 canonical 没的 stale 文件。
+- **新加 `scripts/sync-vendor.sh`**：从 canonical ~/Developer/stealth-core/src/ 同步到 src/vendor/stealth-core/，diff-aware 报告 added/updated/unchanged + 检测 vendor 有但 canonical 没的 stale 文件。
 - **新加 `scripts/check-vendor-drift.ts`** + npm script `check:vendor-drift`：检测 vendor/canonical 漂移；3 exit 状态（match / drift / canonical-missing）+ env override `AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1`（CI mode）+ `AUDIT_VENDOR_DRIFT_OK=1`（intentional vendor lock）。**ADR-032 follow-up 真落地**。
 - **bench:check 0 regression / 4 IMPROVED**（renderTrendsHtml +89.6% / renderJunitXml +85.8% / renderDiffMarkdown +66.3% / renderHistoryTrendsHtml +37.1%）—— vitest 4 + Node 24 + Wave 1-6 代码优化的累积效应。
 - **license:check exit 0 / 289 prod deps 全 approved licenses**（MIT / Apache / ISC / BSD / 0BSD / Unlicense / 等）—— ci.yml license:check step 已就位。
@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed (T31.5 — v1.0 ship-blocker R-NEW-V1-SHIP-1: vendor stealth-core)
 
 - **关闭 R-NEW-V1-SHIP-1** ✅（v1.0 ship-blocker / 用户决策方案 B）。
-- **Vendor stealth-core into `src/vendor/stealth-core/`**：6 个源文件（browser / fingerprints / index / launch-options / retry / stealth-script）从 sibling repo `/Users/wayne/Developer/stealth-core/src/` 复制到 ai-browser-auditor 源树；TypeScript 一次 tsc 编译，输出到 `dist/vendor/stealth-core/`，跟随 `files: ["dist/", ...]` 进 npm tarball。
+- **Vendor stealth-core into `src/vendor/stealth-core/`**：6 个源文件（browser / fingerprints / index / launch-options / retry / stealth-script）从 sibling repo `~/Developer/stealth-core/src/` 复制到 ai-browser-auditor 源树；TypeScript 一次 tsc 编译，输出到 `dist/vendor/stealth-core/`，跟随 `files: ["dist/", ...]` 进 npm tarball。
 - **2 个 import 改路径**：`src/core/stagehand-wrapper.ts` + `src/handlers/index.ts` 从 `from "stealth-core"` 改为 `from "../vendor/stealth-core/index.js"`。
 - **package.json 删 `"stealth-core": "file:../stealth-core"`**：lockfile regenerate（删除 extraneous `../stealth-core` 条目）。
 - **新 ADR-032**（~110 LoC）：3 选 1 决策记录（A publish to npm 拒绝因公开反指纹技术 / B vendor 选用 / C inline 拒绝因丢失 5 项目共享）+ 更新流程 + drift 检测计划 + 为什么不上 monorepo workspaces。
@@ -925,7 +925,7 @@ before merge). Fully additive — no breaking changes from v0.2.0.
 - `accessibility` added to `scoring_dimensions` enum
 - **Multi-project support**: `--project <dir>` flag loads config + scenarios from any directory
 - **`ai-audit init` command**: scaffolds a new project audit directory with template files
-- **Project layout**: `projects/scamlens/` as the first project using the new structure
+- **Project layout**: `projects/<your-app>/` directory structure for multi-project repos
 - **CI multi-project dispatch**: workflow accepts project selection (built-in or external repo)
 - **12 new personas** (18 total) covering global markets:
   - India (Hindi, budget Android), Korea (Korean, QHD desktop), Vietnam (Vietnamese, Android)
