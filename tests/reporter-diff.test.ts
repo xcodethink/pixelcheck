@@ -171,18 +171,18 @@ describe("renderDiffMarkdown — structure", () => {
     expect(md).toContain("| Duration |");
   });
 
-  it("uses ▲/▼ trend arrows and ✅/⚠️ polarity emoji", () => {
+  it("uses ▲/▼ trend arrows with [WARN] polarity for regressions (CLAUDE.md 铁律 #10 — 通知禁 emoji)", () => {
     const md = renderDiffMarkdown(regressionDiff());
-    // score down by 0.5 → ▼ + warning emoji
-    expect(md).toMatch(/▼ -0\.5 ⚠️/);
-    // issues up by 3 → ▲ + warning emoji (issues up = bad)
-    expect(md).toMatch(/▲ \+3 ⚠️/);
+    // score down by 0.5 → ▼ + [WARN]
+    expect(md).toMatch(/▼ -0\.5 \[WARN\]/);
+    // issues up by 3 → ▲ + [WARN] (issues up = bad)
+    expect(md).toMatch(/▲ \+3 \[WARN\]/);
   });
 
-  it("flips polarity for improvement (score up = ✅, issues down = ✅)", () => {
+  it("flips polarity for improvement (score up → [OK], issues down → [OK])", () => {
     const md = renderDiffMarkdown(improvementDiff());
-    expect(md).toMatch(/▲ \+1\.2 ✅/); // score
-    expect(md).toMatch(/▼ -4 ✅/); // issues
+    expect(md).toMatch(/▲ \+1\.2 \[OK\]/); // score
+    expect(md).toMatch(/▼ -4 \[OK\]/); // issues
   });
 
   it("renders flat delta as em-dash (—) when score and issues are unchanged", () => {
@@ -212,7 +212,7 @@ describe("renderDiffMarkdown — structure", () => {
 
   it("emits the new-issues section with severity tags as bold text", () => {
     const md = renderDiffMarkdown(regressionDiff());
-    expect(md).toContain("### 🆕 New issues (3)");
+    expect(md).toContain("### [NEW] New issues (3)");
     expect(md).toContain("**[critical]** Sign-in CTA overlaps hero image on mobile");
     expect(md).toContain("**[high]** Pricing card missing aria-label");
   });
@@ -228,9 +228,9 @@ describe("renderDiffMarkdown — structure", () => {
     expect(md).toMatch(/_…and 10 more_/);
   });
 
-  it("emits the resolved-issues section with ✅ heading", () => {
+  it("emits the resolved-issues section with [RESOLVED] heading", () => {
     const md = renderDiffMarkdown(improvementDiff());
-    expect(md).toContain("### ✅ Resolved issues (2)");
+    expect(md).toContain("### [RESOLVED] Resolved issues (2)");
     expect(md).toContain("**[critical]** Cart button vanishes on iPad");
   });
 
@@ -241,7 +241,7 @@ describe("renderDiffMarkdown — structure", () => {
 
   it("emits a cross-project warning when projectName differs", () => {
     const md = renderDiffMarkdown(crossProjectDiff());
-    expect(md).toMatch(/⚠ Cross-project diff: `demo-shop` vs `other-app`/);
+    expect(md).toMatch(/\*\*\[WARN\]\*\* Cross-project diff: `demo-shop` vs `other-app`/);
   });
 
   it("does NOT emit cross-project warning when projects match", () => {
@@ -542,7 +542,7 @@ describe("renderDiff — i18n integration (M2-4)", () => {
     expect(md).toContain("| 指标 | 之前 | 之后 | 差异 |");
     expect(md).toContain("总评分");
     expect(md).toContain("各维度变化");
-    expect(md).toContain("🆕 新增问题");
+    expect(md).toContain("[NEW] 新增问题");
     expect(md).toContain("**[严重]**"); // critical → 严重
     expect(md).toContain("**[高]**"); // high → 高
   });
@@ -560,7 +560,7 @@ describe("renderDiff — i18n integration (M2-4)", () => {
     expect(md).toContain("## Diferencias de Auditoría AI Browser");
     expect(md).toContain("(referencia)");
     expect(md).toContain("Puntuación general");
-    expect(md).toContain("✅ Incidencias resueltas");
+    expect(md).toContain("[RESOLVED] Incidencias resueltas");
   });
 
   it("renders HTML diff in de with German labels", () => {
