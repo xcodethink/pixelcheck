@@ -269,7 +269,7 @@ test.describe("SARIF render + write pipeline", () => {
     expect(sarif.runs).toHaveLength(1);
 
     const run = sarif.runs[0]!;
-    expect(run.tool.driver.name).toBe("ai-browser-auditor");
+    expect(run.tool.driver.name).toBe("pixelcheck");
 
     // Rules: each WCAG-attributed Issue should produce a `wcag/<dot-to-dash>` ruleId
     const ruleIds = run.tool.driver.rules?.map((r) => r.id) ?? [];
