@@ -60,6 +60,8 @@
     "license:csv": "license-checker --production --csv --out docs/third-party-licenses.csv",
     "sbom": "cyclonedx-npm --output-file sbom.json --omit dev --ignore-npm-errors",
     "docs:api": "typedoc",
+    "sync:vendor": "bash scripts/sync-vendor.sh",
+    "check:vendor-drift": "tsx scripts/check-vendor-drift.ts",
     "clean": "rm -rf dist sbom.json docs/api"
   },
   "keywords": [
