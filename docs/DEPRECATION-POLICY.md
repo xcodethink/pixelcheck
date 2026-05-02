@@ -1,6 +1,6 @@
 # Deprecation Policy
 
-This document defines how `ai-browser-auditor` deprecates and removes
+This document defines how `pixelcheck` deprecates and removes
 public-facing functionality. The goal is to give users **predictable,
 non-disruptive** upgrade paths while still allowing the project to
 evolve.
