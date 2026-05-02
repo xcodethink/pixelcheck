@@ -1,6 +1,6 @@
 {
   "name": "pixelcheck",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP-first browser primitives for AI agents — real eyes and hands on the web. Local-first. Vendor-agnostic. Yours to own.",
   "type": "module",
   "main": "dist/index.js",
@@ -25,6 +25,8 @@
   "files": [
     "dist/",
     "docs/schemas/",
+    "personas/",
+    "scenarios/",
     "CHANGELOG.md",
     "LICENSE",
     "README.md",

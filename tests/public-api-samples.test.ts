@@ -492,7 +492,7 @@ const minimalEnvDoc = {
 
 const minimalListCapabilities = {
   schema_version: SV,
-  server: { name: "pixelcheck", version: "1.0.0" },
+  server: { name: "pixelcheck", version: "1.0.1" },
   result_schema_version: SV,
   tools: [minimalToolCap],
   env: [minimalEnvDoc],
