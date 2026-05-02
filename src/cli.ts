@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import chalk from "chalk";
 import dotenv from "dotenv";
@@ -79,6 +80,63 @@ function safeError(...args: unknown[]): void {
   console.error(...safeArgs);
 }
 
+/**
+ * Resolve the path to the personas/ directory bundled with the npm package.
+ *
+ * When running from a globally-installed `pixelcheck`, `import.meta.url`
+ * resolves to `<...>/node_modules/pixelcheck/dist/cli.js`. The bundled
+ * personas live one level up at `<...>/node_modules/pixelcheck/personas/`.
+ *
+ * Returns null if the bundled directory cannot be found (e.g., a build
+ * artefact running before `personas/` was added to `files: [...]` in
+ * package.json — would have been the v1.0.0 shipping bug, fixed in v1.0.1).
+ */
+function resolveBundledPersonas(): string | null {
+  try {
+    const candidate = fileURLToPath(new URL("../personas", import.meta.url));
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+      return candidate;
+    }
+  } catch {
+    // import.meta.url may not be a file URL in some bundling scenarios
+  }
+  return null;
+}
+
+/**
+ * Count YAML files in a directory. Returns 0 if dir is missing.
+ * Used by `pixelcheck init` to surface the actual number of bundled
+ * personas in its post-scaffold message (B5 fix: was hardcoded "(6)").
+ */
+function countYamlFiles(dir: string | null): number {
+  if (!dir) return 0;
+  try {
+    return fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith(".yaml") || f.endsWith(".yml")).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Resolve a personas directory: prefer the user-supplied path, fall back to
+ * the bundled personas/ shipped with the npm package. Returns the resolved
+ * absolute path; if neither exists, returns the resolved user path so the
+ * downstream loadPersonas() throws its standard "directory not found" error.
+ *
+ * B1 fix (v1.0.1): every loadPersonas() call site goes through this so a
+ * fresh `npm install pixelcheck` user without a project-local personas/ dir
+ * still gets the 18 bundled personas instead of [FATAL] crashing.
+ */
+function resolvePersonasPath(userPath: string): string {
+  const resolved = path.resolve(userPath);
+  if (fs.existsSync(resolved)) return resolved;
+  const bundled = resolveBundledPersonas();
+  if (bundled) return bundled;
+  return resolved; // will throw friendly "Personas directory not found"
+}
+
 const program = new Command();
 
 program
@@ -86,7 +144,7 @@ program
   .description(
     "MCP-first browser primitives for AI agents — real eyes and hands on the web. Local-first. Vendor-agnostic.",
   )
-  .version("1.0.0");
+  .version("1.0.1");
 
 program
   .command("run", { isDefault: true })
@@ -451,11 +509,14 @@ function scaffoldProject(args: {
         "  - visual_polish",
         "",
         "steps:",
-        `  - type: visit`,
+        `  - id: visit-home`,
+        `    type: visit`,
         `    url: "${baseUrl}"`,
-        `  - type: screenshot`,
+        `  - id: capture-homepage`,
+        `    type: screenshot`,
         `    label: homepage`,
-        `  - type: assert_visual`,
+        `  - id: assert-homepage-loads`,
+        `    type: assert_visual`,
         `    instruction: "The homepage loads fully with no visible errors, broken images, or layout issues"`,
         "",
       ].join("\n"),
@@ -465,8 +526,13 @@ function scaffoldProject(args: {
     console.log(chalk.gray(`  config.yaml — edit base_url, project_name, budget`));
     console.log(chalk.gray(`  scenarios/00-smoke.yaml — starter smoke test`));
     console.log(chalk.gray(`\nRun: pixelcheck run --project ${projectDir}`));
-    console.log(chalk.gray(`Built-in personas (6) will be used automatically.`));
-    console.log(chalk.gray(`To customize personas, create a personas/ dir inside the project.`));
+    const bundledCount = countYamlFiles(resolveBundledPersonas());
+    if (bundledCount > 0) {
+      console.log(chalk.gray(`Built-in personas (${bundledCount}) will be used automatically.`));
+      console.log(chalk.gray(`To customize personas, create a personas/ dir inside the project.`));
+    } else {
+      console.log(chalk.yellow(`No bundled personas found. Create a personas/ dir inside the project.`));
+    }
 }
 
 program
@@ -600,7 +666,7 @@ program
         persistent_storage: false,
       };
 
-      const personas = loadPersonas(path.resolve("personas"));
+      const personas = loadPersonas(resolvePersonasPath("personas"));
       // Parse through the schema so defaulted fields (cost_mode, navigator_economy…)
       // are populated. This future-proofs the `explore` command against new fields.
       const { ProjectConfigSchema } = await import("./core/types.js");
@@ -765,7 +831,7 @@ program
       process.exit(1);
     }
 
-    const personas = await loadPersonas(path.resolve(opts.personas));
+    const personas = await loadPersonas(resolvePersonasPath(opts.personas));
     const config = ProjectConfigSchema.parse({
       project_name: "benchmark",
       base_url: tasks[0]!.start_url,
@@ -1009,10 +1075,18 @@ async function runCommand(opts: RunOpts): Promise<void> {
     }
     opts.config = projectConfig;
     opts.scenarios = path.join(projectDir, "scenarios");
-    // Use project personas if they exist, otherwise use built-in shared personas
+    // Use project personas if they exist, otherwise fall back to built-in
+    // shared personas bundled with the package (B1 fix: v1.0.0 shipped no
+    // personas at all and `pixelcheck run` would crash with "Personas
+    // directory not found" for every fresh install — see ADR-034).
     const projectPersonas = path.join(projectDir, "personas");
     if (fs.existsSync(projectPersonas)) {
       opts.personas = projectPersonas;
+    } else {
+      const bundledPersonas = resolveBundledPersonas();
+      if (bundledPersonas) {
+        opts.personas = bundledPersonas;
+      }
     }
   }
 
@@ -1020,7 +1094,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   const config = loadProjectConfig(path.resolve(opts.config));
 
   // Load personas + scenarios
-  const personas = loadPersonas(path.resolve(opts.personas));
+  const personas = loadPersonas(resolvePersonasPath(opts.personas));
   const scenarios = loadScenarios(path.resolve(opts.scenarios));
 
   // Only require ANTHROPIC_API_KEY if any selected scenario contains a step

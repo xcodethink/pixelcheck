@@ -42,7 +42,7 @@ import type { ToolDefinition } from "../registry.js";
 // `list_capabilities` does not pull in the SDK Server lifecycle module
 // (and so reading capabilities does not depend on transport state).
 const SERVER_NAME = "pixelcheck";
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION = "1.0.1";
 
 const DEFAULT_RESULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // mirror result-cache.ts default
 

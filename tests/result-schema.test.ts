@@ -1435,7 +1435,7 @@ describe("result-schema — ListCapabilitiesResultSchema (M9-5)", () => {
 
   const minimalEnvelope = {
     schema_version: "1.2.0",
-    server: { name: "pixelcheck", version: "1.0.0" },
+    server: { name: "pixelcheck", version: "1.0.1" },
     result_schema_version: "1.2.0",
     tools: [minimalCap],
     env: [

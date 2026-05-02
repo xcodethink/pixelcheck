@@ -12,7 +12,7 @@
 
 你成了那座桥。Agent 有想法。你有浏览器。**两边永远不见面。**每周这样耗几小时，无止境。
 
-我开源了 [PixelCheck](https://github.com/xcodethink/pixelcheck) 把这个角色拆掉。它是一个 MCP server，给任何 AI agent 五个浏览器 primitive —— `see` / `act` / `extract` / `judge` / `compare` —— 让 agent 不再"描述会怎么做"，而是直接做。本地优先，不锁 LLM 厂商，MIT 开源。配进 `~/.mcp.json` 即可，Claude Desktop / Cursor / Cline / Continue / Zed / Claude Code 都支持。你的 agent 立即获得 17 个工具。
+我开源了 [PixelCheck](https://github.com/xcodethink/pixelcheck) 把这个角色拆掉。它是一个 MCP server，给任何 AI agent 五个浏览器 primitive —— `see` / `act` / `extract` / `judge` / `compare` —— 让 agent 不再"描述会怎么做"，而是直接做。本地优先，不锁 LLM 厂商，MIT 开源。配进 `~/.mcp.json` 即可，Claude Desktop / Cursor / Cline / Continue / Zed / Claude Code 都支持。你的 agent 立即获得 12 个工具。
 
 ---
 
@@ -51,7 +51,7 @@ compare(a, b, criteria)     A/B 对比两个 URL（含 blind mode）
 
 [Model Context Protocol](https://modelcontextprotocol.io) 是 PixelCheck 能成立的基础。MCP 在 2025 年 12 月被 Anthropic 捐给 Linux Foundation（AAIF），2026 Q2 ship 了 OAuth 2.1 + Tasks primitive。到 2026 H2，MCP 支持已经是任何 AI 工具的勾选项标配。
 
-PixelCheck 原生说 MCP —— 没有代理 server，没有 glue 代码，没有 SaaS 注册。装上 binary，配进 `~/.mcp.json`，agent（Claude Code / Cursor / Cline / Continue / Zed / Claude Desktop）立即获得 17 个工具。
+PixelCheck 原生说 MCP —— 没有代理 server，没有 glue 代码，没有 SaaS 注册。装上 binary，配进 `~/.mcp.json`，agent（Claude Code / Cursor / Cline / Continue / Zed / Claude Desktop）立即获得 12 个工具。
 
 ```bash
 npm install -g pixelcheck
@@ -90,7 +90,7 @@ pixelcheck-mcp                   # 启动 MCP server（stdio transport）
 - **5 个 primitive** + 17 个 MCP 工具，每个返回严格 JSON Schema（30 个发布 schema，Ajv + Zod 双重校验）
 - **5 层可靠性栈**把 Stagehand ~75% baseline 拉到 98-99%：Stability Gate → LLM Rewrite → Selector Hint → Auto Selector Discovery → Computer Use
 - **9 套指纹 + 15 项 stealth patch**让 audit 看起来像真人，不是被 bot-flag 过的 Playwright 会话
-- **18 personas × 15 国家 / 5 文字系统**（Latin / CJK / Arabic / Cyrillic / Devanagari）—— audit preset 用
+- **18 personas × 17 国家 / 6 文字系统**（Latin / CJK / Arabic / Cyrillic / Devanagari / Thai）—— audit preset 用
 - **WCAG 2.1 / 2.2 合规**：集成 axe-core（`assert_a11y` step + 50+ Success Criteria 映射）
 - **跨会话记忆** + SQLite plan cache（同站重复 audit 60-80% 命中率，30 天 TTL）
 - **Cost guard**：per-run + per-day USD 上限 + 跨进程 advisory lockfile
@@ -142,7 +142,7 @@ OSS 浏览器自动化领域很拥挤。说清楚：
 
 **不是 BrowserOS / Comet / Atlas**。那些是 agentic browser —— 用 AI-native 浏览器替换 Chrome，C 端产品。PixelCheck 是开发者基础设施。
 
-**一句话差异化**：现有 OSS 没有任何项目同时做到 MCP-first × 5-primitive 接口面 × 18-persona / 15 国模拟 × WCAG 合规 × stealth 指纹 × 历史趋势追踪。PixelCheck 是 AI agent 与可视化 web 之间缺失的那一层。
+**一句话差异化**：现有 OSS 没有任何项目同时做到 MCP-first × 5-primitive 接口面 × 18-persona / 17 国模拟 × WCAG 合规 × stealth 指纹 × 历史趋势追踪。PixelCheck 是 AI agent 与可视化 web 之间缺失的那一层。
 
 **还有一件 2026 年特别重要的事**：上面所有候选要么把你锁在单一 LLM provider，要么强制 SaaS 注册，要么有付费 "Pro" 等级躲在信用卡后面。PixelCheck 一个都没有 —— MIT 开源、source-available、零遥测、无付费版、无商业 fork、无云端控制面板。仓库里这个 1853 测试的产品**就是全部产品**。
 

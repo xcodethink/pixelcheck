@@ -12,7 +12,7 @@ Your AI agent is writing 80% of your frontend. It's fast. It's good at code. But
 
 You become the bridge. The agent has thoughts. You have a browser. **The two never meet.** Hours of your week, every week, indefinitely.
 
-I built [PixelCheck](https://github.com/xcodethink/pixelcheck) to remove that role. It's an open-source MCP server that gives any AI agent five browser primitives — `see` / `act` / `extract` / `judge` / `compare` — so the agent stops describing what it would do and just does it. Local-first, vendor-agnostic, MIT-licensed. Drop it into Claude Desktop, Cursor, Cline, Continue, Zed, or Claude Code via `~/.mcp.json` and your agent gets 17 tools instantly.
+I built [PixelCheck](https://github.com/xcodethink/pixelcheck) to remove that role. It's an open-source MCP server that gives any AI agent five browser primitives — `see` / `act` / `extract` / `judge` / `compare` — so the agent stops describing what it would do and just does it. Local-first, vendor-agnostic, MIT-licensed. Drop it into Claude Desktop, Cursor, Cline, Continue, Zed, or Claude Code via `~/.mcp.json` and your agent gets 12 tools instantly.
 
 ---
 
@@ -51,7 +51,7 @@ You give an AI agent these five verbs, and suddenly it can:
 
 The [Model Context Protocol](https://modelcontextprotocol.io) is what makes this work. MCP became a Linux Foundation project in December 2025 and shipped OAuth 2.1 + Tasks primitive in 2026 Q2. By H2 2026 it's a checkbox feature in every AI tool.
 
-PixelCheck speaks MCP natively — no proxy server, no glue code, no SaaS sign-up. Drop the binary in, point your `~/.mcp.json` at it, and your agent (Claude Code, Cursor, Cline, Continue, Zed, Claude Desktop) gets 17 tools instantly.
+PixelCheck speaks MCP natively — no proxy server, no glue code, no SaaS sign-up. Drop the binary in, point your `~/.mcp.json` at it, and your agent (Claude Code, Cursor, Cline, Continue, Zed, Claude Desktop) gets 12 tools instantly.
 
 ```bash
 npm install -g pixelcheck
@@ -87,10 +87,10 @@ This is the inverse of where most "AI browser" SaaS is going. They're cloud-only
 
 This is not vapor. The v1.0 ship gate has hard numbers:
 
-- **5 primitives** + 17 MCP tools, each with strict JSON Schema responses (30 published schemas, dual Ajv + Zod validation)
+- **5 primitives** + 12 MCP tools (5 primitives + 2 audit presets + 5 meta), each with strict JSON Schema responses (30 published schemas, dual Ajv + Zod validation)
 - **5-layer reliability stack** lifting Stagehand's ~75% baseline to 98-99% step success: Stability Gate → LLM Rewrite → Selector Hint → Auto Selector Discovery → Computer Use
 - **9 anti-detection fingerprints + 15 stealth patches** so your audits look like real users, not bot-flagged Playwright sessions
-- **18 personas across 15 countries / 5 script systems** (Latin / CJK / Arabic / Cyrillic / Devanagari) for the audit preset
+- **18 personas across 17 countries / 6 script systems** (Latin / CJK / Arabic / Cyrillic / Devanagari / Thai) for the audit preset
 - **WCAG 2.1 / 2.2 compliance** via integrated axe-core (`assert_a11y` step + 50+ Success Criteria mapped)
 - **Cross-session memory** + SQLite plan cache (60-80% hit rate on repeat audits, 30-day TTL)
 - **Cost guard** with per-run + per-day USD caps + cross-process advisory lockfile
@@ -103,7 +103,7 @@ This is not vapor. The v1.0 ship gate has hard numbers:
 
 ## What "real users review your product" looks like (the audit preset)
 
-PixelCheck includes a CLI-first audit preset on top of the primitives — what was the original v0.x scope. It launches real Chromium browsers as 18 different users from 15 countries, walks through your scenarios, and delivers a verdict.
+PixelCheck includes a CLI-first audit preset on top of the primitives — what was the original v0.x scope. It launches real Chromium browsers as 18 different users from 17 countries, walks through your scenarios, and delivers a verdict.
 
 Each persona is a full identity, not just a viewport:
 
