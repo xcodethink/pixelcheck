@@ -1,0 +1,34 @@
+{
+  "case_name": "multi-image-with-labels",
+  "recorded_at": "2026-05-02T13:30:07.208Z",
+  "schema_version": "1.0.0",
+  "model": "claude-sonnet-4-6",
+  "request": {
+    "url": "https://api.anthropic.com/v1/messages",
+    "method": "POST",
+    "body_hash": "<not-tracked-by-design>"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "msg_multi-image-with-labels_recorded",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-sonnet-4-6",
+      "content": [
+        {
+          "type": "text",
+          "text": "The two images appear **identical** with no visible differences between them."
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 2704,
+        "output_tokens": 17,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    }
+  }
+}
