@@ -52,6 +52,10 @@ export interface DoctorOptions {
   verbose?: boolean;
   /** Skip network-dependent checks (CI / offline / air-gapped). */
   skipNetwork?: boolean;
+  /** Skip the Playwright Chromium binary check. CI runners on the unit
+   * matrix don't pre-install chromium (integration.yml does). End users
+   * see this check on every `pixelcheck doctor` invocation. */
+  skipBrowser?: boolean;
   /** Where to look for project config / scenarios / personas. Defaults to cwd. */
   projectDir?: string;
 }
@@ -381,9 +385,15 @@ function checkChromiumBinary(): DoctorCheck {
       };
     }
     if (!fs.existsSync(exe)) {
+      // Warn (not fail): browser-launching commands fail with their own
+      // helpful "install chromium" message; CLI commands like `doctor`,
+      // `list-personas`, `init`, plus MCP tools that don't launch a browser
+      // (`see` against fixture data, schema introspection) all keep working.
+      // Hard-fail here would also break first-run UX on CI runners that
+      // intentionally don't pre-install chromium (ours, for instance).
       return {
         name: "Chromium binary",
-        status: "fail",
+        status: "warn",
         message: `Playwright executable missing: ${exe}`,
         remedy: "Run `npx playwright install chromium` to download Chromium.",
       };
@@ -430,7 +440,15 @@ export async function runDoctor(
   checks.push(checkProxyConfig());
   checks.push(checkDataDirWritable());
   checks.push(checkDiskSpace());
-  checks.push(checkChromiumBinary());
+  if (!opts.skipBrowser) {
+    checks.push(checkChromiumBinary());
+  } else {
+    checks.push({
+      name: "Chromium binary",
+      status: "skip",
+      message: "skipped (--skip-browser)",
+    });
+  }
 
   // Network check (skipped offline / when explicitly disabled)
   if (!opts.skipNetwork) {
