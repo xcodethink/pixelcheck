@@ -16,7 +16,7 @@ import { runCritic, type CriticResult } from "../core/critic.js";
 import { parseAxeTags, expandAxeStandard } from "../core/wcag.js";
 import { runComputerUseTask } from "../core/computer-use.js";
 import { substituteTemplate } from "../core/scenario.js";
-import { withRetry } from "stealth-core";
+import { withRetry } from "../vendor/stealth-core/index.js";
 import { waitForMessage } from "../core/email.js";
 import { diffAgainstBaseline, type DiffResult } from "../core/visual-diff.js";
 import { waitForPageStable } from "../core/page-stability.js";

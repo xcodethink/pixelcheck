@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
 
+### Fixed (T31.5 — v1.0 ship-blocker R-NEW-V1-SHIP-1: vendor stealth-core)
+
+- **关闭 R-NEW-V1-SHIP-1** ✅（v1.0 ship-blocker / 用户决策方案 B）。
+- **Vendor stealth-core into `src/vendor/stealth-core/`**：6 个源文件（browser / fingerprints / index / launch-options / retry / stealth-script）从 sibling repo `/Users/wayne/Developer/stealth-core/src/` 复制到 ai-browser-auditor 源树；TypeScript 一次 tsc 编译，输出到 `dist/vendor/stealth-core/`，跟随 `files: ["dist/", ...]` 进 npm tarball。
+- **2 个 import 改路径**：`src/core/stagehand-wrapper.ts` + `src/handlers/index.ts` 从 `from "stealth-core"` 改为 `from "../vendor/stealth-core/index.js"`。
+- **package.json 删 `"stealth-core": "file:../stealth-core"`**：lockfile regenerate（删除 extraneous `../stealth-core` 条目）。
+- **新 ADR-032**（~110 LoC）：3 选 1 决策记录（A publish to npm 拒绝因公开反指纹技术 / B vendor 选用 / C inline 拒绝因丢失 5 项目共享）+ 更新流程 + drift 检测计划 + 为什么不上 monorepo workspaces。
+- **Dogfood 再验证**（fresh dir `/tmp/abx-dogfood-postfix-…`）：`npm install <tarball>` 0 errors / `npx ai-audit --help` ✓ / `doctor --skip-network --verbose` 8 checks ✓ / `init test-project` 脚手架 ✓ —— **fresh install 装通**。
+- **Tarball 大小**：555 KB / 315 files → **570 KB / 333 files**（+15 KB / +18 files for vendored stealth-core 编译输出）；远低于 5 MB cap。
+- 完整回归：tsc ✓ / build ✓ / **vitest 1833/1833 ✓**（vendor 编译跟原 npm-resolved 包行为完全一致）/ 0 schemas diff。
+- **v1.0 ship-blocker 解除**。RELEASE-READINESS-CHECKLIST 项目数：49 ✅ / 12 ⚠ / 19 ❌ → 50+ ✅ / 12 ⚠ / 18- ❌（`fresh install 装通` 从 ❌ 改 ✅）。
+
 ### Added (Wave 6 + T31/T32 — Phase 3 coverage 5 模块 + v1.0-rc1 dogfood + checklist 走查)
 
 - **关闭 RISK-REGISTER R11** ✅（Phase 3 5 个 0%-2.4% 编排核心模块全提到 ≥77%）。**Wave 6 完整收尾 5/5**（T12 + T16 + T13 + T15 + T14）。
