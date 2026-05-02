@@ -220,7 +220,7 @@ export interface SarifToolDriver {
 
 const DEFAULT_TOOL: SarifToolDriver = {
   name: "pixelcheck",
-  version: "0.3.0",
+  version: "1.0.0",
   informationUri: "https://github.com/xcodethink/pixelcheck",
 };
 

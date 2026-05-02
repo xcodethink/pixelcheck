@@ -101,7 +101,7 @@ export function buildDefaultRegistry(): ToolRegistry {
 
 export async function runMcpServer(): Promise<void> {
   const server = new Server(
-    { name: "pixelcheck", version: "0.3.0" },
+    { name: "pixelcheck", version: "1.0.0" },
     { capabilities: { tools: {} } },
   );
 
