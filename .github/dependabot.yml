@@ -54,6 +54,13 @@ updates:
       # @types/node major bumps follow Node LTS upgrades (rare + manual)
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # dotenv major bumps blocked while @browserbasehq/stagehand@^2.x peer-
+      # depends on dotenv@^16.4.5. dotenv 17's only behavioural change vs 16
+      # is the new `quiet` default, which we'd silence anyway — no user
+      # value to upgrading until Stagehand bumps its peer. Revisit when the
+      # T-NEW-1 Stagehand v3 migration lands.
+      - dependency-name: "dotenv"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
