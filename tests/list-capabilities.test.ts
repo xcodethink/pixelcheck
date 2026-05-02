@@ -222,7 +222,7 @@ describe("listCapabilitiesTool — envelope completeness", () => {
       server: { name: string; version: string };
       result_schema_version: string;
     };
-    expect(out.server.name).toBe("ai-browser-auditor");
+    expect(out.server.name).toBe("pixelcheck");
     expect(out.server.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(out.result_schema_version).toBe(RESULT_SCHEMA_VERSION);
   });

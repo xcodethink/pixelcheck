@@ -766,14 +766,20 @@ describe("extract — artifacts dir uniqueness + env override", () => {
     }
   });
 
-  it("falls back to ~/.ai-browser-auditor/extracts when AUDIT_EXTRACTS_DIR is unset", () => {
+  it("falls back to ~/.pixelcheck/extracts when no env override is set", () => {
     const prev = process.env.AUDIT_EXTRACTS_DIR;
+    const prevHome = process.env.PIXELCHECK_HOME;
+    const prevLegacyHome = process.env.AUDIT_HOME;
     try {
       delete process.env.AUDIT_EXTRACTS_DIR;
+      delete process.env.PIXELCHECK_HOME;
+      delete process.env.AUDIT_HOME;
       const root = defaultArtifactsRoot();
-      expect(root.endsWith(path.join(".ai-browser-auditor", "extracts"))).toBe(true);
+      expect(root.endsWith(path.join(".pixelcheck", "extracts"))).toBe(true);
     } finally {
       if (prev !== undefined) process.env.AUDIT_EXTRACTS_DIR = prev;
+      if (prevHome !== undefined) process.env.PIXELCHECK_HOME = prevHome;
+      if (prevLegacyHome !== undefined) process.env.AUDIT_HOME = prevLegacyHome;
     }
   });
 

@@ -1,5 +1,5 @@
 /**
- * `ai-audit doctor` — diagnose the local environment before audit run.
+ * `pixelcheck doctor` — diagnose the local environment before audit run.
  *
  * Why this exists (T23 closes RISK-REGISTER R45 + R47 + R61):
  * Pre-T23 a user with a missing ANTHROPIC_API_KEY / wrong Node version
@@ -11,7 +11,7 @@
  *   - Runtime: Node / npm / OS / arch
  *   - Config: ANTHROPIC_API_KEY / config.yaml / scenarios/ / personas/
  *   - Network: HTTPS_PROXY / NODE_EXTRA_CA_CERTS / api.anthropic.com reachable
- *   - Disk: ~/.ai-browser-auditor/ writable + free space
+ *   - Disk: ~/.pixelcheck/ writable + free space
  *
  * Each check returns one of: ok / warn / fail / skip. Doctor exits 0 if
  * no `fail` checks (warnings allowed); 1 if any `fail`.
@@ -138,7 +138,7 @@ function checkConfigYaml(projectDir: string): DoctorCheck {
     name: "config.yaml",
     status: "warn",
     message: "not found",
-    remedy: "Run `ai-audit init` to scaffold a new project.",
+    remedy: "Run `pixelcheck init` to scaffold a new project.",
   };
 }
 
@@ -150,7 +150,7 @@ function checkScenariosDir(projectDir: string): DoctorCheck {
       status: "warn",
       message: "not found",
       remedy:
-        "Create scenarios/ with at least one *.yaml. Run `ai-audit init` to scaffold.",
+        "Create scenarios/ with at least one *.yaml. Run `pixelcheck init` to scaffold.",
     };
   }
   const files = fs.readdirSync(scenariosDir).filter((f) => f.endsWith(".yaml"));
@@ -262,7 +262,9 @@ async function checkAnthropicReachable(): Promise<DoctorCheck> {
 
 function checkDataDirWritable(): DoctorCheck {
   const dir =
-    process.env.AUDIT_HOME ?? path.join(os.homedir(), ".ai-browser-auditor");
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
   try {
     fs.mkdirSync(dir, { recursive: true });
     const probe = path.join(dir, ".doctor-probe");
@@ -356,7 +358,7 @@ export function renderDoctorReport(
   const warnCount = report.checks.filter((c) => c.status === "warn").length;
   lines.push("");
   if (failCount === 0 && warnCount === 0) {
-    lines.push("All checks passed. You're ready to run `ai-audit run`.");
+    lines.push("All checks passed. You're ready to run `pixelcheck run`.");
   } else if (failCount === 0) {
     lines.push(
       `${warnCount} warning(s); audits will work but consider the remedies above.`,

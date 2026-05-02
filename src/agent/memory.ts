@@ -10,7 +10,7 @@
  * memory, we pre-load relevant observations into the planner prompt so the
  * agent converges faster (fewer replans, fewer wrong clicks).
  *
- * Storage: SQLite, shared with plan-cache.db at ~/.ai-browser-auditor/.
+ * Storage: SQLite, shared with plan-cache.db at ~/.pixelcheck/.
  * We keep a fact-per-row design rather than blob-per-site so individual
  * facts can age out, be promoted/demoted on confirmation, or be read
  * selectively for the planner context window.
@@ -97,7 +97,12 @@ export class AgentMemory {
     this._dbPath =
       opts.dbPath ??
       process.env.AUDIT_MEMORY_PATH ??
-      path.join(os.homedir(), ".ai-browser-auditor", "memory.db");
+      path.join(
+        process.env.PIXELCHECK_HOME ??
+          process.env.AUDIT_HOME ??
+          path.join(os.homedir(), ".pixelcheck"),
+        "memory.db",
+      );
   }
 
   private _open(): Database.Database {

@@ -92,7 +92,7 @@ export interface CompareOptions {
   timeoutMs?: number;
   headless?: boolean;
 
-  /** Per-call artifacts root. Default: `$AUDIT_COMPARES_DIR` or `~/.ai-browser-auditor/compares/`. */
+  /** Per-call artifacts root. Default: `$AUDIT_COMPARES_DIR` or `~/.pixelcheck/compares/`. */
   artifactsRoot?: string;
 
   /** Vision model. Default `"claude-sonnet-4-6"`. */
@@ -115,7 +115,11 @@ export const DEFAULT_COMPARE_MODEL = "claude-sonnet-4-6";
 export function defaultCompareArtifactsRoot(): string {
   const envDir = process.env.AUDIT_COMPARES_DIR;
   if (envDir && envDir.length > 0) return envDir;
-  return path.join(os.homedir(), ".ai-browser-auditor", "compares");
+  const home =
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
+  return path.join(home, "compares");
 }
 
 function makeRunDir(root: string): string {

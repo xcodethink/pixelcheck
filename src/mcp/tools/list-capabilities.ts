@@ -41,7 +41,7 @@ import type { ToolDefinition } from "../registry.js";
 // Server identity — kept in sync with src/mcp/server.ts. Hard-coded so
 // `list_capabilities` does not pull in the SDK Server lifecycle module
 // (and so reading capabilities does not depend on transport state).
-const SERVER_NAME = "ai-browser-auditor";
+const SERVER_NAME = "pixelcheck";
 const SERVER_VERSION = "0.3.0";
 
 const DEFAULT_RESULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // mirror result-cache.ts default
@@ -95,7 +95,7 @@ function envTable(): Array<{
       description:
         "SQLite file backing the M9-4 result cache. Override to isolate cache between environments.",
       scope: "cache",
-      default: "~/.ai-browser-auditor/result-cache.db",
+      default: "~/.pixelcheck/result-cache.db",
       required: false,
     },
     {
@@ -120,7 +120,7 @@ function envTable(): Array<{
       description:
         "Persistent JSON ledger backing the per-day USD cap. Override to isolate spend between environments.",
       scope: "cost_guard",
-      default: "~/.ai-browser-auditor/cost-ledger.json",
+      default: "~/.pixelcheck/cost-ledger.json",
       required: false,
     },
     {
@@ -149,14 +149,14 @@ function envTable(): Array<{
       name: "AUDIT_SEES_DIR",
       description: "Override the artifacts root for `see` (one subdir per call).",
       scope: "artifacts",
-      default: "~/.ai-browser-auditor/sees",
+      default: "~/.pixelcheck/sees",
       required: false,
     },
     {
       name: "AUDIT_ACTS_DIR",
       description: "Override the artifacts root for `act` (one subdir per call).",
       scope: "artifacts",
-      default: "~/.ai-browser-auditor/acts",
+      default: "~/.pixelcheck/acts",
       required: false,
     },
     {
@@ -164,21 +164,21 @@ function envTable(): Array<{
       description:
         "Override the artifacts root for `extract` (one subdir per call, with data.json sidecar).",
       scope: "artifacts",
-      default: "~/.ai-browser-auditor/extracts",
+      default: "~/.pixelcheck/extracts",
       required: false,
     },
     {
       name: "AUDIT_JUDGES_DIR",
       description: "Override the artifacts root for `judge` (one subdir per call).",
       scope: "artifacts",
-      default: "~/.ai-browser-auditor/judges",
+      default: "~/.pixelcheck/judges",
       required: false,
     },
     {
       name: "AUDIT_COMPARES_DIR",
       description: "Override the artifacts root for `compare` (one subdir per call).",
       scope: "artifacts",
-      default: "~/.ai-browser-auditor/compares",
+      default: "~/.pixelcheck/compares",
       required: false,
     },
     // ── reports / history ────────────────────────────────────────
@@ -195,7 +195,7 @@ function envTable(): Array<{
       name: "AUDIT_MEMORY_PATH",
       description: "SQLite file backing the agent memory store. Override to isolate per env.",
       scope: "memory",
-      default: "~/.ai-browser-auditor/memory.db",
+      default: "~/.pixelcheck/memory.db",
       required: false,
     },
     {
@@ -209,7 +209,7 @@ function envTable(): Array<{
       name: "AUDIT_PLAN_CACHE_PATH",
       description: "SQLite file backing the planner's cache.",
       scope: "memory",
-      default: "~/.ai-browser-auditor/plan-cache.db",
+      default: "~/.pixelcheck/plan-cache.db",
       required: false,
     },
     {

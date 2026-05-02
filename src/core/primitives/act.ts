@@ -98,7 +98,7 @@ export interface ActOptions {
   headless?: boolean;
   /** Stop the loop on first error and skip remaining steps. Default true. */
   stopOnError?: boolean;
-  /** Where to write per-call artifacts. Default `$AUDIT_ACTS_DIR` or `~/.ai-browser-auditor/acts/`. */
+  /** Where to write per-call artifacts. Default `$AUDIT_ACTS_DIR` or `~/.pixelcheck/acts/`. */
   artifactsRoot?: string;
   /** Critic model for `note` steps. Default `"claude-sonnet-4-6"`. */
   criticModel?: string;
@@ -194,7 +194,11 @@ export const DEFAULT_CRITIC_MODEL = "claude-sonnet-4-6";
 export function defaultArtifactsRoot(): string {
   const envDir = process.env.AUDIT_ACTS_DIR;
   if (envDir && envDir.length > 0) return envDir;
-  return path.join(os.homedir(), ".ai-browser-auditor", "acts");
+  const home =
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
+  return path.join(home, "acts");
 }
 
 /** Pick the engine for a given step list. */

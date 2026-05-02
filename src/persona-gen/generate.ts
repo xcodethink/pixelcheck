@@ -82,7 +82,7 @@ export function writePersonaYaml(opts: GenerateOpts, targetDir: string): string 
   const { persona, yaml, note } = generatePersona(opts);
   fs.mkdirSync(targetDir, { recursive: true });
   const path = `${targetDir}/${persona.id}.yaml`;
-  const header = `# ${note}\n# Regenerate: ai-audit persona generate --country=${opts.country} --device=${opts.device ?? persona.device_class}\n`;
+  const header = `# ${note}\n# Regenerate: pixelcheck persona generate --country=${opts.country} --device=${opts.device ?? persona.device_class}\n`;
   fs.writeFileSync(path, header + yaml, "utf8");
   return path;
 }

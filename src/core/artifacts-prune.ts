@@ -4,7 +4,7 @@
  * Why this exists (T9 — closes RISK-REGISTER R50):
  *
  * Each call to `see` / `act` / `extract` / `judge` / `compare` writes a
- * timestamped subdirectory under `~/.ai-browser-auditor/<kind>/` (~50 KB
+ * timestamped subdirectory under `~/.pixelcheck/<kind>/` (~50 KB
  * to a few MB per call: screenshots, DOM dumps, LLM responses, payload
  * JSONs). On a busy MCP server connected to Claude Code or Cursor these
  * dirs grow without bound — a single user reported 12 GB after a month.
@@ -27,7 +27,7 @@
  *
  * Two callers:
  *
- *   1. `ai-audit prune` — explicit user-triggered cleanup, prints
+ *   1. `pixelcheck prune` — explicit user-triggered cleanup, prints
  *      summary, exit 0/1.
  *   2. MCP server lazy first-of-day prune on startup — at most once per
  *      24h to avoid burning CPU on every connect (`prune-stamp.json`).
@@ -70,7 +70,9 @@ const DEFAULT_RETENTION_DAYS = 30;
  */
 function pruneStampPath(): string {
   const home =
-    process.env.AUDIT_HOME ?? path.join(os.homedir(), ".ai-browser-auditor");
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
   return path.join(home, "prune-stamp.json");
 }
 
@@ -80,7 +82,9 @@ export function defaultArtifactDir(kind: ArtifactKind): string {
   const fromEnv = process.env[envKey];
   if (fromEnv) return fromEnv;
   const home =
-    process.env.AUDIT_HOME ?? path.join(os.homedir(), ".ai-browser-auditor");
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
   return path.join(home, kind);
 }
 
@@ -108,7 +112,7 @@ export interface PruneEntry {
 export interface PruneOptions {
   /** Override "now" for tests. */
   now?: () => Date;
-  /** Skip writing the stamp file (for the explicit `ai-audit prune`). */
+  /** Skip writing the stamp file (for the explicit `pixelcheck prune`). */
   skipStamp?: boolean;
 }
 
@@ -210,7 +214,7 @@ export function pruneOneKind(
 /**
  * Prune all 5 artifact kinds. Writes the stamp file unless
  * `skipStamp: true` is passed (the CLI does so to allow a back-to-back
- * `ai-audit prune; ai-audit prune` to actually run twice).
+ * `pixelcheck prune; pixelcheck prune` to actually run twice).
  */
 export function pruneAllArtifacts(opts: PruneOptions = {}): PruneResult {
   const entries = ARTIFACT_KINDS.map((k) => pruneOneKind(k, opts));

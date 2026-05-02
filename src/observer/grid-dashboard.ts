@@ -15,7 +15,7 @@ export function getGridHtml(): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Browser Auditor — Multi-Session Grid</title>
+<title>PixelCheck — Multi-Session Grid</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -123,7 +123,7 @@ export function getGridHtml(): string {
 <body>
 
 <header>
-  <h1>AI Browser Auditor — Multi-Session Grid</h1>
+  <h1>PixelCheck — Multi-Session Grid</h1>
   <span class="meta" id="metaSessions">0 sessions</span>
   <span class="meta" id="metaUpdated">never</span>
 </header>
