@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-05-03 — Patch: dynamic version reading
+
+> **Recommended for all v1.1.0 users.** Fixes a cosmetic-but-real
+> regression where v1.1.0 ships with `1.0.1` strings still hardcoded
+> in source — `pixelcheck --version`, the SARIF tool driver `version`
+> field, the MCP server self-identification, and `mcp.list_capabilities`
+> all reported `1.0.1` despite being installed as `1.1.0`.
+
+### Fixed
+
+- **Version string regression in v1.1.0** — added `src/core/version.ts`
+  helper that reads `package.json#version` at runtime; replaced all 4
+  hardcoded `"1.0.1"` strings:
+  - `src/cli.ts:152` — `pixelcheck --version` now reports the installed
+    version.
+  - `src/core/ci-reporters.ts:223` — SARIF `tool.driver.version` field
+    now reflects the installed version.
+  - `src/mcp/server.ts:104` — MCP server self-identification uses the
+    installed version.
+  - `src/mcp/tools/list-capabilities.ts:45` — `list_capabilities`
+    response server.version uses the installed version.
+- **Test fixture update** — `docs/integration/fixture-sarif.json`
+  bumped to 1.1.1 to match the SARIF byte-identical assertion in
+  `tests/integration/playwright/wcag-axe.test.ts`.
+
+### Why this matters
+
+The SARIF and MCP version fields are protocol-layer information that
+downstream tools (GitHub Code Scanning, AI MCP clients) may log or
+filter on. The CLI flag is user-visible. v1.1.0's stale strings were
+not just cosmetic.
+
+### Why this won't recur
+
+The new `getPackageVersion()` helper reads `package.json` at runtime
+from a single fixed path (two levels up from itself). Future releases
+only need to bump `package.json#version` — no source-string chasing.
+
 ## [1.1.0] - 2026-05-03 — Stagehand v3 + dependency wave
 
 > Recommended for all v1.0.x users. Internal dependency upgrades + new

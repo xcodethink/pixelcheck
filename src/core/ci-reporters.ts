@@ -31,6 +31,7 @@ import * as path from "node:path";
 import type { AuditRun, Issue, ScenarioRunResult } from "./types.js";
 import { redactDeep } from "./secrets.js";
 import { findWcagCriterion, wcagHelpUrl, wcagSarifRuleId } from "./wcag.js";
+import { getPackageVersion } from "./version.js";
 
 // ─────────────────────────────────────────────────────────────
 // Severity mapping table
@@ -218,11 +219,13 @@ export interface SarifToolDriver {
   informationUri?: string;
 }
 
-const DEFAULT_TOOL: SarifToolDriver = {
-  name: "pixelcheck",
-  version: "1.0.1",
-  informationUri: "https://github.com/xcodethink/pixelcheck",
-};
+function defaultTool(): SarifToolDriver {
+  return {
+    name: "pixelcheck",
+    version: getPackageVersion(),
+    informationUri: "https://github.com/xcodethink/pixelcheck",
+  };
+}
 
 /**
  * Write a SARIF 2.1.0 document. Each Issue across all audit units
@@ -236,7 +239,7 @@ const DEFAULT_TOOL: SarifToolDriver = {
 export function writeSarifReport(
   inputAudit: AuditRun,
   runDir: string,
-  tool: SarifToolDriver = DEFAULT_TOOL,
+  tool: SarifToolDriver = defaultTool(),
 ): string {
   const filePath = path.join(runDir, "audit.sarif");
   const audit = applyRedaction(inputAudit);
@@ -304,7 +307,7 @@ interface SarifDocument {
   }>;
 }
 
-export function renderSarif(audit: AuditRun, tool: SarifToolDriver = DEFAULT_TOOL): SarifDocument {
+export function renderSarif(audit: AuditRun, tool: SarifToolDriver = defaultTool()): SarifDocument {
   const results: SarifResult[] = [];
   const ruleMap = new Map<string, SarifRule>();
 
