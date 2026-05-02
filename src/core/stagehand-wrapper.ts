@@ -7,7 +7,7 @@ import {
   findProfile,
   findProfileByUaClass,
   type DeviceFingerprint,
-} from "stealth-core";
+} from "../vendor/stealth-core/index.js";
 import type { BrowserContext, Page, Cookie } from "playwright";
 import type { Persona } from "./types.js";
 import { getLogger } from "./logger.js";
