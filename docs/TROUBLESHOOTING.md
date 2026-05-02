@@ -1,7 +1,7 @@
 # Troubleshooting Guide
 
 Runtime errors that hit you **after** install — i.e., the install
-succeeded but something fails when you actually run `ai-audit run` or
+succeeded but something fails when you actually run `pixelcheck run` or
 similar commands. For install errors, see
 [docs/INSTALLATION.md § Common install errors](INSTALLATION.md#common-install-errors--fixes).
 
@@ -10,12 +10,12 @@ For security-sensitive disclosures, see [SECURITY.md](../SECURITY.md).
 
 ---
 
-## First step: run `ai-audit doctor`
+## First step: run `pixelcheck doctor`
 
 Before reading further, run the bundled diagnostic:
 
 ```bash
-ai-audit doctor --verbose
+pixelcheck doctor --verbose
 ```
 
 It checks Node version / API key / config / scenarios / personas /
@@ -46,16 +46,16 @@ The auditor needs an Anthropic API key for every step that calls Claude
 already prints the remedy:
 
 ```
-[ai-audit] ANTHROPIC_API_KEY not set.
+[pixelcheck] ANTHROPIC_API_KEY not set.
   Get a key at https://console.anthropic.com → set ANTHROPIC_API_KEY=sk-ant-...
-  Run `ai-audit doctor` to verify your environment.
+  Run `pixelcheck doctor` to verify your environment.
 ```
 
 Set the key in your shell:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-api03-...
-ai-audit run
+pixelcheck run
 ```
 
 For a project-local override, create `.env` (gitignored — see [.gitignore](../.gitignore)):
@@ -81,7 +81,7 @@ Your API key is set but rejected. Causes:
 
 Hit your tier's RPM / TPM cap. Two paths:
 
-1. **Reduce concurrency**: `ai-audit run --concurrency 1`
+1. **Reduce concurrency**: `pixelcheck run --concurrency 1`
 2. **Use a slower model**: `--model claude-haiku-4-5-20251001` has higher rate limits
 
 The auditor doesn't auto-retry on 429 (avoids billing surprises). Re-run after a few minutes.
@@ -92,7 +92,7 @@ Corporate proxy is doing TLS interception. Add the corp CA to Node's trust store
 
 ```bash
 export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/corp-ca.pem
-ai-audit run
+pixelcheck run
 ```
 
 See [docs/INSTALLATION.md § Corporate proxy](INSTALLATION.md#corporate-proxy--firewall-environments) for details.
@@ -115,7 +115,7 @@ You answered "n" / "no" / empty at the first-run consent prompt. Either:
 
 `--project <dir>` resolves config / scenarios / personas from a project
 directory. The path must exist + contain `config.yaml` + `scenarios/`.
-Run `ai-audit doctor --projectDir <path>` to diagnose.
+Run `pixelcheck doctor --projectDir <path>` to diagnose.
 
 ### `Scenario file failed validation: ...`
 
@@ -129,7 +129,7 @@ specific field. Common ones:
 | `Expected number, received string` | Wrap numeric values without quotes (or remove quotes) |
 | `Expected array, received string` | YAML `- foo` for arrays, not bare strings |
 
-`ai-audit run --dry-run` validates without executing — useful for
+`pixelcheck run --dry-run` validates without executing — useful for
 iterating scenario YAML quickly.
 
 ### `BudgetExceededError: run-usd $X.XX exceeds limit $Y.YY`
@@ -138,7 +138,7 @@ Cost guard (M5-6 / [ADR-008](decisions/ADR-008-cost-guard.md)) intentionally sto
 units are saved. To continue:
 
 ```bash
-ai-audit run --budget 10.0      # bump per-run budget cap
+pixelcheck run --budget 10.0      # bump per-run budget cap
 ```
 
 Or set env caps (`AUDIT_COST_MAX_RUN_USD` / `AUDIT_COST_MAX_DAILY_USD`).
@@ -174,7 +174,7 @@ The auditor's recorder catches these as `pageerror` events visible in
 trace viewer):
 
 ```bash
-ai-audit run --trace
+pixelcheck run --trace
 npx playwright show-trace reports/<runId>/<unit>/trace.zip
 ```
 
@@ -225,14 +225,14 @@ PDF generation needs Chromium spawn — slower than HTML / JSON. Default
 is ON; if you skipped it via `--no-pdf` and want it back:
 
 ```bash
-ai-audit run --pdf
+pixelcheck run --pdf
 ```
 
 If `--pdf` is set but PDF still missing, check:
 
 1. Run logs for `[reporter-pdf] failed: ...`
 2. Available disk space (PDFs are ~500KB each)
-3. Whether Chromium spawned successfully (`ai-audit doctor`)
+3. Whether Chromium spawned successfully (`pixelcheck doctor`)
 
 ### `audit.html` opens but is blank / broken
 
@@ -242,7 +242,7 @@ report). If both are broken, check browser console for JS errors (open
 
 ### History trends say "no runs found"
 
-`ai-audit trends` reads `reports/history.db`. The DB is created on first
+`pixelcheck trends` reads `reports/history.db`. The DB is created on first
 audit; if you're running trends before any successful audit, you'll see
 this message.
 
@@ -325,7 +325,7 @@ Possible causes:
 | Slow target site (3-5s per page load) | Pre-warm via `wait_until: load` instead of `networkidle` |
 | Stagehand cold-start (~5s) | One per audit run; multi-step audits amortize this |
 
-`ai-audit run --observe --observe-port 9999` opens a live dashboard
+`pixelcheck run --observe --observe-port 9999` opens a live dashboard
 showing per-step timing — useful for diagnosing where time goes.
 
 ### Daily costs higher than expected
@@ -358,10 +358,10 @@ Chromium + Stagehand + multiple parallel units can spike. Mitigations:
 ## Still stuck?
 
 1. **Re-run with `--observe`** — opens a live dashboard at port 4000 (`--observe-port`) showing per-step state, screenshots, errors
-2. **Check `ai-audit doctor --verbose`** — second-look diagnostic
+2. **Check `pixelcheck doctor --verbose`** — second-look diagnostic
 3. **Read the per-step `output` in audit.json** — every step records why it succeeded / failed
 4. **Open a GitHub issue** with:
-   - `ai-audit doctor --verbose` output (redact your API key in the
+   - `pixelcheck doctor --verbose` output (redact your API key in the
      posted version — the verbose output already redacts it via
      [ADR-006](decisions/ADR-006-secrets-redaction.md))
    - Full error message + stack trace

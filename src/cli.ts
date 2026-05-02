@@ -95,7 +95,7 @@ program
     "--project <dir>",
     "Project directory containing config.yaml + scenarios/ (and optionally personas/)",
   )
-  .option("-c, --config <path>", "Project config file", "config/scamlens.yaml")
+  .option("-c, --config <path>", "Project config file", "config.yaml")
   .option(
     "-p, --personas <dir>",
     "Personas directory",
