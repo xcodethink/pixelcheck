@@ -9,13 +9,13 @@ HN Comment (first reply, post within 1 min of submission):
 
 ---
 
-Hey HN, I built this because I write most of my SaaS frontend through an AI agent, and the agent kept stopping at the same wall: it could write the code, but couldn't see what it built. I was the bridge -- screenshot, paste, "fix this", repeat.
+Hey HN — my AI agent writes 80% of my frontend, but it can't see what it just built. I was the bridge: screenshot, paste, "fix this", repeat. Sixth time the OAuth flow silently broke, I built PixelCheck to remove that role.
 
 **What it does:** Exposes 5 browser primitives (`see` / `act` / `extract` / `judge` / `compare`) as an MCP server. Drop it in `~/.mcp.json` and your agent (Claude Desktop, Cursor, Cline, Continue, Zed, Claude Code) gets 17 tools that let it actually navigate, see, and operate the visual web. Each call returns a strict JSON Schema response with cost / screenshot / DOM envelope. Composable. Cacheable. Auditable.
 
 **Why MCP-first:** MCP became a Linux Foundation project in Dec 2025. By H2 2026 it's table stakes for AI tooling. PixelCheck speaks it natively -- no proxy server, no glue code, no SaaS sign-up.
 
-**Why local-first + vendor-agnostic:** Runs entirely on your machine. The only outbound call is to whatever LLM your agent uses. No telemetry, no remote storage, no SaaS upload. MIT license. The whole thing is a single npm package you install and own.
+**Why local-first + vendor-agnostic:** Runs entirely on your machine. The only outbound call is to whatever LLM your agent uses. No telemetry, no remote storage, no SaaS upload. **MIT license, no paid tier, no "Pro" upgrade path, no commercial fork** — the repo you see is the entire product. The whole thing is a single npm package you install and own.
 
 **Bonus -- 18-persona audit preset:** PixelCheck also bundles a CLI-first audit preset (the original v0.x scope). It launches real Chromium as 18 different personas (Japanese housewife, Nigerian entrepreneur, 72-year-old US retiree, Saudi businessman with RTL Arabic...), walks through your scenarios, and scores the experience on 18 dimensions via Claude Vision + axe-core. The audit is now a preset *composition* of see/act/extract/judge across personas.
 
@@ -35,7 +35,7 @@ Hey HN, I built this because I write most of my SaaS frontend through an AI agen
 - A typical full 18-persona audit costs $2-8 in balanced mode; single `see` call is $0.005-0.015
 - 18-persona audits are heavy; in practice you'd run 3-5 personas per deploy
 
-Repo: https://github.com/xcodethink/pixelcheck
+Repo: https://github.com/xcodethink/pixelcheck — public, MIT, v1.0.0 tagged 2026-05-02, 28 ADRs in `docs/decisions/` if you want the design rationale.
 
 Quick start:
 ```
