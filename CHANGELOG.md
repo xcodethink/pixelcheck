@@ -9,6 +9,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Wave 2 in progress per PixelCheck-v1.x-后续优化方案. No user-visible changes yet.
 
+## [1.0.1] - 2026-05-02 — Critical Hotfix
+
+> **Recommended for ALL v1.0.0 users.** Fixes a P0 ship-blocker that
+> made `pixelcheck run` impossible after a fresh `npm install pixelcheck`
+> + `pixelcheck init`. Numerical accuracy fixes across user-facing docs.
+> No API changes; pure bug fix per SemVer.
+
+### Fixed
+
+- **B1 (P0 ship-blocker)** — `personas/` and `scenarios/` directories were
+  not shipped in the npm tarball (`package.json files: [...]` omitted them),
+  so any fresh-install user hit `[FATAL] Personas directory not found:
+  …/personas` on their first `pixelcheck run`. v1.0.1 ships the 18 bundled
+  personas + 11 scenarios, and `cli.ts` now falls back to packaged personas
+  when the project has no `personas/` directory of its own. Tarball size
+  increased 590 KB → 608 KB (well under the 1 MB hard gate).
+- **B2 (P0 CI broken)** — `.github/workflows/dogfood.yml` still invoked the
+  pre-rename `ai-audit` binary, so every PR after the v1.0.0 PixelCheck
+  rename failed dogfood validation. v1.0.1 updates all five `npx ai-audit`
+  references to `npx pixelcheck`.
+- **B7** — `pixelcheck init` scaffolded a `00-smoke.yaml` scenario whose
+  three steps were missing the required `id` field, causing immediate
+  schema-validation failure on `pixelcheck run`. The init template now
+  emits `id: visit-home` / `id: capture-homepage` / `id: assert-homepage-loads`.
+
+### Documentation accuracy
+
+- **B3** — README, `launch-post.md`, `launch-post-zh.md`, `show-hn.md`, and
+  `release-notes/v1.0.0.md` all claimed "17 MCP tools"; the actual MCP server
+  exposes **12 tools** (5 primitives + 2 audit presets + 5 meta). All five
+  files corrected, with the math breakdown in release-notes also fixed
+  ("5 + 2 + 10 meta = 17" → "5 + 2 + 5 meta = 12").
+- **B4** — README + launch posts claimed "15 countries"; the 18 bundled
+  personas span **17 unique countries** (BR / CN / DE / FR / GB / ID / IN /
+  JP / KR / MX / NG / RU / SA / TH / TW / US / VN). Corrected.
+- **B5** — `cli.ts` post-init message hardcoded `Built-in personas (6)`;
+  now dynamically reads `node_modules/pixelcheck/personas/*.yaml` and
+  reports the actual count (currently 18). Will stay accurate as bundled
+  personas grow.
+- **B6** — `release-notes/v1.0.0.md` claimed "28 ADRs"; actual count is
+  **33 ADRs** (ADR-001 … ADR-033). Corrected. Documents previously claimed
+  "5 script systems (Latin / CJK / Arabic / Cyrillic / Devanagari)" — the
+  Thai persona uses the Thai script which was not in that list, so the
+  count is **6 script systems** (Latin / CJK / Arabic / Cyrillic /
+  Devanagari / Thai). Corrected across README + 4 launch / release docs.
+
+### Added (regression prevention)
+
+- **P1** — `dogfood.yml` workflow gains a new step that runs
+  `pixelcheck run --dry-run` from inside the freshly-scaffolded
+  test-project. Greps the output for `[FATAL] Personas directory not found`
+  and fails the build if the regression returns. Also requires the
+  persona / scenario / matrix output to be present. This step would have
+  caught B1 + B7 before v1.0.0 ship; now it gates every PR.
+
+### Verification
+
+Full regression all green at v1.0.1 ship:
+
+- `tsc --noEmit` clean
+- `npm run build` clean
+- `vitest run` — 1853/1853 passing
+- `npm pack` — pixelcheck-1.0.1.tgz / 608 KB / 362 files / under 1 MB gate
+- Fresh-dir dogfood (`mktemp -d` → `npm install pixelcheck-1.0.1.tgz`
+  → `npx pixelcheck init test-app …` → `npx pixelcheck run --dry-run`)
+  succeeds end-to-end with `Personas loaded: 18 / Scenarios loaded: 1 /
+  Matrix size: 1`
+
+### Migration from v1.0.0
+
+```bash
+npm install -g pixelcheck@latest
+# (or per-project)
+npm install pixelcheck@latest --save-dev
+```
+
+No config / scenario / persona file changes required. v1.0.0 users with a
+custom `personas/` directory in their project keep using their custom
+personas (project-local always wins over bundled). v1.0.0 users WITHOUT
+custom personas now see the 18 bundled personas instead of the [FATAL]
+crash.
+
+If you `init`-ed a project under v1.0.0 and have the broken `00-smoke.yaml`
+without `id` fields, the easiest fix is `pixelcheck init <new-dir>` to
+generate a fresh template, or hand-add `id: <unique-name>` to each step.
+
 ## [1.0.0] - 2026-05-02
 
 > First commercially-supported release. PixelCheck v1.0 ships an MCP server giving AI agents real eyes and hands on the web. Aggregates Phase 1 (AI core) + Phase 2 (commercial-grade quality) + ship-prep waves + W1 brand alignment.

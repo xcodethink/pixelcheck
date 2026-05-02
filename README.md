@@ -110,7 +110,7 @@ You deploy. Tests pass. CI is green. But then:
 
 **No E2E test catches these.** They test whether code runs. They don't test whether the product *works* for real humans in real contexts.
 
-The audit preset launches real Chromium browsers as 18 different users from 15 countries, walks through your product's core flows, and delivers a verdict — like having a senior PM, QA engineer, and UX reviewer audit every deployment, in every language, on every device class.
+The audit preset launches real Chromium browsers as 18 different users from 17 countries, walks through your product's core flows, and delivers a verdict — like having a senior PM, QA engineer, and UX reviewer audit every deployment, in every language, on every device class.
 
 ```bash
 pixelcheck init projects/my-app --name "My App" --url "https://myapp.com"
@@ -181,7 +181,7 @@ For each **(persona x scenario)** combination:
 
 Each persona includes a **mental model** (who they are, what they expect) and **critical concerns** (what would make them lose trust). The AI reviewer judges your product *through their eyes*.
 
-**5 script systems**: Latin, CJK, Arabic (RTL), Cyrillic, Devanagari.
+**6 script systems**: Latin, CJK, Arabic (RTL), Cyrillic, Devanagari, Thai.
 
 ## Scenarios Are Declarative YAML
 
@@ -958,7 +958,7 @@ You have four real options if you want an AI agent to operate the visual web tod
 | **Question answered** | How do I control a browser? | Does this pass WCAG 2.x? | Can a product look at the web for me? | How does *my AI agent* see and operate the web? |
 | **Primary interface** | Library / SDK | CLI | Desktop app + cloud session | **MCP server** (+ CLI for humans) |
 | **Intelligence** | LLM-driven actions | Static rules | Hosted LLM (you pay per session) | LLM vision + rules + Computer Use, your LLM key |
-| **User simulation** | Single anonymous session | None | Single signed-in session | 18 personas × 15 countries × 5 script systems |
+| **User simulation** | Single anonymous session | None | Single signed-in session | 18 personas × 17 countries × 6 script systems |
 | **Anti-detection** | None | N/A | Built-in (browser identity) | 9 fingerprints + 15 stealth patches |
 | **Output contract** | Action results | Pass/fail checklist | Conversational replies | **30 published JSON Schemas + 67 named API** |
 | **History** | None | None | Per-session, vendor-locked | SQLite trends + run-to-run diff, yours |
