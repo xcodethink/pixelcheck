@@ -66,6 +66,7 @@ formal ADR practice started at v0.3 maintenance).
 | 027 | Lock Zod v3 (defer Zod v4 to v1.x) | T0.5 |
 | 028 | Defer Stagehand v3 upgrade to v1.1 | T0.5 |
 | 030 | axe-core standard cumulative expansion | T-NEW-11 |
+| 032 | Vendor stealth-core into src/vendor/ for tarball-installable v1.0 | T31.5 |
 
 ---
 
