@@ -67,7 +67,7 @@ export function renderDiffMarkdown(
   lines.push("");
   if (A.projectName !== B.projectName) {
     lines.push(
-      `> ⚠ ${t("diff_cross_project", locale)}: \`${A.projectName}\` vs \`${B.projectName}\``,
+      `> **[WARN]** ${t("diff_cross_project", locale)}: \`${A.projectName}\` vs \`${B.projectName}\``,
     );
     lines.push("");
   }
@@ -118,7 +118,7 @@ export function renderDiffMarkdown(
 
   // New issues
   if (diff.newIssues.length > 0) {
-    lines.push(`### 🆕 ${t("diff_total_new", locale)} (${diff.newIssues.length})`);
+    lines.push(`### [NEW] ${t("diff_total_new", locale)} (${diff.newIssues.length})`);
     lines.push("");
     for (const i of diff.newIssues.slice(0, max)) {
       lines.push(`- **[${t(i.severity as TranslationKey, locale)}]** ${i.description}`);
@@ -131,7 +131,7 @@ export function renderDiffMarkdown(
 
   // Resolved issues
   if (diff.resolvedIssues.length > 0) {
-    lines.push(`### ✅ ${t("diff_total_resolved", locale)} (${diff.resolvedIssues.length})`);
+    lines.push(`### [RESOLVED] ${t("diff_total_resolved", locale)} (${diff.resolvedIssues.length})`);
     lines.push("");
     for (const i of diff.resolvedIssues.slice(0, max)) {
       lines.push(`- **[${t(i.severity as TranslationKey, locale)}]** ${i.description}`);
@@ -202,7 +202,7 @@ export function renderDiffHtml(
     diff.newIssues.length === 0
       ? ""
       : `<section>
-    <h2>🆕 ${escapeHtml(t("diff_total_new", locale))} (${diff.newIssues.length})</h2>
+    <h2><span class="badge badge-new">NEW</span> ${escapeHtml(t("diff_total_new", locale))} (${diff.newIssues.length})</h2>
     <ul class="issues">
       ${diff.newIssues
         .slice(0, max)
@@ -219,7 +219,7 @@ export function renderDiffHtml(
     diff.resolvedIssues.length === 0
       ? ""
       : `<section>
-    <h2>✅ ${escapeHtml(t("diff_total_resolved", locale))} (${diff.resolvedIssues.length})</h2>
+    <h2><span class="badge badge-resolved">RESOLVED</span> ${escapeHtml(t("diff_total_resolved", locale))} (${diff.resolvedIssues.length})</h2>
     <ul class="issues">
       ${diff.resolvedIssues
         .slice(0, max)
@@ -241,7 +241,7 @@ export function renderDiffHtml(
 
   const crossProjectWarning =
     A.projectName !== B.projectName
-      ? `<p class="warning">⚠ ${escapeHtml(t("diff_cross_project", locale))}: <code>${escapeHtml(A.projectName)}</code> vs <code>${escapeHtml(B.projectName)}</code></p>`
+      ? `<p class="warning"><strong>[WARN]</strong> ${escapeHtml(t("diff_cross_project", locale))}: <code>${escapeHtml(A.projectName)}</code> vs <code>${escapeHtml(B.projectName)}</code></p>`
       : "";
 
   return `<!doctype html>
@@ -421,10 +421,10 @@ function arrowMd(delta: number, kind: DeltaKind, unit = ""): string {
     kind === "score" ? delta > 0 : delta < 0;
   const arrow = delta > 0 ? "▲" : "▼";
   const formatted = formatDelta(delta, kind, unit);
-  // GFM doesn't honour <span style>; we encode polarity via emoji
-  // shorthand many GitHub-flavoured renderers display as red/green
-  // pills (✅ / ⚠️ / ❌) — inline arrows for at-a-glance scanning.
-  const polarity = isImprovement ? "✅" : "⚠️";
+  // GFM doesn't honour <span style>; we encode polarity via inline
+  // text labels [OK] / [WARN] (CLAUDE.md 铁律 #10 — 通知中禁止 emoji；
+  // PR diff comments are notification channel posted into GitHub PRs).
+  const polarity = isImprovement ? "[OK]" : "[WARN]";
   return `${arrow} ${formatted} ${polarity}`;
 }
 

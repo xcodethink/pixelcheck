@@ -204,9 +204,9 @@ export function compareBaseline(
 /**
  * Format a comparison for human-readable terminal output.
  * Sample line:
- *   ✓ renderPdfHtml — 7357 ops/s (baseline 7100, +3.6%)
- *   ✗ renderTrendsHtml — 800 ops/s (baseline 1428, -44.0%)  REGRESSION
- *   + new-benchmark — 50000 ops/s (no baseline)
+ *   [OK]         renderPdfHtml — 7357 ops/s (baseline 7100, +3.6%)
+ *   [REGRESSION] renderTrendsHtml — 800 ops/s (baseline 1428, -44.0%)
+ *   [IMPROVED]   renderDiffMarkdown — 50000 ops/s (baseline 30000, +66.7%)
  */
 export function formatComparison(c: BenchComparison): string {
   const hz = (n: number): string =>
