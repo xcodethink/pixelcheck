@@ -350,26 +350,58 @@ function shouldRedactInputs(callerOpt: boolean | undefined): boolean {
  * would race the next step. Audit primitives that need the original
  * value (e.g., extract) should run BEFORE redaction.)
  *
- * Heuristic — redact a field if ANY of:
- *   - `<input type="password">`
- *   - `autocomplete="current-password" | "new-password" | "one-time-code"`
- *   - `name` / `id` / `aria-label` matches /password|secret|token|api[_-]?key|otp|pin/i
+ * Heuristic dimensions — redact a field if ANY match:
+ *
+ *   1. `<input type="password">`
+ *   2. `autocomplete` ∈ HTML autocomplete sensitive set:
+ *        - current-password / new-password / one-time-code
+ *        - cc-number / cc-csc / cc-exp / cc-exp-month / cc-exp-year
+ *   3. `name` / `id` / `aria-label` / `placeholder` matches the
+ *      sensitive-name regex covering 12 patterns:
+ *        password / secret / token / api[_-]?key / otp / pin /
+ *        recovery|backup[_-]?code / mfa|2fa /
+ *        (aws|access)[_-]?key / private[_-]?key / passphrase /
+ *        ssn|social[_-]?security / cardnumber|cc[_-]?number / cvv|cvc
+ *
+ * Notes vs prior versions (closes R-NEW-58 v1.0 documented gap):
+ * - Recovery / backup codes are now redacted (recovery_code, backup_code
+ *   account-recovery flows are common post-2FA setup).
+ * - AWS access keys (aws_access_key_id, AKIA-...) and private keys.
+ * - Credit card number / CVV / expiry — payment-form pages (Stripe, etc).
  *
  * Why mutate vs CSS overlay: CSS `-webkit-text-security: disc` only hides
  * the rendered glyphs, not the underlying value — Claude vision still
  * sees the original characters in some cases (autofill or partial reflow).
  * Replacing the value with `********` guarantees the screenshot bytes
  * never contain the user's secret.
+ *
+ * False-positive trade-off: with the expanded heuristic we err towards
+ * over-redacting (e.g. a field literally named `pin_to_top` would also
+ * match). The cost of a false positive is "user can't see the
+ * redacted field's content in the screenshot"; the cost of a false
+ * negative is "user secret leaks to LLM". We pick the safer side.
  */
 async function redactSensitiveInputs(page: Page): Promise<void> {
   try {
     await page.evaluate(() => {
-      const SENSITIVE_NAME_RE = /password|secret|token|api[_-]?key|otp|pin/i;
+      // Combined sensitive-name regex — 12 patterns.
+      // Anchor-friendly so substring matches inside longer names work
+      // (e.g. `user_password_field` → match via `password`).
+      const SENSITIVE_NAME_RE =
+        /password|secret|token|api[_-]?key|otp|pin|recovery[_-]?code|backup[_-]?code|mfa|2fa|aws[_-]?(?:access|secret)|access[_-]?key|private[_-]?key|passphrase|ssn|social[_-]?security|card[_-]?number|cardnumber|cc[_-]?number|cvv|cvc/i;
+
       const SENSITIVE_AUTOCOMPLETE = new Set([
         "current-password",
         "new-password",
         "one-time-code",
+        // HTML autocomplete spec credit-card values
+        "cc-number",
+        "cc-csc",
+        "cc-exp",
+        "cc-exp-month",
+        "cc-exp-year",
       ]);
+
       const inputs = document.querySelectorAll("input, textarea");
       for (const el of Array.from(inputs)) {
         const input = el as HTMLInputElement | HTMLTextAreaElement;
@@ -381,12 +413,14 @@ async function redactSensitiveInputs(page: Page): Promise<void> {
         const name = input.getAttribute("name") || "";
         const id = input.getAttribute("id") || "";
         const ariaLabel = input.getAttribute("aria-label") || "";
+        const placeholder = input.getAttribute("placeholder") || "";
         const sensitive =
           type === "password" ||
           SENSITIVE_AUTOCOMPLETE.has(autocomplete) ||
           SENSITIVE_NAME_RE.test(name) ||
           SENSITIVE_NAME_RE.test(id) ||
-          SENSITIVE_NAME_RE.test(ariaLabel);
+          SENSITIVE_NAME_RE.test(ariaLabel) ||
+          SENSITIVE_NAME_RE.test(placeholder);
         if (sensitive && input.value && input.value.length > 0) {
           input.value = "********";
         }

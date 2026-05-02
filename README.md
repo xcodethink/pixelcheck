@@ -1046,6 +1046,9 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
 full developer guide (dev setup, commit conventions, PR process, ADR
 practice, branch protection).
 
+We adopt the [Contributor Covenant 2.1](CODE_OF_CONDUCT.md) as our
+community Code of Conduct.
+
 Areas where help is especially appreciated:
 - New personas for underrepresented regions/demographics
 - Scenario templates for common app patterns (e-commerce checkout, onboarding, dashboards)
@@ -1100,8 +1103,9 @@ Third-party dependencies and their licenses are documented in
 - [FAQ.md](FAQ.md) — common questions on API key + cost, scenarios + personas, reports + output, privacy, native binaries
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — runtime errors and fixes (API + auth, audit run, browser, reports, CI, performance)
 - [docs/INSTALLATION.md](docs/INSTALLATION.md) — install matrix + corporate proxy + Alpine / Docker / air-gapped recipes
+- [docs/SLO.md](docs/SLO.md) — Service Level Objectives (commercial-grade commitments + explicit out-of-scope items)
 - **API reference** — generate locally with `npm run docs:api` → `docs/api/index.html` (TypeDoc, not committed)
-- [docs/decisions/](docs/decisions/) — 26 Architecture Decision Records explaining design rationale
+- [docs/decisions/](docs/decisions/) — 28 Architecture Decision Records explaining design rationale
 
 ---
 

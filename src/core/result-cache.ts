@@ -54,12 +54,12 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import type Database from "better-sqlite3";
 
 import { openManagedDatabase, type Migration } from "./db-migrate.js";
+import { pixelcheckHome } from "./home-dir.js";
 import { getLogger } from "./logger.js";
 import { RESULT_SCHEMA_VERSION, type ResultCacheMeta } from "./result-schema.js";
 
@@ -145,11 +145,7 @@ const DEFAULT_MAX_DISK_MB = 500;
 export function defaultDbPath(): string {
   const env = process.env.AUDIT_RESULT_CACHE_PATH;
   if (env && env.length > 0) return env;
-  const home =
-    process.env.PIXELCHECK_HOME ??
-    process.env.AUDIT_HOME ??
-    path.join(os.homedir(), ".pixelcheck");
-  return path.join(home, "result-cache.db");
+  return path.join(pixelcheckHome(), "result-cache.db");
 }
 
 function readEnvNumber(name: string, fallback: number): number {

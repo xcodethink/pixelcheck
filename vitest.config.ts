@@ -28,6 +28,11 @@ export default defineConfig({
       "tests/integration/agent-loop-e2e.test.ts",
       "tests/integration/signals-e2e.test.ts",
     ],
+    // T3 cassette tests (tests/integration/llm-cassettes.test.ts) self-
+    // skip when neither AUDIT_E2E_REPLAY=1 nor AUDIT_E2E_RECORD=1 is
+    // set — they ship in the default suite as one "skipped" line during
+    // `npm test`, but only execute via `npm run test:e2e:replay` /
+    // `test:e2e:record` (see package.json scripts).
     // Setup runs before each test file: disables the result cache
     // (M9-4) globally so primitive tests don't accidentally persist or
     // hit cache from prior runs. The cache tests opt-in by clearing

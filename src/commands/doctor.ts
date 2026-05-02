@@ -23,8 +23,12 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { createRequire } from "node:module";
 import { request } from "node:https";
 import { URL } from "node:url";
+import { pixelcheckHome } from "../core/home-dir.js";
+
+const esmRequire = createRequire(import.meta.url);
 
 export type CheckStatus = "ok" | "warn" | "fail" | "skip";
 
@@ -48,6 +52,10 @@ export interface DoctorOptions {
   verbose?: boolean;
   /** Skip network-dependent checks (CI / offline / air-gapped). */
   skipNetwork?: boolean;
+  /** Skip the Playwright Chromium binary check. CI runners on the unit
+   * matrix don't pre-install chromium (integration.yml does). End users
+   * see this check on every `pixelcheck doctor` invocation. */
+  skipBrowser?: boolean;
   /** Where to look for project config / scenarios / personas. Defaults to cwd. */
   projectDir?: string;
 }
@@ -261,10 +269,7 @@ async function checkAnthropicReachable(): Promise<DoctorCheck> {
 }
 
 function checkDataDirWritable(): DoctorCheck {
-  const dir =
-    process.env.PIXELCHECK_HOME ??
-    process.env.AUDIT_HOME ??
-    path.join(os.homedir(), ".pixelcheck");
+  const dir = pixelcheckHome();
   try {
     fs.mkdirSync(dir, { recursive: true });
     const probe = path.join(dir, ".doctor-probe");
@@ -281,7 +286,132 @@ function checkDataDirWritable(): DoctorCheck {
       status: "fail",
       message: `${dir}: ${err instanceof Error ? err.message : String(err)}`,
       remedy:
-        "Set AUDIT_HOME to a writable path, or fix permissions on " + dir,
+        "Set PIXELCHECK_HOME to a writable path, or fix permissions on " + dir,
+    };
+  }
+}
+
+/**
+ * Free disk space at the data directory root. A typical 5-unit audit run
+ * writes ~25-50 MB of artifacts (screenshots + DOM dumps + LLM responses).
+ * Warn at < 500 MB free, fail at < 100 MB.
+ */
+function checkDiskSpace(): DoctorCheck {
+  const dir = pixelcheckHome();
+  // Ensure dir exists so statfs works. Defensive: not all platforms ship
+  // a sync `statfs` API; node 18+ has fs.statfsSync but we wrap in
+  // try/catch and degrade to "skip" so the check never fails the run
+  // for an OS quirk.
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    // Surfaced separately by checkDataDirWritable — not our concern here.
+  }
+  try {
+    // statfsSync added in Node 18.15 — feature-detect in case of older runtime
+    const statfsSync = (fs as unknown as { statfsSync?: (p: string) => { bavail: bigint; bsize: number } }).statfsSync;
+    if (typeof statfsSync !== "function") {
+      return {
+        name: "Disk space",
+        status: "skip",
+        message: "fs.statfsSync unavailable on this Node build",
+      };
+    }
+    const stat = statfsSync(dir);
+    const freeBytes = Number(stat.bavail) * stat.bsize;
+    const freeMb = Math.round(freeBytes / (1024 * 1024));
+    if (freeMb < 100) {
+      return {
+        name: "Disk space",
+        status: "fail",
+        message: `${freeMb} MB free at ${dir} — below 100 MB minimum`,
+        remedy:
+          "Free disk space: clean reports/ + cache via `pixelcheck prune`, " +
+          "or move PIXELCHECK_HOME to a larger volume.",
+      };
+    }
+    if (freeMb < 500) {
+      return {
+        name: "Disk space",
+        status: "warn",
+        message: `${freeMb} MB free at ${dir} — below 500 MB recommended`,
+        remedy:
+          "A 5-unit audit can write ~25-50 MB. Consider freeing space.",
+        detail: `Path: ${dir}`,
+      };
+    }
+    return {
+      name: "Disk space",
+      status: "ok",
+      message: freeMb >= 1024
+        ? `${(freeMb / 1024).toFixed(1)} GB free at ${dir}`
+        : `${freeMb} MB free at ${dir}`,
+    };
+  } catch (err) {
+    return {
+      name: "Disk space",
+      status: "skip",
+      message: `cannot stat ${dir}: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+/**
+ * Verify Playwright's Chromium binary is downloaded. Without this, the
+ * first browser launch errors out with a long stack trace; the user has
+ * to run `npx playwright install chromium` to fix it. Catching it in
+ * doctor turns a 30-second debugging session into a 1-line remedy.
+ */
+function checkChromiumBinary(): DoctorCheck {
+  // Playwright's chromium download path follows a stable pattern:
+  //   ~/Library/Caches/ms-playwright/chromium-* on macOS
+  //   ~/.cache/ms-playwright/chromium-* on Linux
+  //   %USERPROFILE%/AppData/Local/ms-playwright/chromium-* on Windows
+  // (or PLAYWRIGHT_BROWSERS_PATH if set)
+  // The cleanest check is to import playwright and look up its registered
+  // executable path — this works regardless of platform / cache location.
+  // Defensive: if playwright isn't installable for some reason we don't
+  // want doctor to crash; fall back to "skip".
+  try {
+    type PlaywrightModule = { chromium: { executablePath?: () => string } };
+    const playwright = esmRequire("playwright") as PlaywrightModule;
+    const exe = playwright.chromium.executablePath?.();
+    if (!exe) {
+      return {
+        name: "Chromium binary",
+        status: "warn",
+        message: "Playwright did not return an executable path",
+        remedy: "Run `npx playwright install chromium` to download Chromium.",
+      };
+    }
+    if (!fs.existsSync(exe)) {
+      // Warn (not fail): browser-launching commands fail with their own
+      // helpful "install chromium" message; CLI commands like `doctor`,
+      // `list-personas`, `init`, plus MCP tools that don't launch a browser
+      // (`see` against fixture data, schema introspection) all keep working.
+      // Hard-fail here would also break first-run UX on CI runners that
+      // intentionally don't pre-install chromium (ours, for instance).
+      return {
+        name: "Chromium binary",
+        status: "warn",
+        message: `Playwright executable missing: ${exe}`,
+        remedy: "Run `npx playwright install chromium` to download Chromium.",
+      };
+    }
+    return {
+      name: "Chromium binary",
+      status: "ok",
+      message: "Playwright Chromium found",
+      detail: `Path: ${exe}`,
+    };
+  } catch (err) {
+    return {
+      name: "Chromium binary",
+      status: "skip",
+      message: `playwright module not loadable: ${err instanceof Error ? err.message : String(err)}`,
+      remedy:
+        "If `npx pixelcheck run` later fails to launch a browser, try " +
+        "`npx playwright install chromium`.",
     };
   }
 }
@@ -309,6 +439,16 @@ export async function runDoctor(
   checks.push(checkPersonasDir(projectDir));
   checks.push(checkProxyConfig());
   checks.push(checkDataDirWritable());
+  checks.push(checkDiskSpace());
+  if (!opts.skipBrowser) {
+    checks.push(checkChromiumBinary());
+  } else {
+    checks.push({
+      name: "Chromium binary",
+      status: "skip",
+      message: "skipped (--skip-browser)",
+    });
+  }
 
   // Network check (skipped offline / when explicitly disabled)
   if (!opts.skipNetwork) {

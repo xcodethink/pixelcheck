@@ -1,0 +1,112 @@
+name: Bug report
+description: Report a defect — `pixelcheck doctor` passes but the tool misbehaves at run time.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Before submitting, please:
+
+        1. Run `pixelcheck doctor --verbose` and check the output — many "bugs" are environment misconfigurations the doctor catches first.
+        2. Search [existing issues](https://github.com/xcodethink/pixelcheck/issues?q=is%3Aissue) for duplicates.
+        3. Check [docs/TROUBLESHOOTING.md](https://github.com/xcodethink/pixelcheck/blob/main/docs/TROUBLESHOOTING.md) for known errors and fixes.
+
+        Security-sensitive issues should NOT be filed here — see [SECURITY.md](https://github.com/xcodethink/pixelcheck/blob/main/SECURITY.md) for the private disclosure flow.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence — what went wrong?
+      placeholder: "ai-audit run --scenario login crashes with `TypeError: Cannot read property 'goto' of undefined` after the second visit step."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Minimal sequence the maintainer can run locally to see the bug. Include the exact command line, scenario YAML (or a minimal stand-in), and any environment overrides.
+      placeholder: |
+        1. `npx pixelcheck init test-project`
+        2. Edit `test-project/scenarios/00-smoke.yaml` to point at https://example.com
+        3. `cd test-project && pixelcheck run --budget 0.5`
+        4. Crash on step 3
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual behaviour
+      placeholder: |
+        Expected: audit completes with status pass/warn/fail
+        Actual: process crashes with stack trace
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: pixelcheck doctor --verbose output
+      description: |
+        Paste the full doctor output. Redact any API keys before pasting (the output redacts them by default but double-check).
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error / stack trace
+      description: |
+        Full error output if any. If the run wrote a `reports/<runId>/audit.json` file, attaching that helps a lot (please redact secrets first).
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: pixelcheck version
+      description: Output of `npx pixelcheck --version`.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version + OS
+      description: Output of `node --version` and your OS / arch.
+      placeholder: "v20.10.0 on macOS 14.5 arm64"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Self-assessed severity
+      description: |
+        See [docs/SLO.md § Issue response](https://github.com/xcodethink/pixelcheck/blob/main/docs/SLO.md#5-issue-response--release-cadence) for what each level means. Maintainers may re-triage.
+      options:
+        - "P0 (privacy regression / security / install broken)"
+        - "P1 (functional regression with workaround / docs missing)"
+        - "P2 (cosmetic / wishlist)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: "I have read [docs/TROUBLESHOOTING.md](https://github.com/xcodethink/pixelcheck/blob/main/docs/TROUBLESHOOTING.md) and `pixelcheck doctor --verbose` did not flag the issue."
+          required: true
+        - label: "I have searched existing issues for duplicates."
+          required: true
+        - label: "I have redacted any API keys, OAuth tokens, or other secrets from the pasted output."
+          required: true
