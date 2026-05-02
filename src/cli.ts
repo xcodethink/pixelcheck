@@ -603,11 +603,17 @@ program
   )
   .option("--verbose", "Show diagnostic details (env values via redaction)")
   .option("--skip-network", "Skip api.anthropic.com reachability check")
+  .option("--skip-browser", "Skip the Playwright Chromium binary check")
   .action(
-    async (doctorOpts: { verbose?: boolean; skipNetwork?: boolean }) => {
+    async (doctorOpts: {
+      verbose?: boolean;
+      skipNetwork?: boolean;
+      skipBrowser?: boolean;
+    }) => {
       const report = await runDoctor({
         verbose: doctorOpts.verbose,
         skipNetwork: doctorOpts.skipNetwork,
+        skipBrowser: doctorOpts.skipBrowser,
       });
       for (const line of renderDoctorReport(report, {
         verbose: doctorOpts.verbose,

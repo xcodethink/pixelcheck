@@ -51,6 +51,7 @@ import * as path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { estimateCost } from "./llm.js";
 import { withFileLockSync } from "./file-lock.js";
+import { pixelcheckHome } from "./home-dir.js";
 import { getLogger } from "./logger.js";
 
 const log = getLogger("cost-guard");
@@ -154,11 +155,7 @@ export interface CostGuardOptions {
 function defaultLedgerPath(): string {
   const env = process.env.AUDIT_COST_LEDGER_PATH;
   if (env && env.length > 0) return env;
-  const home =
-    process.env.PIXELCHECK_HOME ??
-    process.env.AUDIT_HOME ??
-    path.join(os.homedir(), ".pixelcheck");
-  return path.join(home, "cost-ledger.json");
+  return path.join(pixelcheckHome(), "cost-ledger.json");
 }
 
 function readEnvNumber(name: string, fallback: number): number {

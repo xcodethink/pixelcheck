@@ -1,0 +1,37 @@
+{
+  "_comment": "PixelCheck v1.0 critic-calibration baseline. Captured 2026-05-02 against tests/fixtures/critic-calibration (5 labeled screenshots). Use as a reference point when investigating drift after model upgrades or critic-prompt changes. Re-record via `pixelcheck calibrate --tag <new-baseline>` and replace this file. Gate thresholds live in src/calibration/runner.ts (DEFAULT_GATE), not here.",
+  "recorded_at": "2026-05-02T13:36:20.231Z",
+  "model": "claude-sonnet-4-6",
+  "fixtures_path": "tests/fixtures/critic-calibration",
+  "schema_version": "1.2.0",
+  "metrics": {
+    "total_samples": 5,
+    "fully_aligned": 4,
+    "fully_aligned_rate": 0.8,
+    "dimensions_aligned": 4,
+    "mean_agreement": 0.9,
+    "mean_max_distance": 0.2,
+    "total_cost_usd": 0.083
+  },
+  "per_sample": [
+    { "sample_id": "broken-console-errors", "agreement_rate": 1.0, "max_distance": 0.0, "cost_usd": 0.011 },
+    { "sample_id": "cls-layout-shift",       "agreement_rate": 0.5, "max_distance": 1.0, "cost_usd": 0.015 },
+    { "sample_id": "home-happy",             "agreement_rate": 1.0, "max_distance": 0.0, "cost_usd": 0.017 },
+    { "sample_id": "slow-lcp",               "agreement_rate": 1.0, "max_distance": 0.0, "cost_usd": 0.015 },
+    { "sample_id": "success-after-signup",   "agreement_rate": 1.0, "max_distance": 0.0, "cost_usd": 0.023 }
+  ],
+  "gate": {
+    "thresholds_used": {
+      "min_mean_agreement": 0.85,
+      "max_mean_max_distance": 1.5,
+      "min_fully_aligned_rate": 0.7
+    },
+    "passed": true,
+    "violations": []
+  },
+  "notes": [
+    "cls-layout-shift agreement is 50% (one dimension out of range by 1 point) — within DEFAULT_GATE tolerance but the obvious target for the next critic-prompt iteration.",
+    "Cost per fixture averages $0.017; full suite runs cost ~$0.08 each, safe to run weekly in CI.",
+    "Re-baseline whenever you upgrade the critic model or materially change tests/fixtures/critic-calibration/*."
+  ]
+}
