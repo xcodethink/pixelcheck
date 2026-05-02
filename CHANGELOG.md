@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Wave 2 in progress per PixelCheck-v1.x-后续优化方案. No user-visible changes yet.
 
+### Changed
+
+- **`dotenv` ^16.6.1 → ^17.4.2** and **`zod` ^3.23.0 → ^3.25.76**. Both
+  were held back by overly-conservative peer-dependency constraints in
+  `@browserbasehq/stagehand@2.5.8` (`peer dotenv@^16.4.5` and
+  `peer zod >=3.25.0 <3.25.68`). Empirical validation via the T5
+  Stagehand smoke test (real chromium + real Anthropic API exercising
+  `act` / `extract` / `observe`) shows Stagehand 2.5.8 runs cleanly on
+  the upgraded versions; an `overrides.@browserbasehq/stagehand` block
+  in `package.json` resolves the peer-warning at install time. Upstream
+  fix landed in Stagehand v3.x — `T-NEW-1` Stagehand v3 migration will
+  drop the override block when scheduled.
+- **`src/cli.ts`** — both `dotenv.config()` callsites now pass
+  `{ quiet: true }`. dotenv 17 flipped its default to `quiet=false`,
+  which writes a load-banner line to stdout on every CLI invocation.
+  Without `quiet: true` this would corrupt MCP stdio JSON-RPC frames if
+  the path were ever shared with the MCP server entry, and pollutes
+  CLI consumer parsing in any case.
+
 ## [1.0.1] - 2026-05-02 — Critical Hotfix
 
 > **Recommended for ALL v1.0.0 users.** Fixes a P0 ship-blocker that
