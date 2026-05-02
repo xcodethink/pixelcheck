@@ -5,9 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — v1 worktree (worktree-v1-ai-first)
+## [Unreleased]
 
-> Phase 1 (AI core) + ship-prep + W1 brand alignment for the Big Bang v1 release. Not yet shipped.
+> Wave 2 in progress per PixelCheck-v1.x-后续优化方案. No user-visible changes yet.
+
+## [1.0.0] - 2026-05-02
+
+> First commercially-supported release. PixelCheck v1.0 ships an MCP server giving AI agents real eyes and hands on the web. Aggregates Phase 1 (AI core) + Phase 2 (commercial-grade quality) + ship-prep waves + W1 brand alignment.
 
 ### BREAKING — Renamed to PixelCheck + Repositioned as AI-first MCP infrastructure (W1 ADR-033, 2026-05-01)
 
