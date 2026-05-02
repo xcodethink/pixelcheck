@@ -84,18 +84,37 @@ ships and downstream users have time to upgrade.
 - **Resolution**: Removed alongside the two findings above when
   Stagehand v3.3.0 replaced its dependency tree.
 
+## Post-Stagehand-v3 transitive cleanup (2026-05-03)
+
+Stagehand v3.3.0 introduced a **new** set of 5 transitive moderate
+findings (different from the v1.0 set listed above):
+
+| Package | GHSA | Severity | Resolution |
+|---|---|---|---|
+| `langsmith` | [GHSA-v34v-rq6j-cj6p](https://github.com/advisories/GHSA-v34v-rq6j-cj6p) — SSRF via Tracing Header Injection | moderate | **Resolved** via `overrides.langsmith: ^0.6.0` |
+| `langsmith` | [GHSA-fw9q-39r9-c252](https://github.com/advisories/GHSA-fw9q-39r9-c252) — Prototype Pollution via incomplete `__proto__` guard | moderate | **Resolved** via override (same) |
+| `langsmith` | [GHSA-rr7j-v2q5-chgv](https://github.com/advisories/GHSA-rr7j-v2q5-chgv) — Streaming token events bypass output redaction | moderate | **Resolved** via override (same) |
+| `uuid` | [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) — Missing buffer bounds check in v3/v5/v6 | moderate | **Resolved** via `overrides.uuid: ^14.0.0` |
+| (uuid same finding via second dependency path) | — | moderate | Same override above |
+
+Both overrides are validated at runtime by the T5 Stagehand smoke test
+(real chromium + Anthropic API exercising act / extract / observe). The
+forced versions are major bumps over what `@browserbasehq/stagehand@3.3.0`
+and `@langchain/core` declare in their `dependencies`, but Stagehand
+runs cleanly against them.
+
+Result: `npm audit --production` reports **0 vulnerabilities**.
+
 ### CI policy
 
-Historic v1.0.x: CI ran `npm audit --audit-level=high`, which did not
-fail on the moderate findings above. The original decision was
-documented in
-[ADR-028](docs/decisions/ADR-028-stagehand-v3-deferred.md).
+After ADR-029 + the post-v3 override cleanup above, CI runs
+`npm audit --production --audit-level=moderate` (tightened from the
+v1.0 `--audit-level=high` gate). All historical waivers are closed.
 
-After [ADR-029](docs/decisions/ADR-029-stagehand-v3-migration.md) the
-moderate-tier waiver is no longer needed. The audit-level gate can be
-tightened to `--audit-level=moderate` in a follow-up CI commit when
-maintainer time is available; this was previously blocked on the
-Stagehand v3 transitive cleanup.
+When `@browserbasehq/stagehand` ships a new minor / patch that bumps
+its own internal langsmith / uuid pins, the `overrides` block can be
+removed in a follow-up PR (the override is harmless to keep but
+unnecessary once upstream catches up).
 
 ---
 
