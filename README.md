@@ -946,20 +946,27 @@ Setting a retention to `0` means **infinite retention** (skip prune for that kin
 
 ## How Is This Different?
 
-The open-source landscape has excellent **browser automation frameworks** (browser-use 91k stars, Stagehand 22k, Skyvern 21k) and mature **accessibility rule engines** (axe-core 7k, pa11y 4.4k). But none of them answer the question *"how does an AI agent see and operate the web through a strict, cacheable contract?"* — and none of them simulate eighteen real users across fifteen countries.
+You have four real options if you want an AI agent to operate the visual web today, and each makes a different bet:
 
-| | Automation Frameworks | Rule-Based Auditors | **PixelCheck** |
-|---|---|---|---|
-| **Question answered** | "How do I control a browser?" | "Does this pass WCAG 2.x?" | "How does an AI agent see and operate the web?" |
-| **Primary interface** | Library / SDK | CLI | **MCP server** (+ CLI for humans) |
-| **Intelligence** | LLM-driven actions | Static rules | LLM vision + rules + Computer Use |
-| **User simulation** | Single anonymous session | None | 18 personas across 15 countries |
-| **Anti-detection** | None | N/A | 9 fingerprints + 15 stealth patches |
-| **Output contract** | Action results | Pass/fail checklist | 30 published JSON Schemas + 67 named API |
-| **History** | None | None | SQLite trends + run-to-run diff |
-| **Vendor lock-in** | Often (cloud SaaS) | None | None — local-first, vendor-agnostic |
+- **OSS automation frameworks** — browser-use (91k★), Stagehand (22k★), Skyvern (21k★). Best-in-class at *executing tasks* an agent dictates. None ship a multi-persona simulation layer, none have a strict result-schema contract designed for cacheable AI workflows.
+- **Rule-based auditors** — axe-core (7k★), pa11y (4.4k★), Lighthouse. Excellent at "does this pass WCAG?" Silent on "is this product actually good?"
+- **Hosted agentic browsers** — Comet, Atlas, BrowserOS, Dia. Consumer products that replace Chrome. You give them a credit card and a session. They give you UI, not infrastructure.
+- **PixelCheck** — the MCP server beneath your AI agent's workflow. Fully local, fully OSS, fully owned.
 
-No existing open-source project combines MCP-first browser primitives, multi-persona simulation, AI vision scoring, WCAG analysis, stealth fingerprints, and historical trend tracking. PixelCheck is the missing infrastructure layer between AI agents and the visual web.
+| | OSS Frameworks | Rule-Based Auditors | Hosted Agentic Browsers | **PixelCheck** |
+|---|---|---|---|---|
+| **Question answered** | How do I control a browser? | Does this pass WCAG 2.x? | Can a product look at the web for me? | How does *my AI agent* see and operate the web? |
+| **Primary interface** | Library / SDK | CLI | Desktop app + cloud session | **MCP server** (+ CLI for humans) |
+| **Intelligence** | LLM-driven actions | Static rules | Hosted LLM (you pay per session) | LLM vision + rules + Computer Use, your LLM key |
+| **User simulation** | Single anonymous session | None | Single signed-in session | 18 personas × 15 countries × 5 script systems |
+| **Anti-detection** | None | N/A | Built-in (browser identity) | 9 fingerprints + 15 stealth patches |
+| **Output contract** | Action results | Pass/fail checklist | Conversational replies | **30 published JSON Schemas + 67 named API** |
+| **History** | None | None | Per-session, vendor-locked | SQLite trends + run-to-run diff, yours |
+| **Cost model** | Free OSS, your LLM bill | Free OSS | Subscription + per-session | Free OSS, your LLM bill, no PixelCheck markup |
+| **Where your data lives** | Your machine | Your machine | Vendor cloud | **Your machine. Period.** |
+| **Lock-in** | Sometimes (cloud add-ons) | None | Maximum | None — MIT, no paid tier, no commercial fork |
+
+No existing open-source project combines MCP-first browser primitives, multi-persona simulation, AI vision scoring, WCAG analysis, stealth fingerprints, and historical trend tracking. **PixelCheck is the missing infrastructure layer between AI agents and the visual web** — and it's the only one in the table above where the answer to "what happens to my data" is "it never leaves your machine."
 
 ## Test Coverage
 
