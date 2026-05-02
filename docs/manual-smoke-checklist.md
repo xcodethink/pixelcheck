@@ -52,7 +52,7 @@ Check `reports/`:
 
 ```bash
 # First run — cache miss, Opus planner invoked
-rm -f ~/.ai-browser-auditor/plan-cache.db
+rm -f ~/.pixelcheck/plan-cache.db
 pixelcheck run --scenario 10-autonomous-smoke --tag cache-first
 # Note total cost
 

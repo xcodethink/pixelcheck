@@ -143,8 +143,8 @@ pixelcheck run --budget 10.0      # bump per-run budget cap
 
 Or set env caps (`AUDIT_COST_MAX_RUN_USD` / `AUDIT_COST_MAX_DAILY_USD`).
 
-The daily ledger is at `~/.ai-browser-auditor/cost-ledger.json` — see
-your spending: `cat ~/.ai-browser-auditor/cost-ledger.json`.
+The daily ledger is at `~/.pixelcheck/cost-ledger.json` — see
+your spending: `cat ~/.pixelcheck/cost-ledger.json`.
 
 ### `axe-core not available after injection`
 
@@ -297,7 +297,7 @@ Pin it:
 ```yaml
 - uses: marocchino/sticky-pull-request-comment@v2
   with:
-    header: ai-browser-auditor-diff   # exact same string every run
+    header: pixelcheck-diff   # exact same string every run
     path: diff.md
 ```
 
@@ -333,7 +333,7 @@ showing per-step timing — useful for diagnosing where time goes.
 Check the ledger:
 
 ```bash
-cat ~/.ai-browser-auditor/cost-ledger.json | jq
+cat ~/.pixelcheck/cost-ledger.json | jq
 ```
 
 `days[<date>].usd` shows the actual daily total. If higher than expected:
