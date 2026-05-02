@@ -11,22 +11,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **`dotenv` ^16.6.1 → ^17.4.2** and **`zod` ^3.23.0 → ^3.25.76**. Both
-  were held back by overly-conservative peer-dependency constraints in
-  `@browserbasehq/stagehand@2.5.8` (`peer dotenv@^16.4.5` and
-  `peer zod >=3.25.0 <3.25.68`). Empirical validation via the T5
-  Stagehand smoke test (real chromium + real Anthropic API exercising
-  `act` / `extract` / `observe`) shows Stagehand 2.5.8 runs cleanly on
-  the upgraded versions; an `overrides.@browserbasehq/stagehand` block
-  in `package.json` resolves the peer-warning at install time. Upstream
-  fix landed in Stagehand v3.x — `T-NEW-1` Stagehand v3 migration will
-  drop the override block when scheduled.
+- **`@browserbasehq/stagehand` ^2.0.0 → ^3.3.0** ([ADR-029](docs/decisions/ADR-029-stagehand-v3-migration.md),
+  supersedes [ADR-028](docs/decisions/ADR-028-stagehand-v3-deferred.md)).
+  Stagehand v3 went CDP-native and dropped Playwright BrowserContext as
+  its substrate, which would have removed our HAR / video / Playwright-
+  tracing recording. Architecture: PixelCheck launches its own
+  Playwright Chromium with stealth + recording, then bridges Stagehand
+  v3 in via `localBrowserLaunchOptions.cdpUrl` so v3 attaches to that
+  browser over CDP. Public API unchanged — handlers / instruction-mutator
+  / primitives still call `wrapper.stagehand.act({ action })` /
+  `extract({ instruction, schema })` / `observe({ instruction })`; the
+  wrapper adapter translates internally to v3's positional API. T5
+  Stagehand smoke (real chromium + Anthropic API) verifies the bridge
+  end-to-end at \$0.02 / run.
+  - **`overrides.@browserbasehq/stagehand` block removed** —
+    Stagehand v3.3.0 peer accepts dotenv 17 + zod 3.25.76 directly, no
+    override needed.
+  - **3 transitive moderate vulnerabilities closed** (was waived in
+    SECURITY.md `ai` SDK / `jsondiffpatch` / 1 low — Stagehand v3
+    dropped both vulnerable deps).
+- **`dotenv` ^16.6.1 → ^17.4.2** and **`zod` ^3.23.0 → ^3.25.76**.
+  Originally pinned by Stagehand v2.5.8's overly-conservative peer
+  ranges; PR #12 unblocked them via `overrides`; ADR-029's Stagehand
+  v3 migration makes the upgrades direct (no override). T5 Stagehand
+  smoke verifies runtime compatibility.
 - **`src/cli.ts`** — both `dotenv.config()` callsites now pass
   `{ quiet: true }`. dotenv 17 flipped its default to `quiet=false`,
   which writes a load-banner line to stdout on every CLI invocation.
   Without `quiet: true` this would corrupt MCP stdio JSON-RPC frames if
   the path were ever shared with the MCP server entry, and pollutes
   CLI consumer parsing in any case.
+
+### Deprecated
+
+- `OpenedExtractor.readMetrics` signature changed from
+  `() => StagehandMetricsSnapshot` to `() => Promise<StagehandMetricsSnapshot>`,
+  forced by Stagehand v3 making `stagehand.metrics` an async getter.
+  `OpenedExtractor` is internal-only — no public API impact. Mock
+  callers using `() => ({...})` continue to work because `await` on a
+  sync return resolves to the value unchanged.
 
 ## [1.0.1] - 2026-05-02 — Critical Hotfix
 
