@@ -2,11 +2,13 @@
  * First-run consent for sending page content to Anthropic API.
  *
  * Why this exists (T22 — closes RISK-REGISTER R34 + R38):
- * The auditor sends screenshots + DOM to Claude API to evaluate pages.
- * That's the entire point of an "AI browser auditor" — but it's user
- * data leaving the machine and the operator must give informed consent
- * the first time it happens. After acknowledgment, subsequent runs
- * skip the prompt (consent persists in ~/.ai-browser-auditor/consent.json).
+ * PixelCheck sends screenshots + DOM to Claude API to evaluate pages.
+ * That's the entire point of an MCP server giving AI agents eyes on the
+ * web — but it's user data leaving the machine and the operator must
+ * give informed consent the first time it happens. After acknowledgment,
+ * subsequent runs skip the prompt (consent persists in
+ * ~/.pixelcheck/consent.json; legacy ~/.ai-browser-auditor/consent.json
+ * still read for backward compat via AUDIT_HOME env var).
  *
  * Bypass paths (in this priority):
  *   1. AUDIT_AUTO_CONSENT=1 env var — writes consent marker without prompting
@@ -59,7 +61,7 @@ export interface ConsentOptions {
   honorEnvVar?: boolean;
   /** Treat `--auto-consent` flag as auto-consent. */
   cliAutoConsent?: boolean;
-  /** Override consent file location (default `~/.ai-browser-auditor/consent.json`). */
+  /** Override consent file location (default `~/.pixelcheck/consent.json`). */
   consentPath?: string;
   /**
    * Test seam — supply a custom prompt fn (returns "y"/"n"/...) so
@@ -83,7 +85,9 @@ export interface ConsentResult {
 
 function defaultConsentPath(): string {
   const home =
-    process.env.AUDIT_HOME ?? path.join(os.homedir(), ".ai-browser-auditor");
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
   return path.join(home, "consent.json");
 }
 
@@ -141,7 +145,7 @@ async function readlinePrompt(
 
 const PROMPT_TEXT = [
   "",
-  "AI Browser Auditor — first-run consent",
+  "PixelCheck — first-run consent",
   "======================================",
   "",
   "Running an audit will send the following data to the Anthropic Claude API:",

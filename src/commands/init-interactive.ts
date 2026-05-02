@@ -1,9 +1,9 @@
 /**
- * `ai-audit init` (no args) — interactive wizard for first-run setup.
+ * `pixelcheck init` (no args) — interactive wizard for first-run setup.
  *
  * Why this exists (T23 closes RISK-REGISTER R46):
- * The legacy `ai-audit init <dir>` is non-interactive (CI-friendly).
- * For a human running `ai-audit init` cold, an interactive wizard
+ * The legacy `pixelcheck init <dir>` is non-interactive (CI-friendly).
+ * For a human running `pixelcheck init` cold, an interactive wizard
  * prompting for project name / base URL / API key / first scenario is
  * the difference between a 30-second setup and a 5-minute one.
  *
@@ -15,7 +15,7 @@
  *   2. Asks for base URL (default: http://localhost:3000)
  *   3. Detects ANTHROPIC_API_KEY in env; if missing, instructs how to set it
  *   4. Offers to create a sample scenario (homepage smoke)
- *   5. Optionally runs `ai-audit doctor` at the end to sanity-check
+ *   5. Optionally runs `pixelcheck doctor` at the end to sanity-check
  *
  * The wizard delegates to the same scaffolding logic the non-interactive
  * `init <dir>` already uses — see `scaffoldProject()`.
@@ -87,7 +87,7 @@ export async function runInitInteractive(
   try {
     const intro = [
       "",
-      "Welcome to ai-browser-auditor — interactive setup",
+      "Welcome to PixelCheck — interactive setup",
       "================================================",
       "",
       "This wizard creates a new audit project with:",
@@ -123,7 +123,7 @@ export async function runInitInteractive(
     const createSampleScenario = /^y/i.test(createSampleAnswer);
 
     const runDoctorAnswer = await promptOnce(
-      "Run `ai-audit doctor` after setup to verify environment? (y/n)",
+      "Run `pixelcheck doctor` after setup to verify environment? (y/n)",
       "y",
     );
     const runDoctorAfter = /^y/i.test(runDoctorAnswer);

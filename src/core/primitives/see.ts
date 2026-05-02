@@ -84,7 +84,7 @@ export interface SeeOptions {
   timeoutMs?: number;
   /** Run headless. Default true. */
   headless?: boolean;
-  /** Where to write per-call artifacts (one subdir per `see`). Default: `$AUDIT_SEES_DIR` or `~/.ai-browser-auditor/sees/`. */
+  /** Where to write per-call artifacts (one subdir per `see`). Default: `$AUDIT_SEES_DIR` or `~/.pixelcheck/sees/`. */
   artifactsRoot?: string;
   /** Critic model id. Default `"claude-sonnet-4-6"`. */
   criticModel?: string;
@@ -169,7 +169,11 @@ export const DEFAULT_CRITIC_MODEL = "claude-sonnet-4-6";
 export function defaultArtifactsRoot(): string {
   const envDir = process.env.AUDIT_SEES_DIR;
   if (envDir && envDir.length > 0) return envDir;
-  return path.join(os.homedir(), ".ai-browser-auditor", "sees");
+  const home =
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
+  return path.join(home, "sees");
 }
 
 function makeRunDir(root: string): string {

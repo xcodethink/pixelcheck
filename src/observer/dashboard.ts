@@ -16,7 +16,7 @@ export function getDashboardHtml(): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Browser Auditor - Live Observer</title>
+<title>PixelCheck - Live Observer</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -311,7 +311,7 @@ export function getDashboardHtml(): string {
 <body>
 
 <div class="control-bar">
-  <h1>AI Browser Auditor</h1>
+  <h1>PixelCheck</h1>
   <span id="status" class="status-badge status-running">Connecting...</span>
   <span id="cost" class="cost-display">$0.000</span>
   <button class="btn" id="btnPause" onclick="send('pause')">Pause</button>

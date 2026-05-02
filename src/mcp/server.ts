@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * AI Browser Auditor — MCP Server
+ * PixelCheck — MCP Server
  *
- * Exposes the auditor as a Model Context Protocol server over stdio so any
- * MCP-aware client (Claude Code, Cursor, Cline, Continue, Zed agent, etc.)
- * can run audits against URLs without leaving their workflow.
+ * Exposes PixelCheck's browser primitives + audit preset as a Model Context
+ * Protocol server over stdio so any MCP-aware client (Claude Code, Cursor,
+ * Cline, Continue, Zed agent, Claude Desktop, etc.) can give an AI agent
+ * real eyes and hands on the web without leaving its workflow.
  *
  * Architecture (M3-6 + M9-1):
  *   server.ts       — transport lifecycle + dispatcher (this file)
@@ -33,9 +34,8 @@
  * Registration example for Claude Code ~/.mcp.json:
  *   {
  *     "mcpServers": {
- *       "ai-browser-auditor": {
- *         "command": "node",
- *         "args": ["<abs-path>/dist/mcp/server.js"]
+ *       "pixelcheck": {
+ *         "command": "pixelcheck-mcp"
  *       }
  *     }
  *   }
@@ -101,7 +101,7 @@ export function buildDefaultRegistry(): ToolRegistry {
 
 export async function runMcpServer(): Promise<void> {
   const server = new Server(
-    { name: "ai-browser-auditor", version: "0.3.0" },
+    { name: "pixelcheck", version: "0.3.0" },
     { capabilities: { tools: {} } },
   );
 

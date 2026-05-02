@@ -360,7 +360,7 @@ describe("renderTrendsHtml — empty history", () => {
   it("emits a friendly empty-state placeholder", () => {
     const html = renderTrendsHtml([]);
     expect(html).toContain("No audit history found yet");
-    expect(html).toContain("ai-audit run");
+    expect(html).toContain("pixelcheck run");
     expect(html).toMatch(/^<!doctype html>/);
   });
 });
@@ -555,7 +555,7 @@ describe("renderTrendsHtml — i18n integration (M2-4)", () => {
 
   it("default locale (no arg) renders English", () => {
     const html = renderTrendsHtml(buildHistory());
-    expect(html).toContain("AI Browser Auditor — Trends");
+    expect(html).toContain("PixelCheck — Trends");
     expect(html).toContain("Latest score");
     expect(html).toContain("2 runs");
   });
@@ -630,7 +630,7 @@ describe("writeTrendsDashboard", () => {
     expect(out).toBe(path.join(tmp, "trends.html"));
     expect(fs.existsSync(out)).toBe(true);
     const html = fs.readFileSync(out, "utf8");
-    expect(html).toContain("AI Browser Auditor — Trends");
+    expect(html).toContain("PixelCheck — Trends");
     expect(html).toContain("demo-shop");
     expect(html).toContain("3 runs");
   });

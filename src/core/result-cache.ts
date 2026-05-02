@@ -23,7 +23,7 @@
  *                 per-side judge calls hit cache; synthesis is tiny).
  *   - audit_url — heavyweight, many-variable; deferred to a future task.
  *
- * Storage: SQLite at `~/.ai-browser-auditor/result-cache.db` (override
+ * Storage: SQLite at `~/.pixelcheck/result-cache.db` (override
  * via `AUDIT_RESULT_CACHE_PATH`). One table; one row per cache entry.
  * WAL transition is wrapped in a file-lock per the M9-3 follow-up
  * pattern (see history.ts / agent/memory.ts).
@@ -68,7 +68,7 @@ const log = getLogger("result-cache");
 export type { ResultCacheMeta };
 
 export interface ResultCacheConfig {
-  /** Override the SQLite path. Defaults to env or `~/.ai-browser-auditor/result-cache.db`. */
+  /** Override the SQLite path. Defaults to env or `~/.pixelcheck/result-cache.db`. */
   dbPath?: string;
   /** Override the TTL. Defaults to env or 24h. */
   ttlMs?: number;
@@ -145,7 +145,11 @@ const DEFAULT_MAX_DISK_MB = 500;
 export function defaultDbPath(): string {
   const env = process.env.AUDIT_RESULT_CACHE_PATH;
   if (env && env.length > 0) return env;
-  return path.join(os.homedir(), ".ai-browser-auditor", "result-cache.db");
+  const home =
+    process.env.PIXELCHECK_HOME ??
+    process.env.AUDIT_HOME ??
+    path.join(os.homedir(), ".pixelcheck");
+  return path.join(home, "result-cache.db");
 }
 
 function readEnvNumber(name: string, fallback: number): number {
