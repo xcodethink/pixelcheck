@@ -33,10 +33,10 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { pixelcheckHome } from "./home-dir.js";
 import { getLogger } from "./logger.js";
 
 const log = getLogger("consent");
@@ -84,11 +84,7 @@ export interface ConsentResult {
 }
 
 function defaultConsentPath(): string {
-  const home =
-    process.env.PIXELCHECK_HOME ??
-    process.env.AUDIT_HOME ??
-    path.join(os.homedir(), ".pixelcheck");
-  return path.join(home, "consent.json");
+  return path.join(pixelcheckHome(), "consent.json");
 }
 
 /**

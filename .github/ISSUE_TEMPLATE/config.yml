@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability disclosure
+    url: https://github.com/xcodethink/pixelcheck/security/advisories/new
+    about: Confidential vulnerability reports — please do NOT file a public issue. See SECURITY.md.
+  - name: Code of Conduct concern
+    url: https://github.com/xcodethink/pixelcheck/security/advisories/new
+    about: Sensitive personal-impact reports — see CODE_OF_CONDUCT.md for the confidential reporting flow.
+  - name: Documentation feedback or typo
+    url: https://github.com/xcodethink/pixelcheck/edit/main/README.md
+    about: Small fixes — open a PR directly via GitHub's edit-on-web flow.
+  - name: General discussion / show-and-tell
+    url: https://github.com/xcodethink/pixelcheck/discussions
+    about: For open-ended discussion that isn't a bug or specific feature request.
