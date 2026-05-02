@@ -78,7 +78,7 @@ jobs:
       # artifact lives 90 days (GitHub default for public repos).
       - name: Upload perf-current.json
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: perf-current-${{ github.run_id }}
           path: docs/perf-current.json
