@@ -88,7 +88,7 @@ jobs:
       # the per-sample detail without re-running.
       - name: Upload calibration artefacts
         if: always() && steps.keycheck.outputs.skip == 'false'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: calibration-${{ github.run_id }}
           path: reports/calibration/
