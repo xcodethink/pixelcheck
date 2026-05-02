@@ -48,7 +48,12 @@ import {
 } from "./commands/init-interactive.js";
 import { ensureConsent } from "./core/consent.js";
 
-dotenv.config();
+// quiet: true silences dotenv 17's default load banner — `dotenv.config()`
+// without options writes a "[dotenv@17] injecting env (N) from .env" line
+// to stdout on every CLI invocation. That noise breaks any consumer that
+// parses CLI stdout (and would corrupt MCP stdio JSON-RPC frames if this
+// path were ever shared with the MCP server entry).
+dotenv.config({ quiet: true });
 
 // Register all known env-derived secrets with the logger redaction layer
 // before any log emission.
@@ -650,7 +655,7 @@ program
     out: string;
   }) => {
     try {
-      dotenv.config();
+      dotenv.config({ quiet: true });
 
       // Build an in-memory autonomous scenario
       const scenario = {
