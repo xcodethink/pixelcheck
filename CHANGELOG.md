@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-> Wave 2 in progress per PixelCheck-v1.x-后续优化方案. No user-visible changes yet.
+## [1.1.0] - 2026-05-03 — Stagehand v3 + dependency wave
+
+> Recommended for all v1.0.x users. Internal dependency upgrades + new
+> test infrastructure + community surface. **No public-API breaking
+> changes** — all v1.0.x callers continue to work unchanged.
 
 ### Security
 
