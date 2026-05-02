@@ -45,51 +45,57 @@ ships and downstream users have time to upgrade.
 
 ## Known Accepted Risks (v1.0.0)
 
-`npm audit` reports the following moderate transitive vulnerabilities in
-the v1.0.0 dependency tree. They are **inherited from
-`@browserbasehq/stagehand@2.5.8`** and are **not exploitable in our use
-case**, as documented below.
+> **Update 2026-05-03**: T-NEW-1 (Stagehand v3 upgrade) executed earlier
+> than planned — see [ADR-029](docs/decisions/ADR-029-stagehand-v3-migration.md).
+> Stagehand v3.3.0 dropped both vulnerable transitive dependencies, so the
+> three waivers below are **closed**. The full text is preserved here as a
+> historical record of v1.0.0's accepted-risk posture.
 
-### 1. `ai` SDK — file-type whitelist bypass (GHSA-rwvc-j5jr-mgvh)
+### 1. `ai` SDK — file-type whitelist bypass (GHSA-rwvc-j5jr-mgvh) — **CLOSED**
 
 - **Severity**: Moderate
 - **Source**: `@browserbasehq/stagehand@2.5.8 → ai`
 - **Vulnerable behavior**: Vercel AI SDK's file-upload endpoint
   whitelist can be bypassed when uploading user-supplied files.
-- **Why not exploitable in `ai-browser-auditor`**: We do not call the
+- **Why was not exploitable in `pixelcheck@1.0.x`**: We do not call the
   `ai` SDK's file-upload functionality. Stagehand uses `ai` for prompt
   formatting only; no file uploads cross this code path.
-- **Closure plan**: T-NEW-1 (Stagehand v3 upgrade, v1.1 early task) —
-  Stagehand v3.x removes the dependency on the vulnerable `ai`
-  versions, fully clearing this finding.
+- **Resolution**: Stagehand 3.3.0 no longer depends on `ai` SDK.
+  Verified by `npm audit` post-upgrade — finding is gone.
 
-### 2. `jsondiffpatch` — `HtmlFormatter::nodeBegin` XSS (GHSA-33vc-wfww-vjfv)
+### 2. `jsondiffpatch` — `HtmlFormatter::nodeBegin` XSS (GHSA-33vc-wfww-vjfv) — **CLOSED**
 
 - **Severity**: Moderate
 - **Source**: `@browserbasehq/stagehand@2.5.8 → jsondiffpatch`
 - **Vulnerable behavior**: `HtmlFormatter::nodeBegin` does not properly
   escape user-controlled values, leading to cross-site scripting if
   the formatted HTML is rendered in a browser.
-- **Why not exploitable in `ai-browser-auditor`**: We do not use
+- **Why was not exploitable in `pixelcheck@1.0.x`**: We do not use
   `jsondiffpatch`'s `HtmlFormatter`. Stagehand uses `jsondiffpatch` for
   internal plan diffing (server-side, never rendered as HTML to a
   browser). No HTML output reaches a user surface from this code path.
-- **Closure plan**: Same as above — Stagehand v3 (T-NEW-1).
+- **Resolution**: Stagehand 3.3.0 no longer uses `jsondiffpatch`.
+  Verified by `npm audit` post-upgrade.
 
-### 3. (One additional low-severity transitive — see `npm audit`)
+### 3. (One additional low-severity transitive) — **CLOSED**
 
 - **Severity**: Low
 - **Source**: Stagehand v2.5.8 transitive
-- **Closure plan**: Same as above (Stagehand v3 / T-NEW-1)
+- **Resolution**: Removed alongside the two findings above when
+  Stagehand v3.3.0 replaced its dependency tree.
 
 ### CI policy
 
-Our CI runs `npm audit --audit-level=high`, which **does not** fail on the
-moderate findings above. The decision is documented in
+Historic v1.0.x: CI ran `npm audit --audit-level=high`, which did not
+fail on the moderate findings above. The original decision was
+documented in
 [ADR-028](docs/decisions/ADR-028-stagehand-v3-deferred.md).
 
-When Stagehand v3 ships in v1.1, we will tighten the gate to
-`--audit-level=moderate`.
+After [ADR-029](docs/decisions/ADR-029-stagehand-v3-migration.md) the
+moderate-tier waiver is no longer needed. The audit-level gate can be
+tightened to `--audit-level=moderate` in a follow-up CI commit when
+maintainer time is available; this was previously blocked on the
+Stagehand v3 transitive cleanup.
 
 ---
 
