@@ -26,11 +26,15 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    // Only the dedicated integration tests that need the forks pool.
-    // Other tests/integration/*.test.ts files (agent-loop / signals e2e)
-    // continue to run under the default config because they don't have
-    // the cross-process spawn dependency.
-    include: ["tests/integration/file-lock-race.test.ts"],
+    // Tests that need the forks pool (cross-process spawn isolation) plus
+    // the chromium-launching e2e tests that aren't safe to run on every
+    // ci.yml matrix config (chromium binary install cost). The integration
+    // workflow installs chromium once on Ubuntu before invoking this config.
+    include: [
+      "tests/integration/file-lock-race.test.ts",
+      "tests/integration/agent-loop-e2e.test.ts",
+      "tests/integration/signals-e2e.test.ts",
+    ],
     // Forks pool — fresh Node process per file.
     // vitest 4+ moved poolOptions to top-level `forks` / `threads` keys.
     pool: "forks",

@@ -13,15 +13,20 @@ export default defineConfig({
     // @playwright/test (separate test runner with its own assertion API);
     // it runs via `npm run test:integration:playwright` (playwright.config.ts).
     //
-    // All other tests/integration/*.test.ts files (agent-loop / signals e2e)
-    // continue to run under the default threads pool — they're vitest tests
-    // and don't have the cross-process spawn dependency.
+    // tests/integration/agent-loop-e2e.test.ts and signals-e2e.test.ts launch
+    // real chromium via Playwright. The default `npm test` ci.yml matrix
+    // (4 OS × 3 Node = 12 configs) does NOT install chromium — adding
+    // `npx playwright install` × 12 would 12x the install cost. They run
+    // via `npm run test:integration` from integration.yml, which already
+    // installs chromium once on Ubuntu. See vitest.integration.config.ts.
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
       "**/.claude/worktrees/**",
       "tests/integration/file-lock-race.test.ts",
       "tests/integration/playwright/**",
+      "tests/integration/agent-loop-e2e.test.ts",
+      "tests/integration/signals-e2e.test.ts",
     ],
     // Setup runs before each test file: disables the result cache
     // (M9-4) globally so primitive tests don't accidentally persist or
