@@ -47,6 +47,10 @@ export default defineConfig({
         "src/mcp/server.ts",
         "src/core/types.ts",
         "src/core/result-schema.ts",
+        // Vendored stealth-core has its own tests at the canonical source
+        // (/Users/wayne/Developer/stealth-core); counting it here would
+        // dilute the auditor's own coverage signal. See ADR-032.
+        "src/vendor/**",
         "src/**/*.d.ts",
       ],
       thresholds: {
@@ -79,10 +83,14 @@ export default defineConfig({
         //   M1-2 Phase 3 agent-loop (T14):   81 / 69 / 81 / 82 → floor 65/59/65/65
         //     (agent-loop.ts 0.4% → 77.35% stmt; +2.86 project gain; CROSSED 80%
         //      on stmt/funcs/lines; Wave 6 close: floor 60/54/60/60 → 65/59/65/65)
-        statements: 65,
-        branches: 59,
-        functions: 65,
-        lines: 65,
+        //   T14 follow-up + vendor exclude:  81 / 69 / 81 / 82 → floor 66/60/66/66
+        //     (agent-loop +8 tests for criterion verification dispatcher /
+        //      screenshot catch / micro-replan escalate; agent-loop 77.35→88.46%;
+        //      vendor exclude per ADR-032 keeps coverage signal focused)
+        statements: 66,
+        branches: 60,
+        functions: 66,
+        lines: 66,
       },
     },
   },
