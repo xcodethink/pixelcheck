@@ -11,13 +11,14 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/pixelcheck"><img alt="npm" src="https://img.shields.io/npm/v/pixelcheck?color=cb3837&label=npm&logo=npm&logoColor=white"></a>
-  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-3da639"></a>
+  <a href="https://www.npmjs.com/package/pixelcheck"><img alt="npm downloads" src="https://img.shields.io/npm/dm/pixelcheck?color=cb3837&logo=npm&logoColor=white"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/xcodethink/pixelcheck?color=3da639"></a>
   <a href="https://modelcontextprotocol.io"><img alt="MCP" src="https://img.shields.io/badge/MCP-compatible-4f46e5"></a>
-  <img alt="tests" src="https://img.shields.io/badge/tests-1853%20passing-22c55e">
-  <img alt="coverage" src="https://img.shields.io/badge/coverage-81%25-22c55e">
-  <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white">
-  <img alt="typescript" src="https://img.shields.io/badge/TypeScript-96.5%25-3178c6?logo=typescript&logoColor=white">
-  <a href="https://github.com/xcodethink/pixelcheck/releases"><img alt="release" src="https://img.shields.io/badge/release-v1.0.0-3178c6"></a>
+  <a href="https://github.com/xcodethink/pixelcheck/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/xcodethink/pixelcheck/ci.yml?branch=main&label=CI&logo=github"></a>
+  <img alt="node" src="https://img.shields.io/node/v/pixelcheck?color=339933&logo=node.js&logoColor=white">
+  <img alt="typescript" src="https://img.shields.io/github/languages/top/xcodethink/pixelcheck?color=3178c6&logo=typescript&logoColor=white">
+  <a href="https://github.com/xcodethink/pixelcheck/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/xcodethink/pixelcheck?color=3178c6&logo=github"></a>
+  <a href="https://github.com/xcodethink/pixelcheck/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/xcodethink/pixelcheck?style=flat&color=ffd700"></a>
 </p>
 
 <p align="center">
@@ -90,7 +91,7 @@ Restart your client. Your agent has eyes.
 
 **Vendor-agnostic.** Works with Claude today; multi-provider abstraction (OpenAI, Gemini, Ollama-local) is on the v1.x Wave 2 roadmap and your agent will switch with one config flag. The reason is simple: AI tools that lock you to a single LLM provider die in 2026. PixelCheck is the antidote.
 
-**Yours to own.** MIT license. Source-available. No paid tier. No "Pro" upgrade path. No commercial fork waiting in the wings. The 1853-test, 28-ADR, 30-published-schema product in this repo *is* the entire product. There's no premium edition behind a sign-up wall — never was, never will be.
+**Yours to own.** MIT license. Source-available. No paid tier. No "Pro" upgrade path. No commercial fork waiting in the wings. The 1858-test, 29-ADR, 30-published-schema product in this repo *is* the entire product. There's no premium edition behind a sign-up wall — never was, never will be.
 
 ---
 
@@ -153,6 +154,23 @@ For each **(persona x scenario)** combination:
 | **What it catches** | Functional bugs | i18n gaps, UX friction, visual regressions, trust issues, accessibility violations, cultural mismatches |
 
 **PixelCheck's audit preset is not a replacement for E2E tests.** It's what runs *after* them — the layer between "code works" and "product is good."
+
+## Compared to existing tools
+
+| | **PixelCheck** | Playwright | Cypress | Stagehand | Browserbase |
+|---|---|---|---|---|---|
+| **MCP server out of the box** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Browser primitives an AI agent can call** | 5 (see / act / extract / judge / compare) | n/a (low-level page API) | n/a | 3 (act / extract / observe) | n/a |
+| **AI vision (judge / critique)** | ✅ via Anthropic | ❌ | ❌ | ❌ (action-only) | ❌ |
+| **Built-in personas** | 18 across 15 countries | ❌ | ❌ | ❌ | ❌ |
+| **Localised report (5 languages)** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **WCAG 2.x audit + SARIF export** | ✅ (axe-core + GitHub Code Scanning ready) | manual via plugins | manual via plugins | ❌ | ❌ |
+| **Local-first by default** | ✅ (your machine, your API key) | ✅ | ✅ | ✅ (or Browserbase) | ❌ (cloud-only) |
+| **Vendor lock-in** | none (MIT, no SaaS) | none | none | optional Browserbase | full (paid SaaS) |
+| **LLM provider** | swap any (Anthropic default; primitives are vendor-agnostic) | n/a | n/a | swap any | n/a |
+| **Open source** | ✅ MIT | ✅ Apache 2.0 | ✅ MIT | ✅ MIT | partial |
+
+**TL;DR**: Playwright / Cypress are deterministic browser drivers — you tell them exactly what to click. Stagehand wraps Playwright with natural-language `act` / `extract` so an agent can drive a browser. PixelCheck is the next layer up: an MCP-shaped surface that gives any AI agent vision (`see` / `judge` / `compare`) on top of action (`act` / `extract`), with audit presets composed across personas. Use Playwright for unit-style tests; use Stagehand if you only need an agent to fill forms; use PixelCheck when the agent needs to *evaluate* a UI, not just operate it.
 
 ## Personas
 
