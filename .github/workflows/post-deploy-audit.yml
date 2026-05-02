@@ -43,10 +43,10 @@ jobs:
 
     steps:
       - name: Checkout ai-browser-auditor
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout stealth-core
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: xcodethink/stealth-core
           path: ../stealth-core
@@ -54,7 +54,7 @@ jobs:
 
       - name: Checkout external project config
         if: inputs.project == 'external' && inputs.external_repo != ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ inputs.external_repo }}
           path: ../external-project
