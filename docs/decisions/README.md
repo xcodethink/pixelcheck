@@ -70,9 +70,11 @@ formal ADR practice started at v0.3 maintenance).
 
 ---
 
-## Audit (2026-05-01, T19)
+## Audit (refreshed 2026-05-02 — Wave 7-pre)
 
-A one-time consistency review of all 26 ADRs:
+A consistency review of all **28 ADRs** (numbered 005-032; ADR-001 through
+ADR-004 were never written — early-project decisions never formalised; the
+five-digit zero padding starts at the first formalised decision):
 
 - **All Accepted, none Superseded** — no decision has been overturned in
   the v0.3 → v1.0 build-up
@@ -88,6 +90,11 @@ A one-time consistency review of all 26 ADRs:
     documented in ADR-018)
   - ADR-008 (cost-guard ledger) and ADR-026 (SQLite migrations) cover
     different persistence layers (ledger.json vs *.db) and don't conflict
+  - ADR-031 (CI bench observation) cites ADR-009 (concurrency) and
+    ADR-029 (forks-pool isolation) as related precedents
+  - ADR-032 (vendor stealth-core) cites ADR-018 (vendor exempt from
+    public API contract tests), ADR-027 / ADR-028 (similar ship-now,
+    evolve-later decisions)
 - **No `// TODO: write ADR for this` markers in source code**
 - **Public API exports listed in ADR-018 stay coherent across ADRs**
 
@@ -106,7 +113,7 @@ system, etc).
 | `Accepted` | Decision is binding; behaviour implemented or in-progress |
 | `Superseded by ADR-NNN` | Replaced by a later decision; left here for history |
 
-Currently all 26 ADRs are `Accepted`. When a decision is reversed, mark
+Currently all 28 ADRs are `Accepted`. When a decision is reversed, mark
 the old one `Superseded by ADR-XXX` (don't delete) and write a new ADR
 explaining the new direction + why the old one no longer fits.
 
