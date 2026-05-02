@@ -1,0 +1,52 @@
+name: Question
+description: Ask a usage / design / architecture question.
+title: "[question] "
+labels: ["question", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a question, please skim these — they cover the most common ones:
+
+        - [FAQ.md](https://github.com/xcodethink/pixelcheck/blob/main/FAQ.md) — API key + cost / scenarios / reports / privacy / native binaries
+        - [docs/TROUBLESHOOTING.md](https://github.com/xcodethink/pixelcheck/blob/main/docs/TROUBLESHOOTING.md) — runtime errors and fixes
+        - [docs/INSTALLATION.md](https://github.com/xcodethink/pixelcheck/blob/main/docs/INSTALLATION.md) — install matrix + corporate / Alpine / air-gapped
+        - [docs/decisions/](https://github.com/xcodethink/pixelcheck/tree/main/docs/decisions) — design rationale for design questions
+
+        If your question is "is this a bug?" please use the bug template instead — it has the right reproducibility prompts.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: |
+        What are you trying to do, and what part is unclear?
+      placeholder: |
+        I want to run PixelCheck against an internal staging URL behind a corporate proxy. INSTALLATION.md mentions HTTPS_PROXY but I don't know how that interacts with NODE_EXTRA_CA_CERTS for self-signed corp certs. What's the recommended pattern?
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried so far?
+      description: |
+        Helps maintainers point you at the next step rather than re-suggesting things you already tried.
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: pixelcheck version
+      description: Output of `npx pixelcheck --version`.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: "I have skimmed the FAQ / TROUBLESHOOTING / INSTALLATION docs above."
+          required: true
