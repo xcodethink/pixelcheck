@@ -5,7 +5,7 @@ than just trusting unit tests.
 
 ---
 
-## 1. Benchmark harness (`ai-audit benchmark`)
+## 1. Benchmark harness (`pixelcheck benchmark`)
 
 **Why:** Claims like "5-layer reliability stack reaches 98–99%" aren't
 credible without a public, reproducible score. This command runs the
@@ -54,15 +54,15 @@ file. Point `--tasks <path>` at either.
 
 ```bash
 # Full local mini-benchmark
-ai-audit benchmark --tasks benchmarks/local-mini
+pixelcheck benchmark --tasks benchmarks/local-mini
 
 # Filter by difficulty / tags / limit
-ai-audit benchmark --tasks benchmarks/local-mini \
+pixelcheck benchmark --tasks benchmarks/local-mini \
   --difficulties easy,medium --tags signup --limit 20
 
 # Run each cost mode separately for comparison
 for mode in max balanced economy; do
-  ai-audit benchmark --tasks benchmarks/local-mini \
+  pixelcheck benchmark --tasks benchmarks/local-mini \
     --cost-mode $mode --tag mode-$mode
 done
 ```
@@ -105,7 +105,7 @@ The schema is compatible as-is. Our runner will ignore WebArena's
 
 ---
 
-## 2. Critic calibration (`ai-audit calibrate`)
+## 2. Critic calibration (`pixelcheck calibrate`)
 
 **Why:** The vision critic gives scores between 0 and 10 across 18
 dimensions. Without a ground-truth check, we can't detect model drift
@@ -165,18 +165,18 @@ Commit the new PNGs. Re-label any samples whose visual content changed.
 
 ```bash
 # Default gate
-ai-audit calibrate
+pixelcheck calibrate
 
 # Custom gate (stricter)
-ai-audit calibrate --min-agreement 0.9 --max-distance 1.0
+pixelcheck calibrate --min-agreement 0.9 --max-distance 1.0
 
 # Against a different model (e.g., to evaluate a new release)
-ai-audit calibrate --model claude-sonnet-4-7-2026-08-01 --tag sonnet-4.7-pilot
+pixelcheck calibrate --model claude-sonnet-4-7-2026-08-01 --tag sonnet-4.7-pilot
 ```
 
 ### CI integration
 
-Add a nightly workflow that runs `ai-audit calibrate` with the default
+Add a nightly workflow that runs `pixelcheck calibrate` with the default
 gate. A failure means the critic drifted; review the `calibration.md`
 report to decide whether to:
 

@@ -89,7 +89,7 @@ The handler covers all 16 action types from `computer_20251124`: screenshot, lef
 ## Concurrency model
 
 - **Global**: `pLimit(concurrency)` controls how many units run in parallel (default 3)
-- **Per-origin**: `OriginThrottle` ensures units targeting the same origin are serialized within that origin (so a 6-persona × 1-scenario run against scamlens.org doesn't blast 6 requests/sec at the same WAF)
+- **Per-origin**: `OriginThrottle` ensures units targeting the same origin are serialized within that origin (so a 6-persona × 1-scenario run against your-app.com doesn't blast 6 requests/sec at the same WAF)
 - **Budget**: a global `cost.value` accumulator stops new units from starting once the cap is exceeded
 - **Cross-process**: shared mutable state — `cost-ledger.json`, `memory.db`, visual-diff baselines — is protected against races between parallel CLI / MCP processes. The cost ledger uses a `withFileLock` advisory lockfile around its read-modify-write; `AgentMemory.record` is one atomic SQLite upsert; visual baselines bootstrap via `linkSync` so the first writer wins. See [ADR-009](decisions/ADR-009-concurrency-safety.md).
 - **Per-call cost isolation**: per-run cost-guard counters live in an `AsyncLocalStorage` scope. Each `runAudit` call and each MCP tool dispatch gets its own scope, so two parallel tool invocations in a single MCP server process keep independent run-USD caps.
@@ -184,9 +184,9 @@ reports/
 **Schema:** `audit_runs` (summary stats), `dimension_scores` (per-unit per-dimension), `issues_history` (all issues).
 
 **CLI commands:**
-- `ai-audit history` — show recent runs in a table
-- `ai-audit diff <runA> <runB>` — compare two runs (score deltas, new/resolved issues)
-- `ai-audit run --min-score 7.5` — quality gate (fail build if score < threshold)
+- `pixelcheck history` — show recent runs in a table
+- `pixelcheck diff <runA> <runB>` — compare two runs (score deltas, new/resolved issues)
+- `pixelcheck run --min-score 7.5` — quality gate (fail build if score < threshold)
 
 **HTML report integration:** when trend data exists, the report includes an SVG sparkline chart showing overall score across the last 20 runs, plus a history table.
 
@@ -280,7 +280,7 @@ All internal modules log through a structured logger built on [pino](https://git
 Key properties:
 
 - **Output stream**: stderr only — keeps stdout clean for CLI results and the MCP stdio protocol.
-- **Format**: pretty-printed (colored, human-readable) when stderr is a TTY, JSON otherwise. So `ai-audit run` in a terminal still shows readable progress, while CI pipelines and the MCP server emit machine-parseable JSON.
+- **Format**: pretty-printed (colored, human-readable) when stderr is a TTY, JSON otherwise. So `pixelcheck run` in a terminal still shows readable progress, while CI pipelines and the MCP server emit machine-parseable JSON.
 - **Module-scoped**: every module gets its own child logger via `getLogger("module.name")`. The `module` field is auto-attached to every log line.
 - **Configurable via env**:
   - `LOG_LEVEL` — `trace|debug|info|warn|error|fatal|silent` (default `info`)

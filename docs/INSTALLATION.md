@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide covers `ai-browser-auditor` installation across platforms,
+This guide covers `pixelcheck` installation across platforms,
 container scenarios, and enterprise / air-gapped environments.
 
 For the **5-minute happy path**, see the [Quick Start in README](../README.md#quick-start).
@@ -58,23 +58,23 @@ For **troubleshooting**, jump to the [Common errors](#common-install-errors--fix
 ### As a project dependency
 
 ```bash
-npm install ai-browser-auditor
+npm install pixelcheck
 ```
 
 ### As a one-shot CLI
 
 ```bash
-npx ai-browser-auditor run
+npx pixelcheck run
 ```
 
 ### Globally
 
 ```bash
-npm install -g ai-browser-auditor
-ai-audit run
+npm install -g pixelcheck
+pixelcheck run
 ```
 
-After install, run `npx ai-browser-auditor doctor` (T23 task — coming
+After install, run `npx pixelcheck doctor` (T23 task — coming
 in v1.0) to verify your environment.
 
 ---
@@ -173,7 +173,7 @@ variable syntax differs:
 
 ```powershell
 $env:ANTHROPIC_API_KEY = "sk-ant-..."
-npx ai-browser-auditor run
+npx pixelcheck run
 ```
 
 ### WSL2
@@ -190,7 +190,7 @@ Windows file-system performance is ~10x worse than native ext4.
 
 ### Recommended: multi-stage build with Playwright official image
 
-The cleanest way to ship `ai-browser-auditor` in a container is to use
+The cleanest way to ship `pixelcheck` in a container is to use
 Playwright's pre-built image (Chromium + system libs already installed):
 
 ```dockerfile
@@ -319,7 +319,7 @@ npm ping
 If `doctor` is available (T23, v1.0+):
 
 ```bash
-npx ai-browser-auditor doctor --verbose
+npx pixelcheck doctor --verbose
 # Reports proxy / CA / connectivity status
 ```
 
@@ -333,8 +333,8 @@ For environments without internet access (regulated industries, gov, military, f
 
 ```bash
 # 1. Clone or download the repo
-git clone https://github.com/xcodethink/ai-browser-auditor.git
-cd ai-browser-auditor
+git clone https://github.com/xcodethink/pixelcheck.git
+cd pixelcheck
 
 # 2. Full install + verify
 npm ci
@@ -344,8 +344,8 @@ npm run build
 npx playwright install chromium
 
 # 4. Bundle everything
-tar czf ai-browser-auditor-offline-v1.0.0.tar.gz \
-  ai-browser-auditor/ \
+tar czf pixelcheck-offline-v1.0.0.tar.gz \
+  pixelcheck/ \
   ~/.cache/ms-playwright/   # Linux
   # ~/Library/Caches/ms-playwright/   # macOS
 ```
@@ -354,11 +354,11 @@ tar czf ai-browser-auditor-offline-v1.0.0.tar.gz \
 
 ```bash
 # Transfer via your approved sneakernet (USB / cross-domain solution / etc)
-scp ai-browser-auditor-offline-v1.0.0.tar.gz airgapped:~/
+scp pixelcheck-offline-v1.0.0.tar.gz airgapped:~/
 
 # On airgapped machine:
-tar xzf ai-browser-auditor-offline-v1.0.0.tar.gz
-cd ai-browser-auditor
+tar xzf pixelcheck-offline-v1.0.0.tar.gz
+cd pixelcheck
 
 # Skip browser download during install (we already have it)
 export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
@@ -371,7 +371,7 @@ mkdir -p ~/.cache/
 mv ms-playwright ~/.cache/
 
 # Verify
-npx ai-browser-auditor --version
+npx pixelcheck --version
 ```
 
 ### Anthropic API access on air-gapped systems
@@ -416,11 +416,11 @@ After install, run these three commands. All should succeed:
 
 ```bash
 # 1. Version check (proves npm install worked)
-npx ai-browser-auditor --version
+npx pixelcheck --version
 # Expected: v1.x.x
 
 # 2. Doctor (T23, v1.0+ — checks API key / config / network / Chromium)
-npx ai-browser-auditor doctor
+npx pixelcheck doctor
 
 # 3. Smoke run against a known-good URL (does NOT require API key for non-LLM steps)
 echo 'scenarios:
@@ -432,7 +432,7 @@ echo 'scenarios:
       - type: assert_a11y
         standard: wcag2aa' > smoke-scenario.yaml
 
-npx ai-browser-auditor run --scenarios smoke-scenario.yaml --no-pdf
+npx pixelcheck run --scenarios smoke-scenario.yaml --no-pdf
 # Expected: passes; writes reports/<runId>/audit.json
 ```
 
@@ -443,7 +443,7 @@ full AI-driven audit. See the [Quick Start in README](../README.md#quick-start).
 
 ## Getting help
 
-- **Bug reports**: [GitHub Issues](https://github.com/xcodethink/ai-browser-auditor/issues)
+- **Bug reports**: [GitHub Issues](https://github.com/xcodethink/pixelcheck/issues)
 - **Security disclosures**: [SECURITY.md](../SECURITY.md)
 - **Stuck on install**: open a discussion / issue with `[install]` in
   the title + your platform / Node version / full `doctor --verbose`
