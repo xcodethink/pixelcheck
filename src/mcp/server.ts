@@ -51,6 +51,7 @@ import { getLogger, registerSecret } from "../core/logger.js";
 import { buildRedactPatterns } from "../core/secrets.js";
 import { withCostRun } from "../core/cost-guard.js";
 import { errorResult, type ToolResult } from "./result.js";
+import { getPackageVersion } from "../core/version.js";
 import { ToolRegistry, type ToolDefinition } from "./registry.js";
 import { auditUrlTool } from "./tools/audit-url.js";
 import { exploreUrlTool } from "./tools/explore-url.js";
@@ -101,7 +102,7 @@ export function buildDefaultRegistry(): ToolRegistry {
 
 export async function runMcpServer(): Promise<void> {
   const server = new Server(
-    { name: "pixelcheck", version: "1.0.1" },
+    { name: "pixelcheck", version: getPackageVersion() },
     { capabilities: { tools: {} } },
   );
 
