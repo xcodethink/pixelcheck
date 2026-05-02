@@ -1,25 +1,58 @@
+<h1 align="center">PixelCheck</h1>
+
 <p align="center">
-  <h1 align="center">PixelCheck</h1>
-  <p align="center">
-    <strong>MCP server giving AI agents real eyes and hands on the web. Vendor-agnostic. Local-first. Yours to own.</strong>
-  </p>
-  <p align="center">
-    <a href="#five-primitives">Primitives</a> &bull;
-    <a href="#mcp-server">MCP Server</a> &bull;
-    <a href="#audit-preset">Audit Preset</a> &bull;
-    <a href="#quick-start">Quick Start</a> &bull;
-    <a href="#why-not-e2e-tests">Why Not E2E Tests</a> &bull;
-    <a href="CHANGELOG.md">Changelog</a>
-  </p>
+  <strong>Real eyes and hands for the AI agent that's writing your frontend.</strong>
+</p>
+
+<p align="center">
+  Drop-in MCP server. Five browser primitives. Eighteen personas across fifteen countries.<br/>
+  Local-first &middot; Vendor-agnostic &middot; MIT-licensed &middot; Yours to own.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/pixelcheck"><img alt="npm" src="https://img.shields.io/npm/v/pixelcheck?color=cb3837&label=npm&logo=npm&logoColor=white"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-3da639"></a>
+  <a href="https://modelcontextprotocol.io"><img alt="MCP" src="https://img.shields.io/badge/MCP-compatible-4f46e5"></a>
+  <img alt="tests" src="https://img.shields.io/badge/tests-1853%20passing-22c55e">
+  <img alt="coverage" src="https://img.shields.io/badge/coverage-81%25-22c55e">
+  <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white">
+  <img alt="typescript" src="https://img.shields.io/badge/TypeScript-96.5%25-3178c6?logo=typescript&logoColor=white">
+  <a href="https://github.com/xcodethink/pixelcheck/releases"><img alt="release" src="https://img.shields.io/badge/release-v1.0.0-3178c6"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start"><b>Quick Start →</b></a>
+  &nbsp;&middot;&nbsp;
+  <a href="#primitives">Primitives</a>
+  &nbsp;&middot;&nbsp;
+  <a href="#mcp-server">MCP Server</a>
+  &nbsp;&middot;&nbsp;
+  <a href="#audit-preset">Audit Preset</a>
+  &nbsp;&middot;&nbsp;
+  <a href="#why-not-e2e-tests">Why Not E2E</a>
+  &nbsp;&middot;&nbsp;
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 ---
 
-> **AI agents can't see what they build.** They write frontend code, but can't open a browser to verify a button looks right, an OAuth flow actually works, or a Japanese localisation didn't break. PixelCheck gives them eyes and hands.
+## Right now, you're a screenshotting middleman.
 
-## What is PixelCheck
+Your AI agent is writing 80% of your frontend. It's fast. It's good at code. But it's blind.
 
-PixelCheck is an [MCP](https://modelcontextprotocol.io) server that exposes five browser primitives an AI agent can call to actually see and operate the web:
+- **It writes a button.** You open Chrome to check it rendered right. Paste a screenshot back. Ask for the fix.
+- **It tweaks the OAuth flow.** You log in to verify it didn't silently break. Again. Sixth time this month.
+- **It updates the Japanese strings.** A user emails: "half the page is in English." You didn't catch it.
+- **It rewrites checkout.** You walk through it on iPhone, Android, iPad just to *feel* whether step 3 is confusing.
+- **It changes the Arabic layout.** RTL didn't propagate. You don't notice for two days.
+
+You become the bridge. The agent has thoughts. You have a browser. **The two never meet.** Hours of your week, every week, indefinitely.
+
+<a id="primitives"></a>
+
+## PixelCheck is the bridge.
+
+A single MCP server. Five primitives. Drop it in once — your agent has eyes and hands.
 
 ```
 see(url, opts)              snapshot a page (DOM + screenshot + console + network)
@@ -29,42 +62,43 @@ judge(url, rubric)          score a page against a rubric ("is this dark-pattern
 compare(a, b, criteria)     A/B comparison of two URLs (incl. blind mode)
 ```
 
-Each primitive returns a strict JSON Schema response with cost / screenshot / DOM envelope. Composable. Cacheable. Auditable.
-
-Drop the server into Claude Desktop, Cursor, Cline, Continue, Zed, or Claude Code via `~/.mcp.json` and your agent gets 17 tools — no glue code, no proxy server, no SaaS sign-up.
-
-- **Local-first**: runs on your machine. Data never leaves it.
-- **Vendor-agnostic**: works with any LLM your agent calls (Claude, GPT, Gemini, Ollama).
-- **Yours to own**: MIT license. Source-available. No telemetry. No lock-in.
-
-## Two Use Modes
-
-### For AI agents (MCP) — primary
-
-The 99% case. Your AI agent calls PixelCheck through MCP to see / act / extract / judge / compare on real web pages, with fingerprint / stealth / persona / WCAG / cost-guard infrastructure handled.
+Now your agent navigates. Sees rendered HTML. Reads console errors. Clicks. Fills. Judges. Compares. **Without ever leaving its workflow** — drop into Claude Desktop, Cursor, Cline, Continue, Zed, or Claude Code via four lines in `~/.mcp.json`.
 
 ```bash
 npm install -g pixelcheck
 pixelcheck doctor                # 8-check environment health
-pixelcheck-mcp                   # start MCP server (stdio transport)
+pixelcheck-mcp                   # MCP server (stdio transport)
 ```
 
-See [MCP Server](#mcp-server) for tool definitions and IDE integration.
-
-### For humans (CLI) — secondary
-
-PixelCheck bundles an 18-persona / 15-country audit preset on top of the primitives — a CLI-first composition that runs "real users review your product" after every deployment.
-
-```bash
-pixelcheck init projects/my-app --name "My App" --url "https://myapp.com"
-pixelcheck run --project projects/my-app
+```jsonc
+// ~/.mcp.json
+{
+  "mcpServers": {
+    "pixelcheck": {
+      "command": "pixelcheck-mcp",
+      "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
+    }
+  }
+}
 ```
 
-This was PixelCheck's original v0.x scope. v1.0 generalises it: audit becomes a preset composition of see / act / extract / judge across personas, leaving the primitives free for AI agents to use directly. See [Audit Preset](#audit-preset).
+Restart your client. Your agent has eyes.
+
+## Three promises that aren't going anywhere.
+
+**Local-first.** PixelCheck runs entirely on your machine. The only outbound network destination is the LLM provider your agent already uses. Screenshots, DOMs, business flows, OAuth tokens, customer URLs — they stay yours. Zero telemetry. Zero remote storage. Zero SaaS sign-up. The audit data hits Anthropic only when the vision critic actively scores a screenshot, and you opt in once on first run.
+
+**Vendor-agnostic.** Works with Claude today; multi-provider abstraction (OpenAI, Gemini, Ollama-local) is on the v1.x Wave 2 roadmap and your agent will switch with one config flag. The reason is simple: AI tools that lock you to a single LLM provider die in 2026. PixelCheck is the antidote.
+
+**Yours to own.** MIT license. Source-available. No paid tier. No "Pro" upgrade path. No commercial fork waiting in the wings. The 1853-test, 28-ADR, 30-published-schema product in this repo *is* the entire product. There's no premium edition behind a sign-up wall — never was, never will be.
 
 ---
 
-## The Audit Preset (post-deployment UX review)
+<a id="audit-preset"></a>
+
+## The Audit Preset — when *you* want to be the user, not the bridge
+
+The five primitives compose into something more powerful when you're the operator: PixelCheck bundles an **18-persona / 15-country audit preset** on top of the primitives — a CLI-first composition that runs "eighteen real users review your product" after every deployment.
 
 You deploy. Tests pass. CI is green. But then:
 
@@ -122,9 +156,9 @@ For each **(persona x scenario)** combination:
 
 ## Personas
 
-18 built-in personas covering real-world user diversity:
+18 built-in personas covering real-world user diversity. The **Subscriber Tier** column is the persona's subscription level *in the SaaS you're auditing* (Free user / Pro subscriber / Power-user / enterprise) — used so PixelCheck can audit your product's tiered features (paywalls, upsells, gated UI, Pro-only flows). **PixelCheck itself is MIT-licensed and 100% free with no paid tier or commercial fork.**
 
-| Persona | Country | Language | Device | Tier |
+| Persona | Country | Language | Device | Subscriber Tier (in your app) |
 |---|---|---|---|---|
 | US college student | US | English | iPhone 14 | Free |
 | Tokyo housewife | JP | Japanese | MacBook Pro | Pro |
