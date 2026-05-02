@@ -1,29 +1,44 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
+import * as net from "node:net";
 import {
   buildStealthScript,
   buildStealthLaunchOptions,
   pickProfile,
-  findProfile,
   findProfileByUaClass,
   type DeviceFingerprint,
 } from "../vendor/stealth-core/index.js";
-import type { BrowserContext, Page, Cookie } from "playwright";
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+  type Cookie,
+} from "playwright";
 import type { Persona } from "./types.js";
 import { getLogger } from "./logger.js";
 
 const log = getLogger("stagehand-wrapper");
 
 /**
- * Stagehand wrapper.
+ * Stagehand wrapper (Stagehand v3 + Playwright over CDP).
  *
- * Strategy: let Stagehand launch its own Chromium (because Stagehand 2.5
- * does not accept a BYO BrowserContext via init()), pass our stealth-aware
- * launch options into `localBrowserLaunchOptions`, and inject the 15 stealth
- * patches via `addInitScript()` after init.
+ * Strategy:
+ * Stagehand v3 dropped Playwright BrowserContext as its substrate and went
+ * CDP-native. v3's `LocalBrowserLaunchOptions` is a strict zod schema with
+ * NO support for HAR / video / Playwright tracing. We need those for
+ * audit artifact persistence (`runner.ts` writes `result.har`, the CLI
+ * `--trace` flag, video evidence for failed audits).
  *
- * Result: same browser used for both Stagehand AI primitives and direct
- * Playwright operations (mouse, keyboard, screenshot, recorder, computer-use).
+ * So we launch our OWN Playwright browser + context (with stealth +
+ * recordHar + recordVideo + tracesDir), expose a `--remote-debugging-port`
+ * for CDP, and tell Stagehand v3 to connect to that endpoint via its
+ * `cdpUrl` option. Stagehand's V3Context attaches to our existing browser
+ * and operates on the active page.
+ *
+ * Result: same browser used for both Stagehand AI primitives (act / extract
+ * / observe) and direct Playwright operations (mouse, keyboard, screenshot,
+ * recorder, computer-use), AND we keep HAR / video / trace recording.
  */
 
 export interface StagehandWrapperOptions {
@@ -41,11 +56,13 @@ export interface StagehandWrapperOptions {
 }
 
 export interface StagehandWrapper {
-  /** The underlying Stagehand instance, typed permissively */
+  /** Adapter that exposes Stagehand v3's act/extract/observe with the
+   * v2-style object-arg signature our handlers expect. Lets the rest of
+   * the codebase ignore v3's positional API. */
   stagehand: StagehandLike;
-  /** The active page */
+  /** The active Playwright Page (owned by us, not by Stagehand) */
   page: Page;
-  /** The active browser context */
+  /** The active Playwright BrowserContext (owned by us) */
   context: BrowserContext;
   /** The resolved fingerprint */
   fingerprint: DeviceFingerprint;
@@ -84,6 +101,51 @@ function resolveFingerprintForPersona(persona: Persona): DeviceFingerprint {
   return pickProfile(persona.device_class);
 }
 
+/**
+ * Ask the OS for an unused TCP port. There is a tiny race between us
+ * closing the listener and Chromium binding to the port, but it's the
+ * standard pattern for "free port discovery" and conflicts are rare
+ * enough that retry-on-bind-failure is overkill for our use case.
+ */
+function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const addr = srv.address();
+      if (addr && typeof addr === "object") {
+        const port = addr.port;
+        srv.close(() => resolve(port));
+      } else {
+        srv.close();
+        reject(new Error("getFreePort: server.address() returned null"));
+      }
+    });
+  });
+}
+
+/**
+ * Probe `http://localhost:<port>/json/version` until Chromium's CDP HTTP
+ * endpoint responds. Stagehand's `cdpUrl` connect path needs the endpoint
+ * live before init() will succeed.
+ */
+async function waitForCdpReady(port: number, timeoutMs = 10_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+      if (res.ok) return;
+    } catch {
+      // Not ready yet
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(
+    `Chromium CDP endpoint at port ${port} did not become ready within ${timeoutMs}ms`,
+  );
+}
+
 export async function createStagehandWrapper(
   opts: StagehandWrapperOptions,
 ): Promise<StagehandWrapper> {
@@ -100,7 +162,7 @@ export async function createStagehandWrapper(
   const proxyEnv = opts.persona.proxy_env;
   const proxyUrl = proxyEnv ? process.env[proxyEnv] : undefined;
 
-  const launchOpts = buildStealthLaunchOptions({
+  const stealthOpts = buildStealthLaunchOptions({
     fingerprint,
     languages: [opts.persona.locale, opts.persona.language],
     locale: opts.persona.locale,
@@ -114,6 +176,86 @@ export async function createStagehandWrapper(
     userDataDir: opts.userDataDir,
   });
 
+  // Pick a free port for Chromium's remote-debugging endpoint and append
+  // the flag onto the stealth args. Stagehand v3 will connect to this URL.
+  const cdpPort = await getFreePort();
+  const launchArgs = [
+    ...stealthOpts.args,
+    `--remote-debugging-port=${cdpPort}`,
+  ];
+
+  // Launch Playwright. Persistent (userDataDir) and ephemeral paths diverge
+  // because Playwright's API requires distinct entry points.
+  let browser: Browser | undefined;
+  let context: BrowserContext;
+
+  if (opts.userDataDir) {
+    context = await chromium.launchPersistentContext(opts.userDataDir, {
+      args: launchArgs,
+      headless: stealthOpts.headless,
+      viewport: stealthOpts.viewport,
+      deviceScaleFactor: stealthOpts.deviceScaleFactor,
+      hasTouch: stealthOpts.hasTouch,
+      locale: stealthOpts.locale,
+      timezoneId: stealthOpts.timezoneId,
+      extraHTTPHeaders: stealthOpts.extraHTTPHeaders,
+      proxy: stealthOpts.proxy,
+      recordHar: stealthOpts.recordHar,
+      recordVideo: stealthOpts.recordVideo,
+    });
+  } else {
+    browser = await chromium.launch({
+      args: launchArgs,
+      headless: stealthOpts.headless,
+      proxy: stealthOpts.proxy,
+      tracesDir: stealthOpts.tracesDir,
+    });
+    context = await browser.newContext({
+      viewport: stealthOpts.viewport,
+      deviceScaleFactor: stealthOpts.deviceScaleFactor,
+      hasTouch: stealthOpts.hasTouch,
+      locale: stealthOpts.locale,
+      timezoneId: stealthOpts.timezoneId,
+      extraHTTPHeaders: stealthOpts.extraHTTPHeaders,
+      recordHar: stealthOpts.recordHar,
+      recordVideo: stealthOpts.recordVideo,
+    });
+  }
+
+  const page = context.pages()[0] ?? (await context.newPage());
+
+  // Stealth runtime patches — pre-navigation, applies to every new page
+  try {
+    await context.addInitScript(buildStealthScript(fingerprint));
+  } catch (err) {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "failed to inject stealth init script",
+    );
+  }
+
+  // Cookies (e.g. admin auth)
+  if (opts.cookies && opts.cookies.length > 0) {
+    await context.addCookies(opts.cookies);
+  }
+
+  // Playwright tracing — only on non-persistent contexts (persistent
+  // contexts in some Playwright versions reject tracing.start)
+  if (tracesDir && !opts.userDataDir) {
+    try {
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+        sources: true,
+      });
+    } catch {
+      // tracing not supported on this context — skip silently
+    }
+  }
+
+  // Wait for Chromium to expose its CDP HTTP endpoint
+  await waitForCdpReady(cdpPort);
+
   // Dynamic-import Stagehand so the project still typechecks if the package
   // is missing in odd environments.
   const mod = (await import("@browserbasehq/stagehand").catch(() => null)) as
@@ -126,90 +268,72 @@ export async function createStagehandWrapper(
     );
   }
 
-  // Construct Stagehand. Cast to a defensive shape so we don't pin to a
-  // specific minor version.
-  // NOTE: act/observe/extract live on stagehand.page (the StagehandPage),
-  // not on the Stagehand instance itself.
-  type StagehandPage = Page & {
-    act(arg: unknown): Promise<unknown>;
-    extract<T>(arg: unknown): Promise<T>;
-    observe(arg?: unknown): Promise<unknown>;
-  };
-  const Ctor = mod.Stagehand as new (cfg: Record<string, unknown>) => {
-    init(): Promise<unknown>;
-    page: StagehandPage;
-    context: BrowserContext;
-    close?(): Promise<void>;
-  };
-
-  // Stagehand 2.5's static modelToProviderMap does not list "claude-sonnet-4-6"
-  // (only claude-3-7-sonnet-* and claude-haiku-4-5). To use newer models we
-  // route through the AISDK provider with the "anthropic/" prefix, which
-  // bypasses the static map and uses @ai-sdk/anthropic (already shipped as a
-  // Stagehand dependency).
+  // Stagehand v3 ModelConfiguration: nested object form. Unlike v2.5's
+  // static modelToProviderMap, v3 routes through @ai-sdk/anthropic when
+  // we prefix with "anthropic/" — works for newer models like
+  // claude-sonnet-4-6 that the legacy map didn't list.
   const baseModel = opts.modelName ?? "claude-sonnet-4-6";
   const stagehandModel = baseModel.includes("/")
     ? baseModel
     : `anthropic/${baseModel}`;
 
+  type StagehandV3 = {
+    init(): Promise<void>;
+    act(instruction: string, options?: unknown): Promise<unknown>;
+    extract(instruction: string, schema?: unknown, options?: unknown): Promise<unknown>;
+    observe(instruction: string, options?: unknown): Promise<unknown>;
+    close(opts?: { force?: boolean }): Promise<void>;
+  };
+  const Ctor = mod.Stagehand as new (cfg: Record<string, unknown>) => StagehandV3;
+
   const stagehand = new Ctor({
     env: "LOCAL",
-    modelName: stagehandModel,
-    modelClientOptions: opts.apiKey ? { apiKey: opts.apiKey } : undefined,
+    cdpUrl: `http://127.0.0.1:${cdpPort}`,
+    model: {
+      modelName: stagehandModel,
+      apiKey: opts.apiKey,
+    },
     verbose: process.env.AUDIT_DEBUG === "1" ? 2 : 1,
     disablePino: true,
-    localBrowserLaunchOptions: launchOpts,
-    enableCaching: true,
   });
 
   await stagehand.init();
 
-  // Inject the 15-patch stealth script post-init. Stagehand's context is an
-  // EnhancedContext that extends BrowserContext, so addInitScript still works.
-  try {
-    await stagehand.context.addInitScript(buildStealthScript(fingerprint));
-  } catch (err) {
-    log.warn(
-      { err: err instanceof Error ? err.message : String(err) },
-      `failed to inject stealth init script`,
-    );
-  }
-
-  // Inject cookies if provided (e.g. admin auth)
-  if (opts.cookies && opts.cookies.length > 0) {
-    await stagehand.context.addCookies(opts.cookies);
-  }
-
-  // Start tracing if requested
-  if (tracesDir) {
-    try {
-      await stagehand.context.tracing.start({
-        screenshots: true,
-        snapshots: true,
-        sources: true,
-      });
-    } catch {
-      // tracing may not be supported on persistent contexts
-    }
-  }
-
-  const sp = stagehand.page;
-  const wrapper: StagehandLike = {
-    page: sp,
-    context: stagehand.context,
-    act: (arg) => sp.act(arg),
-    extract: <T>(arg: unknown) => sp.extract(arg) as Promise<T>,
-    observe: (arg) =>
-      sp.observe(arg) as Promise<
-        Array<{ description?: string; selector?: string }>
-      >,
-    close: () => (stagehand.close ? stagehand.close() : Promise.resolve()),
+  // v2-style adapter: handlers / instruction-mutator / primitives keep
+  // calling { action: "x" } / { instruction: "x", schema } object-arg form.
+  // We translate to v3's positional API here.
+  const adapter: StagehandLike = {
+    page,
+    context,
+    act: (arg) => {
+      const instruction = typeof arg === "string" ? arg : arg.action;
+      return stagehand.act(instruction);
+    },
+    extract: <T>(arg: unknown) => {
+      if (typeof arg === "string") {
+        return stagehand.extract(arg) as Promise<T>;
+      }
+      const a = arg as { instruction: string; schema?: unknown };
+      if (a.schema !== undefined) {
+        return stagehand.extract(a.instruction, a.schema) as Promise<T>;
+      }
+      return stagehand.extract(a.instruction) as Promise<T>;
+    },
+    observe: async (arg) => {
+      const instruction = typeof arg === "string" ? arg : arg.instruction;
+      const r = (await stagehand.observe(instruction)) as Array<{
+        description?: string;
+        selector?: string;
+      }>;
+      return r;
+    },
+    close: () => stagehand.close().catch(() => undefined),
   };
 
   return {
-    stagehand: wrapper,
-    page: stagehand.page,
-    context: stagehand.context,
+    stagehand: adapter,
+    page,
+    context,
     fingerprint,
     harPath,
     videoDir,
@@ -217,28 +341,46 @@ export async function createStagehandWrapper(
     async close(): Promise<string | undefined> {
       let videoPath: string | undefined;
       try {
-        const video = stagehand.page.video();
+        const video = page.video();
         if (video) {
           videoPath = await video.path();
         }
       } catch {
         // ignore
       }
-      // Stop tracing first
-      if (tracesDir) {
+
+      // Stop tracing first (best-effort)
+      if (tracesDir && !opts.userDataDir) {
         try {
-          await stagehand.context.tracing.stop({
+          await context.tracing.stop({
             path: path.join(tracesDir, "trace.zip"),
           });
         } catch {
           // ignore
         }
       }
+
+      // Disconnect Stagehand (it does not own the browser since we
+      // launched it; close() here is harmless cleanup of v3's CDP session)
       try {
-        if (stagehand.close) await stagehand.close();
+        await stagehand.close({ force: true });
       } catch {
         // ignore
       }
+
+      // Now close OUR Playwright resources — this is what flushes HAR /
+      // video to disk, in this strict order.
+      try {
+        await context.close();
+      } catch {
+        // ignore
+      }
+      try {
+        if (browser) await browser.close();
+      } catch {
+        // ignore
+      }
+
       return videoPath;
     },
   };
