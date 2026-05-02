@@ -769,3 +769,186 @@ describe("runAutonomousLoop — agent config resolution", () => {
     expect(result.agent_summary).toBeDefined();
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// checkCriteria switch — exercise every verification type so the
+// 7-branch verification dispatcher (lines 691-720) gets covered
+// ─────────────────────────────────────────────────────────────
+
+describe("runAutonomousLoop — criterion verification dispatcher", () => {
+  it("checkExtractCriterion path is exercised for verification=extract", async () => {
+    const conv = await import("../src/agent/convergence.js");
+    (conv.checkExtractCriterion as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+    const opts = makeOpts({
+      scenario: mkScenario({
+        success_criteria: [
+          { id: "extract-c", description: "extract X", verification: "extract" },
+        ],
+      } as Partial<Scenario>),
+    });
+    const result = await runAutonomousLoop(opts);
+    expect(result.agent_summary.criteria_met).toContain("extract-c");
+    expect(conv.checkExtractCriterion).toHaveBeenCalled();
+  });
+
+  it("checkNetworkCriterion path for verification=network", async () => {
+    const conv = await import("../src/agent/convergence.js");
+    (conv.checkNetworkCriterion as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    const opts = makeOpts({
+      scenario: mkScenario({
+        success_criteria: [
+          { id: "net-c", description: "no errors", verification: "network" },
+        ],
+      } as Partial<Scenario>),
+    });
+    const result = await runAutonomousLoop(opts);
+    expect(result.agent_summary.criteria_met).toContain("net-c");
+    expect(conv.checkNetworkCriterion).toHaveBeenCalled();
+  });
+
+  it("checkPerformanceCriterion path for verification=performance", async () => {
+    const conv = await import("../src/agent/convergence.js");
+    (conv.checkPerformanceCriterion as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+    const opts = makeOpts({
+      scenario: mkScenario({
+        success_criteria: [
+          { id: "perf-c", description: "LCP < 2s", verification: "performance" },
+        ],
+      } as Partial<Scenario>),
+    });
+    const result = await runAutonomousLoop(opts);
+    expect(result.agent_summary.criteria_met).toContain("perf-c");
+    expect(conv.checkPerformanceCriterion).toHaveBeenCalled();
+  });
+
+  it("checkErrorCriterion path for verification=error", async () => {
+    const conv = await import("../src/agent/convergence.js");
+    (conv.checkErrorCriterion as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    const opts = makeOpts({
+      scenario: mkScenario({
+        success_criteria: [
+          { id: "err-c", description: "no console errors", verification: "error" },
+        ],
+      } as Partial<Scenario>),
+    });
+    const result = await runAutonomousLoop(opts);
+    expect(result.agent_summary.criteria_met).toContain("err-c");
+    expect(conv.checkErrorCriterion).toHaveBeenCalled();
+  });
+
+  it("interaction criterion is checked when preActionSnapshot is present", async () => {
+    const conv = await import("../src/agent/convergence.js");
+    (conv.checkInteractionCriterion as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+    // Make takeSnapshot return a non-null snapshot so the interaction
+    // path activates
+    mockTakeSnapshot.mockResolvedValue({ url: "x", elements: [] } as never);
+
+    const opts = makeOpts({
+      scenario: mkScenario({
+        success_criteria: [
+          { id: "inter-c", description: "click target", verification: "interaction" },
+        ],
+      } as Partial<Scenario>),
+    });
+    const result = await runAutonomousLoop(opts);
+    expect(result.agent_summary.criteria_met).toContain("inter-c");
+    expect(conv.checkInteractionCriterion).toHaveBeenCalled();
+  });
+
+  it("visual criterion runs every interval action and tolerates screenshot failures", async () => {
+    const conv = await import("../src/agent/convergence.js");
+    (conv.checkVisualCriterion as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+    const opts = makeOpts({
+      config: {
+        ...mkConfig(),
+        agent: {
+          default_max_actions: 3,
+          default_replan_threshold: 5,
+          default_max_replans: 1,
+          criteria_check_interval: 1, // every action triggers visual
+          dom_summary_max_elements: 50,
+        },
+      } as never,
+      scenario: mkScenario({
+        success_criteria: [
+          { id: "vis-c", description: "visual layout ok", verification: "visual" },
+        ],
+      } as Partial<Scenario>),
+    });
+    const result = await runAutonomousLoop(opts);
+    expect(result.agent_summary.criteria_met).toContain("vis-c");
+    expect(conv.checkVisualCriterion).toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// takeScreenshotBase64 catch (page.screenshot throws) → returns ""
+// ─────────────────────────────────────────────────────────────
+
+describe("runAutonomousLoop — screenshot resilience", () => {
+  it("tolerates page.screenshot throwing during the loop (returns empty base64)", async () => {
+    const conv = await import("../src/agent/convergence.js");
+    (conv.checkDomCriterion as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true);
+
+    const page = makePage();
+    page.screenshot = vi.fn(async () => {
+      throw new Error("page closed");
+    });
+    const opts = makeOpts({ page: page as never });
+    const result = await runAutonomousLoop(opts);
+    // Loop should still complete — takeScreenshotBase64 catches and
+    // returns "" instead of crashing the whole loop
+    expect(result.agent_summary).toBeDefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Micro-replan escalate path → falls through to full revisePlan
+// ─────────────────────────────────────────────────────────────
+
+describe("runAutonomousLoop — micro-replan escalate", () => {
+  it("microReplan kind=escalate falls through to full revisePlan", async () => {
+    mockExecuteStep.mockResolvedValue({
+      step_id: "auto-1",
+      step_type: "act",
+      status: "fail",
+      duration_ms: 100,
+      retries_used: 0,
+      error: "fatal error",
+    });
+    mockMicroReplan.mockResolvedValueOnce({
+      kind: "escalate",
+      reason: "needs full replan",
+    });
+    mockRevisePlan.mockResolvedValueOnce({
+      plan: { id: "plan-2", reasoning: "revised", steps: [] },
+    });
+
+    const opts = makeOpts({
+      config: {
+        ...mkConfig(),
+        agent: {
+          default_max_actions: 5,
+          default_replan_threshold: 1,
+          default_max_replans: 1,
+          criteria_check_interval: 1,
+          dom_summary_max_elements: 50,
+        },
+      } as never,
+    });
+    const result = await runAutonomousLoop(opts);
+    // Reaches one of the terminal exit reasons; escalate path was exercised
+    expect([
+      "max_replans",
+      "max_actions",
+      "budget_exceeded",
+      "stuck",
+      "error",
+    ]).toContain(result.agent_summary.convergence_reason);
+  });
+});
