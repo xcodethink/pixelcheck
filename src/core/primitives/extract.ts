@@ -830,8 +830,11 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
     consoleErrors,
     extract: (args: ExtractCallArgs) => {
       const instruction = args.instruction ?? "";
+      // v3 extract is positional: extract(instruction, schema?, options?).
+      // Selector forwarded; page is left to v3's `awaitActivePage()` —
+      // passing our Playwright Page errors with "Failed to resolve V3
+      // Page from Playwright page".
       const options = args.selector ? { selector: args.selector } : undefined;
-      // v3 extract is positional: extract(instruction, schema?, options?)
       return stagehand.extract(instruction, args.schema, options);
     },
     readMetrics: async () => {

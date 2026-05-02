@@ -168,9 +168,16 @@ vi.mock("@browserbasehq/stagehand", async () => {
 const originalFetch = globalThis.fetch;
 
 beforeEach(() => {
-  // Stub global fetch so waitForCdpReady's HTTP probe resolves immediately
-  // (we don't need the real CDP endpoint in unit tests).
-  globalThis.fetch = vi.fn(async () => ({ ok: true })) as unknown as typeof fetch;
+  // Stub global fetch so waitForCdpWsEndpoint's HTTP probe resolves
+  // immediately. The probe reads `webSocketDebuggerUrl` from the
+  // /json/version response — supply a deterministic ws URL the wrapper
+  // will then forward into Stagehand's `localBrowserLaunchOptions.cdpUrl`.
+  globalThis.fetch = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      webSocketDebuggerUrl: "ws://127.0.0.1:9999/devtools/browser/fake-guid",
+    }),
+  })) as unknown as typeof fetch;
 });
 
 afterEach(() => {
@@ -368,12 +375,20 @@ describe("createStagehandWrapper — CDP bridging", () => {
     expect(port).toBeGreaterThan(0);
   });
 
-  it("passes the matching cdpUrl to Stagehand v3", async () => {
+  it("passes the WebSocket cdpUrl to Stagehand v3 inside localBrowserLaunchOptions", async () => {
     await createStagehandWrapper({ persona: basePersona(), artifactsDir: scratch });
-    const launchArgs = mockState.capture.launchCalls[0]?.args ?? [];
-    const portFlag = launchArgs.find((a) => a.startsWith("--remote-debugging-port="));
-    const port = Number(portFlag!.split("=")[1]);
-    expect(mockState.capture.stagehandCfg?.cdpUrl).toBe(`http://127.0.0.1:${port}`);
+    // Stagehand v3 reads `cdpUrl` from inside `localBrowserLaunchOptions`,
+    // not the top-level options. Putting it at top level is silently
+    // ignored and Stagehand launches its own browser parallel to ours.
+    // The URL must be a ws:// endpoint (raw CDP-over-WebSocket); the
+    // mocked /json/version response advertises one and the wrapper
+    // forwards it verbatim.
+    const lbo = mockState.capture.stagehandCfg?.localBrowserLaunchOptions as {
+      cdpUrl?: string;
+    };
+    expect(lbo?.cdpUrl).toBe(
+      "ws://127.0.0.1:9999/devtools/browser/fake-guid",
+    );
   });
 
   it("probes /json/version before calling stagehand.init()", async () => {
@@ -383,7 +398,13 @@ describe("createStagehandWrapper — CDP bridging", () => {
       probeCalled = true;
       // Simulate stagehand.init not yet called when probe fires
       initCalledAfterProbe = mockState.capture.stagehandInitCalls === 0;
-      return { ok: true } as unknown as Response;
+      return {
+        ok: true,
+        json: async () => ({
+          webSocketDebuggerUrl:
+            "ws://127.0.0.1:9999/devtools/browser/fake-guid",
+        }),
+      } as unknown as Response;
     }) as unknown as typeof fetch;
     await createStagehandWrapper({ persona: basePersona(), artifactsDir: scratch });
     expect(probeCalled).toBe(true);

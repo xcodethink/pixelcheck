@@ -127,22 +127,31 @@ function getFreePort(): Promise<number> {
 
 /**
  * Probe `http://localhost:<port>/json/version` until Chromium's CDP HTTP
- * endpoint responds. Stagehand's `cdpUrl` connect path needs the endpoint
- * live before init() will succeed.
+ * endpoint responds, then return its `webSocketDebuggerUrl`. Stagehand
+ * v3's `cdpUrl` connect path requires a WebSocket URL (not HTTP) — the
+ * connection is raw CDP-over-WebSocket. Chromium's `--remote-debugging-
+ * port=N` flag advertises the right ws URL inside the /json/version
+ * response payload.
  */
-async function waitForCdpReady(port: number, timeoutMs = 10_000): Promise<void> {
+async function waitForCdpWsEndpoint(
+  port: number,
+  timeoutMs = 10_000,
+): Promise<string> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/json/version`);
-      if (res.ok) return;
+      if (res.ok) {
+        const data = (await res.json()) as { webSocketDebuggerUrl?: string };
+        if (data.webSocketDebuggerUrl) return data.webSocketDebuggerUrl;
+      }
     } catch {
       // Not ready yet
     }
     await new Promise((r) => setTimeout(r, 100));
   }
   throw new Error(
-    `Chromium CDP endpoint at port ${port} did not become ready within ${timeoutMs}ms`,
+    `Chromium CDP endpoint at port ${port} did not advertise a webSocketDebuggerUrl within ${timeoutMs}ms`,
   );
 }
 
@@ -253,8 +262,10 @@ export async function createStagehandWrapper(
     }
   }
 
-  // Wait for Chromium to expose its CDP HTTP endpoint
-  await waitForCdpReady(cdpPort);
+  // Wait for Chromium's CDP endpoint to come up + read the WebSocket URL
+  // from /json/version. Stagehand v3 wants the ws://... endpoint (raw CDP
+  // over WebSocket); the http:// form is silently rejected with a 404.
+  const cdpWsUrl = await waitForCdpWsEndpoint(cdpPort);
 
   // Dynamic-import Stagehand so the project still typechecks if the package
   // is missing in odd environments.
@@ -288,7 +299,14 @@ export async function createStagehandWrapper(
 
   const stagehand = new Ctor({
     env: "LOCAL",
-    cdpUrl: `http://127.0.0.1:${cdpPort}`,
+    // cdpUrl lives INSIDE `localBrowserLaunchOptions`, not at the top
+    // level — Stagehand v3 reads `lbo.cdpUrl` to decide between attach
+    // and launch. Putting it at top level is silently ignored and
+    // Stagehand launches its own browser, parallel to ours, breaking
+    // the shared-target model.
+    localBrowserLaunchOptions: {
+      cdpUrl: cdpWsUrl,
+    },
     model: {
       modelName: stagehandModel,
       apiKey: opts.apiKey,
@@ -302,6 +320,19 @@ export async function createStagehandWrapper(
   // v2-style adapter: handlers / instruction-mutator / primitives keep
   // calling { action: "x" } / { instruction: "x", schema } object-arg form.
   // We translate to v3's positional API here.
+  //
+  // Page targeting: we deliberately do NOT pass `{ page: ourPlaywrightPage }`
+  // to v3's act/extract/observe. v3 throws "Failed to resolve V3 Page from
+  // Playwright page" — Stagehand's CDP-mode resolver only recognises Page
+  // objects from its own V3Context, not the Playwright wrapper we hold.
+  //
+  // Instead we rely on the CDP target-sharing model: Playwright and
+  // Stagehand v3 see the SAME underlying Chrome targets through different
+  // wrappers. When our caller navigates `wrapper.page`, the underlying
+  // CDP target updates; Stagehand v3's `awaitActivePage()` then picks up
+  // that same target as its own V3 Page. Same tab, two wrappers — works
+  // correctly because recording (HAR / video / trace) is at the Playwright
+  // BrowserContext layer and captures any driver's actions on the target.
   const adapter: StagehandLike = {
     page,
     context,

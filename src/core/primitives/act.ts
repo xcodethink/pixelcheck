@@ -645,7 +645,10 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
     context: ctx,
     consoleErrors,
     // v3's act() is positional `act(instruction, options?)` on the
-    // Stagehand instance — not on the page like v2.
+    // Stagehand instance — not on the page like v2. We let Stagehand pick
+    // its V3Context's active page automatically; passing our Playwright
+    // Page object errors with "Failed to resolve V3 Page from Playwright
+    // page". Same CDP target underneath either way.
     stagehandAct: (instruction: string) => stagehand.act(instruction),
     close: async () => {
       try {
