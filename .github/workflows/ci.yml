@@ -98,14 +98,15 @@ jobs:
             exit 1
           fi
 
-      - name: npm audit (production, high+)
-        # T0.5 / T0.6 / SECURITY.md known-accepted risks live in
-        # `audit-level=high`. The 3 transitive moderate vulns from
-        # Stagehand v2.5.8 (ai SDK / jsondiffpatch / 1 low) are
-        # documented as non-exploitable in our use case. When
-        # T-NEW-1 ships Stagehand v3 in v1.1, tighten this to
-        # `--audit-level=moderate`.
-        run: npm audit --production --audit-level=high
+      - name: npm audit (production, moderate+)
+        # ADR-029 (Stagehand v3 migration) closed the 3 v1.0 transitive
+        # moderate waivers. Stagehand v3.3.0 introduced 5 new transitive
+        # moderate findings (langsmith / uuid family); we resolve them
+        # via `package.json#overrides` (`langsmith ^0.6.0`, `uuid
+        # ^14.0.0`) — verified by T5 Stagehand smoke at runtime. Result:
+        # `npm audit --production` reports 0 vulnerabilities, so the
+        # gate can run at `--audit-level=moderate` instead of `high`.
+        run: npm audit --production --audit-level=moderate
 
       - name: License compliance (allowlist)
         # Run only on Ubuntu × Node 20 — license metadata is the same

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Wave 2 in progress per PixelCheck-v1.x-后续优化方案. No user-visible changes yet.
 
+### Security
+
+- **Closed 5 new transitive moderate vulnerabilities** introduced by
+  Stagehand v3's dependency tree: 3 in `langsmith` (SSRF / prototype
+  pollution / streaming-redaction bypass) + 2 in `uuid` (buffer bounds
+  check). Resolved via `package.json#overrides` (`langsmith ^0.6.0`,
+  `uuid ^14.0.0`); validated against Stagehand v3.3.0 runtime by the
+  T5 Stagehand smoke test (act / extract / observe round-trip clean).
+  Result: `npm audit --production` reports **0 vulnerabilities**. CI
+  audit gate tightened from `--audit-level=high` to
+  `--audit-level=moderate`. See `SECURITY.md` for the full GHSA table.
+
 ### Changed
 
 - **`@browserbasehq/stagehand` ^2.0.0 → ^3.3.0** ([ADR-029](docs/decisions/ADR-029-stagehand-v3-migration.md),
