@@ -1,9 +1,9 @@
 # Third-Party Licenses
 
-`ai-browser-auditor` is licensed under **MIT** (see [LICENSE](../LICENSE)).
+`pixelcheck` is licensed under **MIT** (see [LICENSE](../LICENSE)).
 
 This document discloses the licenses of all third-party dependencies bundled
-or installed transitively when you `npm install ai-browser-auditor`. The
+or installed transitively when you `npm install pixelcheck`. The
 information below was generated from `license-checker --production` against
 the v1.0.0 dependency tree and updated whenever dependencies change.
 
@@ -38,7 +38,7 @@ runtime.
 **Compatibility with our MIT distribution**:
 - LGPL allows dynamic linking from non-LGPL code without copyleft
   contamination (the LGPL "linking exception").
-- We do **not** bundle libvips source into `ai-browser-auditor`. The
+- We do **not** bundle libvips source into `pixelcheck`. The
   binary is pulled from a separate npm package
   (`@img/sharp-libvips-<platform>-<arch>`) at user's `npm install` time.
 - LGPL requires that we (a) disclose the library, (b) provide upstream
@@ -61,7 +61,7 @@ multiple licenses:
 - Some components: LGPL-2.1, MPL-2.0, MIT, ISC
 
 **Compatibility**:
-- We do not redistribute Chromium binaries with `ai-browser-auditor`. They
+- We do not redistribute Chromium binaries with `pixelcheck`. They
   are pulled by Playwright's own postinstall flow.
 - Users who run `npx playwright install chromium` accept Google's
   Chromium license terms directly.
