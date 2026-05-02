@@ -324,7 +324,7 @@ The CLI rendering layer (`src/cli.ts`) provides `safePrint` / `safeError` helper
 Every Anthropic API call is intercepted by a process-wide cost guard (`src/core/cost-guard.ts`) that enforces two limits:
 
 - **Per-run** — single audit / MCP tool invocation. Reset by `runAudit()` at run start and by the MCP `CallToolRequestSchema` dispatcher at the start of every tool call.
-- **Per-day** — UTC-day total persisted to a JSON ledger (default `~/.ai-browser-auditor/cost-ledger.json`, override via `AUDIT_COST_LEDGER_PATH`). Survives process restart and is shared across concurrent processes via last-write-wins atomic temp + rename.
+- **Per-day** — UTC-day total persisted to a JSON ledger (default `~/.pixelcheck/cost-ledger.json`, override via `AUDIT_COST_LEDGER_PATH`). Survives process restart and is shared across concurrent processes via last-write-wins atomic temp + rename.
 
 Hook pattern at every call site:
 
@@ -351,7 +351,7 @@ Three primitives — `judge`, `extract`, `see` (when `goal` is set) — are wrap
 
 **Key derivation.** `cacheKeyFor(primitive, inputs) = sha256(canonical-JSON({ primitive, inputs }))`. `canonicalJsonStringify` recursively sorts object keys before stringify (arrays preserve order). Each primitive defines `cacheKeyInputs(opts)` listing the fields that affect output (URL, schema, rubrics, persona / viewport / locale, model). Performance-only options (timeout, headless, artifactsRoot) are excluded so the same logical call hits cache regardless of how it was scheduled.
 
-**Storage.** SQLite at `~/.ai-browser-auditor/result-cache.db` (override `AUDIT_RESULT_CACHE_PATH`). One table `result_cache(key PK, primitive, value_json, schema_version, created_at)` with indexes on `created_at` (TTL prune) and `primitive` (diagnostics). WAL transition is file-locked per the M9-3 follow-up pattern.
+**Storage.** SQLite at `~/.pixelcheck/result-cache.db` (override `AUDIT_RESULT_CACHE_PATH`). One table `result_cache(key PK, primitive, value_json, schema_version, created_at)` with indexes on `created_at` (TTL prune) and `primitive` (diagnostics). WAL transition is file-locked per the M9-3 follow-up pattern.
 
 **TTL & invalidation.** Default 24h via `AUDIT_RESULT_CACHE_TTL_MS`. Entries written under a different `RESULT_SCHEMA_VERSION` are misses and pruned on read. Opportunistic prune at most once per opened DB per hour.
 
