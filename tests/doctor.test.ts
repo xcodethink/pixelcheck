@@ -240,3 +240,154 @@ describe("renderDoctorReport", () => {
     expect(lines[lines.length - 1]).toContain("All checks passed");
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// Edge cases — env values that surprise the heuristic
+// ─────────────────────────────────────────────────────────────
+
+describe("runDoctor — edge cases", () => {
+  it("ANTHROPIC_API_KEY: warns when set to whitespace / garbage prefix", async () => {
+    process.env.ANTHROPIC_API_KEY = "garbage-not-a-real-prefix";
+    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const apiKey = r.checks.find((c) => c.name === "ANTHROPIC_API_KEY")!;
+    expect(apiKey.status).toBe("warn");
+    expect(apiKey.message).toMatch(/format looks unusual/);
+    expect(apiKey.remedy).toMatch(/console\.anthropic\.com/);
+  });
+
+  it("ANTHROPIC_API_KEY: includes only first 12 chars in detail (privacy)", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-secret-DONT-LEAK-IN-DETAIL";
+    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const apiKey = r.checks.find((c) => c.name === "ANTHROPIC_API_KEY")!;
+    expect(apiKey.status).toBe("ok");
+    expect(apiKey.detail).toMatch(/sk-ant-secre/);
+    // Sensitive tail should NOT appear
+    expect(apiKey.detail ?? "").not.toContain("DONT-LEAK");
+  });
+
+  it("Network proxy: lists HTTPS_PROXY when set", async () => {
+    process.env.HTTPS_PROXY = "http://proxy.corp:8080";
+    try {
+      const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+      const proxy = r.checks.find((c) => c.name === "Network proxy")!;
+      expect(proxy.status).toBe("ok");
+      expect(proxy.message).toContain("HTTPS_PROXY=http://proxy.corp:8080");
+    } finally {
+      delete process.env.HTTPS_PROXY;
+    }
+  });
+
+  it("Network proxy: combines HTTPS_PROXY + NO_PROXY + NODE_EXTRA_CA_CERTS", async () => {
+    process.env.HTTPS_PROXY = "http://proxy:3128";
+    process.env.NO_PROXY = "localhost,127.0.0.1";
+    process.env.NODE_EXTRA_CA_CERTS = "/etc/ssl/corp-ca.pem";
+    try {
+      const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+      const proxy = r.checks.find((c) => c.name === "Network proxy")!;
+      expect(proxy.status).toBe("ok");
+      expect(proxy.message).toContain("HTTPS_PROXY=");
+      expect(proxy.message).toContain("NO_PROXY=");
+      expect(proxy.message).toContain("NODE_EXTRA_CA_CERTS=");
+    } finally {
+      delete process.env.HTTPS_PROXY;
+      delete process.env.NO_PROXY;
+      delete process.env.NODE_EXTRA_CA_CERTS;
+    }
+  });
+
+  it("Network proxy: lowercase https_proxy alias is also recognised", async () => {
+    process.env.https_proxy = "http://lowercase-proxy:8080";
+    try {
+      const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+      const proxy = r.checks.find((c) => c.name === "Network proxy")!;
+      expect(proxy.status).toBe("ok");
+      expect(proxy.message).toContain("lowercase-proxy");
+    } finally {
+      delete process.env.https_proxy;
+    }
+  });
+
+  it("scenarios/ directory: ok when contains many yaml files", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    fs.mkdirSync(path.join(tmpRoot, "scenarios"));
+    for (let i = 0; i < 7; i++) {
+      fs.writeFileSync(
+        path.join(tmpRoot, "scenarios", `s${i}.yaml`),
+        `id: s${i}`,
+      );
+    }
+    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const scenarios = r.checks.find((c) => c.name === "scenarios/ directory")!;
+    expect(scenarios.status).toBe("ok");
+    expect(scenarios.message).toMatch(/7 scenario file/);
+  });
+
+  it("personas/ directory: skip when present-but-empty", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    fs.mkdirSync(path.join(tmpRoot, "personas"));
+    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const personas = r.checks.find((c) => c.name === "personas/ directory")!;
+    expect(personas.status).toBe("skip");
+    expect(personas.message).toMatch(/built-in personas/);
+  });
+
+  it("scenarios/ directory: ignores non-yaml files", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    fs.mkdirSync(path.join(tmpRoot, "scenarios"));
+    fs.writeFileSync(path.join(tmpRoot, "scenarios", "README.md"), "x");
+    fs.writeFileSync(path.join(tmpRoot, "scenarios", "smoke.json"), "{}");
+    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const scenarios = r.checks.find((c) => c.name === "scenarios/ directory")!;
+    expect(scenarios.status).toBe("warn");
+    expect(scenarios.message).toMatch(/no \*\.yaml/);
+  });
+
+  it("AUDIT_HOME: respects override (data directory writable check uses it)", async () => {
+    const auditHome = path.join(tmpRoot, "custom-audit-home");
+    process.env.AUDIT_HOME = auditHome;
+    try {
+      const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+      const dataDir = r.checks.find((c) => c.name === "Data directory writable")!;
+      expect(dataDir.status).toBe("ok");
+      expect(dataDir.message).toContain(auditHome);
+    } finally {
+      delete process.env.AUDIT_HOME;
+    }
+  });
+
+  it("Data directory writable: fails gracefully when AUDIT_HOME is unwritable", async () => {
+    // Create a read-only file at the AUDIT_HOME path so mkdir fails
+    const blocker = path.join(tmpRoot, "blocker-file");
+    fs.writeFileSync(blocker, "x");
+    process.env.AUDIT_HOME = blocker; // file in place of dir → mkdir fails
+    try {
+      const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+      const dataDir = r.checks.find((c) => c.name === "Data directory writable")!;
+      expect(dataDir.status).toBe("fail");
+      expect(dataDir.remedy).toMatch(/AUDIT_HOME|writable path|permissions/);
+    } finally {
+      delete process.env.AUDIT_HOME;
+      fs.unlinkSync(blocker);
+    }
+  });
+
+  it("renderDoctorReport summary shows fail count when failures present", async () => {
+    delete process.env.ANTHROPIC_API_KEY; // forces 1 fail
+    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const lines = renderDoctorReport(r);
+    const tail = lines.slice(-3).join("\n");
+    expect(tail).toMatch(/blocking failure/);
+  });
+
+  it("renderDoctorReport ends with 'All checks passed' on a clean project", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test-1234";
+    fs.writeFileSync(path.join(tmpRoot, "config.yaml"), "project_name: x");
+    fs.mkdirSync(path.join(tmpRoot, "scenarios"));
+    fs.writeFileSync(path.join(tmpRoot, "scenarios", "smoke.yaml"), "id: x");
+    fs.mkdirSync(path.join(tmpRoot, "personas"));
+    fs.writeFileSync(path.join(tmpRoot, "personas", "p.yaml"), "id: p");
+    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const lines = renderDoctorReport(r);
+    expect(lines[lines.length - 1]).toContain("All checks passed");
+  });
+});

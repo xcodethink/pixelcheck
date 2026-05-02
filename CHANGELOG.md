@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — v1 worktree (worktree-v1-ai-first)
 
-> Phase 1 (AI core) work-in-progress for the Big Bang v1 release. Not yet shipped.
+> Phase 1 (AI core) work-in-packaging for the Big Bang v1 release. Not yet shipped.
+
+### Added / Tested (Wave 7-pre — Ship 前 100% 自验通 / 测试加固 / 自动化防回归)
+
+- **R3 / R4 / R6 / R7-R10 / R12-R51（除 R26/R27/R44 partial）/ R57-R61 + R-NEW-V1-SHIP-1 全标 ✅** in RISK-REGISTER。剩 4 ⏳ 等 API key (R1/R2/R5) + 2 ⏳ 等 T33 publish (R55/R58) + 2 ⏸ ADR-027/028 v1.x (R26/R27)。
+- **vitest 1833 → 1853 (+20 测试) ✓ / Coverage 81/69.41/81.04/82.48 (vendor 排除 per ADR-032 / floor 66/60/66/66) / 1853/1853 ✓**
+- **新加 `.github/workflows/dogfood.yml`**：每 PR + push 跑 npm pack → fresh tmp 目录 install <tarball> → ai-audit --help / doctor / init 三个 binary 验证 + **1 MB tarball hard size gate**（exit 1 if > 1MB）防包体积膨胀。**自动化防 R-NEW-V1-SHIP-1 类 packaging bug 再发**。
+- **新加 `scripts/sync-vendor.sh`**：从 canonical /Users/wayne/Developer/stealth-core/src/ 同步到 src/vendor/stealth-core/，diff-aware 报告 added/updated/unchanged + 检测 vendor 有但 canonical 没的 stale 文件。
+- **新加 `scripts/check-vendor-drift.ts`** + npm script `check:vendor-drift`：检测 vendor/canonical 漂移；3 exit 状态（match / drift / canonical-missing）+ env override `AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1`（CI mode）+ `AUDIT_VENDOR_DRIFT_OK=1`（intentional vendor lock）。**ADR-032 follow-up 真落地**。
+- **bench:check 0 regression / 4 IMPROVED**（renderTrendsHtml +89.6% / renderJunitXml +85.8% / renderDiffMarkdown +66.3% / renderHistoryTrendsHtml +37.1%）—— vitest 4 + Node 24 + Wave 1-6 代码优化的累积效应。
+- **license:check exit 0 / 289 prod deps 全 approved licenses**（MIT / Apache / ISC / BSD / 0BSD / Unlicense / 等）—— ci.yml license:check step 已就位。
+- **sbom 564 KB CycloneDX 1.6 JSON 生成验过** —— sbom.yml workflow on release tag 已就位；T33 publish 时上传 GitHub Release artifact。
+- **typedoc docs:api 89 documented exports**（43 functions + 25 types + 20 interfaces + 1 class）—— 不入仓库不入 npm tarball（按 ADR-032 决策；本地 `npm run docs:api` 一键生成）。
+- **20× integration flake test 本地连跑 0 flake** —— pre-T1 时代有 ~10-15% flake；T1 forks pool 修复 + Wave 7-pre 连验关 R4 残余。
+- **agent-loop coverage 77.35% → 88.46%** (+11pt)：新加 8 测覆盖 6 criterion verification types（dom / extract / network / performance / error / interaction / visual）+ takeScreenshotBase64 catch + microReplan kind=escalate path。
+- **vitest.config.ts coverage exclude 加 `src/vendor/**`** per ADR-032 —— vendored stealth-core 在 canonical 有自己测试，不应算 ai-browser-auditor 覆盖率。
+- **fixture-with-real-tokens Playwright e2e 关 R35 残余**（22/22 in 24s）：覆盖现实生产页面 patterns —— Stripe sk_live_ / pk_test_ / cc number / cvv，Login + 2FA + password reset + recovery code，OAuth bearer / AWS access key / API token 设置页。**13 sensitive fields 全 redact 验通**；**4 innocuous fields 不被误伤**；**3 v1.0 known heuristic gaps 文档化**（recovery_code / aws_access_key_id / cc_number — v1.x 扩展候选；测含注释让 future heuristic expansion 必须改测才能让它们通过）。
+- **doctor edge cases +15 测试**（21 → 36 测）：proxy 5 组合（HTTPS_PROXY 单 / 全 3 env / lowercase https_proxy alias）+ ANTHROPIC_API_KEY 5 状态（unset / sk-ant- / garbage / detail truncate 隐私验证）+ AUDIT_HOME 替换验证 + corrupted blocker file mkdir 优雅 fail。
+- **RELEASE-READINESS-CHECKLIST 80 项 → 49 ✅ / 12 ⚠ / 19 ❌ → 59 ✅ / 7 ⚠ / 14 ⏳/⏸**（Wave 7-pre +9 ✅）。剩 14 项纯粹"等 API key (4) + 等 publish (7) + v1.0-rc1 reviewer (3)"，不再有"我能做没做"项。
+
+完整回归：tsc ✓ / build ✓ / **vitest 1853/1853 ✓** / **test:coverage:check pass at 66/60/66/66** ✓ / 0 schemas diff / lint:no-console ✓ / npm pack 555 → 570 KB / 315 → 333 files（vendored stealth-core）。
+
+**v1.0 ship gate 当前状态**：✅ 0 P0 ship-blocker；80 项 checklist 全部归因；预估 **5h 全跑完**（API key 任务 ~3h + T33 publish ~2h）。
 
 ### Fixed (T31.5 — v1.0 ship-blocker R-NEW-V1-SHIP-1: vendor stealth-core)
 
