@@ -17,7 +17,7 @@
  * Cache entries carry a success_count / failure_count so we can retire plans that
  * stop working (e.g., the site changed). TTL is enforced on read.
  *
- * Storage: ~/.ai-browser-auditor/plan-cache.db by default; override via opts.dbPath
+ * Storage: ~/.pixelcheck/plan-cache.db by default; override via opts.dbPath
  * or AUDIT_PLAN_CACHE_PATH env var. Small (< 1 MB in practice).
  */
 
@@ -91,7 +91,12 @@ export class PlanCache {
     this._dbPath =
       opts.dbPath ??
       process.env.AUDIT_PLAN_CACHE_PATH ??
-      path.join(os.homedir(), ".ai-browser-auditor", "plan-cache.db");
+      path.join(
+        process.env.PIXELCHECK_HOME ??
+          process.env.AUDIT_HOME ??
+          path.join(os.homedir(), ".pixelcheck"),
+        "plan-cache.db",
+      );
   }
 
   private _open(): Database.Database {

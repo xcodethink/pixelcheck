@@ -82,9 +82,9 @@ function safeError(...args: unknown[]): void {
 const program = new Command();
 
 program
-  .name("ai-audit")
+  .name("pixelcheck")
   .description(
-    "AI-driven post-deployment UX audit. Real browser, real personas, commercial-grade evaluation.",
+    "MCP-first browser primitives for AI agents — real eyes and hands on the web. Local-first. Vendor-agnostic.",
   )
   .version("0.3.0");
 
@@ -163,7 +163,7 @@ program
         msg.includes("Missing required environment variables") &&
         msg.includes("ANTHROPIC_API_KEY")
       ) {
-        safeError(chalk.red("\n[ai-audit] ANTHROPIC_API_KEY not set."));
+        safeError(chalk.red("\n[pixelcheck] ANTHROPIC_API_KEY not set."));
         safeError(
           chalk.gray(
             "  Get a key at https://console.anthropic.com → set " +
@@ -171,14 +171,14 @@ program
           ),
         );
         safeError(
-          chalk.gray("  Run `ai-audit doctor` to verify your environment."),
+          chalk.gray("  Run `pixelcheck doctor` to verify your environment."),
         );
         process.exit(1);
       }
       // Friendly catch for ConsentDeclinedError (T22 R34): user
       // explicitly said "no" to the consent prompt — exit cleanly.
       if (err instanceof Error && err.name === "ConsentDeclinedError") {
-        safeError(chalk.yellow("\n[ai-audit] " + msg));
+        safeError(chalk.yellow("\n[pixelcheck] " + msg));
         process.exit(1);
       }
       safeError(
@@ -207,7 +207,7 @@ program
     }
     console.log(
       chalk.cyan(
-        `\n[ai-audit] History (${entries.length} run${entries.length > 1 ? "s" : ""})\n`,
+        `\n[pixelcheck] History (${entries.length} run${entries.length > 1 ? "s" : ""})\n`,
       ),
     );
     console.log(
@@ -262,7 +262,7 @@ program
         locale: trendsOpts.locale ? normaliseLocale(trendsOpts.locale) : undefined,
       });
       console.log(
-        chalk.cyan(`\n[ai-audit] Trends dashboard written to:\n  ${outPath}\n`),
+        chalk.cyan(`\n[pixelcheck] Trends dashboard written to:\n  ${outPath}\n`),
       );
     },
   );
@@ -320,7 +320,7 @@ program
           diffOpts.format ? format : undefined,
           opts,
         );
-        console.log(chalk.cyan(`\n[ai-audit] Diff written to:\n  ${outPath}\n`));
+        console.log(chalk.cyan(`\n[pixelcheck] Diff written to:\n  ${outPath}\n`));
         return;
       }
 
@@ -340,8 +340,8 @@ program
         case "text":
         default: {
           // Legacy chalk-coloured terminal layout — preserved bit-for-bit
-          // so users who pipe `ai-audit diff | less -R` see the same output.
-          console.log(chalk.cyan(`\n[ai-audit] Diff: ${runA} → ${runB}\n`));
+          // so users who pipe `pixelcheck diff | less -R` see the same output.
+          console.log(chalk.cyan(`\n[pixelcheck] Diff: ${runA} → ${runB}\n`));
           const delta = (v: number, unit: string, invert = false) => {
             const sign = v > 0 ? "+" : "";
             const color =
@@ -396,8 +396,8 @@ program
 
 /**
  * Scaffold a project audit directory with config.yaml + a starter scenario.
- * Used by both the non-interactive `ai-audit init <dir>` (CI / scripted)
- * and the interactive wizard `ai-audit init` (no args, T23 R46).
+ * Used by both the non-interactive `pixelcheck init <dir>` (CI / scripted)
+ * and the interactive wizard `pixelcheck init` (no args, T23 R46).
  */
 function scaffoldProject(args: {
   projectDir: string;
@@ -461,10 +461,10 @@ function scaffoldProject(args: {
       ].join("\n"),
     );
 
-    console.log(chalk.green(`\n[ai-audit] Project initialized: ${projectDir}`));
+    console.log(chalk.green(`\n[pixelcheck] Project initialized: ${projectDir}`));
     console.log(chalk.gray(`  config.yaml — edit base_url, project_name, budget`));
     console.log(chalk.gray(`  scenarios/00-smoke.yaml — starter smoke test`));
-    console.log(chalk.gray(`\nRun: ai-audit run --project ${projectDir}`));
+    console.log(chalk.gray(`\nRun: pixelcheck run --project ${projectDir}`));
     console.log(chalk.gray(`Built-in personas (6) will be used automatically.`));
     console.log(chalk.gray(`To customize personas, create a personas/ dir inside the project.`));
 }
@@ -511,7 +511,7 @@ program
 
       if (answers.runDoctorAfter) {
         console.log("");
-        console.log(chalk.cyan("[ai-audit] Running doctor checks..."));
+        console.log(chalk.cyan("[pixelcheck] Running doctor checks..."));
         const report = await runDoctor({ projectDir: answers.projectDir });
         for (const line of renderDoctorReport(report)) {
           console.log(line);
@@ -1004,7 +1004,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
     const projectConfig = path.join(projectDir, "config.yaml");
     if (!fs.existsSync(projectConfig)) {
       throw new Error(
-        `No config.yaml in project directory: ${projectDir}\nRun "ai-audit init <dir>" to create a project template.`,
+        `No config.yaml in project directory: ${projectDir}\nRun "pixelcheck init <dir>" to create a project template.`,
       );
     }
     opts.config = projectConfig;
@@ -1078,7 +1078,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
     );
   }
 
-  console.log(chalk.cyan(`\n[ai-audit] ${config.project_name}`));
+  console.log(chalk.cyan(`\n[pixelcheck] ${config.project_name}`));
   console.log(chalk.gray(`  Config: ${opts.config}`));
   console.log(chalk.gray(`  Personas loaded: ${personas.size}`));
   console.log(chalk.gray(`  Scenarios loaded: ${scenarios.size}`));
@@ -1240,7 +1240,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   ).length;
 
   console.log("");
-  console.log(chalk.cyan("[ai-audit] Complete"));
+  console.log(chalk.cyan("[pixelcheck] Complete"));
   console.log(`  JSON:    ${jsonPath}`);
   console.log(`  HTML:    ${htmlPath}`);
   console.log(`  SPA:     ${spaPath}`);

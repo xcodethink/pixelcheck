@@ -1,25 +1,70 @@
 <p align="center">
-  <h1 align="center">AI Browser Auditor</h1>
+  <h1 align="center">PixelCheck</h1>
   <p align="center">
-    <strong>Your AI-powered product experience reviewer. Deploys real browsers. Simulates real users. Delivers real verdicts.</strong>
+    <strong>MCP server giving AI agents real eyes and hands on the web. Vendor-agnostic. Local-first. Yours to own.</strong>
   </p>
   <p align="center">
+    <a href="#five-primitives">Primitives</a> &bull;
+    <a href="#mcp-server">MCP Server</a> &bull;
+    <a href="#audit-preset">Audit Preset</a> &bull;
     <a href="#quick-start">Quick Start</a> &bull;
-    <a href="#how-it-works">How It Works</a> &bull;
     <a href="#why-not-e2e-tests">Why Not E2E Tests</a> &bull;
-    <a href="#personas">Personas</a> &bull;
-    <a href="#ci-integration">CI Integration</a> &bull;
     <a href="CHANGELOG.md">Changelog</a>
   </p>
 </p>
 
 ---
 
-> **Your tests pass. Your CI is green. But what does a real user actually see?**
->
-> AI Browser Auditor answers that question — automatically, after every deployment.
+> **AI agents can't see what they build.** They write frontend code, but can't open a browser to verify a button looks right, an OAuth flow actually works, or a Japanese localisation didn't break. PixelCheck gives them eyes and hands.
 
-## The Problem
+## What is PixelCheck
+
+PixelCheck is an [MCP](https://modelcontextprotocol.io) server that exposes five browser primitives an AI agent can call to actually see and operate the web:
+
+```
+see(url, opts)              snapshot a page (DOM + screenshot + console + network)
+act(url, steps)             execute an action sequence (semantic + selector + Computer Use)
+extract(url, schema)        pull structured data matching a Zod / JSON schema
+judge(url, rubric)          score a page against a rubric ("is this dark-pattern free?")
+compare(a, b, criteria)     A/B comparison of two URLs (incl. blind mode)
+```
+
+Each primitive returns a strict JSON Schema response with cost / screenshot / DOM envelope. Composable. Cacheable. Auditable.
+
+Drop the server into Claude Desktop, Cursor, Cline, Continue, Zed, or Claude Code via `~/.mcp.json` and your agent gets 17 tools — no glue code, no proxy server, no SaaS sign-up.
+
+- **Local-first**: runs on your machine. Data never leaves it.
+- **Vendor-agnostic**: works with any LLM your agent calls (Claude, GPT, Gemini, Ollama).
+- **Yours to own**: MIT license. Source-available. No telemetry. No lock-in.
+
+## Two Use Modes
+
+### For AI agents (MCP) — primary
+
+The 99% case. Your AI agent calls PixelCheck through MCP to see / act / extract / judge / compare on real web pages, with fingerprint / stealth / persona / WCAG / cost-guard infrastructure handled.
+
+```bash
+npm install -g pixelcheck
+pixelcheck doctor                # 8-check environment health
+pixelcheck-mcp                   # start MCP server (stdio transport)
+```
+
+See [MCP Server](#mcp-server) for tool definitions and IDE integration.
+
+### For humans (CLI) — secondary
+
+PixelCheck bundles an 18-persona / 15-country audit preset on top of the primitives — a CLI-first composition that runs "real users review your product" after every deployment.
+
+```bash
+pixelcheck init projects/my-app --name "My App" --url "https://myapp.com"
+pixelcheck run --project projects/my-app
+```
+
+This was PixelCheck's original v0.x scope. v1.0 generalises it: audit becomes a preset composition of see / act / extract / judge across personas, leaving the primitives free for AI agents to use directly. See [Audit Preset](#audit-preset).
+
+---
+
+## The Audit Preset (post-deployment UX review)
 
 You deploy. Tests pass. CI is green. But then:
 
@@ -31,13 +76,11 @@ You deploy. Tests pass. CI is green. But then:
 
 **No E2E test catches these.** They test whether code runs. They don't test whether the product *works* for real humans in real contexts.
 
-## The Solution
-
-AI Browser Auditor launches real Chromium browsers as 18 different users from 15 countries, walks through your product's core flows, and delivers a verdict — like having a senior PM, QA engineer, and UX reviewer audit every deployment, in every language, on every device class.
+The audit preset launches real Chromium browsers as 18 different users from 15 countries, walks through your product's core flows, and delivers a verdict — like having a senior PM, QA engineer, and UX reviewer audit every deployment, in every language, on every device class.
 
 ```bash
-npx ai-audit init projects/my-app --name "My App" --url "https://myapp.com"
-npx ai-audit run --project projects/my-app
+pixelcheck init projects/my-app --name "My App" --url "https://myapp.com"
+pixelcheck run --project projects/my-app
 ```
 
 **Output**: a structured report with per-step screenshots, video recordings, network logs, WCAG accessibility violations, and AI-scored ratings across 6 dimensions — served as JSON, HTML dashboard, or Markdown.
@@ -66,7 +109,7 @@ For each **(persona x scenario)** combination:
 
 ## Why Not E2E Tests?
 
-| | Traditional E2E | AI Browser Auditor |
+| | Traditional E2E | PixelCheck (audit preset) |
 |---|---|---|
 | **What it tests** | Code logic | Product experience |
 | **Decision making** | Hardcoded selectors | AI reads the page like a human |
@@ -75,7 +118,7 @@ For each **(persona x scenario)** combination:
 | **Failure output** | Stack trace | Screenshots + video + 6-dimension score + specific UX issues |
 | **What it catches** | Functional bugs | i18n gaps, UX friction, visual regressions, trust issues, accessibility violations, cultural mismatches |
 
-**AI Browser Auditor is not a replacement for E2E tests.** It's what runs *after* them — the layer between "code works" and "product is good."
+**PixelCheck's audit preset is not a replacement for E2E tests.** It's what runs *after* them — the layer between "code works" and "product is good."
 
 ## Personas
 
@@ -214,7 +257,7 @@ Catalog covers WCAG 2.1 (the production-deployed standard) plus the 9 net-new su
 Use case — answering an RFP that asks "Are you WCAG 2.1 AA compliant?":
 
 ```bash
-ai-audit run --project myapp                                    # writes audit.pdf + audit.sarif
+pixelcheck run --project myapp                                    # writes audit.pdf + audit.sarif
 # Open audit.pdf → "WCAG Compliance Summary" section shows A / AA / AAA counts
 # Or upload audit.sarif via github/codeql-action/upload-sarif → grouped under wcag/* ruleIds
 ```
@@ -234,9 +277,9 @@ Stakeholder reports (PDF / trends dashboard / PR diff Markdown / PR diff HTML) e
 | `de` | German | DACH-region enterprises |
 
 ```bash
-ai-audit run --project myapp --locale ja          # Japanese PDF + reports
-ai-audit trends --project myapp --locale zh-CN     # Chinese trends dashboard
-ai-audit diff <a> <b> --format markdown --locale es  # Spanish PR comment
+pixelcheck run --project myapp --locale ja          # Japanese PDF + reports
+pixelcheck trends --project myapp --locale zh-CN     # Chinese trends dashboard
+pixelcheck diff <a> <b> --format markdown --locale es  # Spanish PR comment
 ```
 
 Or pin a default in `config.yaml`:
@@ -246,7 +289,7 @@ base_url: https://myapp.com
 default_locale: ja    # any audit run on this project defaults to ja
 ```
 
-What's translated: report skeleton — section titles, table headers, status / severity badges, disclaimer prose. What's NOT translated: the auditor's findings themselves (those come from the LLM in whatever language you asked Claude for) and numeric values / dates / run IDs. See [ADR-023](docs/decisions/ADR-023-report-localisation.md) for the full design.
+What's translated: report skeleton — section titles, table headers, status / severity badges, disclaimer prose. What's NOT translated: PixelCheck's findings themselves (those come from the LLM in whatever language you asked Claude for) and numeric values / dates / run IDs. See [ADR-023](docs/decisions/ADR-023-report-localisation.md) for the full design.
 
 **Translations reviewed by**: machine-assisted draft pending native-speaker review. We track reviewer credits publicly — see [docs/translation-review-template.md](docs/translation-review-template.md) and the [translation-review issue template](.github/ISSUE_TEMPLATE/translation-review.yml). Confirmed reviewers will be listed below as the v1.x review pass completes.
 
@@ -278,12 +321,12 @@ Default: ON every run. Pass `--no-pdf` to skip during fast local iteration. See 
 Scores are tracked in a local SQLite database. Three ways to look at history:
 
 ```bash
-ai-audit history                    # Terminal table of recent runs with scores
-ai-audit diff run_0412 run_0411     # Score deltas, new/resolved issues
-ai-audit trends                     # Full HTML dashboard with 5 charts (writes <reports>/trends.html)
+pixelcheck history                    # Terminal table of recent runs with scores
+pixelcheck diff run_0412 run_0411     # Score deltas, new/resolved issues
+pixelcheck trends                     # Full HTML dashboard with 5 charts (writes <reports>/trends.html)
 ```
 
-`ai-audit trends` reads `<reports>/history.db` and writes a standalone HTML dashboard answering "did our UX get better or worse?" Five inline-SVG charts (no Chart.js / external CDN — opens behind any firewall, emails / prints / archives cleanly):
+`pixelcheck trends` reads `<reports>/history.db` and writes a standalone HTML dashboard answering "did our UX get better or worse?" Five inline-SVG charts (no Chart.js / external CDN — opens behind any firewall, emails / prints / archives cleanly):
 
 | Chart | Answer it gives |
 |---|---|
@@ -296,7 +339,7 @@ ai-audit trends                     # Full HTML dashboard with 5 charts (writes 
 Plus six summary cards at the top (latest score, mean last 7, mean last 30, total cost, total issues, total critical issues) and a recent-runs table for navigation. See [ADR-021](docs/decisions/ADR-021-trends-dashboard.md) for the full design.
 
 ```bash
-ai-audit trends --project myapp -n 90 --dashboard reports/trends.html
+pixelcheck trends --project myapp -n 90 --dashboard reports/trends.html
 ```
 
 The per-run `audit.html` also includes inline sparkline charts for at-a-glance trends within that single report.
@@ -306,7 +349,7 @@ The per-run `audit.html` also includes inline sparkline charts for at-a-glance t
 Fail your CI build if the experience drops below your bar:
 
 ```bash
-ai-audit run --project projects/my-app --min-score 7.5
+pixelcheck run --project projects/my-app --min-score 7.5
 # Exit code 1 if overall score < 7.5
 ```
 
@@ -315,7 +358,7 @@ ai-audit run --project projects/my-app --min-score 7.5
 ### 1. Install
 
 ```bash
-npm install ai-browser-auditor
+npm install pixelcheck
 npx playwright install chromium
 ```
 
@@ -325,7 +368,7 @@ npx playwright install chromium
 ### 2. Verify your environment
 
 ```bash
-npx ai-audit doctor
+npx pixelcheck doctor
 ```
 
 Reports Node version, API key, config / scenarios / personas, network
@@ -340,7 +383,7 @@ air-gapped environments.
 **Interactive wizard** (recommended for first-time users):
 
 ```bash
-npx ai-audit init
+npx pixelcheck init
 # Walks you through project name, base URL, sample scenario, and runs
 # `doctor` at the end to confirm setup.
 ```
@@ -348,7 +391,7 @@ npx ai-audit init
 **Non-interactive** (CI / scripted):
 
 ```bash
-npx ai-audit init my-project --name acme-shop --url https://acme.example.com
+npx pixelcheck init my-project --name acme-shop --url https://acme.example.com
 ```
 
 Either path scaffolds:
@@ -362,13 +405,13 @@ export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 Get a key at [console.anthropic.com](https://console.anthropic.com).
-The wizard above tells you when this is missing; `ai-audit doctor`
+The wizard above tells you when this is missing; `pixelcheck doctor`
 re-checks it any time.
 
 ### 5. Create your first audit
 
 ```bash
-npx ai-audit init projects/my-app --name "My App" --url "https://myapp.com"
+npx pixelcheck init projects/my-app --name "My App" --url "https://myapp.com"
 ```
 
 This generates a project directory with a config file and a starter scenario. Edit the scenario to match your app's flows.
@@ -377,16 +420,16 @@ This generates a project directory with a config file and a starter scenario. Ed
 
 ```bash
 # Dry run — validate config, print the persona x scenario matrix
-npx ai-audit run --project projects/my-app --dry-run
+npx pixelcheck run --project projects/my-app --dry-run
 
 # Full audit
-npx ai-audit run --project projects/my-app
+npx pixelcheck run --project projects/my-app
 
 # Debug mode — visible browser
-npx ai-audit run --project projects/my-app --headed
+npx pixelcheck run --project projects/my-app --headed
 
 # Single persona
-npx ai-audit run --project projects/my-app --persona jp-japanese-pro-desktop
+npx pixelcheck run --project projects/my-app --persona jp-japanese-pro-desktop
 ```
 
 ## CI Integration
@@ -400,8 +443,8 @@ audit-after-deploy:
   runs-on: ubuntu-latest
   steps:
     - uses: actions/checkout@v4
-    - run: npm install ai-browser-auditor && npx playwright install chromium
-    - run: npx ai-audit run --project .audit --min-score 7.0
+    - run: npm install pixelcheck && npx playwright install chromium
+    - run: npx pixelcheck run --project .audit --min-score 7.0
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     - uses: actions/upload-artifact@v4
@@ -411,12 +454,12 @@ audit-after-deploy:
         path: reports/
 ```
 
-Or dispatch to a central auditor repo that audits all your projects:
+Or dispatch to a central PixelCheck repo that audits all your projects:
 
 ```yaml
     - run: |
         gh workflow run post-deploy-audit.yml \
-          --repo your-org/ai-browser-auditor \
+          --repo your-org/pixelcheck \
           --field project="my-app"
       env:
         GH_TOKEN: ${{ secrets.GH_PAT }}
@@ -426,7 +469,7 @@ Exit codes: `0` = pass, `1` = fail, `2` = warn.
 
 ### CI output formats
 
-When the auditor detects a CI environment (`CI=true`, `GITHUB_ACTIONS=true`, `GITLAB_CI=true`, `CIRCLECI=true`, `TF_BUILD=True`, or `JENKINS_URL`), it automatically emits four standard formats alongside `audit.json`/`audit.html`:
+When PixelCheck detects a CI environment (`CI=true`, `GITHUB_ACTIONS=true`, `GITLAB_CI=true`, `CIRCLECI=true`, `TF_BUILD=True`, or `JENKINS_URL`), it automatically emits four standard formats alongside `audit.json`/`audit.html`:
 
 | File | Format | Consumed by |
 |---|---|---|
@@ -448,7 +491,7 @@ Severity mapping: `critical`/`high` → SARIF `error` / GHA `error`; `medium` �
 Example — upload SARIF to GitHub Code Scanning:
 
 ```yaml
-- run: npx ai-audit run --project .audit
+- run: npx pixelcheck run --project .audit
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 - uses: github/codeql-action/upload-sarif@v3
@@ -463,8 +506,8 @@ Posting a "did this PR make UX better or worse?" summary as a PR comment is two 
 
 ```yaml
 # Audit main → audit PR → diff → post
-- run: ai-audit run --tag main && ai-audit run --tag pr
-- run: ai-audit diff <MAIN_RUN_ID> <PR_RUN_ID> --format markdown --output diff.md
+- run: pixelcheck run --tag main && pixelcheck run --tag pr
+- run: pixelcheck diff <MAIN_RUN_ID> <PR_RUN_ID> --format markdown --output diff.md
 - uses: marocchino/sticky-pull-request-comment@v2
   with: { path: diff.md }
 ```
@@ -491,9 +534,8 @@ Add to `~/.mcp.json` (or your client's equivalent):
 ```json
 {
   "mcpServers": {
-    "ai-browser-auditor": {
-      "command": "node",
-      "args": ["/abs/path/to/ai-browser-auditor/dist/mcp/server.js"],
+    "pixelcheck": {
+      "command": "pixelcheck-mcp",
       "env": {
         "ANTHROPIC_API_KEY": "sk-ant-..."
       }
@@ -538,7 +580,7 @@ The lightest tool in the kit. Call it when you want to ask "what's on this page 
 }
 ```
 
-Returns a `SeeResult` (see [docs/schemas/see-result.schema.json](./docs/schemas/see-result.schema.json)) with `url_final` (post-redirect), `title`, `dom` (interactive count + headings + summary), `console.errors`, `screenshot` (path + sha256), and `note` (the goal answer when set). Artefacts land under `$AUDIT_SEES_DIR` or `~/.ai-browser-auditor/sees/<UTC-iso>-<rand6>/`. See [ADR-011](./docs/decisions/ADR-011-see-primitive.md) for design rationale.
+Returns a `SeeResult` (see [docs/schemas/see-result.schema.json](./docs/schemas/see-result.schema.json)) with `url_final` (post-redirect), `title`, `dom` (interactive count + headings + summary), `console.errors`, `screenshot` (path + sha256), and `note` (the goal answer when set). Artefacts land under `$AUDIT_SEES_DIR` or `~/.pixelcheck/sees/<UTC-iso>-<rand6>/`. See [ADR-011](./docs/decisions/ADR-011-see-primitive.md) for design rationale.
 
 #### `act` — execute an action sequence
 
@@ -570,7 +612,7 @@ Each step kind:
 | `act` | ~1 LLM call | Stagehand-resolved natural-language action. Forces the engine to Stagehand for the whole session. |
 | `note` | ~$0.005 | One vision call against the current page. Works on either engine. |
 
-Returns an `ActResult` (see [docs/schemas/act-result.schema.json](./docs/schemas/act-result.schema.json)) with `engine` (`"playwright"` | `"stagehand"`), `steps[]` (each with `status`, `duration_ms`, `cost_usd`, optional `screenshot` / `note` / `output` / `error`), final `dom` / `console` / `screenshot`, and total `cost_usd`. Failure semantics: `stop_on_error: true` (default) skips remaining steps after the first failure (recorded as `status: "skipped"`); `false` runs them all and the top-level `status` is `"error"` if any failed. Artefacts land under `$AUDIT_ACTS_DIR` or `~/.ai-browser-auditor/acts/<UTC-iso>-<rand6>/`. See [ADR-012](./docs/decisions/ADR-012-act-primitive.md) for design rationale.
+Returns an `ActResult` (see [docs/schemas/act-result.schema.json](./docs/schemas/act-result.schema.json)) with `engine` (`"playwright"` | `"stagehand"`), `steps[]` (each with `status`, `duration_ms`, `cost_usd`, optional `screenshot` / `note` / `output` / `error`), final `dom` / `console` / `screenshot`, and total `cost_usd`. Failure semantics: `stop_on_error: true` (default) skips remaining steps after the first failure (recorded as `status: "skipped"`); `false` runs them all and the top-level `status` is `"error"` if any failed. Artefacts land under `$AUDIT_ACTS_DIR` or `~/.pixelcheck/acts/<UTC-iso>-<rand6>/`. See [ADR-012](./docs/decisions/ADR-012-act-primitive.md) for design rationale.
 
 #### `extract` — schema-bound structured extraction
 
@@ -615,7 +657,7 @@ JSON Schema subset accepted (the converter rejects everything else with a precis
 
 The root must be `type: "object"` because Stagehand's `extract()` requires an object schema. A bare `{ properties: {…} }` (no `type`) is accepted as object-shorthand.
 
-Returns an `ExtractResult` (see [docs/schemas/extract-result.schema.json](./docs/schemas/extract-result.schema.json)) with `engine: "stagehand"`, `data` (matching your schema), `schema_used` / `instruction_used` / `selector_used` (echoed for client-side re-validation and debugging), `dom` / `console` / `screenshot`, and `cost_usd` derived from Stagehand's `metrics.extractPromptTokens` × `estimateCost(model, …)`. The `data.json` artefact is also persisted alongside the screenshot for replay. If a tight cost-guard cap trips during `recordUsage`, `status` flips to `"error"` but `data` and `cost_usd` are still surfaced (partial-success). Artefacts land under `$AUDIT_EXTRACTS_DIR` or `~/.ai-browser-auditor/extracts/<UTC-iso>-<rand6>/`. See [ADR-013](./docs/decisions/ADR-013-extract-primitive.md) for design rationale.
+Returns an `ExtractResult` (see [docs/schemas/extract-result.schema.json](./docs/schemas/extract-result.schema.json)) with `engine: "stagehand"`, `data` (matching your schema), `schema_used` / `instruction_used` / `selector_used` (echoed for client-side re-validation and debugging), `dom` / `console` / `screenshot`, and `cost_usd` derived from Stagehand's `metrics.extractPromptTokens` × `estimateCost(model, …)`. The `data.json` artefact is also persisted alongside the screenshot for replay. If a tight cost-guard cap trips during `recordUsage`, `status` flips to `"error"` but `data` and `cost_usd` are still surfaced (partial-success). Artefacts land under `$AUDIT_EXTRACTS_DIR` or `~/.pixelcheck/extracts/<UTC-iso>-<rand6>/`. See [ADR-013](./docs/decisions/ADR-013-extract-primitive.md) for design rationale.
 
 #### `judge` — rubric-driven page critic
 
@@ -644,7 +686,7 @@ Built-in rubrics:
 
 Score direction is uniform: **higher = better**, regardless of kind. Aesthetic 10 = excellent; dark-pattern 10 = no dark pattern detected. So `overall_score` (mean of all verdict scores) is monotonic across mixed rubrics.
 
-Returns a `JudgeResult` (see [docs/schemas/judge-result.schema.json](./docs/schemas/judge-result.schema.json)) with `rubrics`, `criteria` (the full rubric list rendered into the prompt), `verdicts[]` (per-criterion `{ criterion_id, score, rationale, evidence }`), `findings[]` (severity-graded issues with `location`), `overall_score`, `summary`, plus the standard `dom` / `console` / `screenshot` / `cost_usd` envelope. Artefacts land under `$AUDIT_JUDGES_DIR` or `~/.ai-browser-auditor/judges/<UTC-iso>-<rand6>/judge.json`. See [ADR-014](./docs/decisions/ADR-014-judge-and-compare-primitives.md) for design rationale.
+Returns a `JudgeResult` (see [docs/schemas/judge-result.schema.json](./docs/schemas/judge-result.schema.json)) with `rubrics`, `criteria` (the full rubric list rendered into the prompt), `verdicts[]` (per-criterion `{ criterion_id, score, rationale, evidence }`), `findings[]` (severity-graded issues with `location`), `overall_score`, `summary`, plus the standard `dom` / `console` / `screenshot` / `cost_usd` envelope. Artefacts land under `$AUDIT_JUDGES_DIR` or `~/.pixelcheck/judges/<UTC-iso>-<rand6>/judge.json`. See [ADR-014](./docs/decisions/ADR-014-judge-and-compare-primitives.md) for design rationale.
 
 #### `compare` — A/B page comparison
 
@@ -664,7 +706,7 @@ Run an A/B comparison of two pages against a shared rubric. Default mode is **`d
 
 Per-side `viewport` lets you compare e.g. desktop A vs mobile B. Either side may be a pre-captured snapshot from a prior `see` / `extract` / `judge` call (`{ "capture": { ... } }`); the tool will skip the browser for that side.
 
-Returns a `CompareResult` (see [docs/schemas/compare-result.schema.json](./docs/schemas/compare-result.schema.json)) with `mode`, `rubrics`, `criteria`, `side_a` / `side_b` (each carrying the embedded JudgeResult in double_blind mode + per-side screenshot + artefacts dir), `per_criterion[]` (`{ criterion_id, score_a, score_b, winner: "a"|"b"|"tie", rationale }`), `overall_winner`, `summary`, and total `cost_usd`. Artefacts land under `$AUDIT_COMPARES_DIR` or `~/.ai-browser-auditor/compares/<UTC-iso>-<rand6>/` with `a/` and `b/` subdirs and a `compare.json` sidecar.
+Returns a `CompareResult` (see [docs/schemas/compare-result.schema.json](./docs/schemas/compare-result.schema.json)) with `mode`, `rubrics`, `criteria`, `side_a` / `side_b` (each carrying the embedded JudgeResult in double_blind mode + per-side screenshot + artefacts dir), `per_criterion[]` (`{ criterion_id, score_a, score_b, winner: "a"|"b"|"tie", rationale }`), `overall_winner`, `summary`, and total `cost_usd`. Artefacts land under `$AUDIT_COMPARES_DIR` or `~/.pixelcheck/compares/<UTC-iso>-<rand6>/` with `a/` and `b/` subdirs and a `compare.json` sidecar.
 
 #### `list_capabilities` — self-describe (M9-5)
 
@@ -680,7 +722,7 @@ Returns a `ListCapabilitiesResult` (see [docs/schemas/list-capabilities-result.s
 ```jsonc
 {
   "schema_version": "1.2.0",
-  "server": { "name": "ai-browser-auditor", "version": "0.3.0" },
+  "server": { "name": "pixelcheck", "version": "0.3.0" },
   "result_schema_version": "1.2.0",
   "tools": [
     {
@@ -699,7 +741,7 @@ Returns a `ListCapabilitiesResult` (see [docs/schemas/list-capabilities-result.s
     { "name": "ANTHROPIC_API_KEY", "scope": "auth", "default": "", "required": true, "description": "..." }
     /* …20 more rows across auth / cache / cost_guard / artifacts / logging / memory / reports */
   ],
-  "cache": { "enabled": true, "ttl_ms_default": 86400000, "path": "~/.ai-browser-auditor/result-cache.db" }
+  "cache": { "enabled": true, "ttl_ms_default": 86400000, "path": "~/.pixelcheck/result-cache.db" }
 }
 ```
 
@@ -711,10 +753,10 @@ Adding a new tool: drop a file under `src/mcp/tools/<name>.ts` exporting a `Tool
 
 ## Multi-Project Support
 
-One auditor instance serves all your projects:
+One PixelCheck install serves all your projects:
 
 ```
-ai-browser-auditor/
+pixelcheck/
  |-- personas/              # 18 shared personas (used by all projects)
  |-- projects/
       |-- my-saas/          # Project A
@@ -750,13 +792,13 @@ Examples:
 
 ```sh
 # CI / piped: JSON to stderr automatically (no TTY)
-ai-audit run --project projects/my-app 2> audit.log
+pixelcheck run --project projects/my-app 2> audit.log
 
 # Force JSON even in a terminal
-LOG_PRETTY=0 ai-audit run --project projects/my-app
+LOG_PRETTY=0 pixelcheck run --project projects/my-app
 
 # Verbose debugging
-LOG_LEVEL=debug ai-audit run --project projects/my-app
+LOG_LEVEL=debug pixelcheck run --project projects/my-app
 ```
 
 ## Cost Guard
@@ -764,7 +806,7 @@ LOG_LEVEL=debug ai-audit run --project projects/my-app
 A process-wide spend cap protects against runaway LLM bills. Every Anthropic API call is tracked against two limits:
 
 - **Per-run** — single audit / MCP tool invocation. Reset at run start.
-- **Per-day** — UTC-day total persisted across processes in a JSON ledger (default `~/.ai-browser-auditor/cost-ledger.json`, override via `AUDIT_COST_LEDGER_PATH`).
+- **Per-day** — UTC-day total persisted across processes in a JSON ledger (default `~/.pixelcheck/cost-ledger.json`, override via `AUDIT_COST_LEDGER_PATH`).
 
 Exceeding any cap throws `BudgetExceededError` so the calling loop stops immediately. The ledger auto-prunes entries older than 30 days.
 
@@ -774,7 +816,7 @@ Exceeding any cap throws `BudgetExceededError` so the calling loop stops immedia
 | `AUDIT_COST_MAX_RUN_TOKENS` | `10000000` | Max input+output tokens per run |
 | `AUDIT_COST_MAX_DAILY_USD` | `50` | Max USD per UTC day across all runs |
 | `AUDIT_COST_MAX_DAILY_TOKENS` | `100000000` | Max input+output tokens per UTC day |
-| `AUDIT_COST_LEDGER_PATH` | `~/.ai-browser-auditor/cost-ledger.json` | Path to the persistent daily ledger |
+| `AUDIT_COST_LEDGER_PATH` | `~/.pixelcheck/cost-ledger.json` | Path to the persistent daily ledger |
 | `AUDIT_COST_GUARD_DISABLED` | unset | `1` / `true` to bypass entirely (CI / tests) |
 
 The cost guard layers over (and is independent of) the runner's `budget_usd` cap, which only stops the runner from scheduling new units. The cost guard catches direct MCP tool calls, computer-use loops, and instruction mutations that the unit scheduler doesn't see.
@@ -782,13 +824,13 @@ The cost guard layers over (and is independent of) the runner's `budget_usd` cap
 Inspect the current state via the snapshot included in the `run started` log line, or:
 
 ```sh
-LOG_LEVEL=debug ai-audit run --project projects/my-app
+LOG_LEVEL=debug pixelcheck run --project projects/my-app
 # emits one "llm usage recorded" debug line per Anthropic call with running totals
 ```
 
 ## Concurrency Safety
 
-PixelCheck is safe to run from multiple processes at once — two parallel `ai-audit` terminals, an MCP server fielding two `audit_url` calls in parallel, or a CLI run alongside an MCP-served call. Specifically:
+PixelCheck is safe to run from multiple processes at once — two parallel `pixelcheck` terminals, an MCP server fielding two `audit_url` calls in parallel, or a CLI run alongside an MCP-served call. Specifically:
 
 - **Cost ledger** (`cost-ledger.json`): protected by a cross-process advisory lockfile (`<ledger>.lock`). Concurrent recorders never lose updates.
 - **Per-run cost counters**: each MCP tool dispatch and each `runAudit` call gets its own `AsyncLocalStorage` scope, so two parallel calls have independent run-USD caps. The persistent daily ledger is still shared.
@@ -821,7 +863,7 @@ A persistent local cache memoises results from the deterministic primitives so r
 
 | Env var | Default | Effect |
 |---|---|---|
-| `AUDIT_RESULT_CACHE_PATH` | `~/.ai-browser-auditor/result-cache.db` | SQLite path; isolate per environment |
+| `AUDIT_RESULT_CACHE_PATH` | `~/.pixelcheck/result-cache.db` | SQLite path; isolate per environment |
 | `AUDIT_RESULT_CACHE_TTL_MS` | `86400000` (24h) | Entries older than this are misses + pruned |
 | `AUDIT_RESULT_CACHE_DISABLED` | unset | `1` / `true` to bypass entirely (read = miss, write = no-op) |
 | `AUDIT_RESULT_CACHE_MAX_ROWS` | `10000` | LRU cap; oldest `last_used_at` rows evicted past this. `0` disables. |
@@ -839,10 +881,10 @@ See [ADR-015](docs/decisions/ADR-015-result-cache.md) for design.
 
 ## Artifact retention
 
-Each MCP primitive call (`see` / `act` / `extract` / `judge` / `compare`) writes a per-call subdirectory under `~/.ai-browser-auditor/<kind>/` containing screenshots, DOM dumps, payload JSON, and the LLM response. Long-running MCP servers can accumulate gigabytes over a month. PixelCheck enforces a 30-day retention window by default and prunes lazily.
+Each MCP primitive call (`see` / `act` / `extract` / `judge` / `compare`) writes a per-call subdirectory under `~/.pixelcheck/<kind>/` containing screenshots, DOM dumps, payload JSON, and the LLM response. Long-running MCP servers can accumulate gigabytes over a month. PixelCheck enforces a 30-day retention window by default and prunes lazily.
 
 ```bash
-ai-audit prune          # explicit cleanup; prints summary, exit 1 on errors
+pixelcheck prune          # explicit cleanup; prints summary, exit 1 on errors
 ```
 
 The MCP server runs the same prune at most once per 24 hours on startup
@@ -856,9 +898,9 @@ window skip prune entirely).
 | `AUDIT_EXTRACTS_RETENTION_DAYS` | 30 | Same, for `extract` |
 | `AUDIT_JUDGES_RETENTION_DAYS` | 30 | Same, for `judge` |
 | `AUDIT_COMPARES_RETENTION_DAYS` | 30 | Same, for `compare` |
-| `AUDIT_<KIND>_DIR` | `~/.ai-browser-auditor/<kind>` | Custom storage dir per kind |
+| `AUDIT_<KIND>_DIR` | `~/.pixelcheck/<kind>` | Custom storage dir per kind |
 
-Setting a retention to `0` means **infinite retention** (skip prune for that kind), matching how every Linux retention tool behaves. To bulk-delete a kind, use `rm -rf ~/.ai-browser-auditor/<kind>` directly.
+Setting a retention to `0` means **infinite retention** (skip prune for that kind), matching how every Linux retention tool behaves. To bulk-delete a kind, use `rm -rf ~/.pixelcheck/<kind>` directly.
 
 ## Built With
 
@@ -872,16 +914,18 @@ Setting a retention to `0` means **infinite retention** (skip prune for that kin
 
 The open-source landscape has excellent **browser automation frameworks** (browser-use 87K stars, Stagehand 22K, Skyvern 21K) and mature **accessibility rule engines** (axe-core 7K, pa11y 4.4K). But none of them answer the question *"is this product experience good?"*
 
-| | Automation Frameworks | Rule-Based Auditors | **AI Browser Auditor** |
+| | Automation Frameworks | Rule-Based Auditors | **PixelCheck** |
 |---|---|---|---|
-| **Question answered** | "How do I control a browser?" | "Does this pass WCAG 2.x?" | "Is this product good for a real user?" |
+| **Question answered** | "How do I control a browser?" | "Does this pass WCAG 2.x?" | "How does an AI agent see and operate the web?" |
+| **Primary interface** | Library / SDK | CLI | **MCP server** (+ CLI for humans) |
 | **Intelligence** | LLM-driven actions | Static rules | LLM vision + rules + Computer Use |
 | **User simulation** | Single anonymous session | None | 18 personas across 15 countries |
 | **Anti-detection** | None | N/A | 9 fingerprints + 15 stealth patches |
-| **Output** | Action results | Pass/fail checklist | 18-dimension scores + video + HAR + issues |
+| **Output contract** | Action results | Pass/fail checklist | 30 published JSON Schemas + 67 named API |
 | **History** | None | None | SQLite trends + run-to-run diff |
+| **Vendor lock-in** | Often (cloud SaaS) | None | None — local-first, vendor-agnostic |
 
-No existing open-source project combines multi-persona simulation, AI vision scoring, WCAG analysis, stealth fingerprints, and historical trend tracking. This is the first tool designed specifically for **post-deployment product quality auditing**.
+No existing open-source project combines MCP-first browser primitives, multi-persona simulation, AI vision scoring, WCAG analysis, stealth fingerprints, and historical trend tracking. PixelCheck is the missing infrastructure layer between AI agents and the visual web.
 
 ## Test Coverage
 
@@ -972,7 +1016,7 @@ see [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ## Privacy & Data Handling
 
-`ai-browser-auditor` runs entirely on your machine. The only outbound
+`pixelcheck` runs entirely on your machine. The only outbound
 network destination is `api.anthropic.com` for the audit calls you
 explicitly trigger. **Zero telemetry.**
 
@@ -988,7 +1032,7 @@ Privacy-first defaults:
   screenshots (`--redact-inputs`, on by default; opt out with
   `--no-redact-inputs` only for fixture audits)
 - **First-run consent prompt** explicitly informs you what data goes to
-  Anthropic. Persisted in `~/.ai-browser-auditor/consent.json` so subsequent
+  Anthropic. Persisted in `~/.pixelcheck/consent.json` so subsequent
   runs don't re-prompt. Bypass for CI / non-TTY:
   `AUDIT_AUTO_CONSENT=1` env or `--auto-consent` flag (read [PRIVACY.md](PRIVACY.md) first).
 - **Per-run reports stored at mode 0700** (owner-only) under
@@ -1021,7 +1065,7 @@ Third-party dependencies and their licenses are documented in
 ---
 
 <p align="center">
-  <strong>E2E tests verify your code works. AI Browser Auditor verifies your product works.</strong>
+  <strong>E2E tests verify your code works. PixelCheck gives AI agents real eyes and hands to verify your product works.</strong>
   <br/>
   <a href="#quick-start">Get started in 2 minutes</a>
 </p>

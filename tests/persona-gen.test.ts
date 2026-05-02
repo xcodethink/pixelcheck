@@ -129,7 +129,7 @@ describe("writePersonaYaml", () => {
     const p = writePersonaYaml({ country: "JP" }, tmp);
     const content = fs.readFileSync(p, "utf8");
     expect(content).toMatch(/^# Generated from market-data/);
-    expect(content).toMatch(/Regenerate: ai-audit persona generate --country=JP/);
+    expect(content).toMatch(/Regenerate: pixelcheck persona generate --country=JP/);
   });
 });
 

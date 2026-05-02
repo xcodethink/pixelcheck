@@ -575,14 +575,20 @@ describe("act — artifacts directory", () => {
     }
   });
 
-  it("falls back to ~/.ai-browser-auditor/acts when AUDIT_ACTS_DIR is unset", () => {
+  it("falls back to ~/.pixelcheck/acts when no env override is set", () => {
     const prev = process.env.AUDIT_ACTS_DIR;
+    const prevHome = process.env.PIXELCHECK_HOME;
+    const prevLegacyHome = process.env.AUDIT_HOME;
     try {
       delete process.env.AUDIT_ACTS_DIR;
+      delete process.env.PIXELCHECK_HOME;
+      delete process.env.AUDIT_HOME;
       const root = defaultArtifactsRoot();
-      expect(root.endsWith(path.join(".ai-browser-auditor", "acts"))).toBe(true);
+      expect(root.endsWith(path.join(".pixelcheck", "acts"))).toBe(true);
     } finally {
       if (prev !== undefined) process.env.AUDIT_ACTS_DIR = prev;
+      if (prevHome !== undefined) process.env.PIXELCHECK_HOME = prevHome;
+      if (prevLegacyHome !== undefined) process.env.AUDIT_HOME = prevLegacyHome;
     }
   });
 });

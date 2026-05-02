@@ -219,9 +219,9 @@ export interface SarifToolDriver {
 }
 
 const DEFAULT_TOOL: SarifToolDriver = {
-  name: "ai-browser-auditor",
+  name: "pixelcheck",
   version: "0.3.0",
-  informationUri: "https://github.com/xcodethink/ai-browser-auditor",
+  informationUri: "https://github.com/xcodethink/pixelcheck",
 };
 
 /**
@@ -427,8 +427,8 @@ function buildRule(ruleId: string, issue: Issue): SarifRule {
     fullDescription: {
       text:
         issue.dimension !== undefined
-          ? `Issues raised by the AI Browser Auditor against the ${issue.dimension} dimension.`
-          : "Issues raised by the AI Browser Auditor that are not bound to a single scoring dimension.",
+          ? `Issues raised by the PixelCheck against the ${issue.dimension} dimension.`
+          : "Issues raised by the PixelCheck that are not bound to a single scoring dimension.",
     },
     defaultConfiguration: {
       level: SEVERITY_LEVELS[issue.severity].sarif === "note"

@@ -303,14 +303,20 @@ describe("see — artifacts directory", () => {
     }
   });
 
-  it("falls back to ~/.ai-browser-auditor/sees when AUDIT_SEES_DIR is unset", () => {
+  it("falls back to ~/.pixelcheck/sees when no env override is set", () => {
     const prev = process.env.AUDIT_SEES_DIR;
+    const prevHome = process.env.PIXELCHECK_HOME;
+    const prevLegacyHome = process.env.AUDIT_HOME;
     try {
       delete process.env.AUDIT_SEES_DIR;
+      delete process.env.PIXELCHECK_HOME;
+      delete process.env.AUDIT_HOME;
       const root = defaultArtifactsRoot();
-      expect(root.endsWith(path.join(".ai-browser-auditor", "sees"))).toBe(true);
+      expect(root.endsWith(path.join(".pixelcheck", "sees"))).toBe(true);
     } finally {
       if (prev !== undefined) process.env.AUDIT_SEES_DIR = prev;
+      if (prevHome !== undefined) process.env.PIXELCHECK_HOME = prevHome;
+      if (prevLegacyHome !== undefined) process.env.AUDIT_HOME = prevLegacyHome;
     }
   });
 });
