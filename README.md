@@ -946,7 +946,7 @@ Setting a retention to `0` means **infinite retention** (skip prune for that kin
 
 ## How Is This Different?
 
-The open-source landscape has excellent **browser automation frameworks** (browser-use 87K stars, Stagehand 22K, Skyvern 21K) and mature **accessibility rule engines** (axe-core 7K, pa11y 4.4K). But none of them answer the question *"is this product experience good?"*
+The open-source landscape has excellent **browser automation frameworks** (browser-use 91k stars, Stagehand 22k, Skyvern 21k) and mature **accessibility rule engines** (axe-core 7k, pa11y 4.4k). But none of them answer the question *"how does an AI agent see and operate the web through a strict, cacheable contract?"* — and none of them simulate eighteen real users across fifteen countries.
 
 | | Automation Frameworks | Rule-Based Auditors | **PixelCheck** |
 |---|---|---|---|
