@@ -1,7 +1,7 @@
-# Show HN: AI Browser Auditor -- launches real browsers as 18 personas to audit your product
+# Show HN: PixelCheck -- MCP server giving AI agents real eyes and hands on the web
 
 HN Title:
-> Show HN: AI Browser Auditor -- 18 personas from 15 countries audit your site after every deploy
+> Show HN: PixelCheck -- MCP server giving AI agents real eyes and hands on the web
 
 ---
 
@@ -9,33 +9,45 @@ HN Comment (first reply, post within 1 min of submission):
 
 ---
 
-Hey HN, I built this because my SaaS kept breaking for international users even though CI was always green.
+Hey HN, I built this because I write most of my SaaS frontend through an AI agent, and the agent kept stopping at the same wall: it could write the code, but couldn't see what it built. I was the bridge -- screenshot, paste, "fix this", repeat.
 
-**What it does:** Launches real Chromium browsers as 18 different personas (Japanese housewife, Nigerian entrepreneur, 72-year-old US retiree, Saudi businessman with RTL Arabic...), walks through your product flows, and uses Claude Vision + axe-core to score the experience across 18 dimensions.
+**What it does:** Exposes 5 browser primitives (`see` / `act` / `extract` / `judge` / `compare`) as an MCP server. Drop it in `~/.mcp.json` and your agent (Claude Desktop, Cursor, Cline, Continue, Zed, Claude Code) gets 17 tools that let it actually navigate, see, and operate the visual web. Each call returns a strict JSON Schema response with cost / screenshot / DOM envelope. Composable. Cacheable. Auditable.
 
-**The core insight:** E2E tests verify code works. They don't verify the product works for real humans. A Japanese user seeing half-English strings, an Arabic user with mirrored RTL layout, a budget Android user waiting 12s for your hero image — no Playwright assertion catches these.
+**Why MCP-first:** MCP became a Linux Foundation project in Dec 2025. By H2 2026 it's table stakes for AI tooling. PixelCheck speaks it natively -- no proxy server, no glue code, no SaaS sign-up.
 
-**Tech:**
-- Stagehand 2.0 for semantic browser automation ("click sign-up" not "click #btn-37")
-- 5-layer reliability stack to hit 98%+ success rate (page stability gate -> Haiku instruction rewrite -> auto selector discovery -> Computer Use fallback)
-- Claude Vision scores completion, localization, visual polish, trust signals, accessibility
-- axe-core for WCAG compliance (complements what vision can't catch)
-- SQLite history tracking with trend charts and run-to-run diffs
-- 15 anti-detection patches so your site renders as it would for real users, not bots
+**Why local-first + vendor-agnostic:** Runs entirely on your machine. The only outbound call is to whatever LLM your agent uses. No telemetry, no remote storage, no SaaS upload. MIT license. The whole thing is a single npm package you install and own.
+
+**Bonus -- 18-persona audit preset:** PixelCheck also bundles a CLI-first audit preset (the original v0.x scope). It launches real Chromium as 18 different personas (Japanese housewife, Nigerian entrepreneur, 72-year-old US retiree, Saudi businessman with RTL Arabic...), walks through your scenarios, and scores the experience on 18 dimensions via Claude Vision + axe-core. The audit is now a preset *composition* of see/act/extract/judge across personas.
+
+**v1.0 numbers:**
+- 5 primitives + 17 MCP tools, 30 published JSON Schemas (Ajv + Zod dual validation)
+- 5-layer reliability stack lifting Stagehand baseline ~75% to 98-99%
+- 9 fingerprints + 15 stealth patches
+- 18 personas across 15 countries / 5 script systems (Latin / CJK / Arabic / Cyrillic / Devanagari)
+- 1853 unit tests + 22 Playwright e2e + 2 integration; coverage 81/69/81/82
+- 28 ADRs documenting design decisions
+- 7 GitHub Actions workflows (CI / coverage / integration / bench / SBOM / dogfood / post-deploy-audit)
+- Cost-tier modes: economy (Haiku, ~3-5x cheaper) / balanced (default) / max (always Sonnet)
 
 **Honest caveats:**
-- Full 18-persona audit costs $80-300 in API fees (in practice you'd run 3-5 personas per deploy)
-- 98-99% reliability is the design target, still validating across more production sites
-- Claude-only for now; multi-model support planned
-- v0.2.0 -- core is solid, ecosystem is young
+- Currently Claude-only inside the audit critic; multi-provider abstraction (OpenAI / Gemini / Ollama) is on the v1.x Wave 2 roadmap
+- Stagehand v3 upgrade deferred to a dedicated task (ADR-028 documents why)
+- A typical full 18-persona audit costs $2-8 in balanced mode; single `see` call is $0.005-0.015
+- 18-persona audits are heavy; in practice you'd run 3-5 personas per deploy
 
-Repo: https://github.com/xcodethink/ai-browser-auditor
+Repo: https://github.com/xcodethink/pixelcheck
 
 Quick start:
 ```
-npm install ai-browser-auditor
-npx ai-audit init my-app --url "https://your-site.com"
-npx ai-audit run --project my-app
+npm install -g pixelcheck
+pixelcheck doctor
+pixelcheck-mcp                # start MCP server
 ```
 
-Happy to answer questions about the architecture, reliability stack, or the persona design. MIT licensed, contributions welcome -- especially personas for underrepresented regions.
+For audit preset:
+```
+pixelcheck init projects/my-app --url "https://your-site.com"
+pixelcheck run --project projects/my-app
+```
+
+Happy to answer questions about the MCP integration, the 5-primitive design, the reliability stack, or why I built this against the SaaS-only direction the rest of the agentic browser space is going. MIT licensed, contributions welcome -- especially personas for underrepresented regions and multi-provider critic implementations.

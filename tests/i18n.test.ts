@@ -283,9 +283,9 @@ describe("long-form prose translations", () => {
     }
   });
 
-  it("Trends empty-state mentions ai-audit run command", () => {
+  it("Trends empty-state mentions pixelcheck run command", () => {
     for (const locale of SUPPORTED_LOCALES) {
-      expect(t("trends_empty_state", locale)).toMatch(/ai-audit run/);
+      expect(t("trends_empty_state", locale)).toMatch(/pixelcheck run/);
     }
   });
 });

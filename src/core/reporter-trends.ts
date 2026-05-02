@@ -475,8 +475,8 @@ function headerSection(
 function summaryCards(s: TrendsSummary, locale: Locale): string {
   if (s.totalRuns === 0) {
     const msg = t("trends_empty_state", locale).replace(
-      /`ai-audit run`/g,
-      "<code>ai-audit run</code>",
+      /`pixelcheck run`/g,
+      "<code>pixelcheck run</code>",
     );
     return `<div class="empty">${msg}</div></div>`;
   }

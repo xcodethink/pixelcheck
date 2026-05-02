@@ -1,13 +1,13 @@
 {
-  "name": "ai-browser-auditor",
+  "name": "pixelcheck",
   "version": "0.3.0",
-  "description": "AI-driven post-deployment UX audit. Real browser, real personas, real scenarios, commercial-grade evaluation.",
+  "description": "MCP-first browser primitives for AI agents — real eyes and hands on the web. Local-first. Vendor-agnostic. Yours to own.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "ai-audit": "dist/cli.js",
-    "ai-audit-mcp": "dist/mcp/server.js"
+    "pixelcheck": "dist/cli.js",
+    "pixelcheck-mcp": "dist/mcp/server.js"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -35,12 +35,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xcodethink/ai-browser-auditor.git"
+    "url": "git+https://github.com/xcodethink/pixelcheck.git"
   },
   "bugs": {
-    "url": "https://github.com/xcodethink/ai-browser-auditor/issues"
+    "url": "https://github.com/xcodethink/pixelcheck/issues"
   },
-  "homepage": "https://github.com/xcodethink/ai-browser-auditor#readme",
+  "homepage": "https://github.com/xcodethink/pixelcheck#readme",
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -65,15 +65,19 @@
     "clean": "rm -rf dist sbom.json docs/api"
   },
   "keywords": [
-    "ai",
-    "browser",
-    "audit",
-    "ux",
+    "mcp",
+    "mcp-server",
+    "ai-agent",
+    "browser-primitives",
+    "ai-browser",
+    "vendor-agnostic",
+    "local-first",
     "playwright",
     "stagehand",
     "claude",
     "computer-use",
-    "e2e"
+    "audit",
+    "ux"
   ],
   "license": "MIT",
   "dependencies": {

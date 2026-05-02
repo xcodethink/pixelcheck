@@ -159,12 +159,12 @@ export function renderDiffMarkdown(
     // varies. For locales that drop the brand name in their translation
     // (e.g. zh-CN), append the link explicitly.
     const prefix = t("generated_by", locale);
-    const linked = prefix.includes("AI Browser Auditor")
+    const linked = prefix.includes("PixelCheck")
       ? prefix.replace(
-          "AI Browser Auditor",
-          "[AI Browser Auditor](https://github.com/xcodethink/ai-browser-auditor)",
+          "PixelCheck",
+          "[PixelCheck](https://github.com/xcodethink/pixelcheck)",
         )
-      : `${prefix} ([AI Browser Auditor](https://github.com/xcodethink/ai-browser-auditor))`;
+      : `${prefix} ([PixelCheck](https://github.com/xcodethink/pixelcheck))`;
     lines.push(
       `_${linked} · ${A.projectName} · ${t("diff_footer_tail", locale)} \`${A.id}\` → \`${B.id}\`_`,
     );
@@ -314,7 +314,7 @@ export function renderDiffJson(diff: RunDiff): string {
 
 /**
  * Render a RunDiff as the original CLI text format. Identical layout
- * the existing `ai-audit diff` command produces — exposed here so the
+ * the existing `pixelcheck diff` command produces — exposed here so the
  * --format flag can route through the same renderer set.
  *
  * No ANSI colour: this format is for non-TTY consumers (logs / file

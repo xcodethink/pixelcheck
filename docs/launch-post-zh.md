@@ -1,162 +1,184 @@
-# 测试全过了，CI 全绿了。但真实用户看到的到底是什么？
+# PixelCheck — 给 AI agent 装上看网页的眼睛和操作浏览器的手
 
-**我开源了一个工具：启动真实浏览器，模拟 15 个国家的 18 种用户，告诉你产品体验到底行不行 —— 而不仅仅是代码能不能跑。**
+**我开源了一个 MCP server：让 AI agent 真正能看见、能操作 web —— 不再只是"描述会怎么做"，而是真去做。**
+
+本地优先，不锁 LLM 厂商，MIT 开源。配进 `~/.mcp.json` 即可，Claude Desktop / Cursor / Cline / Continue / Zed / Claude Code 都支持。你的 agent 立即获得 17 个工具和 5 个浏览器 primitive。
 
 ---
 
-## 我是怎么意识到 E2E 测试不够的
+## 我意识到缺什么的那一刻
 
-我运营一个面向多国用户的 SaaS 产品（[ScamLens](https://scamlens.org)）。每次部署后，CI 流水线全绿。单元测试通过。集成测试通过。Playwright E2E 测试通过。
+我在做一个 SaaS 产品（[ScamLens](https://scamlens.org)），前端绝大部分代码由 AI agent 写。Agent 能写按钮，能写 OAuth 回调，能写 i18n 字符串，能写 Stripe 结算 —— 然后就停了，因为**它根本看不见自己刚写出来的东西**。
 
-然后一个日本用户发来邮件：页面有一半是英文。一个阿拉伯用户发来截图 —— 整个布局的左右方向反了。我们的 Google OAuth 登录悄无声息地坏了，10 次部署里坏了 6 次。
+于是我得手动开 Chrome，切语言，点界面，截图，贴回去给 agent，让它修。**我成了 agent 和可视化 web 之间的桥**。
 
-这些都不是传统意义上的"bug"。代码是对的。功能能用。但对真实场景下的真实用户来说，**体验是碎的**。
+PixelCheck 把这座桥拆掉了。
 
-我花了几周手动排查 —— 打开 Chrome，切语言环境，测不同屏幕尺寸，检查 RTL 布局，盯着截图核对翻译。这是发版中最痛苦的环节，而且我还是会漏掉问题。
+## PixelCheck 是什么
 
-所以我做了一个工具来自动化这件事。
+PixelCheck 是一个 MCP server，把五个浏览器 primitive 暴露给任意 AI agent：
 
-## AI Browser Auditor 是什么
+```
+see(url, opts)              抓取一个页面（DOM + 截图 + console + network）
+act(url, steps)             执行一组动作（语义 + 选择器 + Computer Use）
+extract(url, schema)        按 Zod / JSON schema 抽取结构化数据
+judge(url, rubric)          按打分标准给页面评分（"是否有 dark pattern"）
+compare(a, b, criteria)     A/B 对比两个 URL（含 blind mode）
+```
 
-一个开源的命令行工具：
+每个 primitive 返回严格 JSON Schema 响应，带 cost / 截图 / DOM 信封。可组合。可缓存。可审计。每次调用都会写入 per-run artefact（截图 / DOM dump / payload / response），AI 行为完全可重放可复盘。
 
-1. 启动真实 Chromium 浏览器，配置准确的设备指纹（语言、时区、屏幕尺寸、User-Agent）
-2. 以 18 种不同角色身份走完你产品的核心流程，覆盖 15 个国家
-3. 用 Claude Vision **像人一样看页面**，评估体验质量
-4. 用 axe-core 做 WCAG 无障碍合规检测
-5. 生成结构化报告：截图、录屏、网络日志、多维度评分
+给 AI agent 这五个动词，它就能：
 
-可以理解为：**每次部署后，自动安排一个资深产品经理 + QA + 无障碍审计师，用所有语言、在所有设备上审查你的产品。**
+- 验证 UI 改动部署后是否真的显示正确
+- 测试改完配置后 OAuth 登录是否还能跑通
+- 检查日文翻译是否漏掉了英文字符串
+- 对比两个 SaaS 定价页提取竞品情报
+- 走完一个真实注册流程，判断"首次用户 10 秒内能不能找到要做什么"
+- 在产品上线前抓出 dark pattern
+
+## 为什么 MCP-first 重要
+
+[Model Context Protocol](https://modelcontextprotocol.io) 是 PixelCheck 能成立的基础。MCP 在 2025 年 12 月被 Anthropic 捐给 Linux Foundation（AAIF），2026 Q2 ship 了 OAuth 2.1 + Tasks primitive。到 2026 H2，MCP 支持已经是任何 AI 工具的勾选项标配。
+
+PixelCheck 原生说 MCP —— 没有代理 server，没有 glue 代码，没有 SaaS 注册。装上 binary，配进 `~/.mcp.json`，agent（Claude Code / Cursor / Cline / Continue / Zed / Claude Desktop）立即获得 17 个工具。
 
 ```bash
-npm install ai-browser-auditor
-npx ai-audit init my-app --url "https://myapp.com"
-npx ai-audit run --project my-app
+npm install -g pixelcheck
+pixelcheck doctor                # 8 项环境健康检查
+pixelcheck-mcp                   # 启动 MCP server（stdio transport）
 ```
 
-## 技术原理
-
-对每个**（角色 x 场景）** 组合，工具会：
-
-**启动一个带指纹的浏览器。** 不只是改屏幕尺寸 —— 它设置语言环境、时区、HTTP 语言头、User-Agent，并注入 15 项反检测补丁，确保你的网站渲染的结果和真实用户看到的一样（而不是被反爬识别后的降级版本）。
-
-**语义化执行步骤。** 场景用声明式 YAML 编写。步骤写的是"点击注册按钮"，不是"点击 #btn-signup-v3"。底层基于 [Stagehand](https://github.com/browserbase/stagehand)，用 Claude 理解页面结构并执行自然语言指令。
-
-**5 层可靠性栈。** 语义化浏览器自动化天然不稳定（基线成功率约 75%）。我们做了五层级联回退，目标 98-99%：
-
-```
-L1: 页面稳定性门控     —— 等待网络空闲 + DOM 稳定 + 框架水合完成
-L2: LLM 指令改写       —— Haiku 根据 DOM 上下文重写失败的指令
-L3a: Selector Hint     —— 可选的 CSS 选择器回退（YAML 中指定）
-L3b: 自动 Selector 发现 —— Stagehand observe() 自动提取候选选择器
-L4: Computer Use       —— Claude 直接看像素操作浏览器
+```jsonc
+// ~/.mcp.json
+{
+  "mcpServers": {
+    "pixelcheck": {
+      "command": "pixelcheck-mcp",
+      "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
+    }
+  }
+}
 ```
 
-每层只在上一层失败时才触发。成本：L1-L3 基本为零；L4 每次约 $0.01-0.15。
+就完了。你的 agent 拥有了眼睛。
 
-**Claude Vision 评分。** 在视觉检查点，截图被分段发送给 Claude Vision，从多个维度评估页面：
+## 为什么坚持本地优先 + 不锁厂商
 
-- **completion（完成度）**—— 流程走完了吗？
-- **localization（本地化）**—— 文字都是正确的语言吗？
-- **visual_polish（视觉质感）**—— 这看起来像专业产品吗？
-- **trust_signals（信任信号）**—— 用户会信任这个页面吗？
-- **accessibility（无障碍）**—— 所有人都能用吗？（配合 axe-core WCAG 分析）
+两个早期定下、绝不妥协的设计：
 
-评分是 0-10 分带解释，不是简单的通过/失败 —— 而是像人一样的综合判断。
+**本地优先**。PixelCheck 完全跑在你的机器上。唯一对外网络是你 agent 自己用的 LLM provider。零遥测。零远程存储。零 SaaS 注册。截图 / DOM / 业务流程，全部留在你电脑上。（完整数据流披露见 [PRIVACY.md](../PRIVACY.md)）
 
-**axe-core 做 WCAG 合规。** 专门的 `assert_a11y` 步骤把 axe-core 注入页面，执行规则化的 WCAG 分析。它能捕获 AI 视觉看不到的问题（缺失的 ARIA 标签、对比度不足、键盘导航缺陷），而视觉 Critic 能捕获规则看不到的问题（混乱的布局、难以辨认的文字、糟糕的视觉层次）。
+**不锁厂商**。PixelCheck 不绑死任何 LLM provider。MCP server 是 provider-neutral 的 —— 你 agent 决定用哪个 LLM。多 provider 抽象（OpenAI / Gemini / Ollama 平级）在 v1.x roadmap。原因很简单：**2026 年的 AI agent 都是多模型最佳组合，锁单一 provider 的工具会死**。
 
-## 18 个角色
+这跟大部分"AI 浏览器" SaaS 是反的方向。它们是云端独占、模型锁定、信用卡门槛。PixelCheck 是一个你装下来、跑起来、彻底拥有的 npm 包。
 
-这是让工具真正有用（而不只是有趣）的部分。
+## v1.0 实际交付物
 
-每个角色不只是一个屏幕尺寸，它是一个完整的身份：
+不是 vapor。v1.0 ship gate 数字硬：
 
-| | 国家 | 语言 | 设备 | 心智模型 |
+- **5 个 primitive** + 17 个 MCP 工具，每个返回严格 JSON Schema（30 个发布 schema，Ajv + Zod 双重校验）
+- **5 层可靠性栈**把 Stagehand ~75% baseline 拉到 98-99%：Stability Gate → LLM Rewrite → Selector Hint → Auto Selector Discovery → Computer Use
+- **9 套指纹 + 15 项 stealth patch**让 audit 看起来像真人，不是被 bot-flag 过的 Playwright 会话
+- **18 personas × 15 国家 / 5 文字系统**（Latin / CJK / Arabic / Cyrillic / Devanagari）—— audit preset 用
+- **WCAG 2.1 / 2.2 合规**：集成 axe-core（`assert_a11y` step + 50+ Success Criteria 映射）
+- **跨会话记忆** + SQLite plan cache（同站重复 audit 60-80% 命中率，30 天 TTL）
+- **Cost guard**：per-run + per-day USD 上限 + 跨进程 advisory lockfile
+- **Audit explorer SPA**：单文件 HTML 报告，无 build step，无运行时依赖，可在防火墙内部打开
+- **三档成本模式**：`economy`（仅 Haiku）/ `balanced`（Haiku 主 + Sonnet 兜底，便宜 3-5x）/ `max`（永远 Sonnet）
+- **公共 API 稳定承诺**：67 个 named export + 30 个发布 schema 已快照固定，SemVer 锁定
+- **1853 单测 + 22 Playwright e2e + 2 集成测试**，覆盖率 81 / 69 / 81 / 82
+- **28 个 Architecture Decision Records**记录每个设计选择
+- **CI workflows**：7 个 GitHub Actions（CI / coverage / integration / bench / SBOM / dogfood / post-deploy-audit）
+
+## "真实用户审你的产品"是什么样（audit preset）
+
+PixelCheck 在 primitive 之上还包了一个 CLI-first 的 audit preset —— 这是 v0.x 原始范围。它启动真实 Chromium，扮演 18 种来自 15 个国家的用户，走完你的场景，给出一份判决。
+
+每个 persona 都是完整身份，不是只换个 viewport：
+
+| 身份 | 国家 | 语言 | 设备 | 心智模型 |
 |---|---|---|---|---|
-| 大学生 | 美国 | 英语 | iPhone | "10 秒内给我看到价值，否则走人" |
-| 退休教师，72 岁 | 美国 | 英语 | iPad | "这安全吗？会不会被骗？" |
-| 主妇 | 日本 | 日语 | MacBook | "只要有一个英文字符串，就觉得这不是给我用的" |
-| 安全分析师 | 德国 | 德语 | iPad Pro | "给我看方法论，不要营销话术" |
-| 零工平台工人 | 印尼 | 印尼语 | 低端 Android | "我的流量套餐加载得起吗？" |
-| 商人 | 沙特 | 阿拉伯语（RTL） | iPhone 15 | "如果布局方向反了，我完全没法用" |
-| 学生 | 中国 | 中文 | 小米 | "我需要翻墙才能打开这个" |
+| 大学生 | US | English | iPhone | "10 秒内看不到价值我就走" |
+| 退休教师 72 岁 | US | English | iPad | "这是不是骗子？我会不会被坑？" |
+| 主妇 | JP | 日语 | MacBook | "出现任何英文 = 这不是给我的" |
+| 安全分析师 | DE | 德语 | iPad Pro | "给我看方法论，别给我市场话术" |
+| 零工 | ID | Bahasa | 廉价 Android | "我的流量套餐撑得住吗" |
+| 商务人士 | SA | 阿拉伯语（RTL） | iPhone 15 | "布局镜像反了我没法用" |
+| 学生 | CN | 中文 | 小米 | "我得绕过审查才能用" |
 
-......另外还有 11 个角色，覆盖印地语、韩语、越南语、俄语、约鲁巴语/英语、拉美西语、泰语、繁体中文、法语。
+…还有 11 个覆盖 印地 / 韩 / 越南 / 俄 / 约鲁巴英 / 西语美洲 / 泰 / 繁中 / 法语。
 
-AI 审查员**透过他们的眼睛**评判你的产品。当日本角色看到导航栏里有英文字符串，这会被标记为本地化问题 —— 但同样的字符串被美国角色看到就完全正常。
-
-## 输出长什么样
-
-每次审计产出一整套证据包：
-
-```
-reports/2026-04-12_post-deploy/
-  audit.json              # 机器可读：所有评分、问题、步骤结果
-  audit.html              # 暗色主题仪表板，内嵌 SVG 趋势折线图
-  summary.md              # 终端友好格式，可粘贴到 CI 日志或 Slack
-
-  jp-japanese-pro__signup-flow/
-    01-homepage.png        # 时间戳截图 + SHA-256 哈希
-    02-localization.png
-    network.har            # 完整网络日志
-    console.log            # 浏览器控制台错误
-    video/recording.webm   # 会话录屏
-```
-
-HTML 报告包含历史趋势图（基于本地 SQLite 数据库），你可以看到产品质量随时间的变化。还能对比任意两次审计：
+AI reviewer 会**用他们的眼睛**判断你的产品。日文 persona 看到导航有英文残留 = 标 localization issue；同样的英文给美国 persona 看就 OK。
 
 ```bash
-ai-audit history                          # 历史评分趋势
-ai-audit diff run_0411 run_0412           # 这次比上次变了什么
-ai-audit run --min-score 7.5              # CI 质量门禁
+pixelcheck init projects/my-app --name "My App" --url "https://myapp.com"
+pixelcheck run --project projects/my-app
 ```
 
-## 诚实说说局限性
+输出：`audit.json` + `audit.html`（深色 dashboard）+ `audit.pdf`（给 stakeholder 看的 PDF）+ `audit.sarif`（GitHub Code Scanning）+ 每步截图 + 视频 + HAR + console log。
 
-- **成本。** 一次完整的 18 角色审计花费 $80-300 的 Claude API 费用。实际操作中，你会在每次部署时跑 P0 场景（3-5 个角色，约 $5-15），完整矩阵每周跑一次。
+CI 集成：exit code `0`/`1`/`2` 对应 pass / fail / warn。GitHub Actions 一行：`npx pixelcheck run --min-score 7.0`。
 
-- **可靠性。** 98-99% 的目标是架构设计值，还不是经过几百次真实运行验证的数字。我正在多个生产站点上持续验证。
+## 跟其他自动化框架的区别
 
-- **不是 E2E 测试的替代品。** 这是 E2E *之后*的那一层。你的测试验证代码正确性，这个工具验证产品质量。
+OSS 浏览器自动化领域很拥挤。说清楚：
 
-- **依赖 Claude。** 目前需要 Anthropic API key。多模型支持（GPT-4o、Gemini）在计划中但还没实现。
+**PixelCheck 不是 browser-use**。browser-use（91k stars）是 Python 框架，让 agent 自主完成 web 任务，task-completion 极强。PixelCheck 是另一层 —— agent 调用的 primitive，专门用来**看页面 + 推理**，带严格 result schema 和多 persona audit preset。
 
-- **新项目。** 这是 v0.2.0。核心引擎稳固且已在一个生产站点上实战检验，但生态（场景模板、社区角色、集成）才刚起步。
+**不是 Stagehand**。Stagehand（22k stars，Browserbase 出品）是 TS SDK，做 AI 驱动的语义浏览器操作。我们**内部用**Stagehand 作为可靠性栈的一层。Stagehand 是库；PixelCheck 是它之上的 MCP server。
 
-## 为什么开源
+**不是 Skyvern**。Skyvern（21k stars）是 vision-LLM workflow runner，表单专项强。形态不同：workflow-centric，云端部署。
 
-三个原因：
+**不是 BrowserOS / Comet / Atlas**。那些是 agentic browser —— 用 AI-native 浏览器替换 Chrome，C 端产品。PixelCheck 是开发者基础设施。
 
-**1. 角色库应该由社区共建。** 没有任何一个团队能代表全世界所有用户。我希望来自各个国家的人贡献带有真实心智模型和关注点的角色。一个在拉各斯长大的人写出的尼日利亚角色，比我这个外人猜出来的要准确十倍。
+**一句话差异化**：现有 OSS 没有任何项目同时做到 MCP-first × 5-primitive 接口面 × 18-persona / 15 国模拟 × WCAG 合规 × stealth 指纹 × 历史趋势追踪。PixelCheck 是 AI agent 与可视化 web 之间缺失的那一层。
 
-**2. 场景模板应该共享。** "OAuth 注册流程"、"结账流程"、"仪表板加载" —— 这些模式是通用的。我们不应该每个人都从零发明。
+## 成本与控制
 
-**3. 这个品类还不存在。** 市场上有浏览器自动化框架（browser-use，87K stars）。有无障碍规则引擎（axe-core，7K stars）。有视觉回归工具（Applitools，$20-100K/年）。但"AI 产品体验审计"作为一个品类，**在开源世界里没有任何成型的工具**。我宁愿把它作为开源来播种这个品类，也不愿意一个人在付费墙后面慢慢搭。
+AI 工具的常见担忧是失控成本。PixelCheck 多重护栏：
+
+- **三档成本模式**：`economy`（仅 Haiku）比 `max`（仅 Sonnet）便宜 3-5x。默认 `balanced` 是 Haiku 主 + 置信度低时升 Sonnet
+- **Cost guard**：config 中设 per-run + per-day USD 上限；累计成本越限就拒绝新单元；跨进程 advisory lockfile 防止双花
+- **Plan cache**：同站重复运行 60-80% 命中率（DOM skeleton 命中缓存计划时跳过 Sonnet planning，7 天 TTL）
+- **每次调用 budget**：每个 MCP 工具文档化典型 cost；`judge` / `compare` 接受 `max_iterations`
+
+典型完整 audit（18 personas × 6 scenarios）`balanced` 模式 $2-8。单次 `see` 调用 $0.005-0.015。
+
+## v1.x 后续路线
+
+v1.0 是有意识地控制范围 ship。v1.x 已规划：
+
+- **Wave 2**（30-90 天）：Provider 抽象（OpenAI / Gemini / Ollama）· 多 AI client 兼容矩阵 · 公开 benchmark 数字 · MCP 公开 registry 注册
+- **Wave 3**（90-180 天）：Stagehand v3 升级 · Persona 扩展到 30+ 国 · A/B 上下文注入 · MCP OAuth 2.1 + Tasks primitive · 1M-context multi-step research workflow
+- **Wave 4**（180+ 天，按需触发）：移动端 native（RN / Flutter / 原生）· 用户流自动发现 · Cognitive a11y · 语义视觉 diff
 
 ## 试一下
 
 ```bash
-npm install ai-browser-auditor
-npx playwright install chromium
-export ANTHROPIC_API_KEY=sk-ant-...
-
-npx ai-audit init my-app --url "https://your-site.com"
-npx ai-audit run --project my-app --headed   # 第一次跑用 headed 模式看浏览器
+npm install -g pixelcheck
+pixelcheck doctor
+pixelcheck-mcp
 ```
 
-仓库地址：**[github.com/xcodethink/ai-browser-auditor](https://github.com/xcodethink/ai-browser-auditor)**
+或单项目安装：
 
-如果你也经历过"CI 全绿但用户说体验烂了"的时刻，这个工具就是为你做的。欢迎 star、提 issue、贡献角色。
+```bash
+npm install pixelcheck --save-dev
+npx pixelcheck init projects/my-app --name "My App" --url "https://myapp.com"
+npx pixelcheck run --project projects/my-app
+```
 
----
+GitHub：https://github.com/xcodethink/pixelcheck
+License：MIT
+文档：README + 13 份治理文档（LICENSE / SECURITY / PRIVACY / MIGRATION / CONTRIBUTING / CHANGELOG / FAQ / TROUBLESHOOTING / INSTALLATION / DEPRECATION-POLICY / THIRD_PARTY_LICENSES + ADRs + API ref）
 
-## 链接
+## 我希望听到的反馈
 
-- GitHub: [xcodethink/ai-browser-auditor](https://github.com/xcodethink/ai-browser-auditor)
-- 变更日志: [CHANGELOG.md](https://github.com/xcodethink/ai-browser-auditor/blob/main/CHANGELOG.md)
-- 架构文档: [docs/architecture.md](https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/architecture.md)
+如果你在用 AI agent 写代码，发现自己反复手动截图给 agent 看 —— PixelCheck 就是填这个缺。装上 MCP server 用你 agent 跑一下，告诉我哪里有缝。
 
-**技术栈：** TypeScript, Playwright, Stagehand 2.0, Claude (Vision + Computer Use), axe-core, better-sqlite3
+如果你 ship 产品后被部署后问题打了脸（CI 全绿但用户看到的不一样）—— 试试 audit preset，看多 persona 视角能不能帮你抓出 CI 抓不到的东西。
 
-**协议：** MIT
+如果你被锁死在单一 LLM provider 或被强迫云端上传的 AI 工具坑过 —— 试 PixelCheck 因为它两个都不做。
+
+— Wayne
