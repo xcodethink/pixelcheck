@@ -36,13 +36,14 @@ import {
   defaultDbPath as defaultResultCacheDbPath,
 } from "../../core/result-cache.js";
 import { RESULT_SCHEMA_VERSION } from "../../core/result-schema.js";
+import { getPackageVersion } from "../../core/version.js";
 import type { ToolDefinition } from "../registry.js";
 
-// Server identity — kept in sync with src/mcp/server.ts. Hard-coded so
-// `list_capabilities` does not pull in the SDK Server lifecycle module
-// (and so reading capabilities does not depend on transport state).
+// Server identity — kept in sync with src/mcp/server.ts. The version is
+// read at runtime from package.json (via getPackageVersion) so a release
+// bump never has to chase 4+ hardcoded copies through the codebase. The
+// name stays inline because there is exactly one of those.
 const SERVER_NAME = "pixelcheck";
-const SERVER_VERSION = "1.0.1";
 
 const DEFAULT_RESULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // mirror result-cache.ts default
 
@@ -319,7 +320,7 @@ export function buildCapabilities(
   tools: readonly ToolDefinition[],
 ): Record<string, unknown> {
   return {
-    server: { name: SERVER_NAME, version: SERVER_VERSION },
+    server: { name: SERVER_NAME, version: getPackageVersion() },
     result_schema_version: RESULT_SCHEMA_VERSION,
     tools: tools.map(describeTool),
     env: envTable(),
