@@ -10,6 +10,10 @@ see [docs/INSTALLATION.md](docs/INSTALLATION.md).
 For security-sensitive issues, see [SECURITY.md](SECURITY.md) — please use
 private disclosure channels, **not** GitHub Issues.
 
+Community standards: we adopt the
+[Contributor Covenant 2.1](CODE_OF_CONDUCT.md) as our Code of Conduct.
+Reporting channels are documented in `CODE_OF_CONDUCT.md`.
+
 ---
 
 ## Table of contents

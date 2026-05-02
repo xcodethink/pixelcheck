@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thank you for offering a translation review. The full template is at
-        [docs/translation-review-template.md](https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/translation-review-template.md)
+        [docs/translation-review-template.md](https://github.com/xcodethink/pixelcheck/blob/main/docs/translation-review-template.md)
         — please copy it locally, fill it in, and submit a PR.
 
         This issue is for **announcing** that you'll review a locale (so we
@@ -60,7 +60,7 @@ body:
       label: Acknowledgement
       description: Please confirm the following before submitting.
       options:
-        - label: "I have read [docs/translation-review-template.md](https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/translation-review-template.md) and understand the review format."
+        - label: "I have read [docs/translation-review-template.md](https://github.com/xcodethink/pixelcheck/blob/main/docs/translation-review-template.md) and understand the review format."
           required: true
         - label: "I will submit a PR with the filled template + corresponding edits to `src/core/i18n.ts`."
           required: true

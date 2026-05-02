@@ -6,6 +6,7 @@ tmp/
 downloads/
 coverage/
 docs/perf-current.json
+docs/perf-memory.json
 docs/api/
 test-results/
 playwright-report/

@@ -41,8 +41,8 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
+import { pixelcheckHome } from "./home-dir.js";
 import { getLogger } from "./logger.js";
 
 const log = getLogger("artifacts-prune");
@@ -69,11 +69,7 @@ const DEFAULT_RETENTION_DAYS = 30;
  * running prune more than once per 24h.
  */
 function pruneStampPath(): string {
-  const home =
-    process.env.PIXELCHECK_HOME ??
-    process.env.AUDIT_HOME ??
-    path.join(os.homedir(), ".pixelcheck");
-  return path.join(home, "prune-stamp.json");
+  return path.join(pixelcheckHome(), "prune-stamp.json");
 }
 
 /** Directory for a given artifact kind, honouring env override. */
@@ -81,11 +77,7 @@ export function defaultArtifactDir(kind: ArtifactKind): string {
   const envKey = `AUDIT_${kind.toUpperCase()}_DIR`;
   const fromEnv = process.env[envKey];
   if (fromEnv) return fromEnv;
-  const home =
-    process.env.PIXELCHECK_HOME ??
-    process.env.AUDIT_HOME ??
-    path.join(os.homedir(), ".pixelcheck");
-  return path.join(home, kind);
+  return path.join(pixelcheckHome(), kind);
 }
 
 /** Retention days for a given kind (env override → default). */

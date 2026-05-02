@@ -184,7 +184,11 @@ describe("runDoctor — aggregate exitCode", () => {
     fs.writeFileSync(path.join(tmpRoot, "config.yaml"), "project_name: x");
     fs.mkdirSync(path.join(tmpRoot, "scenarios"));
     fs.writeFileSync(path.join(tmpRoot, "scenarios", "smoke.yaml"), "id: x");
-    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const r = await runDoctor({
+      projectDir: tmpRoot,
+      skipNetwork: true,
+      skipBrowser: true,
+    });
     expect(r.exitCode).toBe(0);
   });
 });
@@ -235,7 +239,11 @@ describe("renderDoctorReport", () => {
     fs.writeFileSync(path.join(tmpRoot, "config.yaml"), "project_name: x");
     fs.mkdirSync(path.join(tmpRoot, "scenarios"));
     fs.writeFileSync(path.join(tmpRoot, "scenarios", "smoke.yaml"), "id: x");
-    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const r = await runDoctor({
+      projectDir: tmpRoot,
+      skipNetwork: true,
+      skipBrowser: true,
+    });
     const lines = renderDoctorReport(r);
     expect(lines[lines.length - 1]).toContain("All checks passed");
   });
@@ -386,7 +394,11 @@ describe("runDoctor — edge cases", () => {
     fs.writeFileSync(path.join(tmpRoot, "scenarios", "smoke.yaml"), "id: x");
     fs.mkdirSync(path.join(tmpRoot, "personas"));
     fs.writeFileSync(path.join(tmpRoot, "personas", "p.yaml"), "id: p");
-    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    const r = await runDoctor({
+      projectDir: tmpRoot,
+      skipNetwork: true,
+      skipBrowser: true,
+    });
     const lines = renderDoctorReport(r);
     expect(lines[lines.length - 1]).toContain("All checks passed");
   });
