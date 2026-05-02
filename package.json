@@ -87,7 +87,7 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",
-    "@browserbasehq/stagehand": "^2.0.0",
+    "@browserbasehq/stagehand": "^3.3.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "axe-core": "^4.11.4",
     "better-sqlite3": "^12.9.0",
@@ -104,12 +104,6 @@
     "ws": "^8.20.0",
     "yaml": "^2.6.0",
     "zod": "^3.25.76"
-  },
-  "overrides": {
-    "@browserbasehq/stagehand": {
-      "dotenv": "^17.4.2",
-      "zod": "^3.25.76"
-    }
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "^4.2.1",

@@ -199,8 +199,9 @@ export interface OpenedExtractor {
   consoleErrors: ConsoleError[];
   /** Run a Stagehand-backed extract call. */
   extract: ExtractCallFn;
-  /** Read the current Stagehand metrics snapshot. */
-  readMetrics: () => StagehandMetricsSnapshot;
+  /** Read the current Stagehand metrics snapshot. v3 made `metrics`
+   * async (returns `Promise<StagehandMetrics>`), so this is async too. */
+  readMetrics: () => Promise<StagehandMetricsSnapshot>;
   close: () => Promise<void>;
 }
 
@@ -545,7 +546,7 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
       urlFinal = safePageUrl(page, opts.url);
 
       const extractFn = opts._callExtract ?? opened.extract;
-      const before = opened.readMetrics();
+      const before = await opened.readMetrics();
       try {
         data = await extractFn({
           instruction: instructionUsed,
@@ -560,7 +561,7 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
           "extract: page.extract() failed",
         );
       }
-      const after = opened.readMetrics();
+      const after = await opened.readMetrics();
       const deltaIn = Math.max(
         0,
         after.extractPromptTokens - before.extractPromptTokens,
@@ -783,23 +784,25 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
     );
   }
 
-  type StagehandPage = Page & {
-    extract(arg: unknown): Promise<unknown>;
+  type StagehandV3 = {
+    init(): Promise<void>;
+    extract(
+      instruction: string,
+      schema?: unknown,
+      options?: { selector?: string },
+    ): Promise<unknown>;
+    close(opts?: { force?: boolean }): Promise<void>;
+    get context(): BrowserContext;
+    get metrics(): Promise<StagehandMetricsSnapshot & Record<string, number>>;
   };
-  const Ctor = mod.Stagehand as new (cfg: Record<string, unknown>) => {
-    init(): Promise<unknown>;
-    page: StagehandPage;
-    context: BrowserContext;
-    metrics: StagehandMetricsSnapshot & Record<string, number>;
-    close?(): Promise<void>;
-  };
+  const Ctor = mod.Stagehand as new (cfg: Record<string, unknown>) => StagehandV3;
 
   const stagehand = new Ctor({
     env: "LOCAL",
-    modelName: `anthropic/${cfg.model}`,
-    modelClientOptions: process.env.ANTHROPIC_API_KEY
-      ? { apiKey: process.env.ANTHROPIC_API_KEY }
-      : undefined,
+    model: {
+      modelName: `anthropic/${cfg.model}`,
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    },
     verbose: 1,
     disablePino: true,
     localBrowserLaunchOptions: {
@@ -807,12 +810,12 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
       viewport: cfg.viewport,
       locale: cfg.locale,
       timezoneId: cfg.timezone,
-      userAgent: cfg.userAgent,
     },
-    enableCaching: true,
   });
   await stagehand.init();
-  const page = stagehand.page;
+  // v3: pages live on V3Context.pages(); `stagehand.page` is gone.
+  const ctx = stagehand.context;
+  const page = ctx.pages()[0] ?? (await ctx.newPage());
   const consoleErrors = wireConsoleListeners(page);
 
   const waitUntil = normalizeWaitUntil(cfg.waitFor);
@@ -823,21 +826,29 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
 
   return {
     page,
-    context: stagehand.context,
+    context: ctx,
     consoleErrors,
-    extract: (args: ExtractCallArgs) =>
-      page.extract({
-        ...(args.instruction ? { instruction: args.instruction } : {}),
-        ...(args.schema ? { schema: args.schema } : {}),
-        ...(args.selector ? { selector: args.selector } : {}),
-      }),
-    readMetrics: () => ({
-      extractPromptTokens: stagehand.metrics?.extractPromptTokens ?? 0,
-      extractCompletionTokens: stagehand.metrics?.extractCompletionTokens ?? 0,
-    }),
+    extract: (args: ExtractCallArgs) => {
+      const instruction = args.instruction ?? "";
+      // v3 extract is positional: extract(instruction, schema?, options?).
+      // Selector forwarded; page is left to v3's `awaitActivePage()` —
+      // passing our Playwright Page errors with "Failed to resolve V3
+      // Page from Playwright page".
+      const options = args.selector ? { selector: args.selector } : undefined;
+      return stagehand.extract(instruction, args.schema, options);
+    },
+    readMetrics: async () => {
+      // v3 made metrics async — fetches from API in BROWSERBASE mode,
+      // returns local in LOCAL mode (which is what we use here).
+      const m = await stagehand.metrics;
+      return {
+        extractPromptTokens: m?.extractPromptTokens ?? 0,
+        extractCompletionTokens: m?.extractCompletionTokens ?? 0,
+      };
+    },
     close: async () => {
       try {
-        if (stagehand.close) await stagehand.close();
+        await stagehand.close({ force: true });
       } catch {
         /* ignore */
       }
