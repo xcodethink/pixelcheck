@@ -5,9 +5,9 @@
     {
       "tool": {
         "driver": {
-          "name": "ai-browser-auditor",
-          "version": "0.3.0",
-          "informationUri": "https://github.com/xcodethink/ai-browser-auditor",
+          "name": "pixelcheck",
+          "version": "1.0.1",
+          "informationUri": "https://github.com/xcodethink/pixelcheck",
           "rules": [
             {
               "id": "wcag/1-1-1",
