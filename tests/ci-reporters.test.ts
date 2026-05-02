@@ -362,7 +362,7 @@ describe("SARIF 2.1.0 writer", () => {
     expect(sarif.version).toBe("2.1.0");
     expect(sarif.runs).toHaveLength(1);
     expect(sarif.runs[0].tool.driver.name).toBe("pixelcheck");
-    expect(sarif.runs[0].tool.driver.version).toBe("1.0.0");
+    expect(sarif.runs[0].tool.driver.version).toBe("1.0.1");
   });
 
   it("emits one result per issue with severity-mapped level", () => {
