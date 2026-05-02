@@ -601,23 +601,21 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
     );
   }
 
-  type StagehandPage = Page & {
-    act(arg: unknown): Promise<unknown>;
+  type StagehandV3 = {
+    init(): Promise<void>;
+    act(instruction: string, options?: unknown): Promise<unknown>;
+    close(opts?: { force?: boolean }): Promise<void>;
+    get context(): BrowserContext;
   };
-  const Ctor = mod.Stagehand as new (cfg: Record<string, unknown>) => {
-    init(): Promise<unknown>;
-    page: StagehandPage;
-    context: BrowserContext;
-    close?(): Promise<void>;
-  };
+  const Ctor = mod.Stagehand as new (cfg: Record<string, unknown>) => StagehandV3;
 
   const baseModel = "claude-sonnet-4-6";
   const stagehand = new Ctor({
     env: "LOCAL",
-    modelName: `anthropic/${baseModel}`,
-    modelClientOptions: process.env.ANTHROPIC_API_KEY
-      ? { apiKey: process.env.ANTHROPIC_API_KEY }
-      : undefined,
+    model: {
+      modelName: `anthropic/${baseModel}`,
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    },
     verbose: 1,
     disablePino: true,
     localBrowserLaunchOptions: {
@@ -625,12 +623,15 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
       viewport: cfg.viewport,
       locale: cfg.locale,
       timezoneId: cfg.timezone,
-      userAgent: cfg.userAgent,
     },
-    enableCaching: true,
   });
   await stagehand.init();
-  const page = stagehand.page;
+  // v3 removed `stagehand.page`; pages now live on V3Context.pages().
+  // The active page (the one Stagehand will drive) is the most-recently-
+  // active tab — for our single-page primitive flow it's pages()[0].
+  const ctx = stagehand.context;
+  const pages = ctx.pages();
+  const page = pages[0] ?? (await ctx.newPage());
   const consoleErrors = wireConsoleListeners(page);
 
   const waitUntil = normalizeWaitUntil(cfg.waitFor);
@@ -641,12 +642,17 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
 
   return {
     page,
-    context: stagehand.context,
+    context: ctx,
     consoleErrors,
-    stagehandAct: (instruction: string) => page.act({ action: instruction }),
+    // v3's act() is positional `act(instruction, options?)` on the
+    // Stagehand instance — not on the page like v2. We let Stagehand pick
+    // its V3Context's active page automatically; passing our Playwright
+    // Page object errors with "Failed to resolve V3 Page from Playwright
+    // page". Same CDP target underneath either way.
+    stagehandAct: (instruction: string) => stagehand.act(instruction),
     close: async () => {
       try {
-        if (stagehand.close) await stagehand.close();
+        await stagehand.close({ force: true });
       } catch {
         /* ignore */
       }
