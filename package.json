@@ -93,7 +93,7 @@
     "better-sqlite3": "^12.9.0",
     "chalk": "^5.3.0",
     "commander": "^14.0.3",
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.4.2",
     "odiff-bin": "^4.3.8",
     "ora": "^9.4.0",
     "p-limit": "^7.3.0",
@@ -103,7 +103,13 @@
     "sharp": "^0.34.5",
     "ws": "^8.20.0",
     "yaml": "^2.6.0",
-    "zod": "^3.23.0"
+    "zod": "^3.25.76"
+  },
+  "overrides": {
+    "@browserbasehq/stagehand": {
+      "dotenv": "^17.4.2",
+      "zod": "^3.25.76"
+    }
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "^4.2.1",
