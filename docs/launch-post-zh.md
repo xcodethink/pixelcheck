@@ -1,8 +1,18 @@
 # PixelCheck — 给 AI agent 装上看网页的眼睛和操作浏览器的手
 
-**我开源了一个 MCP server：让 AI agent 真正能看见、能操作 web —— 不再只是"描述会怎么做"，而是真去做。**
+**你现在就是个截图中间人。**
 
-本地优先，不锁 LLM 厂商，MIT 开源。配进 `~/.mcp.json` 即可，Claude Desktop / Cursor / Cline / Continue / Zed / Claude Code 都支持。你的 agent 立即获得 17 个工具和 5 个浏览器 primitive。
+你的 AI agent 写了你 80% 的前端代码。它快、它会写代码 —— 但它是瞎的：
+
+- 它写了一个按钮。你开 Chrome 验证渲染对不对。截图贴回去。让它修。
+- 它改了 OAuth 流程。你登录验证有没有又静默挂掉。这个月第六次了。
+- 它更新了日文字符串。一个用户邮件来："半页是英文。"你没抓到。
+- 它重写了结算流程。你 iPhone、Android、iPad 全走一遍才能"感觉"到 step 3 是不是绕。
+- 它改了阿拉伯语布局。RTL 没正确传播。两天后才发现。
+
+你成了那座桥。Agent 有想法。你有浏览器。**两边永远不见面。**每周这样耗几小时，无止境。
+
+我开源了 [PixelCheck](https://github.com/xcodethink/pixelcheck) 把这个角色拆掉。它是一个 MCP server，给任何 AI agent 五个浏览器 primitive —— `see` / `act` / `extract` / `judge` / `compare` —— 让 agent 不再"描述会怎么做"，而是直接做。本地优先，不锁 LLM 厂商，MIT 开源。配进 `~/.mcp.json` 即可，Claude Desktop / Cursor / Cline / Continue / Zed / Claude Code 都支持。你的 agent 立即获得 17 个工具。
 
 ---
 
@@ -10,7 +20,7 @@
 
 我在做一个 SaaS 产品（[ScamLens](https://scamlens.org)），前端绝大部分代码由 AI agent 写。Agent 能写按钮，能写 OAuth 回调，能写 i18n 字符串，能写 Stripe 结算 —— 然后就停了，因为**它根本看不见自己刚写出来的东西**。
 
-于是我得手动开 Chrome，切语言，点界面，截图，贴回去给 agent，让它修。**我成了 agent 和可视化 web 之间的桥**。
+于是我得手动开 Chrome，切语言，点界面，截图，贴回去给 agent，让它修。上面那五条 bullet？**字面意义上是我过去半年的真实场景** —— 每周耗几小时，当一个永远看不见的脑子的眼睛。
 
 PixelCheck 把这座桥拆掉了。
 
@@ -133,6 +143,8 @@ OSS 浏览器自动化领域很拥挤。说清楚：
 **不是 BrowserOS / Comet / Atlas**。那些是 agentic browser —— 用 AI-native 浏览器替换 Chrome，C 端产品。PixelCheck 是开发者基础设施。
 
 **一句话差异化**：现有 OSS 没有任何项目同时做到 MCP-first × 5-primitive 接口面 × 18-persona / 15 国模拟 × WCAG 合规 × stealth 指纹 × 历史趋势追踪。PixelCheck 是 AI agent 与可视化 web 之间缺失的那一层。
+
+**还有一件 2026 年特别重要的事**：上面所有候选要么把你锁在单一 LLM provider，要么强制 SaaS 注册，要么有付费 "Pro" 等级躲在信用卡后面。PixelCheck 一个都没有 —— MIT 开源、source-available、零遥测、无付费版、无商业 fork、无云端控制面板。仓库里这个 1853 测试的产品**就是全部产品**。
 
 ## 成本与控制
 
