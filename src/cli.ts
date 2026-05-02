@@ -86,7 +86,7 @@ program
   .description(
     "MCP-first browser primitives for AI agents — real eyes and hands on the web. Local-first. Vendor-agnostic.",
   )
-  .version("0.3.0");
+  .version("1.0.0");
 
 program
   .command("run", { isDefault: true })

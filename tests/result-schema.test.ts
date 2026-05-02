@@ -1435,7 +1435,7 @@ describe("result-schema — ListCapabilitiesResultSchema (M9-5)", () => {
 
   const minimalEnvelope = {
     schema_version: "1.2.0",
-    server: { name: "ai-browser-auditor", version: "0.3.0" },
+    server: { name: "pixelcheck", version: "1.0.0" },
     result_schema_version: "1.2.0",
     tools: [minimalCap],
     env: [
