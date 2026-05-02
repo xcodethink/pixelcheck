@@ -1,8 +1,18 @@
 # PixelCheck — Real Eyes and Hands on the Web for AI Agents
 
-**I built an open-source MCP server that gives AI agents the ability to actually see and operate the web — not just describe what they would do, but do it.**
+**Right now, you're a screenshotting middleman.**
 
-It's local-first, vendor-agnostic, and MIT-licensed. Drop it into Claude Desktop, Cursor, Cline, Continue, Zed, or Claude Code via `~/.mcp.json` and your agent gets 17 tools and 5 browser primitives.
+Your AI agent is writing 80% of your frontend. It's fast. It's good at code. But it's blind:
+
+- It writes a button. You open Chrome to check it actually rendered. Paste a screenshot back. Ask for the fix.
+- It tweaks the OAuth flow. You log in to verify it didn't silently break. Sixth time this month.
+- It updates the Japanese strings. A user emails: "half the page is in English." You didn't catch it.
+- It rewrites checkout. You walk through it on iPhone, Android, iPad to *feel* whether step 3 is confusing.
+- It changes the Arabic layout. RTL didn't propagate. You don't notice for two days.
+
+You become the bridge. The agent has thoughts. You have a browser. **The two never meet.** Hours of your week, every week, indefinitely.
+
+I built [PixelCheck](https://github.com/xcodethink/pixelcheck) to remove that role. It's an open-source MCP server that gives any AI agent five browser primitives — `see` / `act` / `extract` / `judge` / `compare` — so the agent stops describing what it would do and just does it. Local-first, vendor-agnostic, MIT-licensed. Drop it into Claude Desktop, Cursor, Cline, Continue, Zed, or Claude Code via `~/.mcp.json` and your agent gets 17 tools instantly.
 
 ---
 
@@ -10,7 +20,7 @@ It's local-first, vendor-agnostic, and MIT-licensed. Drop it into Claude Desktop
 
 I run a SaaS product ([ScamLens](https://scamlens.org)) and I write most of its frontend through an AI agent. The agent can write a button, write the OAuth callback, write the i18n strings, write the Stripe checkout — and then it stops, because *it can't actually see what it just built*.
 
-So I'd open Chrome, switch locales, click around, take screenshots, paste them back, ask the agent to fix things. I was the bridge between the agent and the visual web.
+So I'd open Chrome, switch locales, click around, take screenshots, paste them back, ask the agent to fix things. The five bullets above? Those are *literally* my last six months — every week, hours of being the eyes of a brain that never gets to see.
 
 That's what PixelCheck removes.
 
@@ -133,6 +143,8 @@ The OSS browser-automation landscape is crowded. To be precise:
 **This is not BrowserOS / Comet / Atlas.** Those are agentic browsers — desktop applications that replace Chrome with an AI-native browser. They're consumer products. PixelCheck is developer infrastructure.
 
 **The differentiation in one line:** No existing OSS combines MCP-first × 5-primitive surface × 18-persona / 15-country simulation × WCAG compliance × stealth fingerprints × historical trend tracking. PixelCheck is the missing layer between AI agents and the visual web.
+
+**And one more thing that matters in 2026:** every alternative above either locks you into a single LLM provider, requires a SaaS sign-up, or has a "Pro" tier behind a credit card. PixelCheck has none of those — MIT license, source-available, no telemetry, no paid edition, no commercial fork, no hosted control plane. The 1853-test repo you see *is* the entire product.
 
 ## Cost & control
 
