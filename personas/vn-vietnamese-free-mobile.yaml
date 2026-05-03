@@ -12,18 +12,16 @@ viewport:
 payment_tier: free
 proxy_env: PROXY_VN
 mental_model: |
-  34-year-old office worker in Ho Chi Minh City. Vietnam is a global hotspot
-  for scam call centers and online fraud. Minh's colleague was tricked by a
-  fake investment platform. He found ScamLens through a Zalo group sharing
-  anti-scam resources. Reads Vietnamese primarily. Uses Zalo and Facebook
+  34-year-old office worker in Ho Chi Minh City. Found the product through a
+  Zalo group recommendation. Reads Vietnamese primarily. Uses Zalo and Facebook
   as primary communication. Mid-range Android phone. Will not pay (Vietnamese
-  users strongly prefer free tools) but will actively share if the tool works.
-  Very sensitive to page load speed on mobile data.
+  users strongly prefer free tools) but will actively share if the product
+  works well. Very sensitive to page load speed on mobile data.
 critical_concerns:
   - Vietnamese diacritics (ắ, ổ, ừ, etc.) must render perfectly in all fonts
   - No Chinese characters mixed into Vietnamese content (common machine translation error)
   - Page load under 3s on Vietnamese mobile networks
-  - Scam types relevant to Vietnam (pig butchering, Zalo scams, fake investment platforms)
-  - Share via Zalo/Facebook messenger should be easy
+  - Local context relevance (examples / scenarios should make sense for VN users)
+  - Share via Zalo / Facebook messenger should be easy
   - Vietnamese dong (VND) or clear USD pricing with conversion context
 test_credentials: {}

@@ -4,10 +4,10 @@
  * stealth-core source tree.
  *
  * Why this exists (ADR-032 follow-up):
- *   stealth-core lives in 5 projects as vendored copies. Without an
- *   automated check, the canonical /Users/wayne/Developer/stealth-core
- *   can drift out of sync with any one consumer's vendor copy. This
- *   script flags any diff so a contributor can decide:
+ *   stealth-core is vendored under src/vendor/. Without an automated
+ *   check, the upstream stealth-core source (path provided via
+ *   STEALTH_CORE_SRC) can drift out of sync with the vendor copy.
+ *   This script flags any diff so a contributor can decide:
  *     - The drift is intentional (vendor is locked at an older version
  *       on purpose) → silence by setting AUDIT_VENDOR_DRIFT_OK=1
  *     - The drift is unintentional → run `bash scripts/sync-vendor.sh`
@@ -38,7 +38,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, "..");
 const VENDOR_DIR = path.join(REPO_ROOT, "src/vendor/stealth-core");
-const CANONICAL = process.env.STEALTH_CORE_SRC ?? "/Users/wayne/Developer/stealth-core";
+const CANONICAL = process.env.STEALTH_CORE_SRC ?? "";
 const CANONICAL_SRC = path.join(CANONICAL, "src");
 
 interface FileResult {
@@ -68,15 +68,15 @@ function main(): void {
   const skipIfMissing = process.env.AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING === "1";
   const overrideOk = process.env.AUDIT_VENDOR_DRIFT_OK === "1";
 
-  if (!fs.existsSync(CANONICAL_SRC)) {
+  if (!CANONICAL || !fs.existsSync(CANONICAL_SRC)) {
     if (skipIfMissing) {
       console.log(
-        `vendor-drift: canonical not present at ${CANONICAL_SRC} — skipping (AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1)`,
+        `vendor-drift: canonical source not provided / missing — skipping (AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1)`,
       );
       process.exit(0);
     }
     console.error(
-      `vendor-drift: canonical stealth-core source not found at ${CANONICAL_SRC}`,
+      `vendor-drift: canonical stealth-core source not found.`,
     );
     console.error(
       `              set STEALTH_CORE_SRC=/path/to/stealth-core, or run with`,

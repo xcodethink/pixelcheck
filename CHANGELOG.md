@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-05-03 — Bundled examples genericized
+
+> **Recommended for all v1.x users.** Internal cleanup release that
+> replaces the bundled example scenarios, personas, and config — which
+> previously used the maintainer's own product as the dogfood example —
+> with generic placeholders (`https://your-app.example.com/...`,
+> generic mental-model wording, `config/example.yaml`). The package
+> code itself is unchanged from v1.1.2; this is a bundled-asset
+> refresh so a fresh `npm install pixelcheck` ships templates that
+> apply to any product, not one specific to the maintainer's stack.
+
+### Removed
+
+- 4 product-specific scenarios that were scoped to a single product's
+  feature surface (and had no value as generic examples):
+  - `scenarios/02-domain-check-flow.yaml`
+  - `scenarios/05-crypto-trace-purchase.yaml`
+  - `scenarios/06-investigation-workflow-v2.yaml`
+  - `scenarios/08-chrome-extension-install.yaml`
+- `config/scamlens.yaml` — replaced by `config/example.yaml` with
+  generic placeholder values (`YourApp` / `https://your-app.example.com`).
+- `.github/workflows/post-deploy-audit.yml` — replaced by a copy-ready
+  template at `docs/integration/post-deploy-audit.example.yml`. The
+  previous file lived at the workflow path so it tried to run on every
+  push to this repo, which was never appropriate for a generic OSS
+  package; users now copy the template into their own app's repo.
+
+### Changed
+
+- The 5 remaining bundled scenarios (`00-infra-smoke`,
+  `01-google-oauth-signup`, `03-admin-panel-audit`,
+  `04-language-localization-audit`, `07-email-opt-in-welcome`) all use
+  `https://your-app.example.com/...` placeholder URLs instead of
+  product-specific URLs. Localization scenario 04 was rewritten to
+  reference generic page paths (`/pricing`, `/features`, `/docs`,
+  `/about`, `/blog`) suitable for any product.
+- Persona `mental_model` text in 8 personas (CN / DE / FR / JP / TW /
+  UK / US / VN) rewritten to remove maintainer-specific product
+  references; persona archetype (locale, device, technical level,
+  buying tier) preserved.
+- `.env.example` — test-account placeholder emails moved off a
+  product-specific domain to `@example.test`; comment references and
+  the `SCAMLENS_ADMIN_COOKIE` variable name made generic
+  (`ADMIN_COOKIE`).
+- `scripts/sync-vendor.sh` + `scripts/check-vendor-drift.ts` +
+  `vitest.config.ts` + `docs/architecture.md` + `.github/workflows/ci.yml`
+  — comments / default values stripped of maintainer-specific local
+  filesystem paths. `STEALTH_CORE_SRC` is now a required env var (no
+  hard-coded default) for the vendor-drift tooling.
+
+### Fixed
+
+- `docs/ci-integration.md` — references to the deleted scenarios
+  (`02-domain-check-flow`, `05-crypto-trace-purchase`) replaced with
+  references to scenarios that still exist; instructions updated to
+  point at the new template location.
+- `docs/integration/fixture-sarif.json` — bumped to `1.1.3` to match
+  the dynamic-read result of the SARIF tool driver version.
+
+### Note on prior published versions
+
+The v1.0.0 / v1.0.1 / v1.1.0 / v1.1.1 / v1.1.2 npm tarballs all shipped
+the older scenarios + personas, so they reference the maintainer's
+prior dogfood product. These versions have been deprecated on npm with
+a recommendation to upgrade to v1.1.3+; npm does not allow unpublishing
+a package version older than 24 hours, so the older tarballs remain
+downloadable but flagged.
+
 ## [1.1.2] - 2026-05-03 — Repository hygiene + cross-project reference scrub
 
 > **Recommended for all v1.1.x users.** Internal cleanup release. No

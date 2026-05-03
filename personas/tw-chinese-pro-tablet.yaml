@@ -12,11 +12,11 @@ viewport:
 payment_tier: pro
 proxy_env: PROXY_TW
 mental_model: |
-  39-year-old compliance manager at a Taipei fintech company. Taiwan uses
-  Traditional Chinese — mixing in Simplified Chinese is a major faux pas
-  and signals low quality. Evaluating ScamLens for corporate use to screen
-  URLs reported by customers. Pro tier buyer. iPad user who switches between
-  portrait and landscape. Very detail-oriented about language quality.
+  39-year-old compliance manager at a Taipei company. Taiwan uses Traditional
+  Chinese — mixing in Simplified Chinese is a major faux pas and signals low
+  quality. Evaluating the product for corporate use. Pro-tier buyer. iPad
+  user who switches between portrait and landscape. Very detail-oriented
+  about language quality.
 critical_concerns:
   - Must use Traditional Chinese (繁體), never Simplified (简体) — this is a dealbreaker
   - Taiwan-specific terminology (網址 not 网址, 詐騙 not 诈骗)
