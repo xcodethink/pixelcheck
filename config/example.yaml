@@ -1,0 +1,29 @@
+# Example PixelCheck audit configuration.
+# Copy this file to your operator-private config directory (commonly
+# `projects/<your-app>/config.yaml`) and edit the values for your app.
+
+project_name: YourApp
+base_url: https://your-app.example.com
+admin_url: https://your-app.example.com/admin
+
+default_concurrency: 3
+default_timeout_ms: 30000
+
+models:
+  default: claude-sonnet-4-6
+  critic: claude-sonnet-4-6
+  computer_use: claude-opus-4-6
+
+# Hard cap on a single audit run. Stops new units once exceeded.
+budget_usd: 3.0
+
+# Patterns to redact from logs / reports / screenshot metadata.
+# Matched as substrings in any string output.
+redact_patterns:
+  - sk-ant-
+  - pk_test_
+  - pk_live_
+
+notifications:
+  slack_webhook_env: SLACK_WEBHOOK
+  telegram_chat_id_env: TELEGRAM_CHAT_ID

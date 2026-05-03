@@ -13,9 +13,9 @@ After every successful production deployment, run the auditor automatically and 
 
 ## GitHub Actions
 
-A ready-to-use workflow is shipped at [.github/workflows/post-deploy-audit.yml](../.github/workflows/post-deploy-audit.yml). It triggers:
+A ready-to-copy template workflow is at [docs/integration/post-deploy-audit.example.yml](integration/post-deploy-audit.example.yml). Copy it into your app's `.github/workflows/post-deploy-audit.yml` and adjust the trigger / secrets for your environment. The template triggers:
 
-- After a successful "Deploy YourApp" workflow run on `main`
+- After a successful deploy workflow on `main` (replace `YOUR-DEPLOY-WORKFLOW` with your actual workflow name)
 - Manually via "Run workflow"
 
 ### Required secrets
@@ -25,12 +25,12 @@ Set these in your GitHub repo Settings → Secrets and variables → Actions:
 | Secret | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | LLM access for Stagehand, critic, Computer Use |
-| `SCAMLENS_ADMIN_COOKIE` | Read-only admin session for `03-admin-panel-audit` |
-| `STRIPE_TEST_PUBLISHABLE_KEY` | Stripe test mode public key for `05-crypto-trace-purchase` |
 | `TEST_GOOGLE_US`, `TEST_GOOGLE_US_PASSWORD` | Dedicated Google OAuth test account for `01-google-oauth-signup` (US persona) |
 | `TEST_GOOGLE_JP`, `TEST_GOOGLE_JP_PASSWORD` | Same for JP persona |
 | `AUDIT_SLACK_WEBHOOK` | Optional, for completion notifications |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Optional Telegram alerts |
+
+If your scenarios depend on app-specific secrets (admin session cookies, Stripe test keys, etc.), add them to the secret list and reference them in your scenario YAMLs.
 
 ### How to set Stripe test secrets safely
 
@@ -77,14 +77,14 @@ To inspect a failure: download the artifact, open `audit.html` in a browser, cli
 
 ## Per-PR audit (optional)
 
-For preview deployments, you can run a smaller subset on every PR. Add a job that runs only `02-domain-check-flow` with one persona, with a tighter budget:
+For preview deployments, you can run a smaller subset on every PR. Add a job that runs only your smoke scenario with one persona, with a tighter budget:
 
 ```yaml
 - name: Quick audit (PR)
   if: github.event_name == 'pull_request'
   run: |
     npx pixelcheck run \
-      --scenario 02-domain-check-flow \
+      --scenario 00-infra-smoke \
       --persona us-english-free-mobile \
       --budget 0.50 \
       --tag pr-${{ github.event.pull_request.number }}

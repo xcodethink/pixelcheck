@@ -1,24 +1,30 @@
+# Example GitHub Actions workflow: run PixelCheck after a successful
+# production deployment.
+#
+# How to use this template:
+#   1. Copy this file to `.github/workflows/post-deploy-audit.yml` in your
+#      app's repository (NOT in the pixelcheck repository itself).
+#   2. Replace YOUR-DEPLOY-WORKFLOW with the name of your deployment workflow.
+#   3. Add the required secrets in repo Settings → Secrets and variables.
+#   4. Commit + push. The workflow will trigger after each successful deploy.
+#
+# Required secrets:
+#   ANTHROPIC_API_KEY                - LLM access (Stagehand + critic)
+#   TEST_GOOGLE_<LOCALE>             - per-locale OAuth test accounts
+#   TEST_GOOGLE_<LOCALE>_PASSWORD    - per-locale OAuth passwords
+# Optional:
+#   AUDIT_SLACK_WEBHOOK              - Slack notifications
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID - Telegram notifications
+
 name: Post-Deploy AI Audit
 
 on:
+  workflow_run:
+    workflows: ["YOUR-DEPLOY-WORKFLOW"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
-      project:
-        description: "Project to audit (directory under projects/, or 'external')"
-        required: true
-        default: "scamlens"
-        type: choice
-        options:
-          - scamlens
-          - external
-      external_repo:
-        description: "External repo with audit config (owner/repo, only when project=external)"
-        required: false
-        default: ""
-      external_path:
-        description: "Path inside external repo to audit dir (only when project=external)"
-        required: false
-        default: ".audit"
       scenarios:
         description: "Comma-separated scenario IDs (empty = all)"
         required: false
@@ -31,72 +37,31 @@ on:
         description: "Max USD budget for this run"
         required: false
         default: "3.0"
-      trigger_source:
-        description: "What triggered this audit (e.g. scamlens-deploy, manual)"
-        required: false
-        default: "manual"
 
 jobs:
   audit:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
-      - name: Checkout ai-browser-auditor
+      - name: Checkout repo
         uses: actions/checkout@v6
-
-      - name: Checkout stealth-core
-        uses: actions/checkout@v6
-        with:
-          repository: xcodethink/stealth-core
-          path: ../stealth-core
-          token: ${{ secrets.GH_PAT }}
-
-      - name: Checkout external project config
-        if: inputs.project == 'external' && inputs.external_repo != ''
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ inputs.external_repo }}
-          path: ../external-project
-          token: ${{ secrets.GH_PAT }}
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: "20"
 
-      - name: Build stealth-core
-        working-directory: ../stealth-core
-        run: |
-          npm ci
-          npm run build
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Install pixelcheck
+        run: npm install -g pixelcheck
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Build
-        run: npm run build
-
-      - name: Resolve project path
-        id: project
-        run: |
-          if [ "${{ inputs.project }}" = "external" ]; then
-            echo "dir=../external-project/${{ inputs.external_path }}" >> $GITHUB_OUTPUT
-          else
-            echo "dir=projects/${{ inputs.project }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Run audit
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SCAMLENS_ADMIN_COOKIE: ${{ secrets.SCAMLENS_ADMIN_COOKIE }}
-          STRIPE_TEST_PUBLISHABLE_KEY: ${{ secrets.STRIPE_TEST_PUBLISHABLE_KEY }}
-          STRIPE_TEST_CARD_NUMBER: "4242424242424242"
-          STRIPE_TEST_CARD_EXP: "12/30"
-          STRIPE_TEST_CARD_CVC: "123"
           TEST_GOOGLE_US: ${{ secrets.TEST_GOOGLE_US }}
           TEST_GOOGLE_US_PASSWORD: ${{ secrets.TEST_GOOGLE_US_PASSWORD }}
           TEST_GOOGLE_JP: ${{ secrets.TEST_GOOGLE_JP }}
@@ -105,7 +70,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          ARGS="--project ${{ steps.project.outputs.dir }} --tag ci-${{ github.run_id }} --budget ${{ inputs.budget || '3.0' }}"
+          ARGS="--project ./pixelcheck-config --tag ci-${{ github.run_id }} --budget ${{ inputs.budget || '3.0' }}"
           if [ -n "${{ inputs.scenarios }}" ]; then
             for s in $(echo "${{ inputs.scenarios }}" | tr ',' ' '); do
               ARGS="$ARGS --scenario $s"
@@ -116,13 +81,13 @@ jobs:
               ARGS="$ARGS --persona $p"
             done
           fi
-          npx ai-audit run $ARGS
+          pixelcheck run $ARGS
 
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: audit-report-${{ inputs.project }}-${{ github.run_id }}
+          name: audit-report-${{ github.run_id }}
           path: reports/
           retention-days: 30
 
@@ -130,7 +95,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v7
         with:
-          name: visual-baselines-${{ inputs.project }}
+          name: visual-baselines
           path: baselines/
           retention-days: 90
 
@@ -142,7 +107,7 @@ jobs:
             node -e "
               const r = JSON.parse(require('fs').readFileSync('${LATEST}audit.json','utf8'));
               const s = r.summary;
-              console.log('## AI Browser Audit: ${{ inputs.project }}');
+              console.log('## PixelCheck Audit');
               console.log('');
               console.log('| Metric | Value |');
               console.log('|---|---|');
@@ -151,6 +116,5 @@ jobs:
               console.log('| Fail | ' + s.fail + ' |');
               console.log('| Critical | ' + s.critical_issues + ' |');
               console.log('| Cost | \$' + s.total_cost_usd.toFixed(3) + ' |');
-              console.log('| Trigger | ${{ inputs.trigger_source || 'manual' }} |');
             " >> $GITHUB_STEP_SUMMARY
           fi

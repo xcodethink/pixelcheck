@@ -12,12 +12,11 @@ viewport:
 payment_tier: free
 proxy_env: PROXY_US
 mental_model: |
-  32-year-old paralegal in NYC. Suspicious of crypto and online scams after a
-  family member was defrauded. Tech-comfortable but not technical. Discovers
-  ScamLens via a Google search for "is this website a scam". Wants a clear
-  yes/no with a confidence score, no jargon. Will not pay before seeing value.
-  Mobile-first user — primary device is iPhone, almost never opens a laptop
-  outside of work hours.
+  32-year-old paralegal in NYC. Tech-comfortable but not technical. Discovers
+  the product via a Google search for a problem she's trying to solve. Wants
+  a clear answer with a confidence indicator, no jargon. Will not pay before
+  seeing value. Mobile-first user — primary device is iPhone, almost never
+  opens a laptop outside of work hours.
 critical_concerns:
   - Mobile layout must be flawless (no horizontal scroll, no tiny tap targets)
   - Trust signals visible above the fold (review count, badges, press mentions)
