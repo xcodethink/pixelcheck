@@ -230,7 +230,7 @@ CRITICAL DATA-EXPOSURE CHECKS (always run):
 
 Guidelines:
 - "visual_polish" must be benchmarked against Stripe / Linear / Vercel / Notion.
-- "localization" must check for any non-${persona.language} text. Brand names ("ScamLens", "OrangeDuck"), well-known acronyms (URL, AI, API, GDPR, OFAC, USDT, KYC, DeFi, SDK, SaaS, B2B, B2C, NFT), and ISO currency codes are exempt.
+- "localization" must check for any non-${persona.language} text. The product's own brand names (e.g. the audited site's brand and trademarks), well-known acronyms (URL, AI, API, GDPR, OFAC, USDT, KYC, DeFi, SDK, SaaS, B2B, B2C, NFT), and ISO currency codes are exempt.
 - Be honest. A 7 means "good but improvable", not "passing".
 - Limit to the 10 most important issues. Group similar issues into one entry instead of listing each instance.
 - Limit "violations" to 10 most representative items. List the pattern once, don't enumerate every instance.

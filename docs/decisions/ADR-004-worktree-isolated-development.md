@@ -16,7 +16,7 @@ PixelCheck v0.3 已经作为 **MCP server 在 Wayne 的 Claude Code 配置里运
 "ai-browser-auditor": {
   "type": "stdio",
   "command": "node",
-  "args": ["/Users/wayne/Developer/ai-browser-auditor/dist/mcp/server.js"]
+  "args": ["<repo-root>/dist/mcp/server.js"]
 }
 ```
 
@@ -170,7 +170,7 @@ mv ~/.ai-browser-auditor.v0.3.backup-* ~/.ai-browser-auditor
 
 ### D. 暂停 Wayne 的所有 Claude 工作直到 v1 完成
 
-**不选**。Wayne 仍要用其他项目（talkbuddy / scamlens 等），其他 Claude 窗口需要 PixelCheck 服务。
+**不选**。Wayne 仍要用其他项目（sibling projects），其他 Claude 窗口需要 PixelCheck 服务。
 
 ---
 
@@ -192,5 +192,5 @@ mv ~/.ai-browser-auditor.v0.3.backup-* ~/.ai-browser-auditor
 
 - ADR-001：[AI-first 定位](./ADR-001-AI-first-positioning.md)
 - ADR-002：[Primitive-first 架构](./ADR-002-primitive-first-architecture.md)
-- 主方案 v3.0 第 6 部分：[Worktree 隔离开发协议](../../../OpenTools/PixelCheck-实施方案与执行计划.md)
+- 主方案 v3.0 第 6 部分：[Worktree 隔离开发协议](../../../project-internal planning)
 - 现有 worktree 模式参考：`.claude/worktrees/v0.3-upgrade/`（已存在）

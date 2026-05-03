@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-05-01
 - **Task**: W1 pre-ship-positioning-audit
-- **Module**: PixelCheck-v1.x-后续优化方案 §6.1 + research W1-pre-ship-positioning-audit
+- **Module**: project-internal optimization plan
 - **Depends on**: ADR-001 (AI-first 产品定位), ADR-002 (Primitive-first 架构)
 - **Supersedes**: package name `ai-browser-auditor` and "AI Browser Auditor" branding in launch materials
 
@@ -17,13 +17,12 @@ v1.0 ship 在即（0 P0 blocker / 1853 测试 / 570 KB tarball / dogfood install
 - README body 已含 25 处 MCP + 14 处 primitive 提及，但被旧 H1 框死
 - ADR-001 (2026-04-25) 决议产品重新定位为 "AI 用来与可视化网络世界交互的通用基础设施"，主接口 MCP server，99% 调用来自 AI agent
 - ADR-002 (2026-04-25) 决议 audit 是 primitive 的预设组合，**不是产品核心**
-- OpenTools 主方案 `PixelCheck-实施方案与执行计划.md` 通篇用 "PixelCheck" 作为产品名
 
-矛盾：内部战略文档（ADR-001/002 + OpenTools 主方案）已经选定 "PixelCheck + AI-first MCP infrastructure"，但外部品牌资产（npm name + README + launch posts）仍按 v0.x "AI Browser Auditor + UX audit" 写。npm publish + HN/Show HN 一次性 launch 窗口在即，错过对齐时刻 = 用错故事进入市场，且 npm 包名 publish 后改名极痛。
+矛盾：战略文档（ADR-001/002）已经选定 "PixelCheck + AI-first MCP infrastructure"，但外部品牌资产（npm name + README）仍按 v0.x "AI Browser Auditor + UX audit" 写。npm publish 在即，错过对齐时刻 = 用错故事进入市场，且 npm 包名 publish 后改名极痛。
 
 ## Research Summary
 
-调研报告：[`docs/research/W1-pre-ship-positioning-audit.md`](../research/W1-pre-ship-positioning-audit.md)。要点：
+调研要点：
 
 - 行业景观（2026-Q2）：MCP 已捐 Linux Foundation / AAIF / OAuth 2.1 preview / MCP Dev Summit 1200 人 / 反 vendor lock-in 主流共识（OpenCode 120k stars 验证）
 - 直接竞品：browser-use 91k stars（执行 SoTA）/ Skyvern 21k+（表单专项）/ Stagehand v3（44% 加速）/ Baymard UX-Ray 2.0（仅 ecommerce）
@@ -75,7 +74,6 @@ v1.0 ship 在即（0 P0 blocker / 1853 测试 / 570 KB tarball / dogfood install
 
 ### Option B（已放弃）：保留 `ai-browser-auditor` 名字，仅升级 launch 叙事
 - 优势：工程量小（半天），不动 bin / 公共 API
-- 放弃理由：战略一致性仅 70%（ADR-002 明文"audit 不是核心"，但产品名仍叫 auditor 矛盾）；长期品牌混乱（OpenTools 内部叫 PixelCheck，外部叫 ai-browser-auditor）；后期再 rename 成本指数级增长（已发布的 stars/issue/PR 都要迁移）
 
 ### Option C（已放弃）：现状 publish，后续再调整
 - 优势：当下零工程量
@@ -105,7 +103,7 @@ v1.0 ship 在即（0 P0 blocker / 1853 测试 / 570 KB tarball / dogfood install
 具体回滚命令：
 ```bash
 # Worktree 内
-cd /Users/wayne/Developer/ai-browser-auditor/.claude/worktrees/v1-ai-first
+cd <repo-root>/.claude/worktrees/v1-ai-first
 git log --oneline -10  # 找到本 ADR 第一个 commit 之前的 SHA
 git revert <ADR-033-first-commit>^..HEAD --no-commit
 git commit -m "revert: roll back ADR-033 PixelCheck rename"
@@ -126,7 +124,7 @@ npm run build && npm test
   ```bash
   npm pack
   cd /tmp/pixelcheck-dogfood-$(date +%s) && mkdir -p $(pwd) && cd $_
-  npm install /Users/wayne/Developer/ai-browser-auditor/.claude/worktrees/v1-ai-first/pixelcheck-1.0.0.tgz
+  npm install <repo-root>/.claude/worktrees/v1-ai-first/pixelcheck-1.0.0.tgz
   npx pixelcheck --help
   npx pixelcheck doctor --skip-network --verbose
   npx pixelcheck init test-project
