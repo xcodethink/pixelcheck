@@ -15,7 +15,7 @@ After every successful production deployment, run the auditor automatically and 
 
 A ready-to-use workflow is shipped at [.github/workflows/post-deploy-audit.yml](../.github/workflows/post-deploy-audit.yml). It triggers:
 
-- After a successful "Deploy ScamLens" workflow run on `main`
+- After a successful "Deploy YourApp" workflow run on `main`
 - Manually via "Run workflow"
 
 ### Required secrets
@@ -102,7 +102,7 @@ Set `SLACK_WEBHOOK` or `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` env. The runner
 
 ```
 [FAIL] AI Audit 2026-04-11_143022_post-deploy
-Project: ScamLens
+Project: YourApp
 Pass: 24 | Warn: 2 | Fail: 1
 Critical issues: 1
 Total cost: $1.342
@@ -117,7 +117,7 @@ Failure summaries include the minimum repro command for each failing unit so on-
 |---|---|
 | All units fail with "Stagehand not installed" | npm install didn't run, or `--with-deps` flag missing on `playwright install` |
 | OAuth scenarios fail with "captcha" | Google challenged the test account; rotate or rerun later |
-| Localization scenario reports false English mixins | Brand names like "ScamLens" should be in the critic's exempt list — verify the prompt template |
+| Localization scenario reports false English mixins | Brand names like your product name should be in the critic's exempt list — verify the prompt template |
 | Budget exhausted before all units run | Increase `--budget` or use `--scenario` to filter |
 | Same scenario flaky across runs | Increase `retry` on the unstable step, or add `wait_for` before it |
 | Console errors flood the report | The auditor records ALL console errors; if your app is noisy, set per-step `expected_console_noise` (TODO) |

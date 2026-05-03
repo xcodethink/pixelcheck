@@ -143,4 +143,4 @@ AI 可以**自由组合调用**，也可以走预设。
 ## References
 
 - ADR-001：[AI-first 定位](./ADR-001-AI-first-positioning.md)
-- 主方案 v3.0 第 5 部分：[架构原则](../../../OpenTools/PixelCheck-实施方案与执行计划.md)
+- 主方案 v3.0 第 5 部分：[架构原则](../../../project-internal planning)
