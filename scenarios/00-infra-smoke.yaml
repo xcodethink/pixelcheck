@@ -18,7 +18,7 @@ scoring_dimensions:
 steps:
   - id: open-home
     type: visit
-    url: https://scamlens.org/${persona.url_locale}
+    url: https://your-app.example.com/${persona.url_locale}
     wait_until: domcontentloaded
 
   - id: wait-settle
@@ -38,7 +38,7 @@ steps:
 
   - id: open-pricing
     type: visit
-    url: https://scamlens.org/${persona.url_locale}/pricing
+    url: https://your-app.example.com/${persona.url_locale}/pricing
     wait_until: domcontentloaded
 
   - id: wait-pricing
@@ -50,16 +50,16 @@ steps:
     label: pricing
     full_page: true
 
-  - id: open-wallet-intel
+  - id: open-about
     type: visit
-    url: https://scamlens.org/${persona.url_locale}/wallet-intelligence
+    url: https://your-app.example.com/${persona.url_locale}/about
     wait_until: domcontentloaded
 
-  - id: wait-wi
+  - id: wait-about
     type: wait_for
     ms: 2000
 
-  - id: screenshot-wi
+  - id: screenshot-about
     type: screenshot
-    label: wallet-intelligence
+    label: about
     full_page: true

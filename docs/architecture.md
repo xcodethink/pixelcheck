@@ -31,7 +31,7 @@
 │  ├─ Secrets            (cookie/Stripe injection + redaction)     │
 │  └─ Throttle           (per-origin serial queue)                 │
 ├──────────────────────────────────────────────────────────────────┤
-│  stealth-core          (shared with playwright-screenshots)      │
+│  stealth-core          (vendored, see ADR-032)                   │
 │  ├─ 9 device fingerprints (4 desktop / 2 tablet / 3 mobile)      │
 │  ├─ 15 anti-detection JS patches                                 │
 │  ├─ buildStealthLaunchOptions() — Stagehand-compatible           │

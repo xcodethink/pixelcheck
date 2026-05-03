@@ -1,33 +1,32 @@
 #!/usr/bin/env bash
-# Sync the vendored stealth-core copy from the canonical sibling repo.
+# Sync the vendored stealth-core copy from a canonical upstream source.
 #
-# stealth-core is shared across 5 of @xcodethink's projects (ai-browser-auditor,
-# TalkBuddyVN, TalkBuddyThailand, talkbuddy, scamlens). The canonical
-# source lives at /Users/wayne/Developer/stealth-core. Each consumer
-# project keeps a copy under src/vendor/stealth-core/ (this repo) or
-# vendor/stealth-core/ (the others).
+# stealth-core is the anti-detection / fingerprint helper library bundled
+# under src/vendor/stealth-core/. See docs/decisions/ADR-032 for why we
+# vendor it instead of depending on a published package. Maintainers run
+# this script when refreshing the vendored copy from a local upstream.
 #
-# This script re-copies the canonical source files into our vendor/.
-# Running it from the repo root ensures the vendored copy stays in step
-# with the canonical version after stealth-core upstream changes.
-#
-# Why this exists (ADR-032 follow-up):
+# Why this exists:
 #   Manual `cp` works but invites typos, missed files, mtime confusion.
 #   This script is idempotent + diff-friendly + reports what changed.
 #
 # Usage:
-#   bash scripts/sync-vendor.sh                  # default canonical path
 #   STEALTH_CORE_SRC=/path/to/stealth-core bash scripts/sync-vendor.sh
 #
-# Exits non-zero if the canonical source is unreadable; otherwise always
-# zero (a no-op when files already match).
+# Exits non-zero if the canonical source path is unreadable; otherwise
+# always zero (a no-op when files already match).
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-CANONICAL="${STEALTH_CORE_SRC:-/Users/wayne/Developer/stealth-core}"
+CANONICAL="${STEALTH_CORE_SRC:-}"
 VENDOR_DIR="src/vendor/stealth-core"
+
+if [ -z "$CANONICAL" ]; then
+  echo "ERROR: set STEALTH_CORE_SRC=/path/to/stealth-core before running" >&2
+  exit 1
+fi
 
 if [ ! -d "$CANONICAL/src" ]; then
   echo "ERROR: canonical stealth-core source not found at $CANONICAL/src" >&2
