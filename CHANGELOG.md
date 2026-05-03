@@ -26,8 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `scenarios/05-crypto-trace-purchase.yaml`
   - `scenarios/06-investigation-workflow-v2.yaml`
   - `scenarios/08-chrome-extension-install.yaml`
-- `config/scamlens.yaml` — replaced by `config/example.yaml` with
-  generic placeholder values (`YourApp` / `https://your-app.example.com`).
+- The previous product-specific `config/*.yaml` example was removed and
+  replaced by `config/example.yaml` with generic placeholder values
+  (`YourApp` / `https://your-app.example.com`).
 - `.github/workflows/post-deploy-audit.yml` — replaced by a copy-ready
   template at `docs/integration/post-deploy-audit.example.yml`. The
   previous file lived at the workflow path so it tried to run on every
