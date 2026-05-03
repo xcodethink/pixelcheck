@@ -19,3 +19,23 @@ sbom.json
 *.har
 *.webm
 .DS_Store
+
+# Claude Code worktrees + other internal scratch directories. Local-only,
+# never committed.
+.claude/
+
+# Per-operator audit project scaffolding (each subfolder = one user's
+# config + personas + scenarios pointing at their app). Operator-private,
+# never committed.
+projects/
+
+# Internal planning / strategy / marketing notes. Keep these outside the
+# repo entirely. The patterns below catch common accident-paths.
+PLAN.md
+docs/launch-*.md
+docs/show-hn.md
+docs/research/
+docs/archive/
+docs/release-notes/
+docs/SLO.md
+docs/assets/og-*

@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-05-03 — Repository hygiene + cross-project reference scrub
+
+> **Recommended for all v1.1.x users.** Internal cleanup release. No
+> public API changes. No new features. The shipped code is functionally
+> identical to v1.1.1; only the repository is cleaner.
+
+### Changed
+
+- **Critic prompt template** (`src/core/critic.ts`) — the `localization`
+  guideline previously named two third-party brand examples as exempt-
+  from-mixin-detection illustrations; replaced with a generic phrasing
+  ("the audited site's brand and trademarks") that doesn't tie the
+  package to any specific third-party project. Behaviour is identical
+  for any audited site — the exemption logic doesn't depend on which
+  examples appear in the prompt template.
+
+### Removed (repository-only, did not ship in any prior tarball)
+
+- Internal planning files that were never part of the published package
+  but were tracked in git (now removed from working tree and git
+  history): `PLAN.md`, `docs/research/`, `docs/launch-post*.md`,
+  `docs/show-hn.md`, `docs/SLO.md`, `docs/release-notes/`,
+  `docs/archive/`, `docs/assets/og-image.*`, and one release-rehearsal
+  record. None of these were in the npm tarball — verified by
+  `npm pack --dry-run` against v1.0.0–v1.1.1.
+
+### Fixed
+
+- 5 ADRs (ADR-001/002/004/032/033) — removed cross-project filesystem
+  references and project-internal planning links so the documents
+  describe the public-facing decision context only.
+- `docs/ci-integration.md` + `docs/writing-scenarios.md` — replaced
+  third-party brand examples with generic placeholders.
+- `docs/integration/fixture-sarif.json` — bumped to 1.1.2 to match
+  the dynamic-read result of the SARIF tool driver version.
+
 ## [1.1.1] - 2026-05-03 — Patch: dynamic version reading
 
 > **Recommended for all v1.1.0 users.** Fixes a cosmetic-but-real
