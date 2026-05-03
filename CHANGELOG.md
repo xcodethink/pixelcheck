@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-05-03 — CHANGELOG residual reference cleanup
+
+> **Recommended for all v1.1.x users.** Trivial one-line documentation
+> patch with no functional impact. The v1.1.3 CHANGELOG entry contained
+> one residual reference to the prior dogfood product's filename inside
+> a "before/after" description of what was renamed; that line has been
+> rephrased to be fully generic. Runtime code, bundled assets, and all
+> other documentation are unchanged from v1.1.3.
+
+### Changed
+
+- `CHANGELOG.md` — rewrote one bullet in the v1.1.3 entry that
+  documented a config rename so it no longer names the old filename.
+  This is the last residual product-specific string in any shipped
+  artifact.
+
+### Note on v1.1.3
+
+v1.1.3 will be deprecated alongside v1.0.0 / v1.0.1 / v1.1.0 / v1.1.1
+once v1.1.4 publishes, with a recommendation to upgrade. v1.1.3 is
+functionally equivalent to v1.1.4 — the only difference is one
+documentation line.
+
 ## [1.1.3] - 2026-05-03 — Bundled examples genericized
 
 > **Recommended for all v1.x users.** Internal cleanup release that
