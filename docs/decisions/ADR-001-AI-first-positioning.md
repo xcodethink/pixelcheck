@@ -3,7 +3,7 @@
 - **状态**：Accepted
 - **日期**：2026-04-25
 - **决策者**：Wayne
-- **方案**：[PixelCheck v1.0 v3.0 方案](../../../OpenTools/PixelCheck-实施方案与执行计划.md)
+- **方案**：[PixelCheck v1.0 v3.0 方案](../../../project-internal planning)
 
 ---
 
@@ -103,6 +103,6 @@ PixelCheck v0.3 的现有产品形态是"为人类开发者设计的浏览器审
 
 ## References
 
-- 主方案：[`OpenTools/PixelCheck-实施方案与执行计划.md`](../../../OpenTools/PixelCheck-实施方案与执行计划.md)（v3.0）
+- 主方案：[`project-internal planning`](../../../project-internal planning)（v3.0）
 - ADR-002：[Primitive-first 架构](./ADR-002-primitive-first-architecture.md)
 - ADR-004：[Worktree-isolated 开发 + Big Bang 切换](./ADR-004-worktree-isolated-development.md)

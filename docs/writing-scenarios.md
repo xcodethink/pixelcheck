@@ -120,7 +120,7 @@ The `store_as` field stashes the result in `ctx.store.pricing_data` for later st
 - id: check-welcome
   type: check_email
   wait_seconds: 90
-  expected_subject_contains: ScamLens
+  expected_subject_contains: YourApp
 ```
 
 The auditor automatically creates a mail.tm temp inbox at scenario start if any `check_email` step is present.
@@ -132,7 +132,7 @@ The auditor automatically creates a mail.tm temp inbox at scenario start if any 
   type: custom
   handler: ../scenarios/handlers/install-extension.ts
   inputs:
-    extension_path: ../../OrangeDuck/dist
+    extension_path: ../../my-extension/dist
 ```
 
 The custom handler file must default-export an async function:

@@ -8,9 +8,8 @@
 ## Context
 
 `stealth-core` is a shared anti-detection / fingerprint library used by 5
-of @xcodethink's projects (TalkBuddyVN, TalkBuddyThailand, talkbuddy,
-scamlens, ai-browser-auditor). Until v1.0-rc1 dogfood (T31, 2026-05-02)
-it lived as a sibling git repo at `/Users/wayne/Developer/stealth-core`
+of @xcodethink's projects (sibling projects, sibling project, ai-browser-auditor). Until v1.0-rc1 dogfood (T31, 2026-05-02)
+it lived as a sibling git repo at `<sibling-stealth-core>`
 and was wired into ai-browser-auditor's `package.json` via:
 
 ```json
@@ -51,7 +50,7 @@ Before v1.0 ship we must resolve this. Three options were considered:
   is stable across all 5 dependents.
 - ❌ Five copies of stealth-core can drift over time. Mitigation: the
   monorepo-style refresh script (planned for v1.x) re-syncs all 5
-  vendor dirs from the canonical `/Users/wayne/Developer/stealth-core`
+  vendor dirs from the canonical `<sibling-stealth-core>`
   source.
 
 ### C. Inline stealth-core source into `src/`
@@ -97,25 +96,25 @@ extraneous symlink.
 
 ### Updating stealth-core
 
-When the canonical `/Users/wayne/Developer/stealth-core` changes:
+When the canonical `<sibling-stealth-core>` changes:
 
 1. Run the refresh sync (manual for now; `scripts/sync-vendor.sh` planned
    for v1.x):
    ```
-   cp /Users/wayne/Developer/stealth-core/src/*.ts \
+   cp <sibling-stealth-core>/src/*.ts \
       <ai-browser-auditor>/src/vendor/stealth-core/
    ```
 2. `npm run typecheck && npm test`
 3. Commit + bump ai-browser-auditor patch version
 4. Re-publish
 
-The other 4 vendoring projects (TalkBuddyVN, etc.) follow the same
+The other 4 vendoring projects (sibling project, etc.) follow the same
 manual refresh today; the v1.x sync script will unify all 5.
 
 ### Drift detection
 
 A future v1.x lint check (planned `scripts/check-vendor-drift.ts`) will
-diff `src/vendor/stealth-core/` against `/Users/wayne/Developer/stealth-core/src/`
+diff `src/vendor/stealth-core/` against `<sibling-stealth-core>/src/`
 and exit non-zero if they diverge. This is monorepo-equivalent to
 "vendor-update PRs" used by Bazel / Buck repos.
 
