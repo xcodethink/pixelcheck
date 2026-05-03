@@ -1,10 +1,10 @@
 id: 04-language-localization-audit
-name: 12-Language Localization Spot Audit
+name: Multi-Language Localization Spot Audit
 priority: P0
 goal: |
   Walk through 6 high-traffic real pages in the persona's language and detect
   any English (or wrong-language) text mixed in. This is the enforcement
-  loop for the "no language mixing" project rule.
+  loop for the "no language mixing" product quality rule.
 
 applies_to:
   personas:
@@ -20,7 +20,7 @@ scoring_dimensions:
 steps:
   - id: home
     type: visit
-    url: https://scamlens.org/${persona.url_locale}
+    url: https://your-app.example.com/${persona.url_locale}
     wait_until: domcontentloaded
 
   - id: home-i18n-check
@@ -28,16 +28,16 @@ steps:
     critical: false
     instruction: |
       Scan the entire visible viewport for any text that is NOT in
-      ${persona.language}. Brand names ("ScamLens", "OrangeDuck"), product
-      brand names that appear in card category labels (Binance, Coinbase,
-      PayPal, Amazon, MetaMask, Trust Wallet, Telegram, WhatsApp), and
-      well-known acronyms (URL, AI, API, GDPR, OFAC, USDT, KYC, DeFi, SDK,
-      SaaS, B2B, B2C, NFT) are exempt. Currency codes (USD, EUR, JPY) are
-      exempt. Return JSON with a "violations" array of {text, location} objects.
+      ${persona.language}. The audited site's own brand and trademarks,
+      well-known third-party brand names that may appear (e.g. payment
+      providers, social platforms), and well-known acronyms (URL, AI, API,
+      GDPR, OFAC, USDT, KYC, DeFi, SDK, SaaS, B2B, B2C, NFT) are exempt.
+      Currency codes (USD, EUR, JPY) are exempt.
+      Return JSON with a "violations" array of {text, location} objects.
 
   - id: pricing
     type: visit
-    url: https://scamlens.org/${persona.url_locale}/pricing
+    url: https://your-app.example.com/${persona.url_locale}/pricing
     wait_until: domcontentloaded
 
   - id: pricing-i18n-check
@@ -49,42 +49,42 @@ steps:
       and CTA buttons. Currency display (USD vs local) is also a localization
       issue worth flagging at HIGH severity.
 
-  - id: wallet-intel
+  - id: features
     type: visit
-    url: https://scamlens.org/${persona.url_locale}/wallet-intelligence
+    url: https://your-app.example.com/${persona.url_locale}/features
     wait_until: domcontentloaded
 
-  - id: wallet-intel-i18n-check
+  - id: features-i18n-check
     type: assert_visual
     instruction: |
-      Same i18n check on the wallet intelligence landing page. Watch for
-      crypto jargon untranslated and feature card titles in English.
+      Same i18n check on the features landing page. Watch for domain
+      jargon untranslated and feature card titles in English.
 
-  - id: check-website
+  - id: docs
     type: visit
-    url: https://scamlens.org/${persona.url_locale}/check-website
+    url: https://your-app.example.com/${persona.url_locale}/docs
     wait_until: domcontentloaded
 
-  - id: check-website-i18n-check
+  - id: docs-i18n-check
     type: assert_visual
     instruction: |
-      Same check on the check-website tool page. This is the primary
-      free C-end entry point — any English here is high-impact.
+      Same check on the documentation index. Flag any section titles or
+      navigation labels that remain in English.
 
-  - id: scams-index
+  - id: about
     type: visit
-    url: https://scamlens.org/${persona.url_locale}/scams
+    url: https://your-app.example.com/${persona.url_locale}/about
     wait_until: domcontentloaded
 
-  - id: scams-i18n-check
+  - id: about-i18n-check
     type: assert_visual
     instruction: |
-      Same check on the scams index. Flag any scam category names that
-      remain in English (e.g. "Romance Scam" should be translated).
+      Same check on the about page. Watch for company description,
+      mission statement, or team-section copy left in English.
 
   - id: blog
     type: visit
-    url: https://scamlens.org/${persona.url_locale}/blog
+    url: https://your-app.example.com/${persona.url_locale}/blog
     wait_until: domcontentloaded
 
   - id: blog-i18n-check

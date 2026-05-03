@@ -22,13 +22,13 @@ scoring_dimensions:
 steps:
   - id: open-home
     type: visit
-    url: https://scamlens.org/${persona.url_locale}
+    url: https://your-app.example.com/${persona.url_locale}
     wait_until: networkidle
 
   - id: find-newsletter
     type: observe
     instruction: |
-      Find the newsletter subscription form or "get weekly safety report"
+      Find the newsletter subscription form or "subscribe to updates"
       input on the page. It is usually in the footer or hero area.
     store_as: newsletter_input
 
@@ -52,7 +52,8 @@ steps:
   - id: check-welcome-email
     type: check_email
     wait_seconds: 90
-    expected_subject_contains: ScamLens
+    # Replace with a substring expected in your welcome email subject line.
+    expected_subject_contains: Welcome
 
   - id: screenshot-final
     type: screenshot

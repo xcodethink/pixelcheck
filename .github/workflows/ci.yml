@@ -117,12 +117,11 @@ jobs:
         run: npm run license:check
 
       - name: Vendor drift check (stealth-core)
-        # GitHub-hosted runners don't have the canonical
-        # /Users/wayne/Developer/stealth-core/ source tree, so
-        # AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1 turns the check into a
-        # no-op when the canonical tree is absent. The check still
-        # catches drift in any environment where the canonical IS
-        # present (maintainer's machine, future workspace setups).
+        # GitHub-hosted runners don't have an upstream stealth-core source
+        # tree available, so AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1 turns
+        # the check into a no-op when the canonical tree is absent. The
+        # check still catches drift in any environment where the canonical
+        # IS present (maintainer machines, dedicated runners, etc.).
         # See ADR-032 for the vendor model and intended drift workflow.
         if: matrix.os == 'ubuntu-latest' && matrix.node == 20
         env:

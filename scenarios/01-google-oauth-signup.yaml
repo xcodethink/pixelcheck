@@ -23,7 +23,7 @@ scoring_dimensions:
 steps:
   - id: open-home
     type: visit
-    url: https://scamlens.org/${persona.url_locale}
+    url: https://your-app.example.com/${persona.url_locale}
     wait_until: networkidle
 
   - id: assert-language
@@ -31,8 +31,8 @@ steps:
     critical: true
     instruction: |
       Check that all visible header navigation, hero text, and primary
-      CTAs are in ${persona.language}. Brand names like "ScamLens" are
-      exempt. List any non-${persona.language} text found.
+      CTAs are in ${persona.language}. The audited site's own brand and
+      trademarks are exempt. List any non-${persona.language} text found.
 
   - id: click-signin
     type: act

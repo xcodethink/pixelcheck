@@ -12,12 +12,12 @@ viewport:
 payment_tier: power
 proxy_env: PROXY_DE
 mental_model: |
-  48-year-old compliance officer at a Munich-based fintech. Highly technical,
-  expects German legal precision. Evaluating ScamLens for a corporate
-  subscription on the highest tier (Power). Will scrutinize GDPR compliance,
-  data residency, audit trail capabilities, and DPA availability. Will not
-  tolerate marketing fluff or unclear pricing. Reads the full Terms of Service
-  before clicking anything.
+  48-year-old compliance officer at a Munich-based enterprise. Highly
+  technical, expects German legal precision. Evaluating the product for a
+  corporate subscription on the highest tier (Power). Will scrutinize GDPR
+  compliance, data residency, audit-trail capabilities, and DPA availability.
+  Will not tolerate marketing fluff or unclear pricing. Reads the full Terms
+  of Service before clicking anything.
 critical_concerns:
   - Full German localization including legal pages (AGB, Datenschutz, Impressum)
   - GDPR/DSGVO compliance must be obvious and verifiable

@@ -57,9 +57,9 @@ export default defineConfig({
         "src/mcp/server.ts",
         "src/core/types.ts",
         "src/core/result-schema.ts",
-        // Vendored stealth-core has its own tests at the canonical source
-        // (/Users/wayne/Developer/stealth-core); counting it here would
-        // dilute the auditor's own coverage signal. See ADR-032.
+        // Vendored stealth-core has its own tests at the upstream source;
+        // counting it here would dilute the auditor's own coverage signal.
+        // See ADR-032.
         "src/vendor/**",
         "src/**/*.d.ts",
       ],

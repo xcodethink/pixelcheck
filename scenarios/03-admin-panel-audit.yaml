@@ -20,7 +20,7 @@ scoring_dimensions:
 steps:
   - id: visit-admin
     type: visit
-    url: https://scamlens.org/admin
+    url: https://your-app.example.com/admin
     wait_until: networkidle
 
   - id: rate-dashboard
