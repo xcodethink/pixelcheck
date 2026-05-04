@@ -27,6 +27,7 @@ export default defineConfig({
       "tests/integration/playwright/**",
       "tests/integration/agent-loop-e2e.test.ts",
       "tests/integration/signals-e2e.test.ts",
+      "tests/integration/whitebox-collector.test.ts",
     ],
     // T3 cassette tests (tests/integration/llm-cassettes.test.ts) self-
     // skip when neither AUDIT_E2E_REPLAY=1 nor AUDIT_E2E_RECORD=1 is

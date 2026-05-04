@@ -138,6 +138,17 @@ export interface SeeResult {
   duration_ms: number;
   /** Result-cache annotation (M9-4). Absent when caching not applicable. */
   cache?: ResultCacheMeta;
+  /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). Populated
+   *  by the WhiteboxCollector when one is attached via defaultOpen.
+   *  Test seams that supply a custom `_open` without a collector get
+   *  no diagnostics field. */
+  diagnostics?: {
+    collected_at: "always" | "on_failure";
+    popups?: import("../whitebox-collector.js").PopupSnapshot[];
+    network?: import("../whitebox-collector.js").NetworkLog;
+    cookies?: import("../whitebox-collector.js").CookieData[];
+    storage?: import("../whitebox-collector.js").StorageSnapshot;
+  };
 }
 
 export type OpenFn = (cfg: {
@@ -152,6 +163,9 @@ export type OpenFn = (cfg: {
 }) => Promise<{
   page: Page;
   consoleErrors: ConsoleError[];
+  /** Optional WhiteboxCollector attached on `defaultOpen`. Test seams
+   *  may omit it; the see primitive then skips diagnostics. (PR-B / ADR-034) */
+  whitebox?: import("../whitebox-collector.js").WhiteboxCollector;
   close: () => Promise<void>;
 }>;
 
@@ -260,6 +274,9 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
   let costUsd = 0;
   let status: SeeResult["status"] = "ok";
   let errorMsg: string | undefined;
+  /** ADR-034 Phase 0 — populated from WhiteboxCollector inside the
+   *  inner try, surfaced on the result if collection succeeded. */
+  let diagnostics: SeeResult["diagnostics"] = undefined;
 
   try {
     const open = opts._open ?? defaultOpen;
@@ -324,6 +341,28 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
         note = noteResult.text;
         costUsd += noteResult.costUsd;
       }
+
+      // ADR-034 Phase 0: collect white-box diagnostics before context.close().
+      // Always-collect, never-skip (see ADR rationale). Test seams that omit
+      // the WhiteboxCollector simply yield no diagnostics field.
+      if (opened.whitebox) {
+        try {
+          const wb = await opened.whitebox.collect();
+          diagnostics = {
+            collected_at: "always",
+            popups: wb.popups,
+            network: wb.network,
+            cookies: wb.cookies,
+            storage: wb.storage,
+          };
+        } catch (wbErr) {
+          // Diagnostics collection failures must not fail the primitive.
+          log.warn(
+            { err: wbErr instanceof Error ? wbErr.message : String(wbErr) },
+            "see: whitebox diagnostics collection failed",
+          );
+        }
+      }
     } finally {
       await opened.close().catch(() => {});
     }
@@ -353,6 +392,7 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
     artifacts_dir: runDir,
     cost_usd: costUsd,
     duration_ms: durationMs,
+    ...(diagnostics ? { diagnostics } : {}),
   };
 }
 
@@ -418,6 +458,12 @@ const defaultOpen: OpenFn = async (cfg) => {
     userAgent: cfg.userAgent,
   });
   const page = await context.newPage();
+  // ADR-034 Phase 0 — attach white-box collector AFTER newPage so the
+  // popup listener doesn't capture the main page itself, BEFORE goto so
+  // popup / network events on the initial navigation are captured.
+  const { WhiteboxCollector } = await import("../whitebox-collector.js");
+  const whitebox = new WhiteboxCollector(context, page);
+  whitebox.attach();
   const consoleErrors: ConsoleError[] = [];
   page.on("console", (msg) => {
     if (msg.type() === "error") {
@@ -461,6 +507,7 @@ const defaultOpen: OpenFn = async (cfg) => {
   return {
     page,
     consoleErrors,
+    whitebox,
     close: async () => {
       try {
         await context.close();

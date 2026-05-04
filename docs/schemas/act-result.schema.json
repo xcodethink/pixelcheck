@@ -311,12 +311,34 @@
                   "index": {
                     "type": "integer",
                     "minimum": 0
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "body_text": {
+                    "type": "string"
+                  },
+                  "closed": {
+                    "type": "boolean"
+                  },
+                  "last_seen_url": {
+                    "type": "string"
+                  },
+                  "last_seen_title": {
+                    "type": "string"
                   }
                 },
                 "required": [
-                  "index"
+                  "index",
+                  "url",
+                  "title",
+                  "body_text",
+                  "closed"
                 ],
-                "additionalProperties": true
+                "additionalProperties": false
               }
             },
             "network": {
@@ -329,9 +351,105 @@
                 "failure_count": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "requests": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      },
+                      "method": {
+                        "type": "string"
+                      },
+                      "resource_type": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "duration_ms": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "size_bytes": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "from_cache": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "method",
+                      "status",
+                      "duration_ms",
+                      "size_bytes"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "failures": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      },
+                      "method": {
+                        "type": "string"
+                      },
+                      "resource_type": {
+                        "type": "string"
+                      },
+                      "error_text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "method",
+                      "error_text"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "truncated_count": {
+                  "type": "integer",
+                  "minimum": 0
                 }
               },
-              "additionalProperties": true
+              "required": [
+                "request_count",
+                "failure_count",
+                "requests",
+                "failures"
+              ],
+              "additionalProperties": false
             },
             "cookies": {
               "type": "array",
@@ -340,17 +458,61 @@
                 "properties": {
                   "name": {
                     "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "domain": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "expires": {
+                    "type": "number"
+                  },
+                  "http_only": {
+                    "type": "boolean"
+                  },
+                  "secure": {
+                    "type": "boolean"
+                  },
+                  "same_site": {
+                    "type": "string",
+                    "enum": [
+                      "Strict",
+                      "Lax",
+                      "None"
+                    ]
                   }
                 },
                 "required": [
-                  "name"
+                  "name",
+                  "value",
+                  "domain",
+                  "path",
+                  "expires",
+                  "http_only",
+                  "secure"
                 ],
-                "additionalProperties": true
+                "additionalProperties": false
               }
             },
             "storage": {
               "type": "object",
               "properties": {
+                "local_storage": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "session_storage": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
                 "local_storage_keys": {
                   "type": "integer",
                   "minimum": 0
@@ -360,7 +522,13 @@
                   "minimum": 0
                 }
               },
-              "additionalProperties": true
+              "required": [
+                "local_storage",
+                "session_storage",
+                "local_storage_keys",
+                "session_storage_keys"
+              ],
+              "additionalProperties": false
             },
             "performance": {
               "type": "object",
