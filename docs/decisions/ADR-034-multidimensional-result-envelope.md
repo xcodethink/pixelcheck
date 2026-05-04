@@ -117,7 +117,7 @@ This ADR governs PR-A through PR-E:
 | **PR-B** | WhiteboxCollector — fill `popups` / `network` / `cookies` / `storage` sub-schemas + 4 primitives wire it on | No version bump (already 1.3.0; sub-schema fields fill in) |
 | **PR-C** | PerformanceCollector — fill `performance` sub-schema | No version bump |
 | **PR-D** | VisualCollector (reuses `runJudgeVision`) — fill `visual` sub-schema; `cfg.visualScoring: 'off'\|'auto'\|'eager'` in see/act/extract; judge always mirrors its own data into `diagnostics.visual`; `JudgeResultSchema` gains `diagnostics?` | No version bump |
-| **PR-E** | Critic prompt + new `pixelcheck.diagnose` MCP tool | Schema for new tool, no impact on primitive results |
+| **PR-E** | New `diagnose` primitive + `pixelcheck.diagnose` MCP tool with commercial-grade output (confidence, standards_mapping, evidence_refs, overall_health_score, executive_summary). Critic / judge prompts intentionally NOT modified — see PR-E appendix. | New schemas (DiagnoseResult + sub-schemas), no impact on existing primitive results |
 
 PR-A ships zero behavior change at runtime — primitives don't yet emit
 `diagnostics` because no collector is wired. Pure type contract: the field
@@ -316,3 +316,94 @@ emitted today.
 The mirror is deferred to a future refactor where `StepResult` inherits
 a unified diagnostics envelope across all step types — out of scope for
 PR-D's <300 LoC convention.
+
+## Appendix: PR-E — `diagnose` primitive, NOT critic-prompt injection
+
+The original ADR-034 plan listed PR-E as "Critic prompt + new
+`pixelcheck.diagnose` MCP tool". On reaching PR-E we split the two
+proposed actions and kept only the second.
+
+### Why a fresh primitive, not critic / judge prompt injection
+
+The body of ADR-034 was conservative about the critic and judge
+prompts because both already had a different audited semantic:
+
+- `judge` is rubric × URL → 0..10 per-criterion verdicts.
+- `runCritic` is persona × scenario × dimension scoring used by
+  `audit_url`'s pipeline.
+
+Augmenting either prompt with the diagnostics envelope would have
+been a Trojan-horse change: the model would shift from "score against
+this rubric" to "score against this rubric AND also flag network /
+performance / privacy issues you happened to read", which:
+
+1. Pollutes audit_url's scoring stability — a downstream critic
+   regression would be hard to attribute to "rubric drift" vs
+   "newly leaked diagnostics into the prompt".
+2. Forces every existing rubric to silently inherit dimensions it
+   wasn't designed for (aesthetic rubric scoring "popups: 1 OAuth
+   open" is meaningless).
+3. Loses the new tool's target audience — `diagnose` is for the
+   "what's wrong with this page" question, not "score this against
+   a UX rubric"; the system prompt for those two tasks should
+   diverge, not converge.
+
+So PR-E builds a dedicated primitive whose system prompt is purpose-
+built for "read structured diagnostics + screenshot → emit findings
+with anti-hallucination evidence citations", and leaves judge / critic
+untouched.
+
+### Commercial-grade fields beyond the original ADR scope
+
+When PR-E's design was reviewed against published commercial audit
+tools (Lighthouse Enterprise, Sentry, Datadog Synthetics, Snyk,
+axe-core enterprise reporting), five fields appeared in every one
+that the ADR's "what's wrong" framing alone did not capture:
+
+1. `confidence: 0..1` per finding (enterprise triage signal).
+2. `standards_mapping[]` per finding mapping to industry frameworks
+   (Core Web Vitals, WCAG 2.2, OWASP Top 10 2021, GDPR, …) — the
+   exact data shape compliance reports / SOC 2 audits / VPATs
+   consume verbatim.
+3. `evidence_refs[]` citing JSON-pointer paths into the diagnostics
+   envelope — anti-hallucination tether enforced post-parse (drop
+   findings without citations at severity ≥ medium).
+4. `overall_health_score: 0..100` plus per-dimension drill-down —
+   single dashboard signal + drill-down for engineering teams.
+5. `executive_summary` (≤ 3 sentences) + `findings_by_dimension`
+   index — PM / CTO layer separated from the engineering layer.
+
+These five raised PR-E from ~450 LoC to ~900 LoC, exceeding the
+"<300 LoC per PR" convention the earlier PRs followed. The trade-off
+is acceptable because PR-E is the Phase 0 capstone — capping the
+investment at "first 80% commercial parity" was the right call.
+
+### Anti-hallucination contract (post-parse enforcement)
+
+The `parseDiagnoseRawJson()` validator drops findings the model
+emits but cannot substantiate, instead of returning them with a
+warning:
+
+- Severity `critical | high | medium` MUST include ≥ 1 evidence_ref.
+- Findings whose `dimension` has no collected data are dropped (e.g.
+  performance finding when no perf collector ran; an LLM that
+  hallucinates a "network latency issue" while the network collector
+  was not attached cannot survive the validator).
+- `low` severity is exempt from the evidence-ref requirement (used
+  for polish / nit findings the model can articulate from the
+  screenshot alone).
+
+This converts "model said X" into "model said X AND we have a real
+data point supporting X" before the finding leaves the primitive.
+The dropped count is logged at `warn` level so operators can detect
+prompt drift over time.
+
+### Why `diagnose` is a `preset`, not a `primitive`
+
+The MCP `kind` taxonomy (`primitive | preset | meta`) describes
+caller-facing UX, not internal composition. `diagnose` orchestrates
+existing primitives (`see` with eager visual scoring + the underlying
+collectors), then layers structured analysis on top. By the
+audit_url / explore_url precedent, that's a `preset`. Listing it as
+a `primitive` would mislead callers into thinking it's a single-call
+building block (it's two LLM calls + per-collector evaluation).
