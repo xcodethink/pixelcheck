@@ -18,7 +18,9 @@ name: Integration
 
 on:
   pull_request:
-    branches: [main]
+    # No `branches:` filter — stacked PRs (e.g. ADR-034's 5-PR chain)
+    # need real chromium + cross-process integration coverage too,
+    # not just the dogfood smoke test.
   schedule:
     # Weekly: Monday 08:00 UTC = 16:00 Asia/Shanghai. Catches upstream
     # axe-core / chromium / Stagehand drift that no commit-triggered

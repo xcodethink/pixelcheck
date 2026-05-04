@@ -17,7 +17,10 @@ name: Coverage
 
 on:
   pull_request:
-    branches: [main]
+    # No `branches:` filter — stacked PRs need coverage gates too,
+    # otherwise a chain of 5 stacked PRs can drop coverage below the
+    # 60/54/60/60 threshold without anyone noticing until the final
+    # merge to main exposes the regression.
   push:
     branches: [main]
 
