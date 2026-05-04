@@ -8,6 +8,7 @@ import {
   getLogger,
   registerSecret,
   _resetLoggerForTests,
+  _closeLoggerStreamsForTests,
   _resetRegisteredSecretsForTests,
   _registeredSecretCountForTests,
 } from "../src/core/logger.js";
@@ -112,7 +113,8 @@ describe("logger", () => {
         );
       });
     } finally {
-      _resetLoggerForTests(); // close pino stream FDs before rmSync (Windows ENOTEMPTY)
+      // Await actual FD close — SonicBoom's end() is async on Windows.
+      await _closeLoggerStreamsForTests();
       rmRecursiveWithRetry(tmpDir);
     }
   });
@@ -141,7 +143,8 @@ describe("logger", () => {
         );
       });
     } finally {
-      _resetLoggerForTests(); // close pino stream FDs before rmSync (Windows ENOTEMPTY)
+      // Await actual FD close — SonicBoom's end() is async on Windows.
+      await _closeLoggerStreamsForTests();
       rmRecursiveWithRetry(tmpDir);
     }
   });
@@ -168,7 +171,7 @@ function logToFile(
         _resetLoggerForTests();
         const log = getLogger(options.module ?? "redact-test");
         fn(log);
-        setTimeout(() => {
+        setTimeout(async () => {
           try {
             const raw = fs.readFileSync(logFile, "utf-8");
             const lines = raw
@@ -176,12 +179,13 @@ function logToFile(
               .split("\n")
               .filter(Boolean)
               .map((l) => JSON.parse(l) as Record<string, unknown>);
-            _resetLoggerForTests(); // close pino stream FDs before rmSync (Windows ENOTEMPTY)
+            // Await actual FD close — SonicBoom's end() is async on Windows.
+            await _closeLoggerStreamsForTests();
             rmRecursiveWithRetry(tmpDir);
             resolve({ raw, lines });
           } catch (err) {
-            _resetLoggerForTests();
-            rmRecursiveWithRetry(tmpDir);
+            try { await _closeLoggerStreamsForTests(); } catch { /* best effort */ }
+            try { rmRecursiveWithRetry(tmpDir); } catch { /* best effort */ }
             reject(err);
           }
         }, 200);
