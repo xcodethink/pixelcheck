@@ -3,7 +3,7 @@
   "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/tool-capability.schema.json",
   "title": "ToolCapability",
   "description": "Per-tool descriptor inside ListCapabilitiesResult.tools[]. Mirrors the MCP `tools/list` shape (name / description / kind / input_schema / result_schema) and adds the richer fields that are deliberately not in the spec-level catalog: cacheable, cost_estimate_usd, side_effects, requires.",
-  "x-result-schema-version": "1.2.0",
+  "x-result-schema-version": "1.3.0",
   "$ref": "#/definitions/ToolCapability",
   "definitions": {
     "ToolCapability": {
