@@ -22,6 +22,7 @@
  *   - extract           (primitive) — schema-bound structured extraction (N-4)
  *   - judge             (primitive) — rubric-driven page critic (N-8)
  *   - compare           (primitive) — A/B page comparison (N-3)
+ *   - diagnose          (preset)    — holistic page-health diagnosis (PR-E / ADR-034)
  *   - list_personas     (meta)      — enumerate installed personas
  *   - list_scenarios    (meta)      — enumerate installed scenarios
  *   - list_capabilities (meta)      — self-describe the MCP server (M9-5)
@@ -62,6 +63,7 @@ import { actTool } from "./tools/act.js";
 import { extractTool } from "./tools/extract.js";
 import { judgeTool } from "./tools/judge.js";
 import { compareTool } from "./tools/compare.js";
+import { diagnoseTool } from "./tools/diagnose.js";
 import { listPersonasTool } from "./tools/list-personas.js";
 import { listScenariosTool } from "./tools/list-scenarios.js";
 import { listCapabilitiesTool } from "./tools/list-capabilities.js";
@@ -88,6 +90,7 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   extractTool,
   judgeTool,
   compareTool,
+  diagnoseTool,
   listPersonasTool,
   listScenariosTool,
   listCapabilitiesTool,

@@ -125,6 +125,12 @@
       "file": "compare-result.schema.json"
     },
     {
+      "slug": "diagnose-result",
+      "title": "DiagnoseResult",
+      "description": "MCP tool envelope returned by `diagnose` (PR-E preset / ADR-034). Holistic page-health diagnosis. Captures the URL with eager visual scoring, reads every diagnostics dimension (performance / network / popups / cookies / storage / visual), and returns a commercial-grade structured report: per-finding severity + dimension + confidence + evidence_refs + standards_mapping (Core Web Vitals / WCAG / OWASP / GDPR), a 0-100 overall_health_score, per-dimension drill-down scores, and a CTO-readable executive_summary.",
+      "file": "diagnose-result.schema.json"
+    },
+    {
       "slug": "list-personas-result",
       "title": "ListPersonasResult",
       "description": "MCP tool envelope returned by list_personas (array of PersonaSummary).",
