@@ -8,6 +8,7 @@ import {
   getLogger,
   registerSecret,
   _resetLoggerForTests,
+  _closeLoggerStreamsForTests,
   _resetRegisteredSecretsForTests,
   _registeredSecretCountForTests,
 } from "../src/core/logger.js";
@@ -21,6 +22,17 @@ function captureStream() {
     },
   });
   return { stream, chunks };
+}
+
+/**
+ * Belt-and-suspenders rm: pino's SonicBoom destination flushes / closes
+ * asynchronously even after `_resetLoggerForTests()` calls `end()`.
+ * On Windows the file system briefly refuses to delete a file with an
+ * outstanding handle; Node's `fs.rmSync` exposes a `maxRetries` option
+ * specifically for this scenario.
+ */
+function rmRecursiveWithRetry(dir: string): void {
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
 
 function withEnv(overrides: Record<string, string | undefined>, fn: () => void) {
@@ -101,7 +113,9 @@ describe("logger", () => {
         );
       });
     } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      // Await actual FD close — SonicBoom's end() is async on Windows.
+      await _closeLoggerStreamsForTests();
+      rmRecursiveWithRetry(tmpDir);
     }
   });
 
@@ -129,7 +143,9 @@ describe("logger", () => {
         );
       });
     } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      // Await actual FD close — SonicBoom's end() is async on Windows.
+      await _closeLoggerStreamsForTests();
+      rmRecursiveWithRetry(tmpDir);
     }
   });
 });
@@ -155,7 +171,7 @@ function logToFile(
         _resetLoggerForTests();
         const log = getLogger(options.module ?? "redact-test");
         fn(log);
-        setTimeout(() => {
+        setTimeout(async () => {
           try {
             const raw = fs.readFileSync(logFile, "utf-8");
             const lines = raw
@@ -163,10 +179,13 @@ function logToFile(
               .split("\n")
               .filter(Boolean)
               .map((l) => JSON.parse(l) as Record<string, unknown>);
-            fs.rmSync(tmpDir, { recursive: true, force: true });
+            // Await actual FD close — SonicBoom's end() is async on Windows.
+            await _closeLoggerStreamsForTests();
+            rmRecursiveWithRetry(tmpDir);
             resolve({ raw, lines });
           } catch (err) {
-            fs.rmSync(tmpDir, { recursive: true, force: true });
+            try { await _closeLoggerStreamsForTests(); } catch { /* best effort */ }
+            try { rmRecursiveWithRetry(tmpDir); } catch { /* best effort */ }
             reject(err);
           }
         }, 200);

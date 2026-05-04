@@ -41,6 +41,8 @@
  *   }
  */
 
+import { pathToFileURL } from "node:url";
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -176,7 +178,22 @@ export async function runMcpServer(): Promise<void> {
 // Entry point (when invoked as a binary)
 // ─────────────────────────────────────────────────────────────
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// ESM "is this the main module" check.
+//
+// `import.meta.url` is always a percent-encoded forward-slash URL
+// (`file:///D:/a/.../server.js` on Windows). `process.argv[1]` is
+// the platform-native path (`D:\a\...\server.js` on Windows). The
+// naive `\`file://${process.argv[1]}\`` template only matches on
+// POSIX — on Windows it produces `file://D:\a\...` (backslashes,
+// only two slashes after `file:`) and the comparison ALWAYS fails.
+// Result: the MCP server's entry-point branch never runs on Windows,
+// every stdio MCP client sees the process exit immediately with
+// "MCP error -32000: Connection closed" or a request timeout.
+//
+// `pathToFileURL` is Node's canonical conversion that handles drive
+// letters, backslashes, and percent-encoding consistently across
+// platforms — the standard ESM entry-check pattern.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   runMcpServer().catch((err) => {
     log.fatal(
       {
