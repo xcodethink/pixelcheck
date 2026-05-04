@@ -69,7 +69,11 @@ import { getLogger } from "./logger.js";
  *           FCP / TTFB plus supporting page-load + resource-type metrics)
  *           and wired the existing `PerformanceSignalCollector`
  *           (src/agent/signals/performance.ts) into the see / act /
- *           extract default-open paths. PR-D concretized VisualScoring
+ *           extract default-open paths. PR-E added the `diagnose`
+ *           primitive with `DiagnoseResultSchema` (commercial-grade
+ *           findings: confidence + standards_mapping + evidence_refs +
+ *           overall_health_score + dimension_scores + executive_summary)
+ *           — net additive, no version bump. PR-D concretized VisualScoring
  *           (verdicts / findings / overall_score / summary, mirroring
  *           a normalized subset of JudgeResult) and wired a new
  *           VisualCollector that reuses the existing rubric-based
@@ -1070,6 +1074,161 @@ export const CompareResultSchema = z.object({
   diagnostics: DiagnosticsSchema.optional(),
 });
 
+// ─────────────────────────────────────────────────────────────
+// `diagnose` primitive (PR-E / ADR-034)
+//
+// Holistic page-health diagnosis. Where `judge` answers "score this page
+// against a rubric" and `compare` answers "which of A vs B is better",
+// `diagnose` answers "what is wrong with this page, why, and how should
+// it be fixed". The primitive captures the page (`see` with eager
+// `visualScoring`), reads every diagnostics dimension produced by PR-B
+// (whitebox), PR-C (performance), PR-D (visual), serialises them into a
+// vision-call prompt, and returns a structured commercial-grade report.
+//
+// Commercial-grade fields (informed by Lighthouse, Sentry, Datadog
+// Synthetics, Snyk, axe-core enterprise reporting):
+//   - `confidence: 0..1` per finding (enterprise triage signal)
+//   - `standards_mapping[]` per finding (WCAG, Core Web Vitals, OWASP,
+//     GDPR... — feeds compliance reports without re-scoring)
+//   - `evidence_refs[]` per finding cite specific diagnostics fields
+//     (`diagnostics.performance.lcp_ms`) — anti-hallucination tether
+//   - `overall_health_score: 0..100` (single-number dashboard signal)
+//   - `dimension_scores[]` (drill-down for each diagnostic dimension)
+//   - `executive_summary` (≤ 3 sentences, PM/CTO-readable layer)
+//   - `findings_by_dimension` (index for grouped rendering)
+// ─────────────────────────────────────────────────────────────
+
+/** Severity bands match `JudgeFinding` so consumers with existing
+ *  judge-shaped reporters can render diagnose findings without remap. */
+export const DiagnoseSeveritySchema = z.enum(["critical", "high", "medium", "low"]);
+
+/** Which diagnostics dimension a finding stems from. `cross_cutting`
+ *  is reserved for issues that span multiple dimensions (e.g. "third-
+ *  party tracker is both a performance tax AND a privacy concern"). */
+export const DiagnoseDimensionSchema = z.enum([
+  "performance",
+  "visual",
+  "whitebox",
+  "security",
+  "accessibility",
+  "seo",
+  "privacy",
+  "cross_cutting",
+]);
+
+/** Single industry-standard reference a finding maps to. The `framework`
+ *  field is open-string (not enum) so callers can register new
+ *  frameworks (NIST, PCI DSS, HIPAA, ...) without a schema bump.
+ *  `id` is the citation within that framework. `url` is optional but
+ *  strongly encouraged so report consumers can deep-link. */
+export const StandardsReferenceSchema = z.object({
+  /** Standards body / framework name (e.g. "WCAG 2.2", "Core Web Vitals", "OWASP Top 10 2021", "GDPR"). */
+  framework: z.string().min(1),
+  /** Citation within that framework (e.g. "SC 1.4.3", "LCP", "A01:2021", "Art. 32"). */
+  id: z.string().min(1),
+  /** Optional deep-link to the spec. */
+  url: z.string().optional(),
+  /** Short human-readable label (e.g. "Contrast (Minimum)"). */
+  label: z.string().optional(),
+});
+
+/** Anti-hallucination: every finding must cite at least one specific
+ *  diagnostics field it was derived from. The path follows JSON-pointer
+ *  conventions ("/diagnostics/performance/lcp_ms"). The `value` is
+ *  serialised as a string for stable transport (numbers / booleans /
+ *  arrays all stringified). */
+export const EvidenceRefSchema = z.object({
+  /** JSON-pointer-style path into the diagnose result (or upstream see
+   *  result's diagnostics envelope). */
+  path: z.string().min(1),
+  /** Stringified value of that field at evaluation time. */
+  value: z.string(),
+  /** One-sentence explanation of why this field supports the finding. */
+  note: z.string().optional(),
+});
+
+export const DiagnoseFindingSchema = z.object({
+  /** Stable id (snake_case) — useful for diffing across runs / triage. */
+  id: z.string().min(1),
+  severity: DiagnoseSeveritySchema,
+  dimension: DiagnoseDimensionSchema,
+  /** One-sentence problem statement. */
+  title: z.string().min(1),
+  /** Two-to-five sentence problem description. */
+  description: z.string().min(1),
+  /** Inferred root cause (one to three sentences). */
+  root_cause: z.string(),
+  /** Concrete actionable fix (one to three sentences). */
+  recommendation: z.string(),
+  /** 0..1 confidence the finding is real (not a false positive). */
+  confidence: z.number().min(0).max(1),
+  /** Cited diagnostics fields. MUST be non-empty for severity != 'low'. */
+  evidence_refs: z.array(EvidenceRefSchema).default([]),
+  /** Standards mapping for compliance reports. Optional but encouraged. */
+  standards_mapping: z.array(StandardsReferenceSchema).default([]),
+  /** Physical location on screen (e.g. "hero CTA", "footer column 2"). */
+  affected_location: z.string().optional(),
+  /** Optional URL the finding is bound to (e.g. failing network request). */
+  affected_url: z.string().optional(),
+  /** Optional CSS / DOM selector. */
+  affected_selector: z.string().optional(),
+});
+
+/** Per-dimension drill-down score. `score` is a 0..100 composite where
+ *  100 = "no issues found in this dimension". */
+export const DiagnoseDimensionScoreSchema = z.object({
+  dimension: DiagnoseDimensionSchema,
+  /** 0..100 composite. Higher is healthier. */
+  score: z.number().min(0).max(100),
+  /** Number of findings in this dimension by severity. */
+  finding_counts: z.object({
+    critical: z.number().int().nonnegative().default(0),
+    high: z.number().int().nonnegative().default(0),
+    medium: z.number().int().nonnegative().default(0),
+    low: z.number().int().nonnegative().default(0),
+  }),
+  /** One-sentence summary of the dimension's state. */
+  summary: z.string(),
+});
+
+export const DiagnoseResultSchema = z.object({
+  schema_version: SchemaVersionField,
+  url_input: z.string(),
+  url_final: z.string(),
+  title: z.string(),
+  loaded_at: z.string(),
+  status: z.enum(["ok", "error"]),
+  error: z.string().optional(),
+  /** PM/CTO-readable summary (≤ 3 sentences). */
+  executive_summary: z.string(),
+  /** 0..100 single-number health score across all dimensions.
+   *  Computed as a severity-weighted aggregation of dimension_scores. */
+  overall_health_score: z.number().min(0).max(100),
+  /** Per-dimension drill-down. One entry per dimension actually
+   *  evaluated (absent dimensions had no diagnostics data). */
+  dimension_scores: z.array(DiagnoseDimensionScoreSchema),
+  /** Full findings list. Order: severity desc, then confidence desc. */
+  findings: z.array(DiagnoseFindingSchema),
+  /** Convenience index: dimension → array of finding ids. Saves
+   *  consumers from scanning findings[] when grouping for a UI. */
+  findings_by_dimension: z.record(DiagnoseDimensionSchema, z.array(z.string())),
+  /** Upstream `see`-style metadata so consumers don't need to read the
+   *  raw see envelope to get screenshot / dom / console info. */
+  screenshot: SeeScreenshotSchema.nullable(),
+  /** Persona id used for the upstream capture. */
+  persona_id: z.string(),
+  artifacts_dir: z.string(),
+  /** Vision model id used for the diagnosis call. */
+  model: z.string(),
+  cost_usd: z.number().nonnegative(),
+  duration_ms: z.number().nonnegative(),
+  cache: ResultCacheMetaSchema.optional(),
+  /** ADR-034 envelope. The diagnose primitive ALWAYS attaches the
+   *  upstream see's full diagnostics object so report consumers can
+   *  cross-reference findings to raw signal. */
+  diagnostics: DiagnosticsSchema.optional(),
+});
+
 export const PersonaSummarySchema = z.object({
   id: z.string(),
   display_name: z.string(),
@@ -1352,3 +1511,10 @@ export type ResultCacheMeta = z.infer<typeof ResultCacheMetaSchema>;
 export type VisualVerdict = z.infer<typeof VisualVerdictSchema>;
 export type VisualFinding = z.infer<typeof VisualFindingSchema>;
 export type VisualScoring = z.infer<typeof VisualScoringSchema>;
+export type DiagnoseSeverity = z.infer<typeof DiagnoseSeveritySchema>;
+export type DiagnoseDimension = z.infer<typeof DiagnoseDimensionSchema>;
+export type StandardsReference = z.infer<typeof StandardsReferenceSchema>;
+export type EvidenceRef = z.infer<typeof EvidenceRefSchema>;
+export type DiagnoseFinding = z.infer<typeof DiagnoseFindingSchema>;
+export type DiagnoseDimensionScore = z.infer<typeof DiagnoseDimensionScoreSchema>;
+export type DiagnoseResultShape = z.infer<typeof DiagnoseResultSchema>;

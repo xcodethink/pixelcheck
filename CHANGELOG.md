@@ -7,6 +7,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0 / ADR-034: `diagnose` primitive + MCP tool (PR-E)
+
+> **No version bump** — still v1.3.0. PR-E completes Phase 0 by turning
+> the entire diagnostics plumbing (envelope from PR-A; whitebox from
+> PR-B; performance from PR-C; visual scoring from PR-D) into a single
+> commercial-grade entry point: the `diagnose` MCP tool. The new
+> primitive is purely additive — it consumes existing schemas / collectors
+> and adds new schemas (DiagnoseResult + DiagnoseFinding + …).
+
+- **New primitive** `src/core/primitives/diagnose.ts` — orchestrates
+  see (with `visualScoring: 'eager'`) → diagnostics serialisation →
+  vision call → defensive parse → score math. Pipeline:
+    1. `see({ url, visualScoring: 'eager' })` captures page + every
+       diagnostics dimension.
+    2. `serializeDiagnosticsForPrompt()` renders performance / network /
+       popups / cookies / storage / visual into a deterministic block
+       with stable JSON-pointer paths the model can cite back as
+       `evidence_refs`.
+    3. One Claude Sonnet vision call returns structured findings with
+       severity + dimension + confidence + evidence_refs +
+       standards_mapping.
+    4. `parseDiagnoseRawJson()` enforces anti-hallucination contracts:
+       findings with severity ≠ 'low' MUST cite at least one
+       `evidence_refs` entry; findings claiming dimensions whose
+       collectors did not run are dropped.
+    5. `buildDimensionScores()` + `computeOverallHealthScore()` produce
+       commercial-grade dashboard signals (per-dimension 0..100 scores,
+       severity-weighted overall 0..100 health score).
+- **New MCP tool** `src/mcp/tools/diagnose.ts` — `kind: 'preset'`,
+  registered in `ALL_TOOLS`. Cost band ~$0.02-0.04 per call (1 visual
+  scoring + 1 diagnose vision). Cacheable. `inputSchema` exposes URL +
+  persona + viewport + visual rubrics + custom criteria + cache
+  controls — minimal surface, expertise-free for AI agents.
+- **Schema** `DiagnoseResultSchema` adds eight new exports:
+    - `DiagnoseSeveritySchema` — `critical | high | medium | low`.
+    - `DiagnoseDimensionSchema` — `performance | visual | whitebox |
+      security | accessibility | seo | privacy | cross_cutting`.
+    - `StandardsReferenceSchema` — `framework + id + url + label`
+      (Core Web Vitals, WCAG 2.2, OWASP Top 10, GDPR …). Open-string
+      framework field so new compliance frameworks can be cited
+      without a schema bump.
+    - `EvidenceRefSchema` — `path + value + note`. Anti-hallucination
+      tether: every claim must point to a real diagnostics field.
+    - `DiagnoseFindingSchema` — `id + severity + dimension + title +
+      description + root_cause + recommendation + confidence
+      (0..1) + evidence_refs[] + standards_mapping[] +
+      affected_location|url|selector?`.
+    - `DiagnoseDimensionScoreSchema` — `dimension + score (0..100) +
+      finding_counts + summary`.
+    - `DiagnoseResultSchema` — top-level envelope: `executive_summary
+      + overall_health_score + dimension_scores[] + findings[] +
+      findings_by_dimension + screenshot + diagnostics?`.
+- **Anti-hallucination guarantees** (commercial-grade audit standard):
+    1. System prompt enumerates the JSON-pointer schema and demands
+       evidence citations.
+    2. Post-parse: drops any finding with severity ≥ medium that has
+       no `evidence_refs`.
+    3. Post-parse: drops any finding whose `dimension` has no collected
+       data (e.g. performance finding when no perf collector ran).
+    4. `confidence` clamped into `[0, 1]`, defaults to 0.5 when
+       non-numeric; calibration rubric in the system prompt.
+- **Health-score math** — per-dimension `score = 100 - Σ(severity_penalty
+  × confidence)`, severity penalties (35/20/8/2 for C/H/M/L). Overall
+  is dimension-weighted mean (performance/visual at 1.0, accessibility/
+  security/whitebox at 0.8, privacy at 0.7, seo at 0.6, cross_cutting at
+  0.5).
+- **Sidecar** — every run writes `<artifacts_dir>/diagnose.json` for
+  reproducibility / triage / re-grading without re-running the call.
+- `tests/primitives/diagnose.test.ts` — **new** 23 unit tests across
+  4 layers (serialiser / parser anti-hallucination / score math /
+  primitive plumbing). Covers happy path, malformed JSON degradation,
+  upstream see failure, evidence-ref enforcement, dimension-data
+  enforcement, confidence clamping, fallback id generation, sorting
+  stability, cost accumulation, sidecar emission.
+- `tests/mcp-registry.test.ts` — updated to assert 13 tools (was 12),
+  cacheable matrix includes `diagnose: true`.
+- `tests/public-api-contract.test.ts` — bumped schema count assertion
+  to 31 (was 30).
+- `tests/public-api-samples.test.ts` — added `minimalDiagnose` fixture
+  + valid/invalid pair for AJV round-trip.
+- `scripts/export-result-schemas.ts` — registers `DiagnoseResultSchema`
+  for JSON Schema export.
+- `docs/schemas/*.json` — regenerated; **31 schemas** at v1.3.0.
+- `docs/decisions/ADR-034-multidimensional-result-envelope.md` —
+  appendix updated to record PR-E's "independent primitive vs
+  prompt-injection" decision and the commercial-grade upgrades
+  beyond the original ADR scope (confidence + standards_mapping +
+  health score + executive summary).
+
+**Schema-version impact:** none. PR-E only adds new schemas; existing
+DiagnoseSchema and the four primitive Result schemas are unchanged.
+
+**Breaking change concerns:** none. The new tool is purely additive.
+
 ### Added — Phase 0 / ADR-034: VisualCollector + visualScoring opt-in (PR-D)
 
 > **No version bump** — still v1.3.0 (the `diagnostics` envelope landed
