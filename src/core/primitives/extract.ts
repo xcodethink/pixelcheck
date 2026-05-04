@@ -187,6 +187,15 @@ export interface ExtractResult {
   duration_ms: number;
   /** Result-cache annotation (M9-4). Absent when caching not applicable. */
   cache?: ResultCacheMeta;
+  /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). Populated
+   *  by WhiteboxCollector when default open path is used. */
+  diagnostics?: {
+    collected_at: "always" | "on_failure";
+    popups?: import("../whitebox-collector.js").PopupSnapshot[];
+    network?: import("../whitebox-collector.js").NetworkLog;
+    cookies?: import("../whitebox-collector.js").CookieData[];
+    storage?: import("../whitebox-collector.js").StorageSnapshot;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -202,6 +211,9 @@ export interface OpenedExtractor {
   /** Read the current Stagehand metrics snapshot. v3 made `metrics`
    * async (returns `Promise<StagehandMetrics>`), so this is async too. */
   readMetrics: () => Promise<StagehandMetricsSnapshot>;
+  /** Optional WhiteboxCollector attached on default open. Test seams
+   *  may omit it; extract then skips diagnostics. (PR-B / ADR-034) */
+  whitebox?: import("../whitebox-collector.js").WhiteboxCollector;
   close: () => Promise<void>;
 }
 
@@ -526,6 +538,9 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
   let costUsd = 0;
   let status: ExtractResult["status"] = "ok";
   let errorMsg: string | undefined;
+  /** ADR-034 Phase 0 — populated from WhiteboxCollector when default
+   *  open path is used. */
+  let diagnostics: ExtractResult["diagnostics"] = undefined;
 
   try {
     const open = opts._openStagehand ?? defaultOpenStagehand;
@@ -640,6 +655,25 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
       } catch {
         /* best effort */
       }
+
+      // ADR-034 Phase 0: collect white-box diagnostics before context.close().
+      if (opened.whitebox) {
+        try {
+          const wb = await opened.whitebox.collect();
+          diagnostics = {
+            collected_at: "always",
+            popups: wb.popups,
+            network: wb.network,
+            cookies: wb.cookies,
+            storage: wb.storage,
+          };
+        } catch (wbErr) {
+          log.warn(
+            { err: wbErr instanceof Error ? wbErr.message : String(wbErr) },
+            "extract: whitebox diagnostics collection failed",
+          );
+        }
+      }
     } finally {
       await opened.close().catch(() => {});
     }
@@ -669,6 +703,7 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
     artifacts_dir: runDir,
     cost_usd: costUsd,
     duration_ms: Date.now() - t0,
+    ...(diagnostics ? { diagnostics } : {}),
   };
 }
 
@@ -816,6 +851,12 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
   // v3: pages live on V3Context.pages(); `stagehand.page` is gone.
   const ctx = stagehand.context;
   const page = ctx.pages()[0] ?? (await ctx.newPage());
+  // ADR-034 Phase 0 — attach white-box collector. Stagehand V3Context is
+  // a real Playwright BrowserContext; same hooks as the pure Playwright
+  // path in see.ts / act.ts work here too.
+  const { WhiteboxCollector } = await import("../whitebox-collector.js");
+  const whitebox = new WhiteboxCollector(ctx, page);
+  whitebox.attach();
   const consoleErrors = wireConsoleListeners(page);
 
   const waitUntil = normalizeWaitUntil(cfg.waitFor);
@@ -828,6 +869,7 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
     page,
     context: ctx,
     consoleErrors,
+    whitebox,
     extract: (args: ExtractCallArgs) => {
       const instruction = args.instruction ?? "";
       // v3 extract is positional: extract(instruction, schema?, options?).
