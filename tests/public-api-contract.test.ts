@@ -110,12 +110,12 @@ describe("docs/schemas/index.json — registry integrity", () => {
     expect(new Set(files).size).toBe(files.length);
   });
 
-  it("ships exactly 30 schemas at v1.2.0 (review checkpoint — bump this when M1-2/M2-* lands a new schema)", () => {
+  it("ships exactly 31 schemas at v1.3.0 (review checkpoint — bump this when a new schema lands)", () => {
     // This is intentional friction: adding/removing a schema MUST also
     // update this assertion + the SemVer bump per ADR-007.
     const idx = loadIndex();
-    expect(idx.schemas).toHaveLength(30);
-    expect(listSchemaFiles()).toHaveLength(30);
+    expect(idx.schemas).toHaveLength(31);
+    expect(listSchemaFiles()).toHaveLength(31);
   });
 
   it("each entry has non-empty slug, title, description, and file", () => {

@@ -45,6 +45,7 @@ import {
   ExtractResultSchema,
   JudgeResultSchema,
   CompareResultSchema,
+  DiagnoseResultSchema,
   ResultCacheMetaSchema,
   ListCapabilitiesResultSchema,
   ToolCapabilitySchema,
@@ -190,6 +191,13 @@ const ENTRIES: SchemaEntry[] = [
     description:
       "MCP tool envelope returned by `compare` (N-3 primitive). A/B comparison primitive. Default mode is `double_blind`: judges each side independently with the same rubric, then runs a synthesis vision call that sees both screenshots and emits per-criterion winners. `fast` mode collapses to a single side-by-side call (cheaper but susceptible to anchoring bias).",
     schema: CompareResultSchema,
+  },
+  {
+    slug: "diagnose-result",
+    title: "DiagnoseResult",
+    description:
+      "MCP tool envelope returned by `diagnose` (PR-E preset / ADR-034). Holistic page-health diagnosis. Captures the URL with eager visual scoring, reads every diagnostics dimension (performance / network / popups / cookies / storage / visual), and returns a commercial-grade structured report: per-finding severity + dimension + confidence + evidence_refs + standards_mapping (Core Web Vitals / WCAG / OWASP / GDPR), a 0-100 overall_health_score, per-dimension drill-down scores, and a CTO-readable executive_summary.",
+    schema: DiagnoseResultSchema,
   },
   {
     slug: "list-personas-result",

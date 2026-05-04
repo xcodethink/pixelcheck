@@ -471,6 +471,51 @@ const minimalCompare = {
   duration_ms: 5000,
 };
 
+const minimalDiagnose = {
+  schema_version: SV,
+  url_input: "https://target.example/",
+  url_final: "https://target.example/",
+  title: "Target",
+  loaded_at: "2026-04-30T10:00:00.000Z",
+  status: "ok" as const,
+  executive_summary: "Page is healthy with one medium contrast issue.",
+  overall_health_score: 88,
+  dimension_scores: [
+    {
+      dimension: "visual" as const,
+      score: 85,
+      finding_counts: { critical: 0, high: 0, medium: 1, low: 0 },
+      summary: "1 finding (0C/0H/1M/0L).",
+    },
+  ],
+  findings: [
+    {
+      id: "contrast_below_aa",
+      severity: "medium" as const,
+      dimension: "visual" as const,
+      title: "Color contrast below WCAG AA",
+      description:
+        "Aesthetic rubric scored color_contrast at 4/10, indicating likely WCAG AA failure.",
+      root_cause: "Body text on light-grey background.",
+      recommendation: "Use #333 on white.",
+      confidence: 0.85,
+      evidence_refs: [
+        { path: "/diagnostics/visual/verdicts/color_contrast", value: "4" },
+      ],
+      standards_mapping: [
+        { framework: "WCAG 2.2", id: "SC 1.4.3", label: "Contrast (Minimum)" },
+      ],
+    },
+  ],
+  findings_by_dimension: { visual: ["contrast_below_aa"] },
+  screenshot: null,
+  persona_id: "diagnose-default-desktop",
+  artifacts_dir: "/tmp/diagnoses/abc",
+  model: "claude-sonnet-4-6",
+  cost_usd: 0.025,
+  duration_ms: 8000,
+};
+
 const minimalToolCap = {
   name: "see",
   description: "look at a URL",
@@ -701,6 +746,11 @@ const SAMPLES: SamplePair[] = [
     slug: "compare-result",
     valid: minimalCompare,
     invalid: { ...minimalCompare, overall_winner: "tie-but-typo" },
+  },
+  {
+    slug: "diagnose-result",
+    valid: minimalDiagnose,
+    invalid: { ...minimalDiagnose, overall_health_score: 150 },
   },
   {
     slug: "result-cache-meta",
