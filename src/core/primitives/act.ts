@@ -49,6 +49,7 @@ import {
   type SeePersonaHints,
   type WaitFor,
 } from "./see.js";
+import { VisualCollector, shouldScore } from "../visual-collector.js";
 
 const log = getLogger("primitive.act");
 
@@ -104,6 +105,19 @@ export interface ActOptions {
   criticModel?: string;
   /** Force the engine. Default: auto (stagehand if any `act` step, else playwright). */
   engine?: ActEngine;
+
+  /**
+   * Rubric-based visual scoring (PR-D / ADR-034). See `SeeOptions.visualScoring`
+   * for the full mode semantics. `'auto'` mode invokes when any step in the
+   * sequence supplies a `goal` (e.g. a `note` step). Default `'off'`.
+   */
+  visualScoring?: import("../visual-collector.js").VisualScoringMode;
+  /** Built-in rubrics for visual scoring. Default `["aesthetic"]`. */
+  visualRubrics?: import("./judge.js").JudgeOptions["rubrics"];
+  /** Caller-supplied criteria appended after rubric criteria. */
+  visualCustomCriteria?: import("./judge.js").JudgeOptions["customCriteria"];
+  /** Vision model used for visual scoring. Default `DEFAULT_JUDGE_MODEL`. */
+  visualModel?: string;
 
   // ── Test seams (same pattern as see / cost-guard) ────────────
   /** Replace the raw-Playwright open path. */
@@ -161,6 +175,9 @@ export interface ActResult {
     storage?: import("../whitebox-collector.js").StorageSnapshot;
     /** Core Web Vitals + page-load + resource metrics (PR-C / ADR-034). */
     performance?: import("../../agent/signals/performance.js").PerformanceSignal;
+    /** Rubric-based vision scoring (PR-D / ADR-034). Only populated
+     *  when `cfg.visualScoring` opts in (default `'off'`). */
+    visual?: import("../result-schema.js").VisualScoring;
   };
 }
 
@@ -372,7 +389,17 @@ export async function act(opts: ActOptions): Promise<ActResult> {
       }
 
       // ADR-034 Phase 0: collect diagnostics before context.close().
-      if (opened.whitebox || opened.performance) {
+      const visualMode = opts.visualScoring ?? "off";
+      // act has no top-level `goal`; `'auto'` triggers if any step is a `note`
+      // step (which itself makes a vision call, so bundling visual scoring
+      // costs only one extra call).
+      const hasNoteStep = opts.steps.some((s) => s.type === "note");
+      const visualDecision = shouldScore({
+        mode: visualMode,
+        hasGoal: hasNoteStep,
+      });
+      const visualEnabled = visualMode !== "off";
+      if (opened.whitebox || opened.performance || visualEnabled) {
         diagnostics = { collected_at: "always" };
         if (opened.whitebox) {
           try {
@@ -396,6 +423,31 @@ export async function act(opts: ActOptions): Promise<ActResult> {
               { err: perfErr instanceof Error ? perfErr.message : String(perfErr) },
               "act: performance diagnostics collection failed",
             );
+          }
+        }
+        if (visualEnabled) {
+          const collector = new VisualCollector({
+            rubrics: opts.visualRubrics,
+            customCriteria: opts.visualCustomCriteria,
+            model: opts.visualModel,
+            callVisionImpl: opts._callVision,
+          });
+          if (!visualDecision.run) {
+            diagnostics.visual = collector.skip(visualDecision.reason);
+          } else if (!finalScreenshot) {
+            diagnostics.visual = collector.skip("no_screenshot");
+          } else {
+            try {
+              const buf = fs.readFileSync(finalScreenshot.path);
+              diagnostics.visual = await collector.score(buf);
+              costUsd += diagnostics.visual.cost_usd;
+            } catch (visErr) {
+              log.warn(
+                { err: visErr instanceof Error ? visErr.message : String(visErr) },
+                "act: visual scoring failed",
+              );
+              diagnostics.visual = collector.skip("vision_error");
+            }
           }
         }
       }
