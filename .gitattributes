@@ -1,0 +1,68 @@
+# Force LF line endings for all text files across all platforms.
+#
+# Why this exists: tests/public-api-contract.test.ts (and any other
+# JSON-idempotence test) reads files from disk and compares against
+# `JSON.stringify(parsed, null, 2)` output. JSON.stringify always emits
+# LF (\n) line terminators. On Windows, git's default `core.autocrlf=true`
+# converts text files to CRLF (\r\n) on checkout, which makes the
+# round-trip fail with `expected '{\r\n  ...' to be '{\n  ...'`.
+#
+# By marking these file types `text eol=lf`, git enforces LF on all
+# platforms including Windows checkouts, eliminating the entire class
+# of "works on Mac/Linux, fails on Windows" line-ending mismatches.
+#
+# This is the standard approach used by Node.js, npm, TypeScript,
+# Vite, and most cross-platform JS projects.
+
+# Source code
+*.ts            text eol=lf
+*.tsx           text eol=lf
+*.js            text eol=lf
+*.jsx           text eol=lf
+*.mjs           text eol=lf
+*.cjs           text eol=lf
+
+# Configuration
+*.json          text eol=lf
+*.json5         text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+*.toml          text eol=lf
+
+# Documentation
+*.md            text eol=lf
+*.txt           text eol=lf
+
+# Web
+*.html          text eol=lf
+*.css           text eol=lf
+*.scss          text eol=lf
+
+# Shell + scripts (LF is mandatory for these to execute)
+*.sh            text eol=lf
+*.bash          text eol=lf
+*.zsh           text eol=lf
+Makefile        text eol=lf
+
+# Lockfiles + manifests
+package.json    text eol=lf
+package-lock.json text eol=lf
+tsconfig*.json  text eol=lf
+.npmrc          text eol=lf
+.nvmrc          text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.editorconfig   text eol=lf
+
+# Binary files — never modify
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.webp          binary
+*.ico           binary
+*.pdf           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.eot           binary

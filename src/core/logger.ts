@@ -204,16 +204,28 @@ function buildOptions(): LoggerOptions {
   return opts;
 }
 
+/** Active pino destinations we may need to close on reset (test cleanup
+ *  on Windows: SonicBoom keeps the LOG_FILE handle open, blocking the
+ *  parent directory's rmSync with ENOTEMPTY). Tracked here so
+ *  `_resetLoggerForTests()` can flush + end them deterministically. */
+type PinoDest = ReturnType<typeof pino.destination>;
+let activeDestinations: PinoDest[] = [];
+
 function buildDestination() {
   if (isPretty()) return undefined;
   const file = process.env.LOG_FILE;
   if (file && file.length > 0) {
+    const stderrDest = pino.destination({ dest: 2, sync: false });
+    const fileDest = pino.destination({ dest: file, sync: false, mkdir: true });
+    activeDestinations.push(stderrDest, fileDest);
     return pino.multistream([
-      { stream: pino.destination({ dest: 2, sync: false }) },
-      { stream: pino.destination({ dest: file, sync: false, mkdir: true }) },
+      { stream: stderrDest },
+      { stream: fileDest },
     ]);
   }
-  return pino.destination({ dest: 2, sync: false });
+  const stderrDest = pino.destination({ dest: 2, sync: false });
+  activeDestinations.push(stderrDest);
+  return stderrDest;
 }
 
 let rootLogger: Logger | null = null;
@@ -244,8 +256,30 @@ export function getLogger(module: string): Logger {
 /**
  * Reset cached loggers — used in tests so env changes between cases take effect.
  * Not exported via index.ts; intended for test-only use.
+ *
+ * Also flushes + closes any active pino destinations. Required on Windows:
+ * pino's underlying SonicBoom holds the LOG_FILE handle open, and the
+ * platform refuses to delete a parent directory while any descendant file
+ * is open (ENOTEMPTY on rmSync). On macOS / Linux this is harmless extra
+ * work; on Windows it's the difference between green and red CI.
  */
 export function _resetLoggerForTests(): void {
   rootLogger = null;
   childCache.clear();
+  for (const dest of activeDestinations) {
+    try {
+      // flushSync drains the SonicBoom buffer to fd; end() closes the fd.
+      // Both are needed: without flushSync, in-flight writes are lost on
+      // Windows handle release; without end(), the handle stays open.
+      dest.flushSync();
+    } catch {
+      // best effort
+    }
+    try {
+      dest.end();
+    } catch {
+      // best effort
+    }
+  }
+  activeDestinations = [];
 }

@@ -23,6 +23,17 @@ function captureStream() {
   return { stream, chunks };
 }
 
+/**
+ * Belt-and-suspenders rm: pino's SonicBoom destination flushes / closes
+ * asynchronously even after `_resetLoggerForTests()` calls `end()`.
+ * On Windows the file system briefly refuses to delete a file with an
+ * outstanding handle; Node's `fs.rmSync` exposes a `maxRetries` option
+ * specifically for this scenario.
+ */
+function rmRecursiveWithRetry(dir: string): void {
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+}
+
 function withEnv(overrides: Record<string, string | undefined>, fn: () => void) {
   const prev: Record<string, string | undefined> = {};
   for (const k of Object.keys(overrides)) {
@@ -101,7 +112,8 @@ describe("logger", () => {
         );
       });
     } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      _resetLoggerForTests(); // close pino stream FDs before rmSync (Windows ENOTEMPTY)
+      rmRecursiveWithRetry(tmpDir);
     }
   });
 
@@ -129,7 +141,8 @@ describe("logger", () => {
         );
       });
     } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      _resetLoggerForTests(); // close pino stream FDs before rmSync (Windows ENOTEMPTY)
+      rmRecursiveWithRetry(tmpDir);
     }
   });
 });
@@ -163,10 +176,12 @@ function logToFile(
               .split("\n")
               .filter(Boolean)
               .map((l) => JSON.parse(l) as Record<string, unknown>);
-            fs.rmSync(tmpDir, { recursive: true, force: true });
+            _resetLoggerForTests(); // close pino stream FDs before rmSync (Windows ENOTEMPTY)
+            rmRecursiveWithRetry(tmpDir);
             resolve({ raw, lines });
           } catch (err) {
-            fs.rmSync(tmpDir, { recursive: true, force: true });
+            _resetLoggerForTests();
+            rmRecursiveWithRetry(tmpDir);
             reject(err);
           }
         }, 200);
