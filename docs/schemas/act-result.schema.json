@@ -636,9 +636,156 @@
               "properties": {
                 "scored": {
                   "type": "boolean"
+                },
+                "skip_reason": {
+                  "type": "string",
+                  "enum": [
+                    "config_off",
+                    "no_goal",
+                    "no_api_key",
+                    "cost_cap",
+                    "no_screenshot",
+                    "vision_error"
+                  ]
+                },
+                "rubrics": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "aesthetic",
+                      "dark_pattern",
+                      "custom"
+                    ]
+                  },
+                  "default": []
+                },
+                "verdicts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "criterion_id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "aesthetic",
+                          "dark_pattern",
+                          "custom"
+                        ]
+                      },
+                      "score": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 10
+                      },
+                      "rationale": {
+                        "type": "string"
+                      },
+                      "evidence": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "default": []
+                      }
+                    },
+                    "required": [
+                      "criterion_id",
+                      "label",
+                      "kind",
+                      "score",
+                      "rationale"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "default": []
+                },
+                "findings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low"
+                        ]
+                      },
+                      "criterion_id": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "recommendation": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "severity",
+                      "criterion_id",
+                      "description",
+                      "recommendation"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "default": []
+                },
+                "overall_score": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 10
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "summary": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "model": {
+                  "type": "string"
+                },
+                "cost_usd": {
+                  "type": "number",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "duration_ms": {
+                  "type": "number",
+                  "minimum": 0,
+                  "default": 0
                 }
               },
-              "additionalProperties": true
+              "required": [
+                "scored",
+                "overall_score",
+                "summary"
+              ],
+              "additionalProperties": false
             }
           },
           "additionalProperties": false

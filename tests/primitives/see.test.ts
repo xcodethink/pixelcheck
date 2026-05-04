@@ -382,3 +382,130 @@ describe("see — integration (real Chromium + fixture site)", () => {
     expect(r.cost_usd).toBe(0);
   }, 30_000);
 });
+
+// ─────────────────────────────────────────────────────────────
+// PR-D / ADR-034 — visualScoring wiring (no real LLM)
+// ─────────────────────────────────────────────────────────────
+
+describe("see — visualScoring (PR-D)", () => {
+  it("does not emit diagnostics.visual when visualScoring is omitted (default 'off')", async () => {
+    const r = await see({
+      url: "https://target.example/page",
+      artifactsRoot: workspace,
+      _open: fakeOpen({}),
+    });
+    expect(r.diagnostics).toBeUndefined();
+  });
+
+  it("emits a config_off skip envelope when visualScoring='off' explicitly", async () => {
+    const r = await see({
+      url: "https://target.example/page",
+      artifactsRoot: workspace,
+      visualScoring: "off",
+      _open: fakeOpen({}),
+    });
+    expect(r.diagnostics).toBeUndefined();
+  });
+
+  it("emits a no_goal skip envelope when visualScoring='auto' but no goal supplied", async () => {
+    const r = await see({
+      url: "https://target.example/page",
+      artifactsRoot: workspace,
+      visualScoring: "auto",
+      _open: fakeOpen({}),
+    });
+    expect(r.diagnostics).toBeDefined();
+    expect(r.diagnostics?.visual).toBeDefined();
+    expect(r.diagnostics?.visual?.scored).toBe(false);
+    expect(r.diagnostics?.visual?.skip_reason).toBe("no_goal");
+  });
+
+  it("invokes the vision call when visualScoring='auto' AND goal is supplied", async () => {
+    let visionCalls = 0;
+    const r = await see({
+      url: "https://target.example/page",
+      goal: "is this page accessible?",
+      artifactsRoot: workspace,
+      visualScoring: "auto",
+      _open: fakeOpen({}),
+      _callVision: async () => {
+        visionCalls++;
+        return {
+          model: "stub",
+          text: JSON.stringify({
+            verdicts: [
+              {
+                criterion_id: "visual_hierarchy",
+                score: 7,
+                rationale: "OK.",
+                evidence: [],
+              },
+            ],
+            findings: [],
+            summary: null,
+          }),
+          costUsd: 0.01,
+          usage: { input_tokens: 10, output_tokens: 5 },
+        };
+      },
+    });
+    // 2 vision calls expected: one for the `goal` note synthesis, one for visual scoring.
+    expect(visionCalls).toBe(2);
+    expect(r.diagnostics?.visual?.scored).toBe(true);
+    expect(r.diagnostics?.visual?.verdicts).toHaveLength(1);
+    expect(r.diagnostics?.visual?.verdicts[0]?.criterion_id).toBe("visual_hierarchy");
+    // cost_usd accumulates note + visual cost
+    expect(r.cost_usd).toBeGreaterThan(0.01);
+  });
+
+  it("invokes the vision call unconditionally when visualScoring='eager'", async () => {
+    let visionCalls = 0;
+    const r = await see({
+      url: "https://target.example/page",
+      // no goal
+      artifactsRoot: workspace,
+      visualScoring: "eager",
+      _open: fakeOpen({}),
+      _callVision: async () => {
+        visionCalls++;
+        return {
+          model: "stub",
+          text: JSON.stringify({
+            verdicts: [
+              {
+                criterion_id: "visual_hierarchy",
+                score: 9,
+                rationale: "Strong.",
+                evidence: [],
+              },
+            ],
+            findings: [],
+            summary: "Eager-mode test.",
+          }),
+          costUsd: 0.008,
+          usage: { input_tokens: 10, output_tokens: 5 },
+        };
+      },
+    });
+    expect(visionCalls).toBe(1);
+    expect(r.diagnostics?.visual?.scored).toBe(true);
+    expect(r.diagnostics?.visual?.summary).toBe("Eager-mode test.");
+    expect(r.cost_usd).toBe(0.008);
+  });
+
+  it("emits vision_error envelope (and stays status='ok') when visual scoring throws", async () => {
+    const r = await see({
+      url: "https://target.example/page",
+      artifactsRoot: workspace,
+      visualScoring: "eager",
+      _open: fakeOpen({}),
+      _callVision: async () => {
+        throw new Error("upstream-503");
+      },
+    });
+    // Visual failure must not contaminate the host primitive's status.
+    expect(r.status).toBe("ok");
+    expect(r.diagnostics?.visual?.scored).toBe(false);
+    expect(r.diagnostics?.visual?.skip_reason).toBe("vision_error");
+  });
+});

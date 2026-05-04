@@ -37,6 +37,7 @@ import { compressForVision } from "../image.js";
 import type { ConsoleError } from "../types.js";
 import { RESULT_SCHEMA_VERSION, type ResultCacheMeta } from "../result-schema.js";
 import { withResultCache } from "../result-cache.js";
+import { VisualCollector, shouldScore } from "../visual-collector.js";
 
 const log = getLogger("primitive.see");
 
@@ -88,6 +89,29 @@ export interface SeeOptions {
   artifactsRoot?: string;
   /** Critic model id. Default `"claude-sonnet-4-6"`. */
   criticModel?: string;
+
+  /**
+   * Rubric-based visual scoring (PR-D / ADR-034). Controls whether the
+   * VisualCollector runs after the page is captured, populating
+   * `result.diagnostics.visual`.
+   *
+   * - `'off'` (default): never invoke. The other diagnostics dimensions
+   *   are passive observers (whitebox / performance) so they always
+   *   collect; visual scoring costs real LLM money so it requires
+   *   explicit opt-in.
+   * - `'auto'`: invoke only when `goal` is supplied — the host call was
+   *   already going to make a vision call, so the visual scoring is
+   *   bundled in.
+   * - `'eager'`: invoke unconditionally. Matches ADR-034's
+   *   "always-collect" stance for callers running a full audit.
+   */
+  visualScoring?: import("../visual-collector.js").VisualScoringMode;
+  /** Built-in rubrics for visual scoring. Default `["aesthetic"]`. */
+  visualRubrics?: import("./judge.js").JudgeOptions["rubrics"];
+  /** Caller-supplied criteria appended after rubric criteria. */
+  visualCustomCriteria?: import("./judge.js").JudgeOptions["customCriteria"];
+  /** Vision model used for visual scoring. Default `DEFAULT_JUDGE_MODEL`. */
+  visualModel?: string;
 
   /**
    * Result cache (M9-4). Only applied when `goal` is set, because
@@ -152,6 +176,10 @@ export interface SeeResult {
      *  Mirrors the PerformanceSignal shape from the existing
      *  PerformanceSignalCollector in src/agent/signals/performance.ts. */
     performance?: import("../../agent/signals/performance.js").PerformanceSignal;
+    /** Rubric-based vision scoring (PR-D / ADR-034). Only populated
+     *  when `cfg.visualScoring` opts in (default `'off'`) — this is
+     *  the only diagnostics dimension that costs LLM money. */
+    visual?: import("../result-schema.js").VisualScoring;
   };
 }
 
@@ -230,6 +258,13 @@ function seeCacheKeyInputs(opts: SeeOptions): unknown {
     user_agent: persona.user_agent,
     persona_id: persona.id,
     critic_model: opts.criticModel ?? DEFAULT_CRITIC_MODEL,
+    // PR-D / ADR-034: visual scoring inputs alter the result envelope
+    // (diagnostics.visual changes verdicts/findings) so they must be
+    // part of the cache key.
+    visual_scoring: opts.visualScoring ?? "off",
+    visual_rubrics: opts.visualRubrics,
+    visual_custom_criteria: opts.visualCustomCriteria,
+    visual_model: opts.visualModel,
   };
 }
 
@@ -352,7 +387,13 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
       // ADR-034 Phase 0: collect diagnostics before context.close().
       // Always-collect, never-skip (see ADR rationale). Test seams that omit
       // a collector simply leave the corresponding sub-field absent.
-      if (opened.whitebox || opened.performance) {
+      const visualMode = opts.visualScoring ?? "off";
+      const visualDecision = shouldScore({
+        mode: visualMode,
+        hasGoal: Boolean(opts.goal),
+      });
+      const visualEnabled = visualMode !== "off";
+      if (opened.whitebox || opened.performance || visualEnabled) {
         diagnostics = { collected_at: "always" };
         if (opened.whitebox) {
           try {
@@ -376,6 +417,34 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
               { err: perfErr instanceof Error ? perfErr.message : String(perfErr) },
               "see: performance diagnostics collection failed",
             );
+          }
+        }
+        // PR-D / ADR-034: rubric-based visual scoring. Only invoked when
+        // the caller opts in (`'auto'` with goal, or `'eager'`). On skip
+        // we still emit a shaped envelope explaining why no scoring ran.
+        if (visualEnabled) {
+          const collector = new VisualCollector({
+            rubrics: opts.visualRubrics,
+            customCriteria: opts.visualCustomCriteria,
+            model: opts.visualModel,
+            callVisionImpl: opts._callVision,
+          });
+          if (!visualDecision.run) {
+            diagnostics.visual = collector.skip(visualDecision.reason);
+          } else if (!screenshot) {
+            diagnostics.visual = collector.skip("no_screenshot");
+          } else {
+            try {
+              const buf = fs.readFileSync(screenshot.path);
+              diagnostics.visual = await collector.score(buf);
+              costUsd += diagnostics.visual.cost_usd;
+            } catch (visErr) {
+              log.warn(
+                { err: visErr instanceof Error ? visErr.message : String(visErr) },
+                "see: visual scoring failed",
+              );
+              diagnostics.visual = collector.skip("vision_error");
+            }
           }
         }
       }

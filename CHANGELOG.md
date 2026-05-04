@@ -7,6 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0 / ADR-034: VisualCollector + visualScoring opt-in (PR-D)
+
+> **No version bump** — still v1.3.0 (the `diagnostics` envelope landed
+> in PR-A; PR-B + PR-C filled the white-box and performance sub-schemas;
+> PR-D now concretizes the final placeholder — `VisualScoringSchema` —
+> and wires rubric-based vision scoring into see / act / extract /
+> judge under explicit caller opt-in).
+
+- `src/core/result-schema.ts` — concretized `VisualScoringSchema` from
+  placeholder `passthrough()` to a typed Zod object. Fields mirror a
+  normalised subset of `JudgeResult`, so any consumer that already
+  understands judge output can read `diagnostics.visual` verbatim:
+    * `scored: boolean` — true iff a vision call actually executed.
+    * `skip_reason` — typed enum (`config_off | no_goal | no_api_key |
+      cost_cap | no_screenshot | vision_error`) populated when
+      `scored=false`.
+    * `rubrics`, `verdicts[]`, `findings[]`, `overall_score`, `summary`
+      — same shape as judge, with `verdict.label + kind` denormalised
+      into each entry so consumers don't need to join the rubric.
+    * `model`, `cost_usd`, `duration_ms` — provenance for cost tracking.
+- `src/core/result-schema.ts` — `JudgeResultSchema` gains
+  `diagnostics?: DiagnosticsSchema.optional()`. Judge is the only
+  primitive whose entire purpose IS visual scoring, so it always emits
+  `diagnostics.visual` as a normalised mirror of its own
+  verdicts/findings/summary.
+- **New file** `src/core/visual-collector.ts` — `VisualCollector` class
+  that wraps the rubric-based vision call (reuses `runJudgeVision`,
+  `resolveCriteria`, `computeOverallScore` from judge.ts; no duplication
+  of prompt construction or JSON parsing). API:
+    * `score(buf: Buffer): Promise<VisualScoring>` — runs the call,
+      returns a populated envelope. Never throws — on failure returns a
+      `skip(reason='vision_error')` envelope so the host primitive's own
+      status is not contaminated by a diagnostics-only failure.
+    * `skip(reason): VisualScoring` — emits a properly-shaped envelope
+      explaining why no vision call ran.
+    * `shouldScore({mode, hasGoal})` — pure decision function the host
+      primitive uses to decide whether to invoke. Returns `{run: true}`
+      or `{run: false, reason: 'config_off' | 'no_goal'}`.
+- `src/core/primitives/{see,act,extract}.ts` — each gains four new
+  optional cfg fields:
+    * `visualScoring: 'off' | 'auto' | 'eager'` (default `'off'`)
+    * `visualRubrics`, `visualCustomCriteria`, `visualModel`
+  Visual scoring is the only diagnostics dimension that costs LLM
+  money (whitebox + performance are passive observers), so the explicit
+  opt-in default is required by ADR-034's no-surprise-spend posture.
+  Mode semantics:
+    * `'off'` — never invoke. Default.
+    * `'auto'` — invoke only when the host call already makes an LLM
+      call (see's `goal`, act's `note` step, extract always).
+    * `'eager'` — invoke unconditionally. Matches ADR-034's
+      always-collect ethos for callers running a full audit.
+- `src/core/primitives/judge.ts` — `computeJudge()` now populates
+  `result.diagnostics.visual` as a normalised mirror of its own
+  verdicts/findings/summary (uses `buildVisualScoring()` so cost is
+  zero — no extra vision call). On `status='error'` emits a
+  `scored=false, skip_reason='vision_error'` envelope.
+- `tests/visual-collector.test.ts` — **new** 16 unit tests covering
+  the decision matrix (`shouldScore` for all 8 mode×hasGoal combos),
+  `skip()` envelope shape per VisualSkipReason, `score()` happy path
+  + verdict filtering + error degradation, and `buildVisualScoring()`
+  self-containment guarantees.
+- `tests/primitives/see.test.ts` — **new** 6 wiring tests:
+  default-omits-diagnostics, explicit-off, auto-no-goal,
+  auto-with-goal-invokes-vision, eager-invokes-unconditionally,
+  vision-error-degrades-without-contaminating-status.
+- `tests/primitives/judge.test.ts` — **new** 2 mirror tests:
+  diagnostics.visual carries label+kind+overall_score; status='error'
+  emits vision_error envelope.
+- `tests/result-schema.test.ts` — `VisualScoringSchema` test rewritten
+  to assert PR-D's concrete shape (placeholder `{}` no longer accepted;
+  out-of-range scores now reject; skip envelope shape exercised).
+  `DiagnosticsSchema` populated-envelope test gets the full PR-D
+  visual shape. **132/132 schema tests passing.**
+- `docs/schemas/*.json` — regenerated; all 30 schemas at version 1.3.0.
+- `docs/decisions/ADR-034-multidimensional-result-envelope.md` —
+  appendix updated to record PR-D's reuse-not-duplicate strategy
+  (VisualCollector wraps `runJudgeVision`) and the explicit-opt-in
+  rationale (cost asymmetry vs whitebox / performance).
+
+**Breaking change concerns:** none. The `diagnostics.visual` shape
+hardened from "anything via passthrough" to a concrete schema, but no
+production consumer was reading the placeholder shape (it shipped empty
+in PR-A and stayed empty until now). Pre-1.3.0 consumers see
+`diagnostics.visual` as an unknown key and ignore it.
+
 ### Added — Phase 0 / ADR-034: PerformanceCollector wired into see/act/extract (PR-C)
 
 > **No version bump** — still v1.3.0 (the `diagnostics` envelope landed

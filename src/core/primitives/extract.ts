@@ -77,6 +77,7 @@ import {
   type SeePersonaHints,
   type WaitFor,
 } from "./see.js";
+import { VisualCollector, shouldScore } from "../visual-collector.js";
 
 const log = getLogger("primitive.extract");
 
@@ -133,6 +134,26 @@ export interface ExtractOptions {
   artifactsRoot?: string;
   /** LLM model id (must be a key in PRICING). Default `"claude-sonnet-4-6"`. */
   model?: string;
+
+  /**
+   * Rubric-based visual scoring (PR-D / ADR-034). See `SeeOptions.visualScoring`
+   * for the full mode semantics. `'auto'` mode invokes whenever the host
+   * primitive runs (since extract always makes an LLM call for the data
+   * extraction itself, bundling visual scoring is the same cost shape).
+   * Default `'off'`.
+   */
+  visualScoring?: import("../visual-collector.js").VisualScoringMode;
+  /** Built-in rubrics for visual scoring. Default `["aesthetic"]`. */
+  visualRubrics?: import("./judge.js").JudgeOptions["rubrics"];
+  /** Caller-supplied criteria appended after rubric criteria. */
+  visualCustomCriteria?: import("./judge.js").JudgeOptions["customCriteria"];
+  /** Vision model used for visual scoring. Default `DEFAULT_JUDGE_MODEL`. */
+  visualModel?: string;
+  /**
+   * Test seam: replace the vision call used by visual scoring (PR-D).
+   * Production callers never set this.
+   */
+  _callVision?: typeof import("../llm.js").callVision;
 
   /**
    * Result cache (M9-4). Caching is on by default. The cache key
@@ -197,6 +218,9 @@ export interface ExtractResult {
     storage?: import("../whitebox-collector.js").StorageSnapshot;
     /** Core Web Vitals + page-load + resource metrics (PR-C / ADR-034). */
     performance?: import("../../agent/signals/performance.js").PerformanceSignal;
+    /** Rubric-based vision scoring (PR-D / ADR-034). Only populated
+     *  when `cfg.visualScoring` opts in (default `'off'`). */
+    visual?: import("../result-schema.js").VisualScoring;
   };
 }
 
@@ -480,6 +504,13 @@ function extractCacheKeyInputs(opts: ExtractOptions): unknown {
     user_agent: persona.user_agent,
     persona_id: persona.id,
     model: opts.model ?? DEFAULT_MODEL,
+    // PR-D / ADR-034: visual scoring inputs alter the result envelope
+    // (diagnostics.visual changes verdicts/findings) so they must be
+    // part of the cache key.
+    visual_scoring: opts.visualScoring ?? "off",
+    visual_rubrics: opts.visualRubrics,
+    visual_custom_criteria: opts.visualCustomCriteria,
+    visual_model: opts.visualModel,
   };
 }
 
@@ -662,7 +693,16 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
       }
 
       // ADR-034 Phase 0: collect diagnostics before context.close().
-      if (opened.whitebox || opened.performance) {
+      const visualMode = opts.visualScoring ?? "off";
+      // extract always makes an LLM call for the data extraction, so
+      // `'auto'` runs unconditionally (the bundled visual scoring is
+      // proportionally small overhead vs the host extract call).
+      const visualDecision = shouldScore({
+        mode: visualMode,
+        hasGoal: true,
+      });
+      const visualEnabled = visualMode !== "off";
+      if (opened.whitebox || opened.performance || visualEnabled) {
         diagnostics = { collected_at: "always" };
         if (opened.whitebox) {
           try {
@@ -686,6 +726,31 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
               { err: perfErr instanceof Error ? perfErr.message : String(perfErr) },
               "extract: performance diagnostics collection failed",
             );
+          }
+        }
+        if (visualEnabled) {
+          const collector = new VisualCollector({
+            rubrics: opts.visualRubrics,
+            customCriteria: opts.visualCustomCriteria,
+            model: opts.visualModel,
+            callVisionImpl: opts._callVision,
+          });
+          if (!visualDecision.run) {
+            diagnostics.visual = collector.skip(visualDecision.reason);
+          } else if (!screenshot) {
+            diagnostics.visual = collector.skip("no_screenshot");
+          } else {
+            try {
+              const buf = fs.readFileSync(screenshot.path);
+              diagnostics.visual = await collector.score(buf);
+              costUsd += diagnostics.visual.cost_usd;
+            } catch (visErr) {
+              log.warn(
+                { err: visErr instanceof Error ? visErr.message : String(visErr) },
+                "extract: visual scoring failed",
+              );
+              diagnostics.visual = collector.skip("vision_error");
+            }
           }
         }
       }
