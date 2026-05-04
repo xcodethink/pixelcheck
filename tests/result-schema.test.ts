@@ -1546,7 +1546,7 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
         local_storage_keys: 3,
         session_storage_keys: 0,
       },
-      // performance now concrete (PR-C); visual still placeholder until PR-D
+      // performance concrete (PR-C); visual concrete (PR-D)
       performance: {
         lcp_ms: 1234,
         cls: 0.03,
@@ -1559,7 +1559,26 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
         transfer_bytes: 482_311,
         window_ms: 5400,
       },
-      visual: { scored: true, layout_score: 8.5 },
+      visual: {
+        scored: true,
+        rubrics: ["aesthetic" as const],
+        verdicts: [
+          {
+            criterion_id: "visual_hierarchy",
+            label: "Visual hierarchy",
+            kind: "aesthetic" as const,
+            score: 8.5,
+            rationale: "Headline dominates above the fold.",
+            evidence: ["H1: 'Welcome'"],
+          },
+        ],
+        findings: [],
+        overall_score: 8.5,
+        summary: "Strong hierarchy, minor density issues below fold.",
+        model: "claude-sonnet-4-6",
+        cost_usd: 0.012,
+        duration_ms: 1840,
+      },
     };
     const parsed = DiagnosticsSchema.parse(full);
     expect(parsed.popups).toHaveLength(1);
@@ -1568,8 +1587,10 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
     expect(parsed.storage?.local_storage_keys).toBe(3);
     expect(parsed.performance?.lcp_ms).toBe(1234);
     expect(parsed.performance?.resources.total).toBe(47);
-    // visual still accepts extra fields via passthrough until PR-D
-    expect((parsed.visual as Record<string, unknown>)?.layout_score).toBe(8.5);
+    expect(parsed.visual?.scored).toBe(true);
+    expect(parsed.visual?.verdicts).toHaveLength(1);
+    expect(parsed.visual?.overall_score).toBe(8.5);
+    expect(parsed.visual?.verdicts[0]?.criterion_id).toBe("visual_hierarchy");
   });
 
   it("PopupSnapshotSchema: requires concrete fields per PR-B shape (index/url/title/body_text/closed)", () => {
@@ -1739,9 +1760,72 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
     ).toThrow();
   });
 
-  it("VisualScoringSchema still accepts placeholder shape (PR-D pending)", () => {
-    expect(() => VisualScoringSchema.parse({})).not.toThrow();
-    expect(() => VisualScoringSchema.parse({ layout_score: 9.2 })).not.toThrow();
+  it("VisualScoringSchema: requires concrete fields per PR-D shape (scored/verdicts/findings/overall_score/summary)", () => {
+    // Successful scoring envelope round-trips with verdicts populated.
+    expect(() =>
+      VisualScoringSchema.parse({
+        scored: true,
+        rubrics: ["aesthetic"],
+        verdicts: [
+          {
+            criterion_id: "visual_hierarchy",
+            label: "Visual hierarchy",
+            kind: "aesthetic",
+            score: 7.5,
+            rationale: "Above-fold headline reads first.",
+            evidence: [],
+          },
+        ],
+        findings: [],
+        overall_score: 7.5,
+        summary: "Solid hierarchy.",
+        cost_usd: 0.011,
+        duration_ms: 1700,
+      }),
+    ).not.toThrow();
+
+    // Skip envelope: scored=false + skip_reason, no verdicts required.
+    expect(() =>
+      VisualScoringSchema.parse({
+        scored: false,
+        skip_reason: "config_off",
+        rubrics: [],
+        verdicts: [],
+        findings: [],
+        overall_score: null,
+        summary: null,
+        cost_usd: 0,
+        duration_ms: 0,
+      }),
+    ).not.toThrow();
+
+    // The placeholder shape (empty object / random pass-through fields) is
+    // no longer accepted now that the schema is concrete.
+    expect(() => VisualScoringSchema.parse({})).toThrow();
+    expect(() => VisualScoringSchema.parse({ layout_score: 9.2 })).toThrow();
+
+    // Score range enforced.
+    expect(() =>
+      VisualScoringSchema.parse({
+        scored: true,
+        rubrics: ["aesthetic"],
+        verdicts: [
+          {
+            criterion_id: "visual_hierarchy",
+            label: "Visual hierarchy",
+            kind: "aesthetic",
+            score: 11, // out of range
+            rationale: "x",
+            evidence: [],
+          },
+        ],
+        findings: [],
+        overall_score: null,
+        summary: null,
+        cost_usd: 0,
+        duration_ms: 0,
+      }),
+    ).toThrow();
   });
 });
 

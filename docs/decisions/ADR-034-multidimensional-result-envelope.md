@@ -116,7 +116,7 @@ This ADR governs PR-A through PR-E:
 | **PR-A** (this) | ADR + DiagnosticsSchema **scaffolding** + 6 placeholder sub-schemas + `diagnostics?` threaded into 4 primitive results + tests | Bump to 1.3.0; sub-schemas are placeholders (object with `TODO` marker) |
 | **PR-B** | WhiteboxCollector — fill `popups` / `network` / `cookies` / `storage` sub-schemas + 4 primitives wire it on | No version bump (already 1.3.0; sub-schema fields fill in) |
 | **PR-C** | PerformanceCollector — fill `performance` sub-schema | No version bump |
-| **PR-D** | Visual scoring — fill `visual` sub-schema | No version bump |
+| **PR-D** | VisualCollector (reuses `runJudgeVision`) — fill `visual` sub-schema; `cfg.visualScoring: 'off'\|'auto'\|'eager'` in see/act/extract; judge always mirrors its own data into `diagnostics.visual`; `JudgeResultSchema` gains `diagnostics?` | No version bump |
 | **PR-E** | Critic prompt + new `pixelcheck.diagnose` MCP tool | Schema for new tool, no impact on primitive results |
 
 PR-A ships zero behavior change at runtime — primitives don't yet emit
@@ -249,3 +249,70 @@ path**. PR-A through PR-E use them differently:
   the agent convergence path which is its own audit surface, and (4)
   ADR-034 phasing (PR-C → PR-D → PR-E) is on the critical path; the
   followup is engineering hygiene, not user-visible feature work.
+
+## Appendix: PR-D — VisualCollector reuse-not-duplicate strategy
+
+PR-D introduces visual scoring (`diagnostics.visual`) by reusing the
+existing `judge` primitive's vision-call internals. Specifically:
+
+- The new `src/core/visual-collector.ts` exposes a `VisualCollector`
+  class whose `score(buf)` method calls `runJudgeVision()` from
+  `src/core/primitives/judge.ts` directly, sharing prompt construction
+  (`buildJudgeSystemPrompt` + `buildJudgeUserPrompt`), JSON parsing
+  (`parseJudgeRawJson` defensive coercion), criterion resolution
+  (`resolveCriteria`), and overall-score math (`computeOverallScore`).
+  This is a single shared code path — there is no second prompt or
+  second JSON parser to keep in sync.
+
+- The collector adds only the envelope-shaping layer:
+  `buildVisualScoring()` denormalises `verdict.label + kind` from the
+  rubric onto each verdict so downstream consumers don't need the
+  rubric to render the result, and produces a `VisualScoring` object
+  shaped for embedding inside `DiagnosticsSchema`.
+
+- The `judge` primitive itself uses the same `buildVisualScoring()`
+  helper from inside `computeJudge()` to populate its own
+  `result.diagnostics.visual` mirror **without** re-running the vision
+  call. Cost is zero — the data is already in hand from judge's
+  existing call.
+
+### Why visual scoring is opt-in (vs always-collect for whitebox / performance)
+
+ADR-034's body argues for "always-collect, never-skip" as the
+audit-completeness default. PR-D introduces the only carve-out: visual
+scoring must be opt-in via `cfg.visualScoring: 'off' | 'auto' | 'eager'`,
+defaulting to `'off'`.
+
+The asymmetry is grounded in cost:
+
+| Dimension | Collection cost | Default mode |
+|---|---|---|
+| popups / network / cookies / storage (PR-B) | passive observers; ~µs per event | always |
+| performance / Web Vitals (PR-C) | passive observers; one `evaluate()` to flush | always |
+| visual scoring (PR-D) | **one Anthropic vision call** (~$0.005-0.02 each) | **off** |
+
+A caller who runs `see({url})` on 1000 URLs with always-on visual
+scoring would silently spend $5-20 of LLM budget. That violates
+ADR-034's "no surprise spend" posture, which is the same reason
+`see({url})` without a `goal` makes zero LLM calls today.
+
+The three-mode opt-in is the minimum surface that lets a caller
+recover the always-collect ethos when they want it (`'eager'`),
+bundle the cost into work that's already paying for vision (`'auto'`,
+which fires only when the host call already had a `goal` / `note` /
+extract LLM call), or stay completely silent (`'off'`).
+
+### Why no `assertVisual` step-handler mirror in PR-D
+
+The `handleAssertVisual` step handler in `src/handlers/index.ts`
+already produces visual scoring under a different shape
+(`runCritic` from `src/core/critic.ts`, persona × scenario × dimension
+scoring with `VisionVerdictSchema`). A symmetric `step.diagnostics.visual`
+mirror would be valuable but requires touching `StepResult` (every
+step type, not just `assert_visual`) and would add a second normalised
+shape that overlaps `step.output.scores` / `step.output.issues`
+emitted today.
+
+The mirror is deferred to a future refactor where `StepResult` inherits
+a unified diagnostics envelope across all step types — out of scope for
+PR-D's <300 LoC convention.
