@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-05-04 — MCP registry ownership metadata
+
+> **Recommended for users who want to discover PixelCheck via the
+> official MCP registry.** Adds the `mcpName` field to `package.json`
+> required by `registry.modelcontextprotocol.io` to verify that the
+> npm package owner and the registry namespace owner are the same
+> identity. No runtime, API, or schema changes — purely a metadata
+> patch so the registry will accept the publish.
+
+### Added
+
+- `package.json` — new top-level `mcpName: "io.github.xcodethink/pixelcheck"`
+  field, required by the official MCP registry's namespace ownership
+  verification. Matches the `name` declared in the project's
+  `server.json`.
+- `server.json` — first-class registry entry at the project root,
+  validated against the official MCP registry schema
+  (`2025-12-11/server.schema.json`). Specifies `npm` as the package
+  source, `pixelcheck-mcp` as the binary to invoke (via `npx -p
+  pixelcheck pixelcheck-mcp`), and `ANTHROPIC_API_KEY` as the
+  required, secret environment variable.
+
+### Changed
+
+- `package.json` version bumped from `1.1.4` to `1.1.5`. No code,
+  binary, or bundled file changed; this version exists only to carry
+  the new `mcpName` field so the MCP registry will accept the
+  ownership claim.
+
 ## [1.1.4] - 2026-05-03 — CHANGELOG residual reference cleanup
 
 > **Recommended for all v1.1.x users.** Trivial one-line documentation
