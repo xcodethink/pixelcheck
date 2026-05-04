@@ -1514,10 +1514,39 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
   it("accepts a populated envelope (all 6 sub-fields present)", () => {
     const full = {
       collected_at: "always" as const,
-      popups: [{ index: 0, url: "https://accounts.google.com/", title: "Google" }],
-      network: { request_count: 42, failure_count: 1 },
-      cookies: [{ name: "session", domain: "example.com" }],
-      storage: { local_storage_keys: 3, session_storage_keys: 0 },
+      popups: [
+        {
+          index: 0,
+          url: "https://accounts.google.com/",
+          title: "Google",
+          body_text: "Sign in",
+          closed: false,
+        },
+      ],
+      network: {
+        request_count: 42,
+        failure_count: 1,
+        requests: [],
+        failures: [],
+      },
+      cookies: [
+        {
+          name: "session",
+          value: "[REDACTED]",
+          domain: "example.com",
+          path: "/",
+          expires: -1,
+          http_only: true,
+          secure: true,
+        },
+      ],
+      storage: {
+        local_storage: {},
+        session_storage: {},
+        local_storage_keys: 3,
+        session_storage_keys: 0,
+      },
+      // performance + visual remain placeholder passthrough until PR-C / PR-D
       performance: { collected: true, lcp_ms: 1234 },
       visual: { scored: true, layout_score: 8.5 },
     };
@@ -1526,36 +1555,122 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
     expect(parsed.network?.request_count).toBe(42);
     expect(parsed.cookies).toHaveLength(1);
     expect(parsed.storage?.local_storage_keys).toBe(3);
-    // passthrough() preserves PR-C / PR-D fields not yet in the placeholder schema
+    // performance + visual still accept extra fields via passthrough until PR-C / PR-D
     expect((parsed.performance as Record<string, unknown>)?.lcp_ms).toBe(1234);
     expect((parsed.visual as Record<string, unknown>)?.layout_score).toBe(8.5);
   });
 
-  it("PopupSnapshotSchema: requires index, allows extra fields (passthrough for PR-B)", () => {
-    const valid = PopupSnapshotSchema.parse({
-      index: 0,
-      url: "https://x.com",
-      title: "X",
-      screenshot: "data:image/png;base64,iVBOR...",
-      closed: false,
-      last_seen_url: "https://x.com",
-    });
-    expect(valid.index).toBe(0);
-    // PR-B fields preserved via passthrough
-    expect((valid as Record<string, unknown>).url).toBe("https://x.com");
+  it("PopupSnapshotSchema: requires concrete fields per PR-B shape (index/url/title/body_text/closed)", () => {
+    expect(() =>
+      PopupSnapshotSchema.parse({
+        index: 0,
+        url: "https://x.com",
+        title: "X",
+        body_text: "page body",
+        closed: false,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      PopupSnapshotSchema.parse({
+        index: 1,
+        url: "",
+        title: "",
+        body_text: "",
+        closed: true,
+        last_seen_url: "https://accounts.google.com/oauth/...",
+        last_seen_title: "Google Sign-In",
+      }),
+    ).not.toThrow();
   });
 
-  it("PopupSnapshotSchema: rejects missing index", () => {
-    expect(() => PopupSnapshotSchema.parse({ url: "x" })).toThrow();
+  it("PopupSnapshotSchema: rejects missing required fields", () => {
+    expect(() => PopupSnapshotSchema.parse({})).toThrow();
+    expect(() => PopupSnapshotSchema.parse({ index: 0 })).toThrow();
   });
 
-  it("NetworkLogSchema / CookieSchema / StorageSnapshotSchema accept placeholder shapes", () => {
-    expect(() => NetworkLogSchema.parse({})).not.toThrow();
-    expect(() => NetworkLogSchema.parse({ request_count: 0, failure_count: 0 })).not.toThrow();
-    expect(() => CookieSchema.parse({ name: "session" })).not.toThrow();
-    expect(() => CookieSchema.parse({ name: "session", value: "xyz", domain: "x.com" })).not.toThrow();
-    expect(() => CookieSchema.parse({})).toThrow(); // requires name
-    expect(() => StorageSnapshotSchema.parse({})).not.toThrow();
+  it("NetworkLogSchema requires concrete fields per PR-B shape", () => {
+    expect(() =>
+      NetworkLogSchema.parse({
+        request_count: 0,
+        failure_count: 0,
+        requests: [],
+        failures: [],
+      }),
+    ).not.toThrow();
+    expect(() =>
+      NetworkLogSchema.parse({
+        request_count: 2,
+        failure_count: 1,
+        requests: [
+          {
+            url: "https://example.com/",
+            method: "GET",
+            resource_type: "document",
+            status: 200,
+            duration_ms: 123,
+            size_bytes: 456,
+          },
+        ],
+        failures: [
+          {
+            url: "https://broken.example/",
+            method: "GET",
+            error_text: "net::ERR_NAME_NOT_RESOLVED",
+          },
+        ],
+      }),
+    ).not.toThrow();
+    expect(() => NetworkLogSchema.parse({})).toThrow();
+    expect(() =>
+      NetworkLogSchema.parse({ request_count: 0, failure_count: 0 }),
+    ).toThrow();
+  });
+
+  it("CookieSchema requires full Playwright Cookie shape", () => {
+    expect(() =>
+      CookieSchema.parse({
+        name: "session",
+        value: "[REDACTED]",
+        domain: "example.com",
+        path: "/",
+        expires: -1,
+        http_only: true,
+        secure: true,
+        same_site: "Strict",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      CookieSchema.parse({
+        name: "x",
+        value: "y",
+        domain: "x.com",
+        path: "/",
+        expires: 1234567890,
+        http_only: false,
+        secure: false,
+      }),
+    ).not.toThrow();
+    expect(() => CookieSchema.parse({ name: "session" })).toThrow();
+  });
+
+  it("StorageSnapshotSchema requires concrete fields", () => {
+    expect(() =>
+      StorageSnapshotSchema.parse({
+        local_storage: {},
+        session_storage: {},
+        local_storage_keys: 0,
+        session_storage_keys: 0,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      StorageSnapshotSchema.parse({
+        local_storage: { theme: "dark", auth_token: "[REDACTED]" },
+        session_storage: { ab_variant: "B" },
+        local_storage_keys: 2,
+        session_storage_keys: 1,
+      }),
+    ).not.toThrow();
+    expect(() => StorageSnapshotSchema.parse({})).toThrow();
   });
 
   it("PerformanceMetricsSchema / VisualScoringSchema accept any object via passthrough", () => {
