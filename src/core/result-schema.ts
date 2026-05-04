@@ -69,10 +69,16 @@ import { getLogger } from "./logger.js";
  *           FCP / TTFB plus supporting page-load + resource-type metrics)
  *           and wired the existing `PerformanceSignalCollector`
  *           (src/agent/signals/performance.ts) into the see / act /
- *           extract default-open paths. VisualScoring sub-schema remains
- *           placeholder pending PR-D. Additive minor per ADR-007 —
- *           pre-1.3.0 consumers see the field as unknown and ignore it.
- *           (Phase 0 / ADR-034)
+ *           extract default-open paths. PR-D concretized VisualScoring
+ *           (verdicts / findings / overall_score / summary, mirroring
+ *           a normalized subset of JudgeResult) and wired a new
+ *           VisualCollector that reuses the existing rubric-based
+ *           callVision path (AESTHETIC_CRITERIA / DARK_PATTERN_CRITERIA);
+ *           gated by `cfg.visualScoring: 'off' | 'auto' | 'eager'` with
+ *           default `'off'` because the call has real LLM cost (other
+ *           diagnostics are passive observers). Additive minor per
+ *           ADR-007 — pre-1.3.0 consumers see the field as unknown and
+ *           ignore it. (Phase 0 / ADR-034)
  */
 export const RESULT_SCHEMA_VERSION = "1.3.0";
 
@@ -252,13 +258,78 @@ export const PerformanceMetricsSchema = z.object({
   window_ms: z.number().nonnegative(),
 });
 
-/** Visual scoring. PR-D fills with structured AI output
- *  (layout_score, brand_consistency, truncation_findings, contrast_findings, ...). */
-export const VisualScoringSchema = z
-  .object({
-    scored: z.boolean().optional(),
-  })
-  .passthrough();
+/** Visual scoring sub-finding — mirrors the shape of `JudgeVerdict`
+ *  (one entry per criterion). Kept as its own export so consumers can
+ *  walk `diagnostics.visual.verdicts[]` without importing judge schemas. */
+export const VisualVerdictSchema = z.object({
+  /** Stable id of the criterion (snake_case, e.g. "visual_hierarchy"). */
+  criterion_id: z.string().min(1),
+  /** Human-readable label (echoed from rubric for self-contained reporting). */
+  label: z.string().min(1),
+  /** Which built-in rubric this criterion came from. */
+  kind: z.enum(["aesthetic", "dark_pattern", "custom"]),
+  /** 0..10. Higher is better, regardless of kind (so dark_pattern 10 = no DP). */
+  score: z.number().min(0).max(10),
+  /** One-sentence rationale grounded in observed evidence. */
+  rationale: z.string(),
+  /** Quoted text or visual cues the model used. May be empty. */
+  evidence: z.array(z.string()).default([]),
+});
+
+/** Visual scoring finding — high-signal issue surfaced by the rubric.
+ *  Mirrors `JudgeFinding` shape (severity / criterion_id / location / recommendation). */
+export const VisualFindingSchema = z.object({
+  severity: z.enum(["critical", "high", "medium", "low"]),
+  /** Optional cross-link to a verdict.criterion_id; `null` if cross-cutting. */
+  criterion_id: z.string().nullable(),
+  description: z.string(),
+  /** Physical location on screen (e.g. "footer column 2", "hero CTA"). */
+  location: z.string().optional(),
+  recommendation: z.string(),
+});
+
+/** Visual scoring. Concretized in PR-D: rubric-based AI scoring of the
+ *  primitive's final screenshot. Fields mirror a normalized subset of
+ *  `JudgeResult` so any downstream consumer that already understands judge
+ *  output can read this verbatim.
+ *
+ *  Provenance:
+ *  - `scored: true` + populated `verdicts/findings` → collector ran and
+ *    produced output.
+ *  - `scored: false` + `skip_reason` → collector was wired but skipped
+ *    (e.g. `visualScoring: 'off'`, missing API key, daily cost cap hit,
+ *    no goal supplied in `'auto'` mode). */
+export const VisualScoringSchema = z.object({
+  /** True when the AI scoring call actually executed. False when skipped. */
+  scored: z.boolean(),
+  /** When `scored=false`, machine-readable reason. Omitted when `scored=true`. */
+  skip_reason: z
+    .enum([
+      "config_off",
+      "no_goal",
+      "no_api_key",
+      "cost_cap",
+      "no_screenshot",
+      "vision_error",
+    ])
+    .optional(),
+  /** Which rubric(s) fed the scoring call. Order-preserving. */
+  rubrics: z.array(z.enum(["aesthetic", "dark_pattern", "custom"])).default([]),
+  /** Per-criterion scores. Empty array when `scored=false`. */
+  verdicts: z.array(VisualVerdictSchema).default([]),
+  /** High-signal findings called out by the rubric. */
+  findings: z.array(VisualFindingSchema).default([]),
+  /** Mean of verdict scores (null when no verdicts or scored=false). */
+  overall_score: z.number().min(0).max(10).nullable(),
+  /** Free-form summary (≤ 2 sentences) of the dominant issue. Null on skip. */
+  summary: z.string().nullable(),
+  /** Vision model identifier used for the scoring call (e.g. "claude-sonnet-4-5"). */
+  model: z.string().optional(),
+  /** Cost of the vision call in USD. 0 when skipped. */
+  cost_usd: z.number().nonnegative().default(0),
+  /** Wall-clock duration of the scoring call in ms. 0 when skipped. */
+  duration_ms: z.number().nonnegative().default(0),
+});
 
 export const DiagnosticsSchema = z.object({
   /** Provenance: when did the collectors run.
@@ -917,6 +988,14 @@ export const JudgeResultSchema = z.object({
   duration_ms: z.number().nonnegative(),
   /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
   cache: ResultCacheMetaSchema.optional(),
+  /** ADR-034 Phase 0 — multi-dimensional audit envelope. The `judge`
+   *  primitive's whole purpose IS visual scoring, so it always emits
+   *  `diagnostics.visual` as a normalized mirror of its own verdicts /
+   *  findings / overall_score / summary. Other diagnostics dimensions
+   *  (popups / network / cookies / storage / performance) are absent
+   *  by default — judge does not capture a live page in the way see /
+   *  act / extract do (it operates on a screenshot only). */
+  diagnostics: DiagnosticsSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -1270,3 +1349,6 @@ export type CompareCriterionVerdict = z.infer<typeof CompareCriterionVerdictSche
 export type CompareSide = z.infer<typeof CompareSideSchema>;
 export type CompareResultShape = z.infer<typeof CompareResultSchema>;
 export type ResultCacheMeta = z.infer<typeof ResultCacheMetaSchema>;
+export type VisualVerdict = z.infer<typeof VisualVerdictSchema>;
+export type VisualFinding = z.infer<typeof VisualFindingSchema>;
+export type VisualScoring = z.infer<typeof VisualScoringSchema>;
