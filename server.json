@@ -1,0 +1,34 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.xcodethink/pixelcheck",
+  "description": "Real eyes and hands on the web for AI agents. MCP-first. Local-first. Vendor-agnostic.",
+  "repository": {
+    "url": "https://github.com/xcodethink/pixelcheck",
+    "source": "github"
+  },
+  "version": "1.1.5",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "pixelcheck",
+      "version": "1.1.5",
+      "runtimeHint": "npx",
+      "runtimeArguments": [
+        { "type": "named", "name": "-p", "value": "pixelcheck" },
+        { "type": "positional", "value": "pixelcheck-mcp" }
+      ],
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "description": "Anthropic API key. Required for LLM-backed primitives (judge, extract-with-schema) and the audit_url / explore_url presets. Meta tools (list_personas, list_scenarios, get_last_report) work without it.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
