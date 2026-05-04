@@ -36,7 +36,7 @@ import {
   validateResult,
   attachSchemaVersion,
 } from "../src/core/result-schema.js";
-import { _resetLoggerForTests } from "../src/core/logger.js";
+import { _resetLoggerForTests, _closeLoggerStreamsForTests } from "../src/core/logger.js";
 
 function withEnv(overrides: Record<string, string | undefined>, fn: () => void) {
   const prev: Record<string, string | undefined> = {};
@@ -678,7 +678,9 @@ describe("result-schema — validateResult (warn-not-throw)", () => {
         },
       );
     });
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    // Await actual FD close — SonicBoom's end() is async on Windows.
+    await _closeLoggerStreamsForTests();
+    fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
   it("returns input unchanged on mismatch and emits a structured warn line", async () => {
@@ -711,7 +713,9 @@ describe("result-schema — validateResult (warn-not-throw)", () => {
         },
       );
     });
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    // Await actual FD close — SonicBoom's end() is async on Windows.
+    await _closeLoggerStreamsForTests();
+    fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
   it("never throws even on totally malformed input", () => {

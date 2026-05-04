@@ -408,18 +408,27 @@ export class CostGuard {
     let dayUsdAfter = 0;
     let dayTokensAfter = 0;
     try {
-      withFileLockSync(this.lockPath, () => {
-        const ledger = pruneLedger(loadLedger(this.ledgerPath), this.now());
-        const day = ledger.days[dayKey] ?? emptyDay();
-        day.input_tokens += inputTokens;
-        day.output_tokens += outputTokens;
-        day.usd += usd;
-        ledger.days[dayKey] = day;
-        ledger.schema_version = COST_LEDGER_SCHEMA_VERSION;
-        writeLedgerAtomic(this.ledgerPath, ledger);
-        dayUsdAfter = day.usd;
-        dayTokensAfter = day.input_tokens + day.output_tokens;
-      });
+      // 30s lock-acquire budget (default 5s) — withFileLockSync's default is
+      // tuned for low contention; cost-guard ledger writes can be hit by 10+
+      // concurrent processes (3-child cross-process race test, plus 12-worker
+      // vitest matrices, plus real audit fan-out). 30s gives the lock
+      // exponential backoff (max 100ms) ~300 retries to find a window.
+      withFileLockSync(
+        this.lockPath,
+        () => {
+          const ledger = pruneLedger(loadLedger(this.ledgerPath), this.now());
+          const day = ledger.days[dayKey] ?? emptyDay();
+          day.input_tokens += inputTokens;
+          day.output_tokens += outputTokens;
+          day.usd += usd;
+          ledger.days[dayKey] = day;
+          ledger.schema_version = COST_LEDGER_SCHEMA_VERSION;
+          writeLedgerAtomic(this.ledgerPath, ledger);
+          dayUsdAfter = day.usd;
+          dayTokensAfter = day.input_tokens + day.output_tokens;
+        },
+        { timeoutMs: 30_000 },
+      );
     } catch (err) {
       log.warn(
         {

@@ -355,7 +355,11 @@ function renderUnit(r: ScenarioRunResult, runDir: string): string {
   const screenshots = r.steps
     .filter((s) => s.screenshot)
     .map((s) => {
-      const rel = path.relative(runDir, s.screenshot!);
+      // Always emit forward-slash URLs in HTML — `path.relative` returns
+      // platform-native separators (backslash on Windows) which produce
+      // both broken hyperlinks AND test asserts that mismatch by character
+      // (e.g. expected `shots/01.png` vs actual `shots\01.png`).
+      const rel = path.relative(runDir, s.screenshot!).split(path.sep).join("/");
       return `<a href="${escapeHtml(rel)}" target="_blank"><img src="${escapeHtml(rel)}" alt="${escapeHtml(s.step_id)}" loading="lazy" /></a>`;
     })
     .join("");

@@ -28,7 +28,12 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # No `branches:` filter — every PR (including stacked PRs whose base
+    # is another feature branch) gets a CI matrix run. The earlier
+    # `branches: [main]` filter caused stacked-PR chains (e.g. ADR-034's
+    # 5-PR Phase 0 sequence) to ship with only the dogfood smoke test
+    # passing, masking platform-specific regressions until the chain
+    # eventually rebased onto main.
 
 # Cancel in-flight runs on the same ref to avoid wasting compute when
 # a PR is rapidly updated.
@@ -40,12 +45,13 @@ jobs:
   test:
     name: Test (${{ matrix.os }} · Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
-    # Windows currently has 3 known platform-specific test bugs (line-
-    # ending diffs in tests/reporter.test.ts, path-separator assert in
-    # tests/public-api-contract.test.ts, ENOTEMPTY cleanup race in
-    # tests/mcp-concurrency-e2e.test.ts). package.json `os` still lists
-    # win32 as supported — failures surface here as warnings, not gates,
-    # until the platform tests are fixed in a follow-up PR.
+    # Windows: most known platform-specific issues fixed in fix/ci-baseline-recovery
+    # (line-ending CRLF: addressed via .gitattributes; logger.test.ts ENOTEMPTY:
+    # addressed by tracking + closing pino destinations in _resetLoggerForTests).
+    # Remaining flaky cross-process tests (mcp-stdio-e2e, mcp-concurrency-e2e)
+    # surface as warnings rather than gates while the underlying child-process
+    # initialization races are investigated. package.json `os` still lists
+    # win32 as supported.
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
     strategy:
       # Don't fail the entire matrix when one config fails — surface ALL
