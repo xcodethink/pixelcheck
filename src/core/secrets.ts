@@ -109,3 +109,62 @@ export function redactDeep<T>(value: T, patterns: string[]): T {
   }
   return value;
 }
+
+/**
+ * Default sensitive-key substrings used by the WhiteboxCollector to
+ * redact cookie / localStorage / sessionStorage values when the *key
+ * name* contains any of these tokens. Case-insensitive substring match.
+ *
+ * Complements {@link redact} (which redacts by *value* substring). The
+ * two systems handle different scenarios:
+ *   - {@link redact} catches secrets you registered up front (env var
+ *     values, known API keys) wherever they appear.
+ *   - {@link DEFAULT_SENSITIVE_KEY_PATTERNS} catches secrets whose
+ *     *value* you don't know in advance but whose *key name* gives
+ *     them away (e.g. `localStorage.password = '<unknown>'`,
+ *     `cookies.session = '<server-issued>'`).
+ *
+ * Callers may extend this list via project config (`redact_key_patterns`).
+ */
+export const DEFAULT_SENSITIVE_KEY_PATTERNS = [
+  "password",
+  "token",
+  "secret",
+  "auth",
+  "session",
+  "api_key",
+  "apikey",
+  "credit",
+  "card",
+  "ssn",
+  "private",
+  "bearer",
+  "csrf",
+  "xsrf",
+] as const;
+
+/**
+ * Redact entries in a key-value map when the key contains any of the
+ * sensitive substrings. Returns a NEW object — does not mutate input.
+ *
+ * Used by WhiteboxCollector for cookie values and storage values where
+ * the value is server-issued and we don't know it ahead of time, but
+ * the key name signals sensitivity.
+ *
+ * @param map - the key-value map to scan
+ * @param keyPatterns - case-insensitive substrings that mark a key as sensitive
+ * @returns new map with sensitive values replaced by `[REDACTED]`
+ */
+export function redactByKey<V>(
+  map: Record<string, V>,
+  keyPatterns: readonly string[],
+): Record<string, V | string> {
+  const lowered = keyPatterns.map((p) => p.toLowerCase());
+  const out: Record<string, V | string> = {};
+  for (const [k, v] of Object.entries(map)) {
+    const kLower = k.toLowerCase();
+    const isSensitive = lowered.some((p) => kLower.includes(p));
+    out[k] = isSensitive ? "[REDACTED]" : v;
+  }
+  return out;
+}
