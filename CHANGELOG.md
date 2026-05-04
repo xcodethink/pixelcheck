@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0 / ADR-034: PerformanceCollector wired into see/act/extract (PR-C)
+
+> **No version bump** — still v1.3.0 (the `diagnostics` envelope landed
+> in PR-A; PR-B filled the four white-box sub-schemas; PR-C now fills
+> the `performance` sub-schema and wires Web Vitals collection into the
+> three browser-launching primitives).
+
+- `src/core/result-schema.ts` — concretized `PerformanceMetricsSchema`
+  from placeholder `passthrough()` to a typed Zod object with required
+  fields. Mirrors the `PerformanceSignal` interface in
+  `src/agent/signals/performance.ts` (the existing PerformanceObserver-
+  based collector). Fields:
+    * `lcp_ms`, `cls`, `inp_ms`, `fcp_ms`, `ttfb_ms` — Core Web Vitals
+      (each nullable; browser-best-effort).
+    * `dom_content_loaded_ms`, `load_ms` — supporting page-load
+      milestones (each nullable).
+    * `resources` — sub-schema `PerformanceResourceCountsSchema`
+      counting total / script / stylesheet / image / xhr_or_fetch.
+    * `transfer_bytes` — sum of `transferSize` across resources.
+    * `window_ms` — wall-clock observation window.
+- **Reuse, don't duplicate**: PR-C does NOT introduce a new collector
+  class. It wires the existing `PerformanceSignalCollector` (built for
+  the agent-loop autonomous-mode success-criteria verification path)
+  into the see / act / extract default-open primitives. The collector
+  was idle in the primitive-default-open path; PR-C "promotes" it.
+- `src/core/primitives/see.ts` — `OpenFn` adds `performance?:
+  PerformanceSignalCollector`; `defaultOpen` instantiates and `attach()`s
+  it BEFORE `page.goto()` (required for LCP / FCP capture via
+  `addInitScript`). The diagnostics-collection block now snapshots
+  performance alongside the white-box data.
+- `src/core/primitives/act.ts` — same wiring on both
+  `defaultOpenPlaywright` and `defaultOpenStagehand` (Stagehand
+  V3Context is a real Playwright BrowserContext). `OpenedPlaywright`
+  interface gains optional `performance?` field.
+- `src/core/primitives/extract.ts` — same wiring on
+  `defaultOpenStagehand`. `OpenedExtractor` interface gains optional
+  `performance?` field.
+- `src/core/primitives/{see,act,extract}.ts` Result interfaces' inline
+  `diagnostics` types gain `performance?: PerformanceSignal`.
+- `tests/performance-collector-integration.test.ts` — 3 new tests
+  against real Chromium verifying the collector returns the concrete
+  shape in the contexts our primitives use it: post-navigation
+  snapshot, snapshot-before-navigation safety, monotonic `window_ms`
+  across consecutive snapshots.
+- `tests/result-schema.test.ts` — upgraded `PerformanceMetricsSchema`
+  test from passthrough acceptance to concrete-shape assertions;
+  added rejection cases for missing required fields and incomplete
+  `resources` sub-shape. Updated populated-envelope test to use the
+  full real shape.
+- `docs/schemas/*.json` — auto-regenerated; performance schemas now
+  reflect concrete shapes.
+
+### Known issue (deferred — not blocking PR-C)
+
+- `src/agent/signals/network.ts` (`NetworkSignalCollector`) duplicates
+  the network-event listening done by `WhiteboxCollector` (PR-B).
+  Both collectors observe the same `page.on('request' | 'response' |
+  'requestfailed')` events but emit different output shapes for
+  different consumers (agent-loop convergence checks vs
+  primitive-result diagnostics). The duplication is correct (both
+  outputs are needed) but not optimal — a future PR-B-followup
+  could refactor into a single underlying observer with two view
+  layers. Tracked in ADR-034.
+
 ### Added — Phase 0 / ADR-034: white-box collector wired into see/act/extract (PR-B)
 
 > **No version bump** — still v1.3.0 (the `diagnostics` field landed in

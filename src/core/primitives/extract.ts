@@ -195,6 +195,8 @@ export interface ExtractResult {
     network?: import("../whitebox-collector.js").NetworkLog;
     cookies?: import("../whitebox-collector.js").CookieData[];
     storage?: import("../whitebox-collector.js").StorageSnapshot;
+    /** Core Web Vitals + page-load + resource metrics (PR-C / ADR-034). */
+    performance?: import("../../agent/signals/performance.js").PerformanceSignal;
   };
 }
 
@@ -214,6 +216,9 @@ export interface OpenedExtractor {
   /** Optional WhiteboxCollector attached on default open. Test seams
    *  may omit it; extract then skips diagnostics. (PR-B / ADR-034) */
   whitebox?: import("../whitebox-collector.js").WhiteboxCollector;
+  /** Optional PerformanceSignalCollector attached on default open path.
+   *  Test seams may omit it. (PR-C / ADR-034) */
+  performance?: import("../../agent/signals/performance.js").PerformanceSignalCollector;
   close: () => Promise<void>;
 }
 
@@ -656,22 +661,32 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
         /* best effort */
       }
 
-      // ADR-034 Phase 0: collect white-box diagnostics before context.close().
-      if (opened.whitebox) {
-        try {
-          const wb = await opened.whitebox.collect();
-          diagnostics = {
-            collected_at: "always",
-            popups: wb.popups,
-            network: wb.network,
-            cookies: wb.cookies,
-            storage: wb.storage,
-          };
-        } catch (wbErr) {
-          log.warn(
-            { err: wbErr instanceof Error ? wbErr.message : String(wbErr) },
-            "extract: whitebox diagnostics collection failed",
-          );
+      // ADR-034 Phase 0: collect diagnostics before context.close().
+      if (opened.whitebox || opened.performance) {
+        diagnostics = { collected_at: "always" };
+        if (opened.whitebox) {
+          try {
+            const wb = await opened.whitebox.collect();
+            diagnostics.popups = wb.popups;
+            diagnostics.network = wb.network;
+            diagnostics.cookies = wb.cookies;
+            diagnostics.storage = wb.storage;
+          } catch (wbErr) {
+            log.warn(
+              { err: wbErr instanceof Error ? wbErr.message : String(wbErr) },
+              "extract: whitebox diagnostics collection failed",
+            );
+          }
+        }
+        if (opened.performance) {
+          try {
+            diagnostics.performance = await opened.performance.snapshot();
+          } catch (perfErr) {
+            log.warn(
+              { err: perfErr instanceof Error ? perfErr.message : String(perfErr) },
+              "extract: performance diagnostics collection failed",
+            );
+          }
         }
       }
     } finally {
@@ -857,6 +872,12 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
   const { WhiteboxCollector } = await import("../whitebox-collector.js");
   const whitebox = new WhiteboxCollector(ctx, page);
   whitebox.attach();
+  // PR-C: PerformanceSignalCollector for Web Vitals (must attach before goto).
+  const { PerformanceSignalCollector } = await import(
+    "../../agent/signals/performance.js"
+  );
+  const performance = new PerformanceSignalCollector(page);
+  await performance.attach();
   const consoleErrors = wireConsoleListeners(page);
 
   const waitUntil = normalizeWaitUntil(cfg.waitFor);
@@ -870,6 +891,7 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
     context: ctx,
     consoleErrors,
     whitebox,
+    performance,
     extract: (args: ExtractCallArgs) => {
       const instruction = args.instruction ?? "";
       // v3 extract is positional: extract(instruction, schema?, options?).

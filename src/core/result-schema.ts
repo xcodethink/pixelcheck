@@ -64,10 +64,15 @@ import { getLogger } from "./logger.js";
  *           DURING a minor cycle still count as additive minor as long
  *           as no required-field has been removed (the v1.2.0 placeholder
  *           shapes were `passthrough()` so they never required any
- *           field). PerformanceMetrics + VisualScoring sub-schemas
- *           remain placeholders pending PR-C / PR-D. Additive minor per
- *           ADR-007 — pre-1.3.0 consumers see the field as unknown and
- *           ignore it. (Phase 0 / ADR-034)
+ *           field). PR-C concretized PerformanceMetrics +
+ *           PerformanceResourceCounts (Core Web Vitals: LCP / CLS / INP /
+ *           FCP / TTFB plus supporting page-load + resource-type metrics)
+ *           and wired the existing `PerformanceSignalCollector`
+ *           (src/agent/signals/performance.ts) into the see / act /
+ *           extract default-open paths. VisualScoring sub-schema remains
+ *           placeholder pending PR-D. Additive minor per ADR-007 —
+ *           pre-1.3.0 consumers see the field as unknown and ignore it.
+ *           (Phase 0 / ADR-034)
  */
 export const RESULT_SCHEMA_VERSION = "1.3.0";
 
@@ -209,13 +214,43 @@ export const StorageSnapshotSchema = z.object({
   session_storage_keys: z.number().int().nonnegative(),
 });
 
-/** Performance metrics. PR-C fills with Web Vitals
- *  (lcp_ms, cls, inp_ms, fcp_ms, ttfb_ms, transfer_bytes, ...). */
-export const PerformanceMetricsSchema = z
-  .object({
-    collected: z.boolean().optional(),
-  })
-  .passthrough();
+/** Per-resource-type counts inside `PerformanceMetricsSchema.resources`. */
+export const PerformanceResourceCountsSchema = z.object({
+  total: z.number().int().nonnegative(),
+  script: z.number().int().nonnegative(),
+  stylesheet: z.number().int().nonnegative(),
+  image: z.number().int().nonnegative(),
+  xhr_or_fetch: z.number().int().nonnegative(),
+});
+
+/** Core Web Vitals + supporting page-load metrics. Mirrors the
+ *  `PerformanceSignal` interface in `src/agent/signals/performance.ts`,
+ *  which is the existing PerformanceObserver-based collector reused by
+ *  PR-C. Each Web Vital may be `null` when the browser couldn't measure
+ *  it (e.g. very fast pages where INP never fires, or pages closed
+ *  before LCP settled). */
+export const PerformanceMetricsSchema = z.object({
+  /** Largest Contentful Paint in ms. Google SEO ranking factor; "good" ≤ 2500. */
+  lcp_ms: z.number().nullable(),
+  /** Cumulative Layout Shift, unitless. "Good" ≤ 0.1. */
+  cls: z.number().nullable(),
+  /** Interaction to Next Paint in ms (longest event so far). "Good" ≤ 200. */
+  inp_ms: z.number().nullable(),
+  /** First Contentful Paint in ms. "Good" ≤ 1800. */
+  fcp_ms: z.number().nullable(),
+  /** Time to First Byte in ms (responseStart - requestStart). "Good" ≤ 800. */
+  ttfb_ms: z.number().nullable(),
+  /** DOMContentLoaded event end time relative to navigation start, in ms. */
+  dom_content_loaded_ms: z.number().nullable(),
+  /** load event end time relative to navigation start, in ms. */
+  load_ms: z.number().nullable(),
+  /** Counts of resources by initiator type. */
+  resources: PerformanceResourceCountsSchema,
+  /** Sum of `transferSize` across every resource entry, in bytes. */
+  transfer_bytes: z.number().nonnegative(),
+  /** Wall-clock time the collector observed, ms since `attach()`. */
+  window_ms: z.number().nonnegative(),
+});
 
 /** Visual scoring. PR-D fills with structured AI output
  *  (layout_score, brand_consistency, truncation_findings, contrast_findings, ...). */

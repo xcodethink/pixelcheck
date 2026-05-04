@@ -1546,8 +1546,19 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
         local_storage_keys: 3,
         session_storage_keys: 0,
       },
-      // performance + visual remain placeholder passthrough until PR-C / PR-D
-      performance: { collected: true, lcp_ms: 1234 },
+      // performance now concrete (PR-C); visual still placeholder until PR-D
+      performance: {
+        lcp_ms: 1234,
+        cls: 0.03,
+        inp_ms: 80,
+        fcp_ms: 720,
+        ttfb_ms: 200,
+        dom_content_loaded_ms: 850,
+        load_ms: 1900,
+        resources: { total: 47, script: 12, stylesheet: 3, image: 22, xhr_or_fetch: 5 },
+        transfer_bytes: 482_311,
+        window_ms: 5400,
+      },
       visual: { scored: true, layout_score: 8.5 },
     };
     const parsed = DiagnosticsSchema.parse(full);
@@ -1555,8 +1566,9 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
     expect(parsed.network?.request_count).toBe(42);
     expect(parsed.cookies).toHaveLength(1);
     expect(parsed.storage?.local_storage_keys).toBe(3);
-    // performance + visual still accept extra fields via passthrough until PR-C / PR-D
-    expect((parsed.performance as Record<string, unknown>)?.lcp_ms).toBe(1234);
+    expect(parsed.performance?.lcp_ms).toBe(1234);
+    expect(parsed.performance?.resources.total).toBe(47);
+    // visual still accepts extra fields via passthrough until PR-D
     expect((parsed.visual as Record<string, unknown>)?.layout_score).toBe(8.5);
   });
 
@@ -1673,9 +1685,61 @@ describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
     expect(() => StorageSnapshotSchema.parse({})).toThrow();
   });
 
-  it("PerformanceMetricsSchema / VisualScoringSchema accept any object via passthrough", () => {
-    expect(() => PerformanceMetricsSchema.parse({})).not.toThrow();
-    expect(() => PerformanceMetricsSchema.parse({ lcp_ms: 1234, cls: 0.05 })).not.toThrow();
+  it("PerformanceMetricsSchema requires concrete Web Vitals shape (PR-C)", () => {
+    // Empty page-load — every Web Vital is nullable, but resources +
+    // transfer_bytes + window_ms are required.
+    expect(() =>
+      PerformanceMetricsSchema.parse({
+        lcp_ms: null,
+        cls: null,
+        inp_ms: null,
+        fcp_ms: null,
+        ttfb_ms: null,
+        dom_content_loaded_ms: null,
+        load_ms: null,
+        resources: { total: 0, script: 0, stylesheet: 0, image: 0, xhr_or_fetch: 0 },
+        transfer_bytes: 0,
+        window_ms: 0,
+      }),
+    ).not.toThrow();
+    // Realistic page
+    expect(() =>
+      PerformanceMetricsSchema.parse({
+        lcp_ms: 1234,
+        cls: 0.05,
+        inp_ms: 80,
+        fcp_ms: 720,
+        ttfb_ms: 200,
+        dom_content_loaded_ms: 850,
+        load_ms: 1900,
+        resources: { total: 47, script: 12, stylesheet: 3, image: 22, xhr_or_fetch: 5 },
+        transfer_bytes: 482_311,
+        window_ms: 5400,
+      }),
+    ).not.toThrow();
+    // Missing required fields should fail
+    expect(() => PerformanceMetricsSchema.parse({})).toThrow();
+    expect(() =>
+      PerformanceMetricsSchema.parse({ lcp_ms: 1234 }),
+    ).toThrow();
+    // resources sub-shape required
+    expect(() =>
+      PerformanceMetricsSchema.parse({
+        lcp_ms: null,
+        cls: null,
+        inp_ms: null,
+        fcp_ms: null,
+        ttfb_ms: null,
+        dom_content_loaded_ms: null,
+        load_ms: null,
+        resources: { total: 0 },
+        transfer_bytes: 0,
+        window_ms: 0,
+      }),
+    ).toThrow();
+  });
+
+  it("VisualScoringSchema still accepts placeholder shape (PR-D pending)", () => {
     expect(() => VisualScoringSchema.parse({})).not.toThrow();
     expect(() => VisualScoringSchema.parse({ layout_score: 9.2 })).not.toThrow();
   });

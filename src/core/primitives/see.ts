@@ -148,6 +148,10 @@ export interface SeeResult {
     network?: import("../whitebox-collector.js").NetworkLog;
     cookies?: import("../whitebox-collector.js").CookieData[];
     storage?: import("../whitebox-collector.js").StorageSnapshot;
+    /** Core Web Vitals + page-load + resource metrics (PR-C / ADR-034).
+     *  Mirrors the PerformanceSignal shape from the existing
+     *  PerformanceSignalCollector in src/agent/signals/performance.ts. */
+    performance?: import("../../agent/signals/performance.js").PerformanceSignal;
   };
 }
 
@@ -166,6 +170,9 @@ export type OpenFn = (cfg: {
   /** Optional WhiteboxCollector attached on `defaultOpen`. Test seams
    *  may omit it; the see primitive then skips diagnostics. (PR-B / ADR-034) */
   whitebox?: import("../whitebox-collector.js").WhiteboxCollector;
+  /** Optional PerformanceSignalCollector attached on `defaultOpen`.
+   *  Test seams may omit it. (PR-C / ADR-034) */
+  performance?: import("../../agent/signals/performance.js").PerformanceSignalCollector;
   close: () => Promise<void>;
 }>;
 
@@ -342,25 +349,34 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
         costUsd += noteResult.costUsd;
       }
 
-      // ADR-034 Phase 0: collect white-box diagnostics before context.close().
+      // ADR-034 Phase 0: collect diagnostics before context.close().
       // Always-collect, never-skip (see ADR rationale). Test seams that omit
-      // the WhiteboxCollector simply yield no diagnostics field.
-      if (opened.whitebox) {
-        try {
-          const wb = await opened.whitebox.collect();
-          diagnostics = {
-            collected_at: "always",
-            popups: wb.popups,
-            network: wb.network,
-            cookies: wb.cookies,
-            storage: wb.storage,
-          };
-        } catch (wbErr) {
-          // Diagnostics collection failures must not fail the primitive.
-          log.warn(
-            { err: wbErr instanceof Error ? wbErr.message : String(wbErr) },
-            "see: whitebox diagnostics collection failed",
-          );
+      // a collector simply leave the corresponding sub-field absent.
+      if (opened.whitebox || opened.performance) {
+        diagnostics = { collected_at: "always" };
+        if (opened.whitebox) {
+          try {
+            const wb = await opened.whitebox.collect();
+            diagnostics.popups = wb.popups;
+            diagnostics.network = wb.network;
+            diagnostics.cookies = wb.cookies;
+            diagnostics.storage = wb.storage;
+          } catch (wbErr) {
+            log.warn(
+              { err: wbErr instanceof Error ? wbErr.message : String(wbErr) },
+              "see: whitebox diagnostics collection failed",
+            );
+          }
+        }
+        if (opened.performance) {
+          try {
+            diagnostics.performance = await opened.performance.snapshot();
+          } catch (perfErr) {
+            log.warn(
+              { err: perfErr instanceof Error ? perfErr.message : String(perfErr) },
+              "see: performance diagnostics collection failed",
+            );
+          }
         }
       }
     } finally {
@@ -464,6 +480,15 @@ const defaultOpen: OpenFn = async (cfg) => {
   const { WhiteboxCollector } = await import("../whitebox-collector.js");
   const whitebox = new WhiteboxCollector(context, page);
   whitebox.attach();
+  // PR-C: attach existing PerformanceSignalCollector for Web Vitals.
+  // Must attach BEFORE goto so addInitScript injects the
+  // PerformanceObserver before the page's first paint — otherwise
+  // LCP / FCP measurements are lost.
+  const { PerformanceSignalCollector } = await import(
+    "../../agent/signals/performance.js"
+  );
+  const performance = new PerformanceSignalCollector(page);
+  await performance.attach();
   const consoleErrors: ConsoleError[] = [];
   page.on("console", (msg) => {
     if (msg.type() === "error") {
@@ -508,6 +533,7 @@ const defaultOpen: OpenFn = async (cfg) => {
     page,
     consoleErrors,
     whitebox,
+    performance,
     close: async () => {
       try {
         await context.close();
