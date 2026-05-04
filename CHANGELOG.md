@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0 / ADR-034: white-box collector wired into see/act/extract (PR-B)
+
+> **No version bump** — still v1.3.0 (the `diagnostics` field landed in
+> PR-A; PR-B fills the four white-box sub-schemas with concrete shapes
+> and wires the collector into three primitives that launch a real
+> browser).
+
+- `src/core/whitebox-collector.ts` — new `WhiteboxCollector` class.
+  Passive observer that gathers four white-box dimensions over the
+  lifetime of one primitive call:
+    1. **Popups** — secondary windows opened via `window.open()` /
+       OAuth / SSO / share dialogs. Tracked via `context.on('page')`.
+       Index is stable; closed popups retain `last_seen_url` and
+       `last_seen_title` for audit reasoning.
+    2. **Network** — every request + response + failure on the main
+       page. URL / method / status / duration / size_bytes captured;
+       request/response bodies NOT captured (PII + size).
+    3. **Cookies** — `BrowserContext.cookies()` snapshot. Values
+       redacted in-place when key matches sensitive patterns.
+    4. **Storage** — `localStorage` + `sessionStorage` snapshot via
+       `page.evaluate()`. Values redacted in-place when key matches
+       sensitive patterns; per-value cap of 2 KB with truncation
+       suffix.
+- `src/core/whitebox-collector.ts` — exports caps as constants
+  (`POPUP_CAP=50`, `NETWORK_REQUEST_CAP=500`,
+  `POPUP_BODY_TEXT_MAX_BYTES=2000`, `STORAGE_VALUE_MAX_BYTES=2000`,
+  `LIST_POPUPS_CONCURRENCY=10`). Excess popups are eagerly closed,
+  excess network requests counted in `truncated_count`.
+- `src/core/secrets.ts` — new `DEFAULT_SENSITIVE_KEY_PATTERNS` constant
+  (case-insensitive substrings: password / token / secret / auth /
+  session / api_key / apikey / credit / card / ssn / private / bearer /
+  csrf / xsrf) and `redactByKey()` helper. Complements the existing
+  `redact()` value-substring redaction (ADR-006): different scenarios,
+  different defenses.
+- `src/core/result-schema.ts` — concretized four placeholder sub-schemas
+  from PR-A:
+    * `PopupSnapshotSchema` — index/url/title/body_text/closed required;
+      last_seen_url + last_seen_title optional for closed popups.
+    * `NetworkLogSchema` — request_count/failure_count required, plus
+      `requests`/`failures` arrays of typed entries
+      (`NetworkRequestEntrySchema` + `NetworkFailureEntrySchema`).
+    * `CookieSchema` — full Playwright Cookie shape
+      (name/value/domain/path/expires/http_only/secure/same_site).
+    * `StorageSnapshotSchema` — `local_storage`/`session_storage` maps
+      plus pre-redaction key counts.
+  PerformanceMetrics + VisualScoring sub-schemas remain placeholder
+  passthrough until PR-C / PR-D fills them.
+- `src/core/primitives/see.ts` — `defaultOpen` instantiates and attaches
+  `WhiteboxCollector` after `newPage()`. The collector serializes
+  diagnostics inside the inner try block before `context.close()`.
+  `OpenFn` interface gains optional `whitebox` field; test seams may
+  omit it (no diagnostics emitted).
+- `src/core/primitives/act.ts` — same wiring on both
+  `defaultOpenPlaywright` and `defaultOpenStagehand`. `OpenedPlaywright`
+  interface gains optional `whitebox` field. Stagehand V3Context is a
+  real Playwright BrowserContext, so the same hooks work.
+- `src/core/primitives/extract.ts` — same wiring on
+  `defaultOpenStagehand`. `OpenedExtractor` interface gains optional
+  `whitebox` field.
+- `src/core/primitives/{see,act,extract}.ts` ResultShape interfaces
+  gain optional `diagnostics` field with the same shape as the schema.
+- `tests/whitebox-collector.test.ts` — 9 new integration tests against
+  a real Chromium instance:
+    * popup capture (window.open + click trigger)
+    * popup `last_seen_url` preservation across close
+    * `POPUP_CAP` invariant under spam
+    * successful network requests logged with status / duration
+    * failed requests logged with `error_text`
+    * cookies collected + sensitive names redacted
+    * localStorage + sessionStorage collected + key-redacted
+    * per-value bytes truncated past `STORAGE_VALUE_MAX_BYTES`
+- `tests/result-schema.test.ts` — upgraded 4 sub-schema tests from
+  passthrough placeholders to concrete-shape assertions; added
+  rejection cases for missing-required fields.
+- `docs/schemas/*.json` — auto-regenerated; sub-schemas now reflect
+  concrete shapes.
+
+### Compare primitive
+
+`compare` delegates to `judge → see` internally and inherits the
+collector through the underlying `see` calls' diagnostics. No direct
+wiring needed in `compare.ts` for PR-B; per-side judge results carry
+the white-box data.
+
+### Note on shipping path
+
+PR-B activates the diagnostics field for real on the three browser-
+launching primitives. Consumers reading `result.diagnostics.popups` /
+`.network` / `.cookies` / `.storage` will now see populated data on
+every successful primitive run. PR-C adds `performance` (Web Vitals);
+PR-D upgrades `visual` (structured AI scoring); PR-E adds the
+`pixelcheck.diagnose` MCP tool for active white-box debugging.
+
 ### Added — Phase 0 / ADR-034: multi-dimensional result envelope (PR-A scaffolding)
 
 > **Schema bump 1.2.0 → 1.3.0** (additive minor per ADR-007). Pure type

@@ -57,10 +57,17 @@ import { getLogger } from "./logger.js";
  *   1.3.0 — added optional `diagnostics` envelope to See / Act / Extract
  *           / Compare result schemas. Carries multi-dimensional audit
  *           data (popups, network, cookies, storage, performance,
- *           visual). Sub-schemas are placeholder shapes in this minor
- *           release; PR-B / PR-C / PR-D fill them with real fields.
- *           Additive minor per ADR-007 — pre-1.3.0 consumers see the
- *           field as unknown and ignore it. (Phase 0 / ADR-034)
+ *           visual). PR-A landed scaffolding with placeholder sub-schemas;
+ *           PR-B then concretized the four white-box sub-schemas
+ *           (PopupSnapshot / NetworkLog / Cookie / StorageSnapshot)
+ *           without bumping the version — sub-schema field shape changes
+ *           DURING a minor cycle still count as additive minor as long
+ *           as no required-field has been removed (the v1.2.0 placeholder
+ *           shapes were `passthrough()` so they never required any
+ *           field). PerformanceMetrics + VisualScoring sub-schemas
+ *           remain placeholders pending PR-C / PR-D. Additive minor per
+ *           ADR-007 — pre-1.3.0 consumers see the field as unknown and
+ *           ignore it. (Phase 0 / ADR-034)
  */
 export const RESULT_SCHEMA_VERSION = "1.3.0";
 
@@ -111,40 +118,96 @@ export const ResultCacheMetaSchema = z.object({
 // a future opt-in performance optimization where a caller explicitly
 // trades audit completeness for token savings.
 
-/** Popup window snapshot. PR-B fills concrete fields
- *  (url, title, body_text, screenshot, closed, last_seen_url, ...). */
-export const PopupSnapshotSchema = z
-  .object({
-    index: z.number().int().nonnegative(),
-  })
-  .passthrough();
+/** Popup window snapshot — secondary pages opened by the main page via
+ *  window.open() / OAuth / SSO / share dialogs. Index is stable across
+ *  the session even after a popup closes; closed popups retain
+ *  `last_seen_url` / `last_seen_title` so audit consumers can still
+ *  reason about which popup completed. */
+export const PopupSnapshotSchema = z.object({
+  /** Stable index assigned in registration order. Never re-shifted. */
+  index: z.number().int().nonnegative(),
+  /** Current URL. Empty when closed. */
+  url: z.string(),
+  /** Current title. Empty when closed or when cross-origin restricts read. */
+  title: z.string(),
+  /** First N chars of `document.body.innerText`. Empty for cross-origin
+   *  popups that block DOM access (e.g. accounts.google.com). Capped at
+   *  POPUP_BODY_TEXT_MAX_BYTES (2 KB) to bound result size. */
+  body_text: z.string(),
+  /** True when this popup has been closed (by user or window.close()). */
+  closed: z.boolean(),
+  /** URL captured the last time this popup was queried while alive. Lets
+   *  the audit reason "popup at accounts.google.com closed → OAuth flow
+   *  likely succeeded" rather than seeing an opaque `closed: true`. */
+  last_seen_url: z.string().optional(),
+  /** Title companion to last_seen_url. */
+  last_seen_title: z.string().optional(),
+});
 
-/** Network request log. PR-B fills concrete fields
- *  (requests array, failures array, optional HAR). */
-export const NetworkLogSchema = z
-  .object({
-    request_count: z.number().int().nonnegative().optional(),
-    failure_count: z.number().int().nonnegative().optional(),
-  })
-  .passthrough();
+/** Per-entry shape inside `NetworkLogSchema.requests`. */
+export const NetworkRequestEntrySchema = z.object({
+  url: z.string(),
+  method: z.string(),
+  resource_type: z.string().optional(),
+  status: z.number().int().nullable(),
+  duration_ms: z.number().nonnegative().nullable(),
+  size_bytes: z.number().int().nonnegative().nullable(),
+  /** From-cache flag for response, when known. */
+  from_cache: z.boolean().optional(),
+});
 
-/** Cookie snapshot. PR-B fills concrete fields per Playwright Cookie
- *  type (name, value, domain, path, expires, httpOnly, secure, sameSite). */
-export const CookieSchema = z
-  .object({
-    name: z.string(),
-  })
-  .passthrough();
+/** Per-entry shape inside `NetworkLogSchema.failures`. */
+export const NetworkFailureEntrySchema = z.object({
+  url: z.string(),
+  method: z.string(),
+  resource_type: z.string().optional(),
+  /** Playwright failure error text (e.g. "net::ERR_FAILED"). */
+  error_text: z.string(),
+});
 
-/** Storage snapshot — localStorage + sessionStorage + (future) IndexedDB.
- *  PR-B fills concrete shapes; redaction policy honors ADR-006 secrets-
- *  redaction (`password`, `token`, `secret` keys redacted by default). */
-export const StorageSnapshotSchema = z
-  .object({
-    local_storage_keys: z.number().int().nonnegative().optional(),
-    session_storage_keys: z.number().int().nonnegative().optional(),
-  })
-  .passthrough();
+/** Network log — request + failure counts plus per-entry metadata. We
+ *  capture URL / method / status / duration / failure reason but NOT
+ *  request bodies or response bodies — bodies leak PII and balloon
+ *  result size. Capped at NETWORK_REQUEST_CAP per primitive call. */
+export const NetworkLogSchema = z.object({
+  request_count: z.number().int().nonnegative(),
+  failure_count: z.number().int().nonnegative(),
+  /** Truncated to NETWORK_REQUEST_CAP entries when more requests
+   *  occurred. `truncated_count` reports how many extra were dropped. */
+  requests: z.array(NetworkRequestEntrySchema),
+  failures: z.array(NetworkFailureEntrySchema),
+  /** When > 0, indicates `requests` was truncated due to cap. */
+  truncated_count: z.number().int().nonnegative().optional(),
+});
+
+/** Cookie snapshot from `BrowserContext.cookies()`. Field names mirror
+ *  Playwright's Cookie type (snake_case in our envelope). `value` is
+ *  redacted per ADR-006 secrets-redaction when the cookie name matches
+ *  any of the project's redact_patterns (defaults include
+ *  password/token/secret/auth/session/api_key). */
+export const CookieSchema = z.object({
+  name: z.string(),
+  value: z.string(),
+  domain: z.string(),
+  path: z.string(),
+  /** Unix epoch seconds. -1 for session cookies. */
+  expires: z.number(),
+  http_only: z.boolean(),
+  secure: z.boolean(),
+  same_site: z.enum(["Strict", "Lax", "None"]).optional(),
+});
+
+/** Storage snapshot — localStorage + sessionStorage key-value maps.
+ *  Values matching redact_patterns are replaced with `[REDACTED]`
+ *  inline. Per-value cap of STORAGE_VALUE_MAX_BYTES (2 KB) — longer
+ *  values get truncated with a `[…truncated N bytes]` suffix. */
+export const StorageSnapshotSchema = z.object({
+  local_storage: z.record(z.string(), z.string()),
+  session_storage: z.record(z.string(), z.string()),
+  /** Counts BEFORE truncation/redaction. */
+  local_storage_keys: z.number().int().nonnegative(),
+  session_storage_keys: z.number().int().nonnegative(),
+});
 
 /** Performance metrics. PR-C fills with Web Vitals
  *  (lcp_ms, cls, inp_ms, fcp_ms, ttfb_ms, transfer_bytes, ...). */

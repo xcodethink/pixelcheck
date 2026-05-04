@@ -151,6 +151,15 @@ export interface ActResult {
   artifacts_dir: string;
   cost_usd: number;
   duration_ms: number;
+  /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). Populated
+   *  by WhiteboxCollector when default open paths are used. */
+  diagnostics?: {
+    collected_at: "always" | "on_failure";
+    popups?: import("../whitebox-collector.js").PopupSnapshot[];
+    network?: import("../whitebox-collector.js").NetworkLog;
+    cookies?: import("../whitebox-collector.js").CookieData[];
+    storage?: import("../whitebox-collector.js").StorageSnapshot;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -161,6 +170,9 @@ export interface OpenedPlaywright {
   page: Page;
   context: BrowserContext | null;
   consoleErrors: ConsoleError[];
+  /** Optional WhiteboxCollector attached on default open paths. Test
+   *  seams may omit it; act then skips diagnostics. (PR-B / ADR-034) */
+  whitebox?: import("../whitebox-collector.js").WhiteboxCollector;
   close: () => Promise<void>;
 }
 
@@ -250,6 +262,9 @@ export async function act(opts: ActOptions): Promise<ActResult> {
   let costUsd = 0;
   let status: ActResult["status"] = "ok";
   let errorMsg: string | undefined;
+  /** ADR-034 Phase 0 — populated from WhiteboxCollector when default open
+   *  paths are used. Test seams that omit `whitebox` get no diagnostics. */
+  let diagnostics: ActResult["diagnostics"] = undefined;
 
   try {
     const opened = await openSession(engine, {
@@ -350,6 +365,25 @@ export async function act(opts: ActOptions): Promise<ActResult> {
         const firstErr = stepResults.find((s) => s.status === "error")!;
         errorMsg = `step ${firstErr.index} (${firstErr.type}): ${firstErr.error ?? "unknown"}`;
       }
+
+      // ADR-034 Phase 0: collect white-box diagnostics before context.close().
+      if (opened.whitebox) {
+        try {
+          const wb = await opened.whitebox.collect();
+          diagnostics = {
+            collected_at: "always",
+            popups: wb.popups,
+            network: wb.network,
+            cookies: wb.cookies,
+            storage: wb.storage,
+          };
+        } catch (wbErr) {
+          log.warn(
+            { err: wbErr instanceof Error ? wbErr.message : String(wbErr) },
+            "act: whitebox diagnostics collection failed",
+          );
+        }
+      }
     } finally {
       await opened.close().catch(() => {});
     }
@@ -378,6 +412,7 @@ export async function act(opts: ActOptions): Promise<ActResult> {
     artifacts_dir: runDir,
     cost_usd: costUsd,
     duration_ms: Date.now() - t0,
+    ...(diagnostics ? { diagnostics } : {}),
   };
 }
 
@@ -561,6 +596,12 @@ const defaultOpenPlaywright: PlaywrightOpenFn = async (cfg) => {
     userAgent: cfg.userAgent,
   });
   const page = await context.newPage();
+  // ADR-034 Phase 0 — attach white-box collector AFTER newPage so popup
+  // listener doesn't capture the main page itself, BEFORE goto so popup
+  // / network events on the initial navigation are captured.
+  const { WhiteboxCollector } = await import("../whitebox-collector.js");
+  const whitebox = new WhiteboxCollector(context, page);
+  whitebox.attach();
   const consoleErrors = wireConsoleListeners(page);
 
   const waitUntil = normalizeWaitUntil(cfg.waitFor);
@@ -573,6 +614,7 @@ const defaultOpenPlaywright: PlaywrightOpenFn = async (cfg) => {
     page,
     context,
     consoleErrors,
+    whitebox,
     close: async () => {
       try {
         await context.close();
@@ -632,6 +674,13 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
   const ctx = stagehand.context;
   const pages = ctx.pages();
   const page = pages[0] ?? (await ctx.newPage());
+  // ADR-034 Phase 0 — attach white-box collector. Stagehand's V3Context
+  // is a real Playwright BrowserContext under the hood, so the same
+  // popup / network / cookie / storage hooks work as in the pure
+  // Playwright path above.
+  const { WhiteboxCollector } = await import("../whitebox-collector.js");
+  const whitebox = new WhiteboxCollector(ctx, page);
+  whitebox.attach();
   const consoleErrors = wireConsoleListeners(page);
 
   const waitUntil = normalizeWaitUntil(cfg.waitFor);
@@ -644,6 +693,7 @@ const defaultOpenStagehand: StagehandOpenFn = async (cfg) => {
     page,
     context: ctx,
     consoleErrors,
+    whitebox,
     // v3's act() is positional `act(instruction, options?)` on the
     // Stagehand instance — not on the page like v2. We let Stagehand pick
     // its V3Context's active page automatically; passing our Playwright
