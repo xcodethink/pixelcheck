@@ -204,13 +204,25 @@ function buildOptions(): LoggerOptions {
   return opts;
 }
 
+/** Active LOG_FILE pino destinations we may need to close on test cleanup
+ *  (Windows: SonicBoom keeps the LOG_FILE handle open, blocking the
+ *  parent directory's rmSync with ENOTEMPTY). Only file destinations are
+ *  tracked here — stderr destinations are NEVER tracked because closing
+ *  them would break pre-cached logger references in other modules
+ *  (e.g., `const log = getLogger("cost-guard")` at module load). */
+type PinoDest = ReturnType<typeof pino.destination>;
+let activeFileDestinations: PinoDest[] = [];
+
 function buildDestination() {
   if (isPretty()) return undefined;
   const file = process.env.LOG_FILE;
   if (file && file.length > 0) {
+    const stderrDest = pino.destination({ dest: 2, sync: false });
+    const fileDest = pino.destination({ dest: file, sync: false, mkdir: true });
+    activeFileDestinations.push(fileDest);
     return pino.multistream([
-      { stream: pino.destination({ dest: 2, sync: false }) },
-      { stream: pino.destination({ dest: file, sync: false, mkdir: true }) },
+      { stream: stderrDest },
+      { stream: fileDest },
     ]);
   }
   return pino.destination({ dest: 2, sync: false });
@@ -244,8 +256,88 @@ export function getLogger(module: string): Logger {
 /**
  * Reset cached loggers — used in tests so env changes between cases take effect.
  * Not exported via index.ts; intended for test-only use.
+ *
+ * Synchronous path. On macOS / Linux this is sufficient because rm of a
+ * parent directory does not block on open descendant FDs. On Windows the
+ * test cleanup MUST instead use `_closeLoggerStreamsForTests()` which
+ * awaits the 'close' event before returning — otherwise the file handle
+ * is still open when rmSync runs and the platform throws ENOTEMPTY.
  */
 export function _resetLoggerForTests(): void {
   rootLogger = null;
   childCache.clear();
+  // Note: deliberately does NOT close stderr destination — see
+  // activeFileDestinations comment above.
+  for (const dest of activeFileDestinations) {
+    try {
+      dest.flushSync();
+    } catch {
+      // best effort
+    }
+    try {
+      dest.end();
+    } catch {
+      // best effort
+    }
+  }
+  activeFileDestinations = [];
+}
+
+/**
+ * Async test-only reset that WAITS for SonicBoom's underlying file
+ * descriptor to close before resolving. Required on Windows where
+ * rmSync of the parent directory throws ENOTEMPTY while any descendant
+ * FD is still open. SonicBoom's `end()` is asynchronous — it queues a
+ * flush + close; the FD remains open until the 'close' event fires.
+ *
+ * Use in test `afterEach` / `finally` cleanup blocks that delete the
+ * LOG_FILE's parent dir. Tests not touching disk can keep using the
+ * sync `_resetLoggerForTests()`.
+ */
+export function _closeLoggerStreamsForTests(): Promise<void> {
+  rootLogger = null;
+  childCache.clear();
+  const dests = activeFileDestinations;
+  activeFileDestinations = [];
+  return new Promise<void>((resolve) => {
+    if (dests.length === 0) {
+      resolve();
+      return;
+    }
+    let remaining = dests.length;
+    const done = () => {
+      remaining--;
+      if (remaining <= 0) resolve();
+    };
+    for (const dest of dests) {
+      try {
+        dest.flushSync();
+      } catch {
+        // best effort
+      }
+      // SonicBoom emits 'close' after the FD is actually released. If
+      // anything goes wrong (already destroyed / never opened), still
+      // count it as done to avoid hanging the test.
+      let settled = false;
+      const tick = () => {
+        if (settled) return;
+        settled = true;
+        done();
+      };
+      try {
+        // Cast: pino's exported type is structural; SonicBoom's `on` is
+        // present at runtime but not in pino's published .d.ts.
+        const eventTarget = dest as unknown as {
+          on: (event: string, handler: () => void) => void;
+        };
+        eventTarget.on("close", tick);
+        eventTarget.on("error", tick);
+        dest.end();
+      } catch {
+        tick();
+      }
+      // Hard timeout: never wait more than 5s for one stream to close.
+      setTimeout(tick, 5000).unref?.();
+    }
+  });
 }

@@ -475,7 +475,17 @@ export async function runAutonomousLoop(
           );
           microReplanAttempts++;
 
-          if (microResult.kind === "rewrite") {
+          // Defensive: microReplan may return undefined under exhausted mocks
+          // or upstream LLM failures. Treat as "escalate to full replan" so
+          // the loop never crashes on `microResult.kind` access. The full
+          // replan path below has its own retry / max_replans budget.
+          if (!microResult || typeof microResult !== "object") {
+            log.warn(
+              { microReplanAttempts },
+              "agent-loop: microReplan returned no result, escalating to full replan",
+            );
+            // Fall through to the full replan below.
+          } else if (microResult.kind === "rewrite") {
             // Replace the failing step in-place and retry.
             plan.steps[stepIndex] = microResult.replacement;
             convergence.resetFailures();
@@ -486,8 +496,7 @@ export async function runAutonomousLoop(
               kind: "micro_rewrite",
             });
             continue;
-          }
-          if (microResult.kind === "skip") {
+          } else if (microResult.kind === "skip") {
             stepIndex++;
             convergence.resetFailures();
             eventBus.emitEvent("plan:revised", {
@@ -498,7 +507,7 @@ export async function runAutonomousLoop(
             });
             continue;
           }
-          // kind === "escalate" — fall through to full replan
+          // kind === "escalate" OR undefined microResult — fall through to full replan
         }
 
         if (failedPlans.length >= agentConfig.max_replans) {
