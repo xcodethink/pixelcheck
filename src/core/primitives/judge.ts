@@ -48,6 +48,7 @@ import {
 } from "./see.js";
 import { AESTHETIC_CRITERIA } from "../critics/aesthetic.js";
 import { DARK_PATTERN_CRITERIA } from "../critics/dark-pattern.js";
+import { buildVisualScoring } from "../visual-collector.js";
 
 const log = getLogger("primitive.judge");
 
@@ -436,6 +437,40 @@ async function computeJudge(opts: JudgeOptions): Promise<JudgeResult> {
   const overall = computeOverallScore(verdicts);
   const durationMs = Date.now() - t0;
 
+  // PR-D / ADR-034: judge IS visual scoring, so always emit a normalized
+  // mirror under `diagnostics.visual` so consumers reading any primitive
+  // get a uniform shape. On error (`status === "error"` and verdicts
+  // empty) we emit a `scored: false / vision_error` envelope.
+  const diagnostics: JudgeResult["diagnostics"] = {
+    collected_at: "always",
+    visual:
+      status === "ok"
+        ? buildVisualScoring({
+            raw: {
+              verdicts,
+              findings,
+              summary,
+              costUsd: costUsd, // best-effort: includes any nested capture cost
+            },
+            criteria,
+            rubrics,
+            model,
+            durationMs,
+          })
+        : {
+            scored: false,
+            skip_reason: "vision_error",
+            rubrics,
+            verdicts: [],
+            findings: [],
+            overall_score: null,
+            summary: null,
+            model,
+            cost_usd: 0,
+            duration_ms: durationMs,
+          },
+  };
+
   const result: JudgeResult = {
     schema_version: RESULT_SCHEMA_VERSION,
     url_input: urlInput,
@@ -458,6 +493,7 @@ async function computeJudge(opts: JudgeOptions): Promise<JudgeResult> {
     model,
     cost_usd: costUsd,
     duration_ms: durationMs,
+    diagnostics,
   };
 
   // Write a JSON sidecar so the result is reproducible without re-running.

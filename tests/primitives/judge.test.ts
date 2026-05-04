@@ -577,6 +577,61 @@ describe("judge — schema field plumbing via _see + _callVision", () => {
     });
     expect(r.overall_score).toBe(7);
   });
+
+  // ── PR-D / ADR-034 — diagnostics.visual mirror ───────────────
+  it("emits diagnostics.visual mirroring its own verdicts/findings/summary (PR-D)", async () => {
+    const screenshotPath = path.join(workspace, "ss.png");
+    const mock = JSON.stringify({
+      verdicts: [
+        { criterion_id: "visual_hierarchy", score: 9, rationale: "Strong.", evidence: [] },
+      ],
+      findings: [
+        {
+          severity: "low",
+          criterion_id: "visual_hierarchy",
+          description: "Minor whitespace gap.",
+          location: "hero",
+          recommendation: "Tighten margin.",
+        },
+      ],
+      summary: "Strong layout overall.",
+    });
+    const r = await judge({
+      url: "https://example.com",
+      artifactsRoot: workspace,
+      _see: fakeSee({ screenshot_path: screenshotPath }),
+      _callVision: visionStub(mock, 0.012),
+    });
+    expect(r.status).toBe("ok");
+    expect(r.diagnostics).toBeDefined();
+    expect(r.diagnostics?.collected_at).toBe("always");
+    expect(r.diagnostics?.visual).toBeDefined();
+    expect(r.diagnostics?.visual?.scored).toBe(true);
+    expect(r.diagnostics?.visual?.rubrics).toContain("aesthetic");
+    expect(r.diagnostics?.visual?.verdicts).toHaveLength(1);
+    expect(r.diagnostics?.visual?.verdicts[0]?.criterion_id).toBe("visual_hierarchy");
+    // The mirror attaches label + kind so consumers don't need to join the rubric.
+    expect(r.diagnostics?.visual?.verdicts[0]?.label).toBe("Visual hierarchy");
+    expect(r.diagnostics?.visual?.verdicts[0]?.kind).toBe("aesthetic");
+    expect(r.diagnostics?.visual?.findings).toHaveLength(1);
+    expect(r.diagnostics?.visual?.summary).toBe("Strong layout overall.");
+    expect(r.diagnostics?.visual?.overall_score).toBe(9);
+  });
+
+  it("emits a vision_error diagnostics.visual envelope when status='error' (PR-D)", async () => {
+    // Force the inner see to fail so the judge result is status='error'.
+    const r = await judge({
+      url: "https://example.com",
+      artifactsRoot: workspace,
+      _see: async () => {
+        throw new Error("simulated capture failure");
+      },
+      _callVision: visionStub("{}"),
+    });
+    expect(r.status).toBe("error");
+    expect(r.diagnostics?.visual?.scored).toBe(false);
+    expect(r.diagnostics?.visual?.skip_reason).toBe("vision_error");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────
