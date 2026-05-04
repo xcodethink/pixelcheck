@@ -533,11 +533,103 @@
             "performance": {
               "type": "object",
               "properties": {
-                "collected": {
-                  "type": "boolean"
+                "lcp_ms": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "cls": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "inp_ms": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "fcp_ms": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ttfb_ms": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "dom_content_loaded_ms": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "load_ms": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "resources": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "script": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "stylesheet": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "image": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "xhr_or_fetch": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "total",
+                    "script",
+                    "stylesheet",
+                    "image",
+                    "xhr_or_fetch"
+                  ],
+                  "additionalProperties": false
+                },
+                "transfer_bytes": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "window_ms": {
+                  "type": "number",
+                  "minimum": 0
                 }
               },
-              "additionalProperties": true
+              "required": [
+                "lcp_ms",
+                "cls",
+                "inp_ms",
+                "fcp_ms",
+                "ttfb_ms",
+                "dom_content_loaded_ms",
+                "load_ms",
+                "resources",
+                "transfer_bytes",
+                "window_ms"
+              ],
+              "additionalProperties": false
             },
             "visual": {
               "type": "object",
