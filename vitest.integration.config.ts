@@ -35,6 +35,7 @@ export default defineConfig({
       "tests/integration/agent-loop-e2e.test.ts",
       "tests/integration/signals-e2e.test.ts",
       "tests/integration/whitebox-collector.test.ts",
+      "tests/integration/performance-collector-integration.test.ts",
     ],
     // Forks pool — fresh Node process per file.
     // vitest 4+ moved poolOptions to top-level `forks` / `threads` keys.
