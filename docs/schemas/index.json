@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AI Browser Auditor — result schemas index",
-  "x-result-schema-version": "1.2.0",
+  "x-result-schema-version": "1.3.0",
   "description": "Index of every public result schema. Generated from src/core/result-schema.ts; do not edit by hand. See docs/contracts/RESULT_SCHEMA.md for the SemVer policy.",
   "schemas": [
     {

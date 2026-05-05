@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 0 / ADR-034: multi-dimensional result envelope (PR-A scaffolding)
+
+> **Schema bump 1.2.0 → 1.3.0** (additive minor per ADR-007). Pure type
+> contract change, zero runtime behavior change. Pre-1.3.0 consumers see
+> the new field as unknown and ignore it; their existing parsers don't
+> break.
+
+- `src/core/result-schema.ts` — new `DiagnosticsSchema` envelope plus 6
+  placeholder sub-schemas: `PopupSnapshotSchema`, `NetworkLogSchema`,
+  `CookieSchema`, `StorageSnapshotSchema`, `PerformanceMetricsSchema`,
+  `VisualScoringSchema`. Each sub-schema is intentionally permissive
+  (`passthrough()` + minimal required keys) so subsequent PRs in
+  Phase 0 can fill concrete shapes without further version bumps.
+- `SeeResultSchema` / `ActResultSchema` / `ExtractResultSchema` /
+  `CompareResultSchema` — each gains an optional `diagnostics?:
+  DiagnosticsSchema` field. Field carries audit data that does not fit
+  the existing root-level fields (`console`, `dom`, `screenshot`, ...).
+- `RESULT_SCHEMA_VERSION` bumped to `1.3.0` with a new entry in the
+  in-file version-history JSDoc.
+- `docs/decisions/ADR-034-multidimensional-result-envelope.md` — full
+  decision rationale: why one nested envelope (not 6 root fields), why
+  `diagnostics` (not `extras` / `details` / `data`), why always-collect
+  (not failure-only), and the PR-A → PR-E phased delivery plan.
+- `docs/contracts/RESULT_SCHEMA.md` — version 1.3.0 history entry +
+  status banner update + ADR-034 cross-reference.
+- `docs/schemas/*.json` — auto-regenerated via `npm run schemas`. All
+  30 schemas now stamped `x-result-schema-version: 1.3.0`.
+- `tests/result-schema.test.ts` — 13 new tests: DiagnosticsSchema
+  positive/negative cases, all 6 sub-schema shape checks, and
+  backward-compat tests proving each of the 4 primitive results still
+  parses with **and without** the new optional `diagnostics` field.
+
+### Changed
+
+- `tests/integration/mcp-stdio-e2e.test.ts` — replaced hardcoded
+  `expect(...).toBe("1.2.0")` with `RESULT_SCHEMA_VERSION` import so
+  this assertion no longer breaks on every minor schema bump.
+
+### Note on shipping path
+
+PR-A ships zero behavior change at runtime. Primitives don't yet emit
+`diagnostics` because no collector is wired. The field becomes legal
+in the schema; PR-B (WhiteboxCollector — popups / network / cookies /
+storage), PR-C (PerformanceCollector — Web Vitals), and PR-D (visual
+scoring strengthening) populate the sub-fields in subsequent releases
+under the same 1.3.0 minor. PR-E adds the `pixelcheck.diagnose` MCP
+tool for active white-box debugging. See
+[ADR-034](docs/decisions/ADR-034-multidimensional-result-envelope.md)
+for the full phasing plan.
+
 ## [1.1.5] - 2026-05-04 — MCP registry ownership metadata
 
 > **Recommended for users who want to discover PixelCheck via the
