@@ -1,0 +1,115 @@
+id: google-oauth
+host: accounts.google.com
+capability: oauth-signin
+priority: P0
+
+last_verified:
+  date: null
+  status: untested
+  notes: |
+    Drafted from the bundled scenario `01-google-oauth-signup.yaml` and from
+    publicly documented Google OAuth behaviour. Not run end-to-end against a
+    fresh consent screen as part of this recipe's commit. First contributor
+    to actually run it should fill in `last_verified.date` + `agent`.
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+    - de-german-power-tablet
+    - cn-chinese-free-mobile
+  scenarios:
+    - 01-google-oauth-signup
+
+do_this_first: |
+  Drive sign-in from the relying-party page (your app), not from
+  accounts.google.com directly. The relying-party origin is what triggers the
+  Google OAuth flow with your client_id; landing on accounts.google.com cold
+  routes the user to general account management instead of consent.
+
+  If your app uses the Federated Credential Management (FedCM) API for the
+  one-tap "Sign in as <user>" button, the agent CANNOT click that button
+  programmatically: CDP mouse events do not count as a trusted user gesture
+  for FedCM, and the button lives in a sandboxed cross-origin iframe. Ask
+  the user to click the FedCM button themselves, then resume.
+
+workflows:
+  - id: signin-via-rp
+    description: "End-to-end Google sign-in starting from the relying-party landing page."
+    cost_band: "$$"
+    steps:
+      - type: visit
+        url: "${app.base_url}/${persona.url_locale}"
+        wait_until: networkidle
+      - type: act
+        instruction: "Click the sign in or login button in the page header."
+        retry: 2
+        fallback: computer_use
+      - type: act
+        instruction: 'Click "Continue with Google" or "Sign in with Google".'
+        retry: 2
+        fallback: computer_use
+      - type: wait_for
+        text: "Choose an account"
+        timeout: 30000
+      # The agent stops here on a fresh-consent flow and asks the user to pick
+      # an account or grant consent — credentials must NEVER be typed from
+      # screenshots or recipe-resolved values.
+      - type: wait_for
+        text: "Dashboard"
+        timeout: 60000
+      - type: assert_visual
+        critical_review: true
+        dimensions:
+          - completion
+          - localization
+          - visual_polish
+          - trust_signals
+          - time_to_value
+        instruction: |
+          The user has just signed in. Rate the dashboard / onboarding screen
+          on the 5 dimensions. Specifically: Does it greet the user by name?
+          Is everything in ${persona.language}? Does it match the polish of
+          Stripe / Linear dashboards? Is the next action obvious?
+
+stable_selectors:
+  - element: "Account chooser heading"
+    selector: 'h1, [role="heading"]:has-text("Choose an account")'
+    notes: "Localised; match by role + accessible name, not the literal English string."
+  - element: "Use another account row"
+    selector: 'div[data-identifier], li:has(button[type="button"])'
+    notes: "Google rotates internal class names every quarter; rely on the data-identifier attribute, not the class."
+  - element: "Next button on email entry"
+    selector: '#identifierNext, button[type="submit"]'
+    notes: "id=identifierNext is the most stable across Google's redesigns."
+  - element: "Consent screen Continue button"
+    selector: 'button[jsname], #submit_approve_access'
+    notes: "jsname is internal but more stable than translated visible text."
+
+gotchas:
+  - problem: "FedCM 'Sign in as <user>' button cannot be clicked programmatically."
+    fix: "Detect the FedCM iframe (origin: accounts.google.com), stop, ask the user to click it. Never try to bypass."
+
+  - problem: "Account chooser strings localise — matching `text=Choose an account` fails for non-English personas."
+    fix: "Match by `role=heading` plus the persona's localised translation, or use the URL pattern `accounts.google.com/v3/signin/identifier`."
+
+  - problem: "Consent screen layout changes between client_id types (web vs installed vs limited input)."
+    fix: "Anchor on `jsname` attributes and the URL containing `/oauthchooseaccount` or `/o/oauth2/auth`, not the visible button text."
+
+  - problem: "Re-running the flow on the same persona surfaces the consent screen the first time and silent re-auth the second time — assertions that expect a button click on every run will fail."
+    fix: "Branch on whether the consent screen actually appears. Detect via URL pattern; only click consent if the URL contains `/oauthchooseaccount`."
+
+  - problem: "Two-factor / app-password challenges appear unpredictably on accounts that have them enabled."
+    fix: "Stop and ask the user. Do not attempt to read codes from a connected device or screenshot."
+
+requires:
+  auth: true
+  auth_notes: |
+    The persona must be able to complete Google's sign-in flow interactively.
+    No credentials are stored in this recipe; the agent yields control to the
+    user when the credential prompt appears.
+
+references:
+  - "https://developers.google.com/identity/protocols/oauth2"
+  - "FedCM spec: https://fedidcm.github.io/FedCM/"
+  - "Bundled scenario this recipe documents: scenarios/01-google-oauth-signup.yaml"

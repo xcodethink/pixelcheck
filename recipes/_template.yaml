@@ -1,0 +1,109 @@
+# PixelCheck recipe — template
+#
+# Copy this file to `recipes/<host>/<capability>.yaml`, fill it in, and remove
+# any sections you don't use. See `recipes/README.md` for the four writing
+# rules (map-not-diary, no pixel coords, no secrets, field-tested).
+
+id: example-capability
+host: example.com
+capability: scraping     # one of: scraping | checkout | oauth-signin | posting | audit | search | navigation | other
+priority: P2             # P0 (critical for first-run) | P1 (common) | P2 (occasional) | P3 (rare)
+
+# When was this recipe last actually run end-to-end?
+# If not yet tested, set date: null and status: untested.
+last_verified:
+  date: "2026-05-06"
+  url: "https://example.com/some-page-that-exercises-this-recipe"
+  agent: "pixelcheck@1.1.5"
+  notes: ""              # one short line; "logged in via persona X"
+
+# Personas / scenarios that exercise this recipe (optional but useful).
+applies_to:
+  personas: []           # e.g. [us-english-power-desktop]
+  scenarios: []          # e.g. [03-admin-panel-audit]
+
+# The fastest path to the result. Often "use the public API, not the browser."
+do_this_first: |
+  One short paragraph. Lead with the path that bypasses the browser entirely
+  if one exists (REST API, RSS, sitemap). Only fall back to the browser when
+  there is no API equivalent.
+
+# Reusable named workflows. Each workflow is a list of act steps the agent
+# can call directly via `act`. Reference one workflow per task; do not chain
+# unrelated workflows in a single act run.
+workflows:
+  - id: list-items
+    description: "Return the first page of items as JSON."
+    cost_band: "$"        # $ free / $ <$0.01 / $$ <$0.10 / $$$ >$0.10
+    steps:
+      - type: visit
+        url: "https://example.com/items"
+        wait_until: networkidle
+      - type: extract
+        instruction: |
+          Each `.item-row` element. Pull title, href, price.
+        schema:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  title: { type: string }
+                  href:  { type: string }
+                  price: { type: string }
+              required: [title, href]
+
+  - id: search
+    description: "Run a keyword search and return the result list."
+    cost_band: "$"
+    steps:
+      - type: visit
+        url: "https://example.com/search?q=${query}"
+        wait_until: networkidle
+      - type: extract
+        instruction: "List the visible search results."
+        schema:
+          type: object
+          properties:
+            results:
+              type: array
+              items:
+                type: object
+                properties:
+                  title: { type: string }
+                  href:  { type: string }
+
+# Selectors that survive redesigns. These are the load-bearing claim of the
+# recipe — keep them tight, omit anything brittle.
+stable_selectors:
+  - element: "Item row"
+    selector: ".item-row"
+    notes: "Class survived the 2026-Q1 redesign."
+  - element: "Search input"
+    selector: 'input[name="q"]'
+    notes: "name=q is documented in the public search API."
+
+# Gotchas: discrete traps the next agent will hit if you don't warn them.
+# Each gotcha is one problem + one fix, not a paragraph.
+gotchas:
+  - problem: "?search=<q> alone does not filter the listing page."
+    fix: "POST the form (input has name=q, form action=/search) or hit /search/?opt=ab&q=<query> directly."
+
+  - problem: "Search results page renders all matches into a single container; .item-row is length 1."
+    fix: "Walk body.innerText from the first occurrence of the query term and split on the repeating block heuristic."
+
+  - problem: "Cancelled rows omit the TOTAL line."
+    fix: "Use a regex with optional TOTAL group; do not assume every card has it."
+
+# Authentication requirements. NEVER write real credentials here. Reference
+# the persona-resolved secret slot if needed.
+requires:
+  auth: false              # true if the recipe needs a logged-in session
+  auth_notes: ""           # e.g. "uses persona.secrets.example_session_cookie"
+
+# External references for future maintainers.
+references:
+  - "https://example.com/developers/api-docs"
+  - "Site redesign notes: 2026-Q1"

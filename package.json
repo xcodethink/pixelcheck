@@ -27,11 +27,13 @@
     "dist/",
     "docs/schemas/",
     "personas/",
+    "recipes/",
     "scenarios/",
     "CHANGELOG.md",
     "LICENSE",
     "README.md",
-    "SECURITY.md"
+    "SECURITY.md",
+    "SKILL.md"
   ],
   "publishConfig": {
     "access": "public"
