@@ -48,6 +48,7 @@ import {
 } from "./commands/init-interactive.js";
 import { ensureConsent } from "./core/consent.js";
 import { getPackageVersion } from "./core/version.js";
+import { printUpdateBannerIfDue } from "./core/update-banner.js";
 
 // quiet: true silences dotenv 17's default load banner — `dotenv.config()`
 // without options writes a "[dotenv@17] injecting env (N) from .env" line
@@ -1019,7 +1020,16 @@ program
     process.exit(hasErrors ? 1 : 0);
   });
 
-program.parse();
+// Boot: print the once-per-24h update banner (stderr-only, cache-first
+// so it costs <5ms after the initial check) before commander starts
+// dispatching. Banner failures are swallowed inside the helper — they
+// never block the CLI.
+async function bootstrap(): Promise<void> {
+  await printUpdateBannerIfDue();
+  program.parse();
+}
+
+void bootstrap();
 
 interface RunOpts {
   project?: string;
