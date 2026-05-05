@@ -657,12 +657,18 @@ describe("writeTrendsDashboard", () => {
     expect(html).toContain("No audit history found yet");
   });
 
+  // 15s timeout (vs vitest default 5s) — this case seeds 10 history rows
+  // (more than any other case in this file) which costs ~3-4 seconds of
+  // fs writes + HTML render on Windows GitHub runners during peak load.
+  // Linux/macOS finish in <500ms, so the bump only matters for Windows.
+  // Observed PR-B (xcodethink/pixelcheck#18) intermittent windows-Node-22
+  // 5s timeout on this exact case while the same case ran in 2.5s on PR-A.
   it("respects the limit option (caps history rows for chart density)", () => {
     seedHistory(tmp, 10);
     const out = writeTrendsDashboard(tmp, { limit: 3 });
     const html = fs.readFileSync(out, "utf8");
     expect(html).toContain("3 runs");
-  });
+  }, 15_000);
 
   it("creates parent directories for outPath when missing", () => {
     seedHistory(tmp);
