@@ -248,6 +248,29 @@ steps:
 
 **12 step types**: `visit`, `act`, `extract`, `observe`, `wait_for`, `assert_visual`, `assert_dom`, `assert_a11y`, `check_email`, `screenshot`, `computer_use`, `custom`
 
+## Site Recipes (community-contributed)
+
+Recipes are durable per-site knowledge — stable selectors, URL patterns that actually work, gotchas that bit somebody once. They live under [`recipes/<host>/<capability>.yaml`](recipes/) and ship in the npm tarball. Personas and scenarios remain the primary execution units; recipes are reference material the agent consults *while* running them.
+
+```
+recipes/
+├── README.md                       # Writing rules + format spec
+├── _template.yaml                  # Starter template for new recipes
+└── google-oauth/
+    └── recipe.yaml                 # First example (status: untested)
+```
+
+The four writing rules — **map-not-diary**, **no pixel coordinates**, **no secrets / PII**, **field-tested or labeled untested** — are non-negotiable. They are how a recipe stays useful 18 months from now. Full rationale and PR flow live in [`recipes/README.md`](recipes/README.md) and [`docs/contributing-recipes.md`](docs/contributing-recipes.md).
+
+Recipes are dormant by default. Set `PIXELCHECK_RECIPES_ENABLED=1` to have the runner surface matching recipe filenames in its log when navigating to a host that has one.
+
+To contribute a recipe:
+
+1. Author it while auditing the site end-to-end on a specific persona.
+2. Strip diary, secrets, and pixel coordinates per the four rules.
+3. Set `last_verified.date` to the day you ran it (or `status: untested` if you haven't).
+4. Open a PR titled `recipe(<host>): <capability>` — see `docs/contributing-recipes.md` for the full reviewer checklist.
+
 ## 5-Layer Reliability Stack
 
 AI-driven browsers are flaky (~75% baseline). We engineered that away:
@@ -595,6 +618,28 @@ Add to `~/.mcp.json` (or your client's equivalent):
   }
 }
 ```
+
+### Make `SKILL.md` discoverable to your agent
+
+PixelCheck ships a `SKILL.md` at the package root that describes when to reach for which tool, the design constraints, and the field-tested gotchas. Loading it into the agent's context makes the agent reach for the right primitive without trial-and-error — independently of whether the MCP server is running.
+
+**Claude Code** — add an `@import` to `~/.claude/CLAUDE.md` pointing at the installed package:
+
+```bash
+# After `npm install -g pixelcheck` (or `npm install pixelcheck` in a project):
+echo "@$(npm root -g)/pixelcheck/SKILL.md" >> ~/.claude/CLAUDE.md
+# Or for a project-local install:
+echo "@./node_modules/pixelcheck/SKILL.md" >> ./CLAUDE.md
+```
+
+**Codex** — symlink the SKILL into the global skills dir:
+
+```bash
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills/pixelcheck"
+ln -sf "$(npm root -g)/pixelcheck/SKILL.md" "${CODEX_HOME:-$HOME/.codex}/skills/pixelcheck/SKILL.md"
+```
+
+The SKILL.md complements the runtime `list_capabilities` MCP tool — it's the static description an agent can read *before* it has connected to the server, so agents that haven't yet started a session still know which tool fits which user request.
 
 ### Tools
 
