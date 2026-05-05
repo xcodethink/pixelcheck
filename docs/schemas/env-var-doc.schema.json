@@ -3,7 +3,7 @@
   "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/env-var-doc.schema.json",
   "title": "EnvVarDoc",
   "description": "Documentation for one environment variable that influences server behaviour, returned inside ListCapabilitiesResult.env[]. Names secrets but never values; `required: true` is a static dependency declaration, not a presence probe.",
-  "x-result-schema-version": "1.2.0",
+  "x-result-schema-version": "1.3.0",
   "$ref": "#/definitions/EnvVarDoc",
   "definitions": {
     "EnvVarDoc": {

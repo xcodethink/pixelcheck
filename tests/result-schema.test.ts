@@ -33,6 +33,13 @@ import {
   CompareModeSchema,
   CompareWinnerSchema,
   CompareCriterionVerdictSchema,
+  DiagnosticsSchema,
+  PopupSnapshotSchema,
+  NetworkLogSchema,
+  CookieSchema,
+  StorageSnapshotSchema,
+  PerformanceMetricsSchema,
+  VisualScoringSchema,
   validateResult,
   attachSchemaVersion,
 } from "../src/core/result-schema.js";
@@ -60,8 +67,8 @@ describe("result-schema — version constant", () => {
     expect(RESULT_SCHEMA_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("RESULT_SCHEMA_VERSION is 1.2.0 (M9-5: added list_capabilities envelope)", () => {
-    expect(RESULT_SCHEMA_VERSION).toBe("1.2.0");
+  it("RESULT_SCHEMA_VERSION is 1.3.0 (ADR-034: added diagnostics envelope to primitive results)", () => {
+    expect(RESULT_SCHEMA_VERSION).toBe("1.3.0");
   });
 });
 
@@ -1474,5 +1481,207 @@ describe("result-schema — ListCapabilitiesResultSchema (M9-5)", () => {
     const broken: Record<string, unknown> = { ...minimalEnvelope };
     delete broken.cache;
     expect(() => ListCapabilitiesResultSchema.parse(broken)).toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// DiagnosticsSchema (ADR-034 — Phase 0 multi-dimensional envelope)
+// ─────────────────────────────────────────────────────────────
+
+describe("result-schema — DiagnosticsSchema (ADR-034)", () => {
+  it("accepts an empty diagnostics object — collected_at defaults to 'always'", () => {
+    const parsed = DiagnosticsSchema.parse({});
+    expect(parsed.collected_at).toBe("always");
+    expect(parsed.popups).toBeUndefined();
+    expect(parsed.network).toBeUndefined();
+    expect(parsed.cookies).toBeUndefined();
+    expect(parsed.storage).toBeUndefined();
+    expect(parsed.performance).toBeUndefined();
+    expect(parsed.visual).toBeUndefined();
+  });
+
+  it("accepts collected_at: 'on_failure'", () => {
+    const parsed = DiagnosticsSchema.parse({ collected_at: "on_failure" });
+    expect(parsed.collected_at).toBe("on_failure");
+  });
+
+  it("rejects collected_at outside the enum", () => {
+    expect(() =>
+      DiagnosticsSchema.parse({ collected_at: "sometimes" }),
+    ).toThrow();
+  });
+
+  it("accepts a populated envelope (all 6 sub-fields present)", () => {
+    const full = {
+      collected_at: "always" as const,
+      popups: [{ index: 0, url: "https://accounts.google.com/", title: "Google" }],
+      network: { request_count: 42, failure_count: 1 },
+      cookies: [{ name: "session", domain: "example.com" }],
+      storage: { local_storage_keys: 3, session_storage_keys: 0 },
+      performance: { collected: true, lcp_ms: 1234 },
+      visual: { scored: true, layout_score: 8.5 },
+    };
+    const parsed = DiagnosticsSchema.parse(full);
+    expect(parsed.popups).toHaveLength(1);
+    expect(parsed.network?.request_count).toBe(42);
+    expect(parsed.cookies).toHaveLength(1);
+    expect(parsed.storage?.local_storage_keys).toBe(3);
+    // passthrough() preserves PR-C / PR-D fields not yet in the placeholder schema
+    expect((parsed.performance as Record<string, unknown>)?.lcp_ms).toBe(1234);
+    expect((parsed.visual as Record<string, unknown>)?.layout_score).toBe(8.5);
+  });
+
+  it("PopupSnapshotSchema: requires index, allows extra fields (passthrough for PR-B)", () => {
+    const valid = PopupSnapshotSchema.parse({
+      index: 0,
+      url: "https://x.com",
+      title: "X",
+      screenshot: "data:image/png;base64,iVBOR...",
+      closed: false,
+      last_seen_url: "https://x.com",
+    });
+    expect(valid.index).toBe(0);
+    // PR-B fields preserved via passthrough
+    expect((valid as Record<string, unknown>).url).toBe("https://x.com");
+  });
+
+  it("PopupSnapshotSchema: rejects missing index", () => {
+    expect(() => PopupSnapshotSchema.parse({ url: "x" })).toThrow();
+  });
+
+  it("NetworkLogSchema / CookieSchema / StorageSnapshotSchema accept placeholder shapes", () => {
+    expect(() => NetworkLogSchema.parse({})).not.toThrow();
+    expect(() => NetworkLogSchema.parse({ request_count: 0, failure_count: 0 })).not.toThrow();
+    expect(() => CookieSchema.parse({ name: "session" })).not.toThrow();
+    expect(() => CookieSchema.parse({ name: "session", value: "xyz", domain: "x.com" })).not.toThrow();
+    expect(() => CookieSchema.parse({})).toThrow(); // requires name
+    expect(() => StorageSnapshotSchema.parse({})).not.toThrow();
+  });
+
+  it("PerformanceMetricsSchema / VisualScoringSchema accept any object via passthrough", () => {
+    expect(() => PerformanceMetricsSchema.parse({})).not.toThrow();
+    expect(() => PerformanceMetricsSchema.parse({ lcp_ms: 1234, cls: 0.05 })).not.toThrow();
+    expect(() => VisualScoringSchema.parse({})).not.toThrow();
+    expect(() => VisualScoringSchema.parse({ layout_score: 9.2 })).not.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Backward compatibility: 4 primitive results still parse WITHOUT diagnostics
+// (pre-1.3.0 producers must continue to be valid v1.3.0 payloads)
+// ─────────────────────────────────────────────────────────────
+
+describe("result-schema — primitive backward compat (no diagnostics field)", () => {
+  const minimalSee = {
+    schema_version: "1.2.0",
+    url_input: "https://example.com",
+    url_final: "https://example.com",
+    title: "Example",
+    loaded_at: "2026-05-04T00:00:00.000Z",
+    status: "ok" as const,
+    dom: null,
+    console: null,
+    screenshot: null,
+    note: null,
+    persona_id: "default",
+    artifacts_dir: "/tmp/x",
+    cost_usd: 0,
+    duration_ms: 100,
+  };
+
+  it("SeeResult parses without diagnostics (v1.2.x payload)", () => {
+    const parsed = SeeResultSchema.parse(minimalSee);
+    expect(parsed.diagnostics).toBeUndefined();
+  });
+
+  it("SeeResult parses WITH diagnostics (v1.3.x payload)", () => {
+    const withDiag = {
+      ...minimalSee,
+      diagnostics: { collected_at: "always" as const },
+    };
+    const parsed = SeeResultSchema.parse(withDiag);
+    expect(parsed.diagnostics?.collected_at).toBe("always");
+  });
+
+  it("ActResult parses with diagnostics field optional", () => {
+    const minimalAct = {
+      schema_version: "1.2.0",
+      url_input: "https://example.com",
+      url_final: "https://example.com",
+      title: "Example",
+      started_at: "2026-05-04T00:00:00.000Z",
+      finished_at: "2026-05-04T00:00:01.000Z",
+      status: "ok" as const,
+      engine: "playwright" as const,
+      steps: [],
+      dom: null,
+      console: null,
+      screenshot: null,
+      persona_id: "default",
+      artifacts_dir: "/tmp/x",
+      cost_usd: 0,
+      duration_ms: 1000,
+    };
+    expect(() => ActResultSchema.parse(minimalAct)).not.toThrow();
+    expect(() =>
+      ActResultSchema.parse({ ...minimalAct, diagnostics: {} }),
+    ).not.toThrow();
+  });
+
+  it("ExtractResult parses with diagnostics field optional", () => {
+    const minimalExtract = {
+      schema_version: "1.2.0",
+      url_input: "https://example.com",
+      url_final: "https://example.com",
+      title: "Example",
+      loaded_at: "2026-05-04T00:00:00.000Z",
+      status: "ok" as const,
+      engine: "stagehand" as const,
+      data: { foo: "bar" },
+      dom: null,
+      console: null,
+      screenshot: null,
+      persona_id: "default",
+      artifacts_dir: "/tmp/x",
+      cost_usd: 0,
+      duration_ms: 100,
+    };
+    expect(() => ExtractResultSchema.parse(minimalExtract)).not.toThrow();
+    expect(() =>
+      ExtractResultSchema.parse({ ...minimalExtract, diagnostics: {} }),
+    ).not.toThrow();
+  });
+
+  it("CompareResult parses with diagnostics field optional", () => {
+    const minimalSide = {
+      url_input: "https://a.example",
+      url_final: "https://a.example",
+      title: "A",
+      judge: null,
+      screenshot: null,
+      artifacts_dir: "/tmp/a",
+    };
+    const minimalCompare = {
+      schema_version: "1.2.0",
+      mode: "fast" as const,
+      rubrics: ["aesthetic" as const],
+      criteria: [],
+      started_at: "2026-05-04T00:00:00.000Z",
+      finished_at: "2026-05-04T00:00:01.000Z",
+      status: "ok" as const,
+      side_a: minimalSide,
+      side_b: { ...minimalSide, url_input: "https://b.example", title: "B" },
+      per_criterion: [],
+      overall_winner: "tie" as const,
+      summary: null,
+      artifacts_dir: "/tmp/x",
+      model: "claude-sonnet-4-6",
+      cost_usd: 0,
+      duration_ms: 1000,
+    };
+    expect(() => CompareResultSchema.parse(minimalCompare)).not.toThrow();
+    expect(() =>
+      CompareResultSchema.parse({ ...minimalCompare, diagnostics: {} }),
+    ).not.toThrow();
   });
 });
