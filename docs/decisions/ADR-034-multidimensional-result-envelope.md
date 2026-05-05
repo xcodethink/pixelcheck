@@ -1,0 +1,207 @@
+# ADR-034 — Multi-dimensional result envelope (`diagnostics`)
+
+- **Status**: Accepted
+- **Date**: 2026-05-04
+- **Decider**: Wayne
+- **Builds on**: [ADR-002](./ADR-002-primitive-first-architecture.md) (primitive-first), [ADR-007](./ADR-007-result-schema-versioning.md) (result schema versioning)
+- **Phase**: Phase 0 of "AI 自动化测试 + 审计平台" upgrade
+
+## Context
+
+Today's `see` / `act` / `extract` / `compare` primitive results carry pass/fail
+status, a final screenshot, console errors, DOM snapshot, and the URL trail.
+That is enough for "did the page load and did the click work" — i.e. **black-box
+functional verification**. It is not enough for the standard a professional
+testing-and-auditing platform must hit:
+
+- **Visual** — was the layout intact, the brand consistent, was anything
+  truncated or off-color?
+- **White-box** — what popups opened (OAuth/SSO/share dialogs), what network
+  requests fired, what cookies / localStorage / sessionStorage were touched?
+- **Performance** — Core Web Vitals (LCP / CLS / INP), Time-to-Interactive,
+  network waterfall.
+- **Accessibility** — axe-core scan results (already collected separately
+  via `assert_a11y` step).
+- **Security / Privacy / SEO / Content** — additional dimensions in later
+  phases.
+
+The product owner's call is unambiguous: **a professional audit never
+short-circuits**. Functional pass does NOT mean we skip the visual check; visual
+pass does NOT mean we skip white-box; etc. Every dimension is checked,
+collected, and reported independently. Selectively suppressing dimensions
+("only emit white-box on failure") is the wrong default — it converts a
+audit tool into a debug tool.
+
+The four primitive results need a place to put these new dimensions without:
+
+1. Breaking the existing root-level fields (`url_input`, `console`,
+   `screenshot`, `dom`, ...) that downstream reporters and the SPA HTML
+   renderer walk by name.
+2. Polluting the root namespace by adding 6+ sibling fields per primitive
+   (`popups`, `network`, `cookies`, `storage`, `performance`, `visual`).
+3. Forcing every consumer to learn about every dimension at once.
+
+## Decision
+
+### One envelope sub-object: `diagnostics`
+
+Each primitive result schema gains a single optional `diagnostics` field:
+
+```ts
+SeeResult / ActResult / ExtractResult / CompareResult {
+  // ... existing root fields unchanged ...
+  diagnostics?: DiagnosticsSchema
+}
+
+DiagnosticsSchema = {
+  collected_at: 'always' | 'on_failure'    // default 'always'
+  popups?: PopupSnapshotSchema[]            // PR-B
+  network?: NetworkLogSchema                // PR-B
+  cookies?: CookieSchema[]                  // PR-B
+  storage?: StorageSnapshotSchema           // PR-B
+  performance?: PerformanceMetricsSchema    // PR-C
+  visual?: VisualScoringSchema              // PR-D
+}
+```
+
+Default behavior: every primitive call collects every dimension (see
+"Always-collect, never-skip"). `collected_at: 'always'` is the canonical
+value. The `'on_failure'` value is reserved for future opt-in performance
+optimization where a caller explicitly accepts "less data on pass" —
+not used in v1.3.0.
+
+### Always-collect, never-skip
+
+Per the product owner's call: PixelCheck is a professional testing +
+auditing platform, not a debug-when-broken tool. Each dimension's collector
+runs unconditionally. The two ways a sub-field is absent on a result:
+
+1. The primitive ran in a v1.2.x build that didn't know about the field.
+2. The collector for that dimension wasn't shipped yet (PR-B/C/D pending).
+
+There is no "pass case skipped collection to save tokens" path. Tokens spent
+on full diagnostics are the deliberate cost of audit-completeness; consumers
+who don't care can ignore the field.
+
+### Why `diagnostics`, not `extras` / `details` / `data`
+
+- "diagnostics" carries the medical / engineering connotation of "data you
+  read to understand what happened" — exactly the audit semantic.
+- "extras" / "details" suggest optional / tertiary, opposite of the intent.
+- "data" is too generic and conflicts with `extract`'s `data` field.
+- Future audit-specific fields with different semantics (e.g.
+  `compliance: WcagComplianceSchema` for a formal WCAG-conformance
+  declaration) get their own top-level field, not a sub-key of
+  diagnostics. Diagnostics is for raw signal; compliance is for
+  judgment.
+
+### Schema version: 1.2.0 → 1.3.0
+
+Per ADR-007 SemVer policy, adding an optional sub-object to existing
+schemas is a **minor** bump:
+
+- `RESULT_SCHEMA_VERSION = "1.3.0"`
+- v1.3.0 history note added in `result-schema.ts`
+- JSON schema artifacts in `docs/schemas/` regenerated
+- Validation policy stays observe-only (per ADR-007); a v1.2.x consumer
+  reading a v1.3.x payload sees the unknown `diagnostics` key and either
+  ignores it (Zod `passthrough`) or warns (consumer's choice).
+
+### Phased delivery
+
+This ADR governs PR-A through PR-E:
+
+| PR | Scope | Schema impact |
+|---|---|---|
+| **PR-A** (this) | ADR + DiagnosticsSchema **scaffolding** + 6 placeholder sub-schemas + `diagnostics?` threaded into 4 primitive results + tests | Bump to 1.3.0; sub-schemas are placeholders (object with `TODO` marker) |
+| **PR-B** | WhiteboxCollector — fill `popups` / `network` / `cookies` / `storage` sub-schemas + 4 primitives wire it on | No version bump (already 1.3.0; sub-schema fields fill in) |
+| **PR-C** | PerformanceCollector — fill `performance` sub-schema | No version bump |
+| **PR-D** | Visual scoring — fill `visual` sub-schema | No version bump |
+| **PR-E** | Critic prompt + new `pixelcheck.diagnose` MCP tool | Schema for new tool, no impact on primitive results |
+
+PR-A ships zero behavior change at runtime — primitives don't yet emit
+`diagnostics` because no collector is wired. Pure type contract: the field
+becomes legal in the schema. PR-B is the first PR that actually populates
+data. This phasing is intentional so each PR is independently shippable
+and reviewable under PixelCheck's <300 LoC PR convention.
+
+## Consequences
+
+### Positive
+
+- Adds a single, predictable place for every future audit dimension.
+- Backward-compatible: pre-1.3.0 consumers see the field as unknown and
+  ignore it; their existing parsers don't break.
+- Lets PR-B/C/D/E ship independently without further schema-version bumps.
+- Critic AI in PR-E gets a single nested object to inject into prompts
+  instead of 6 sibling fields.
+- Aligns with how Stripe / GitHub / Anthropic SDK structure response
+  envelopes (root field for primary data, optional nested object for
+  metadata-rich extras).
+
+### Negative
+
+- A consumer reading `result.popups` directly (instead of
+  `result.diagnostics.popups`) gets `undefined` — but no such consumer
+  exists today, so the only risk is in future code we haven't written yet.
+- Every primitive result now has a parsing path that may walk into the
+  diagnostics sub-tree, which adds nominal CPU. Negligible in practice
+  (Zod schemas are pre-compiled).
+
+### Neutral
+
+- No consumer is forced to use the new field. Reporters that want to render
+  popups / network / cookies opt in in PR-B+; everything else continues
+  reading root-level fields as before.
+
+## Alternatives considered
+
+### A. Embed each dimension at top-level
+
+```ts
+SeeResult { ..., popups?, network?, cookies?, storage?, performance?, visual? }
+```
+
+Pollutes the root namespace, makes the result shape "everything is at the
+top level and you have to know which fields are status vs which are
+diagnostic". Rejected.
+
+### B. One `inspections` array of typed entries
+
+```ts
+SeeResult { ..., inspections?: Array<{type: 'popup'|'network'|..., data: unknown}> }
+```
+
+Makes consumers pay for runtime type narrowing on every read. Rejected.
+
+### C. Failure-only diagnostics
+
+Collect everything but only serialize when status === "error". Saves
+tokens on the happy path.
+
+Wayne's product judgment: rejected. A professional audit never says "you
+passed so I won't tell you anything." Visual / performance / accessibility
+checks must produce data even when functional check passed, so a
+downstream WCAG audit / Lighthouse report can roll the data up.
+Conversion of audit tool into debug tool is the wrong direction.
+
+### D. Two parallel envelopes (`diagnostics` + `metrics`)
+
+```ts
+SeeResult { ..., diagnostics?: { popups, network, cookies, storage }, metrics?: { performance, visual } }
+```
+
+Cleaner separation but two top-level fields to discover and version
+independently. PixelCheck's existing schema already mixes raw signal
+(`console`) with derived metrics (no equivalent today, but
+`AssertA11yResult.violation_count`-style fields belong with their data).
+Single `diagnostics` envelope keeps the convention. Rejected.
+
+## References
+
+- `src/core/result-schema.ts` — schema implementation
+- `tests/result-schema.test.ts` — schema tests (new cases for 1.3.0)
+- ADR-007 — SemVer policy this minor bump complies with
+- ADR-002 — primitive-first architecture this preserves
+- `docs/schemas/*.json` — JSON Schema artifacts auto-regenerated by
+  `npm run schemas`

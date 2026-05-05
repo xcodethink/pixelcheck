@@ -3,7 +3,7 @@
   "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/see-result.schema.json",
   "title": "SeeResult",
   "description": "MCP tool envelope returned by `see` (N-1 primitive). One-shot navigation snapshot: DOM summary, console errors, screenshot, and an optional vision note.",
-  "x-result-schema-version": "1.2.0",
+  "x-result-schema-version": "1.3.0",
   "$ref": "#/definitions/SeeResult",
   "definitions": {
     "SeeResult": {
@@ -200,6 +200,97 @@
             "age_ms",
             "key"
           ],
+          "additionalProperties": false
+        },
+        "diagnostics": {
+          "type": "object",
+          "properties": {
+            "collected_at": {
+              "type": "string",
+              "enum": [
+                "always",
+                "on_failure"
+              ],
+              "default": "always"
+            },
+            "popups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "index": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "index"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "network": {
+              "type": "object",
+              "properties": {
+                "request_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "failure_count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": true
+            },
+            "cookies": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "storage": {
+              "type": "object",
+              "properties": {
+                "local_storage_keys": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "session_storage_keys": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": true
+            },
+            "performance": {
+              "type": "object",
+              "properties": {
+                "collected": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true
+            },
+            "visual": {
+              "type": "object",
+              "properties": {
+                "scored": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
           "additionalProperties": false
         }
       },

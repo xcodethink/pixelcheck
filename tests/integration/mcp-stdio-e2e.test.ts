@@ -14,7 +14,7 @@
  *   - `list_capabilities` (kind: "meta") roundtrip — pure introspection,
  *     **NO LLM calls**, validates the MCP transport + dispatch + result
  *     stamping path end-to-end without burning Anthropic API budget
- *   - Result envelope conforms to ListCapabilitiesResult schema (1.2.0)
+ *   - Result envelope conforms to ListCapabilitiesResult schema (whatever the current RESULT_SCHEMA_VERSION is)
  *
  * Why list_capabilities specifically:
  *   - It's the only MCP tool that doesn't hit an LLM (it's pure
@@ -36,6 +36,7 @@ import { fileURLToPath } from "node:url";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { RESULT_SCHEMA_VERSION } from "../../src/core/result-schema.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
@@ -133,7 +134,9 @@ describe("MCP stdio e2e — pure-introspection roundtrip (no LLM)", () => {
     expect(envelope).toHaveProperty("env");
     expect(envelope).toHaveProperty("cache");
 
-    expect(envelope.result_schema_version).toBe("1.2.0");
+    // Stamp current RESULT_SCHEMA_VERSION rather than a hardcoded string
+    // so this test doesn't break on every minor schema bump.
+    expect(envelope.result_schema_version).toBe(RESULT_SCHEMA_VERSION);
     expect(Array.isArray(envelope.tools)).toBe(true);
     expect(envelope.tools.length).toBeGreaterThanOrEqual(5);
 

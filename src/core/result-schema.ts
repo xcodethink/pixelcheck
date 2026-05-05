@@ -54,8 +54,15 @@ import { getLogger } from "./logger.js";
  *           (ListCapabilitiesResult + ToolCapability + EnvVarDoc +
  *           CostEstimate + CacheInfo). Additive minor — no existing
  *           envelope changed. (M9-5 / ADR-016)
+ *   1.3.0 — added optional `diagnostics` envelope to See / Act / Extract
+ *           / Compare result schemas. Carries multi-dimensional audit
+ *           data (popups, network, cookies, storage, performance,
+ *           visual). Sub-schemas are placeholder shapes in this minor
+ *           release; PR-B / PR-C / PR-D fill them with real fields.
+ *           Additive minor per ADR-007 — pre-1.3.0 consumers see the
+ *           field as unknown and ignore it. (Phase 0 / ADR-034)
  */
-export const RESULT_SCHEMA_VERSION = "1.2.0";
+export const RESULT_SCHEMA_VERSION = "1.3.0";
 
 const SchemaVersionField = z
   .string()
@@ -82,6 +89,91 @@ export const ResultCacheMetaSchema = z.object({
   age_ms: z.number().nonnegative(),
   key: z.string().regex(/^[0-9a-f]{64}$/, "key must be a 64-char sha256 hex"),
   cost_saved_usd: z.number().nonnegative().optional(),
+});
+
+// ─────────────────────────────────────────────────────────────
+// Diagnostics envelope (ADR-034 — Phase 0 multi-dimensional audit)
+// ─────────────────────────────────────────────────────────────
+//
+// Optional sub-object on every primitive result (See / Act / Extract /
+// Compare). Carries audit data that does not fit the existing root-
+// level fields (`url_input`, `console`, `dom`, `screenshot`, ...).
+//
+// PR-A (this release, v1.3.0) ships placeholder sub-schemas. The fields
+// are intentionally permissive (`passthrough()` + minimal required
+// keys) so PR-B / PR-C / PR-D can fill in concrete shapes without
+// another major schema bump. A consumer reading a v1.3.0 payload can
+// already parse the envelope; the data inside each sub-field will
+// solidify in subsequent minor releases.
+//
+// Default `collected_at` is `'always'` — per ADR-034 a professional
+// audit never short-circuits. The `'on_failure'` value is reserved for
+// a future opt-in performance optimization where a caller explicitly
+// trades audit completeness for token savings.
+
+/** Popup window snapshot. PR-B fills concrete fields
+ *  (url, title, body_text, screenshot, closed, last_seen_url, ...). */
+export const PopupSnapshotSchema = z
+  .object({
+    index: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+/** Network request log. PR-B fills concrete fields
+ *  (requests array, failures array, optional HAR). */
+export const NetworkLogSchema = z
+  .object({
+    request_count: z.number().int().nonnegative().optional(),
+    failure_count: z.number().int().nonnegative().optional(),
+  })
+  .passthrough();
+
+/** Cookie snapshot. PR-B fills concrete fields per Playwright Cookie
+ *  type (name, value, domain, path, expires, httpOnly, secure, sameSite). */
+export const CookieSchema = z
+  .object({
+    name: z.string(),
+  })
+  .passthrough();
+
+/** Storage snapshot — localStorage + sessionStorage + (future) IndexedDB.
+ *  PR-B fills concrete shapes; redaction policy honors ADR-006 secrets-
+ *  redaction (`password`, `token`, `secret` keys redacted by default). */
+export const StorageSnapshotSchema = z
+  .object({
+    local_storage_keys: z.number().int().nonnegative().optional(),
+    session_storage_keys: z.number().int().nonnegative().optional(),
+  })
+  .passthrough();
+
+/** Performance metrics. PR-C fills with Web Vitals
+ *  (lcp_ms, cls, inp_ms, fcp_ms, ttfb_ms, transfer_bytes, ...). */
+export const PerformanceMetricsSchema = z
+  .object({
+    collected: z.boolean().optional(),
+  })
+  .passthrough();
+
+/** Visual scoring. PR-D fills with structured AI output
+ *  (layout_score, brand_consistency, truncation_findings, contrast_findings, ...). */
+export const VisualScoringSchema = z
+  .object({
+    scored: z.boolean().optional(),
+  })
+  .passthrough();
+
+export const DiagnosticsSchema = z.object({
+  /** Provenance: when did the collectors run.
+   *  - `'always'`: collectors ran unconditionally. ADR-034 default.
+   *  - `'on_failure'`: collectors ran only because the primitive failed
+   *    (reserved for future opt-in performance modes; not used in v1.3.0). */
+  collected_at: z.enum(["always", "on_failure"]).default("always"),
+  popups: z.array(PopupSnapshotSchema).optional(),
+  network: NetworkLogSchema.optional(),
+  cookies: z.array(CookieSchema).optional(),
+  storage: StorageSnapshotSchema.optional(),
+  performance: PerformanceMetricsSchema.optional(),
+  visual: VisualScoringSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -485,6 +577,10 @@ export const SeeResultSchema = z.object({
   duration_ms: z.number().nonnegative(),
   /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
   cache: ResultCacheMetaSchema.optional(),
+  /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). Optional in
+   *  v1.3.0; sub-fields populated by PR-B (whitebox) / PR-C (performance)
+   *  / PR-D (visual). Absent when no collector ran (e.g. v1.2.x payload). */
+  diagnostics: DiagnosticsSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -601,6 +697,8 @@ export const ActResultSchema = z.object({
    * is included for envelope uniformity across primitives.
    */
   cache: ResultCacheMetaSchema.optional(),
+  /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). See SeeResult. */
+  diagnostics: DiagnosticsSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -642,6 +740,8 @@ export const ExtractResultSchema = z.object({
   duration_ms: z.number().nonnegative(),
   /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
   cache: ResultCacheMetaSchema.optional(),
+  /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). See SeeResult. */
+  diagnostics: DiagnosticsSchema.optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -787,6 +887,10 @@ export const CompareResultSchema = z.object({
    * each side's `judge` already carries its own `cache` field.
    */
   cache: ResultCacheMetaSchema.optional(),
+  /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0).
+   *  For compare, diagnostics describe the aggregate run; per-side
+   *  diagnostics live on each side's underlying judge / see result. */
+  diagnostics: DiagnosticsSchema.optional(),
 });
 
 export const PersonaSummarySchema = z.object({
