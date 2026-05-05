@@ -17,6 +17,7 @@ import {
 } from "playwright";
 import type { Persona } from "./types.js";
 import { getLogger } from "./logger.js";
+import { applyTabMarker } from "./tab-marker.js";
 
 const log = getLogger("stagehand-wrapper");
 
@@ -240,6 +241,18 @@ export async function createStagehandWrapper(
     log.warn(
       { err: err instanceof Error ? err.message : String(err) },
       "failed to inject stealth init script",
+    );
+  }
+
+  // Tab title marker — visible attribution for the controlled tab when
+  // running in headed mode. Skipped in headless to avoid polluting
+  // document.title reads in extract / dom-summary / interaction signals.
+  try {
+    await applyTabMarker(context, { headless: stealthOpts.headless });
+  } catch (err) {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "failed to inject tab-marker init script",
     );
   }
 
