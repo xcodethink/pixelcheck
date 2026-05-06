@@ -1,4 +1,4 @@
-# Contributing to ai-browser-auditor
+# Contributing to PixelCheck
 
 Thank you for your interest in contributing! This guide covers everything
 you need to know to set up a development environment, run tests, and submit
@@ -41,8 +41,8 @@ Reporting channels are documented in `CODE_OF_CONDUCT.md`.
 ### Clone + install
 
 ```bash
-git clone https://github.com/xcodethink/ai-browser-auditor.git
-cd ai-browser-auditor
+git clone https://github.com/xcodethink/pixelcheck.git
+cd pixelcheck
 npm ci          # use ci, not install — uses package-lock for reproducibility
 npm run build   # compile TypeScript
 ```
@@ -331,7 +331,7 @@ the current version.
 
 For a full release-readiness checklist (cross-platform install verify,
 license audit, privacy disclosure, etc) see
-[progress/RELEASE-READINESS-CHECKLIST.md](https://github.com/xcodethink/ai-browser-auditor/blob/main/progress/RELEASE-READINESS-CHECKLIST.md)
+[progress/RELEASE-READINESS-CHECKLIST.md](https://github.com/xcodethink/pixelcheck/blob/main/progress/RELEASE-READINESS-CHECKLIST.md)
 in the planning repo.
 
 ---
@@ -339,7 +339,7 @@ in the planning repo.
 ## Where to ask questions
 
 - **Code question**: open a discussion on GitHub Discussions
-- **Bug**: file a [GitHub Issue](https://github.com/xcodethink/ai-browser-auditor/issues)
+- **Bug**: file a [GitHub Issue](https://github.com/xcodethink/pixelcheck/issues)
 - **Security**: see [SECURITY.md](SECURITY.md) — private disclosure only
 - **Stuck**: tag the issue with `[help wanted]` and describe what you've
   tried; someone will pick it up

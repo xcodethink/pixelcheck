@@ -107,7 +107,7 @@ For scenario syntax: see [docs/writing-scenarios.md](docs/writing-scenarios.md).
 ### Q: How do I add custom personas?
 
 Create `personas/my-persona.yaml` next to `personas/` directory. Built-in
-personas come from `node_modules/ai-browser-auditor/dist/personas/` and
+personas come from `node_modules/pixelcheck/dist/personas/` and
 auto-merge with custom — custom takes precedence on id collision.
 
 For persona syntax: see [docs/writing-personas.md](docs/writing-personas.md).
@@ -187,7 +187,7 @@ disclosure is in [PRIVACY.md](PRIVACY.md).
 
 ### Q: Why am I being prompted for "consent" on first run?
 
-`ai-browser-auditor` is honest about sending page content to a third-party
+`pixelcheck` is honest about sending page content to a third-party
 LLM (Anthropic Claude). The first-run prompt is informed consent — see
 [PRIVACY.md § User consent](PRIVACY.md#user-consent). Subsequent runs
 don't re-prompt unless the consent version bumps.
@@ -205,6 +205,8 @@ rm -rf reports/<runId>
 find reports/ -maxdepth 1 -type d -mtime +30 -exec rm -rf {} \;
 
 # Wipe ALL local cache state (forces rebuild)
+rm -rf ~/.pixelcheck/
+# (also wipe legacy backward-compat path if you upgraded from v0.x)
 rm -rf ~/.ai-browser-auditor/
 ```
 

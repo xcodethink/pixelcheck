@@ -67,7 +67,7 @@ beforeAll(async () => {
   });
 
   client = new Client(
-    { name: "ai-browser-auditor-stdio-e2e-test", version: "1.0.0" },
+    { name: "pixelcheck-stdio-e2e-test", version: "1.0.0" },
     { capabilities: {} },
   );
 
