@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/audit-run.schema.json",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/audit-run.schema.json",
   "title": "AuditRun",
   "description": "The top-level result of a `runAudit` invocation. Written to audit.json and returned by the audit_url MCP tool's `report_json` artefact.",
   "x-result-schema-version": "1.3.0",

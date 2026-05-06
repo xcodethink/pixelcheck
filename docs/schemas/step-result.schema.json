@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/step-result.schema.json",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/step-result.schema.json",
   "title": "StepResult",
   "description": "Per-step execution record. Includes status, retries, execution_method, and optional signals.",
   "x-result-schema-version": "1.3.0",
