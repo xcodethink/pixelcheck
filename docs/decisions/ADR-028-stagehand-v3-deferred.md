@@ -1,11 +1,11 @@
 # ADR-028 — Defer Stagehand v3 upgrade to a dedicated task（v1.0 ship Stagehand v2.5.8）
 
-- **Status**: Superseded by [ADR-029](ADR-029-stagehand-v3-migration.md) (2026-05-03)
+- **Status**: Superseded by [ADR-035](ADR-035-stagehand-v3-migration.md) (2026-05-03; originally filed as ADR-029, renumbered 2026-05-05)
 - **Date**: 2026-05-01
 - **Task**: T0.5（Wave 0 dep upgrade）
 
 > **Update 2026-05-03**: T-NEW-1 was executed earlier than the original
-> "v1.1 early task" plan — see ADR-029 for the actual migration record.
+> "v1.1 early task" plan — see ADR-035 for the actual migration record.
 > The transitive vulnerability waiver in this ADR is now closed
 > (Stagehand v3 dropped the vulnerable `ai` SDK / `jsondiffpatch`
 > versions). The original deferral reasoning is preserved here for

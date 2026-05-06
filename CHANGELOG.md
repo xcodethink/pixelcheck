@@ -272,8 +272,10 @@ only need to bump `package.json#version` — no source-string chasing.
 
 ### Changed
 
-- **`@browserbasehq/stagehand` ^2.0.0 → ^3.3.0** ([ADR-029](docs/decisions/ADR-029-stagehand-v3-migration.md),
-  supersedes [ADR-028](docs/decisions/ADR-028-stagehand-v3-deferred.md)).
+- **`@browserbasehq/stagehand` ^2.0.0 → ^3.3.0** ([ADR-035](docs/decisions/ADR-035-stagehand-v3-migration.md),
+  supersedes [ADR-028](docs/decisions/ADR-028-stagehand-v3-deferred.md);
+  ADR-035 was originally filed as ADR-029 and renumbered 2026-05-05 to
+  resolve a slot conflict with the M9-3.2 file-lock-race ADR).
   Stagehand v3 went CDP-native and dropped Playwright BrowserContext as
   its substrate, which would have removed our HAR / video / Playwright-
   tracing recording. Architecture: PixelCheck launches its own
@@ -293,7 +295,7 @@ only need to bump `package.json#version` — no source-string chasing.
     dropped both vulnerable deps).
 - **`dotenv` ^16.6.1 → ^17.4.2** and **`zod` ^3.23.0 → ^3.25.76**.
   Originally pinned by Stagehand v2.5.8's overly-conservative peer
-  ranges; PR #12 unblocked them via `overrides`; ADR-029's Stagehand
+  ranges; PR #12 unblocked them via `overrides`; ADR-035's Stagehand
   v3 migration makes the upgrades direct (no override). T5 Stagehand
   smoke verifies runtime compatibility.
 - **`src/cli.ts`** — both `dotenv.config()` callsites now pass

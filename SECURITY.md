@@ -46,7 +46,9 @@ ships and downstream users have time to upgrade.
 ## Known Accepted Risks (v1.0.0)
 
 > **Update 2026-05-03**: T-NEW-1 (Stagehand v3 upgrade) executed earlier
-> than planned — see [ADR-029](docs/decisions/ADR-029-stagehand-v3-migration.md).
+> than planned — see [ADR-035](docs/decisions/ADR-035-stagehand-v3-migration.md)
+> (originally filed as ADR-029, renumbered 2026-05-05 to resolve a slot
+> conflict with the M9-3.2 file-lock-race ADR).
 > Stagehand v3.3.0 dropped both vulnerable transitive dependencies, so the
 > three waivers below are **closed**. The full text is preserved here as a
 > historical record of v1.0.0's accepted-risk posture.
@@ -107,7 +109,7 @@ Result: `npm audit --production` reports **0 vulnerabilities**.
 
 ### CI policy
 
-After ADR-029 + the post-v3 override cleanup above, CI runs
+After ADR-035 + the post-v3 override cleanup above, CI runs
 `npm audit --production --audit-level=moderate` (tightened from the
 v1.0 `--audit-level=high` gate). All historical waivers are closed.
 
