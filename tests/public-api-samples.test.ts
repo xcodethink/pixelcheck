@@ -72,6 +72,8 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "ActStepSchema",
   "AgentConfigSchema",
   "AgentEventBus",
+  "AllProvidersFailedError",
+  "AnthropicProvider",
   "AssertA11yStepSchema",
   "AssertDomStepSchema",
   "AssertVisualStepSchema",
@@ -79,10 +81,16 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "ComputerUseStepSchema",
   "CustomStepSchema",
   "DEFAULT_LOCALE",
+  "DEFAULT_RETRY_STRATEGY",
   "ExtractStepSchema",
+  "FallbackLLMProvider",
   "HintSchema",
   "ObserveStepSchema",
+  "OllamaApiError",
+  "OllamaConnectionError",
+  "OllamaProvider",
   "PersonaSchema",
+  "ProgressReporter",
   "ProjectConfigSchema",
   "SUPPORTED_LOCALES",
   "ScenarioSchema",
@@ -95,7 +103,11 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "WaitForStepSchema",
   "attachConsoleLogger",
   "buildExecutionMatrix",
+  "canResume",
+  "clearCheckpoint",
+  "computeBackoff",
   "computeSummary",
+  "createProvider",
   "detectCiEnvironment",
   "diffRuns",
   "extractDomSummary",
@@ -103,7 +115,9 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "formatDomSummary",
   "formatRunsCount",
   "generateMutations",
+  "isTTY",
   "isWcagIssue",
+  "loadCheckpoint",
   "loadHistory",
   "loadPersonas",
   "loadProjectConfig",
@@ -119,12 +133,14 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "resolvePersonaSecrets",
   "runAudit",
   "saveAuditToHistory",
+  "saveCheckpoint",
   "substituteTemplate",
   "summarizeWcag",
   "t",
   "waitForPageStable",
   "wcagHelpUrl",
   "wcagSarifRuleId",
+  "withRetry",
   "writeDiffReport",
   "writeGithubAnnotationsReport",
   "writeHtmlReport",
@@ -144,8 +160,8 @@ describe("public surface snapshot — src/index.ts", () => {
     expect(actual).toEqual([...EXPECTED_RUNTIME_EXPORTS]);
   });
 
-  it("ships exactly 67 runtime exports (bump this when intentionally adding a public symbol)", () => {
-    expect(Object.keys(lib)).toHaveLength(67);
+  it("ships exactly 83 runtime exports (bump this when intentionally adding a public symbol)", () => {
+    expect(Object.keys(lib)).toHaveLength(83);
   });
 
   const functionExports: Array<keyof typeof lib> = [
