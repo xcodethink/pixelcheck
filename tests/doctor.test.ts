@@ -30,8 +30,9 @@ beforeEach(() => {
   delete process.env.NO_PROXY;
   delete process.env.no_proxy;
   delete process.env.NODE_EXTRA_CA_CERTS;
-  // Override AUDIT_HOME so we don't touch the user's real
-  // ~/.ai-browser-auditor/ during tests.
+  // Override AUDIT_HOME (legacy alias for PIXELCHECK_HOME, still
+  // backward-compat-resolved) so we don't touch the user's real
+  // ~/.pixelcheck/ during tests.
   process.env.AUDIT_HOME = path.join(tmpRoot, "audit-home");
 });
 
