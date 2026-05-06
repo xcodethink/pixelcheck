@@ -7,10 +7,21 @@ context → decision → alternatives rejected → consequences → files change
 
 ## Index
 
-ADRs are numbered sequentially. Numbers below 005 don't exist (the project's
-formal ADR practice started at v0.3 maintenance).
+ADRs are numbered sequentially. ADR-001..004 (Founding) were back-filled
+2026-05-02 (commit `8a09023`) to capture the v1.0 founding decisions retroactively;
+ADR-005 onward were written contemporaneously with the v0.3 maintenance →
+v1.x work.
 
-### Foundational (v0.3 → v1.0)
+### Founding (v1.0 positioning, back-filled 2026-05-02)
+
+| # | Title | Task |
+|---|---|---|
+| 001 | AI-first positioning | v1.0 ship-prep |
+| 002 | Primitive-first architecture (`see`/`act`/`extract`/`judge`/`compare`) | v1.0 ship-prep |
+| 003 | Registration as research-only | v1.0 ship-prep |
+| 004 | Worktree-isolated development | v1.0 ship-prep |
+
+### Foundational engineering (v0.3 → v1.0)
 
 | # | Title | Task |
 |---|---|---|
@@ -64,20 +75,28 @@ formal ADR practice started at v0.3 maintenance).
 | # | Title | Task |
 |---|---|---|
 | 027 | Lock Zod v3 (defer Zod v4 to v1.x) | T0.5 |
-| 028 | Defer Stagehand v3 upgrade to v1.1 | T0.5 |
+| 028 | Defer Stagehand v3 upgrade to v1.1 | T0.5 (superseded by 035) |
 | 030 | axe-core standard cumulative expansion | T-NEW-11 |
 | 032 | Vendor stealth-core into src/vendor/ for tarball-installable v1.0 | T31.5 |
 
+### v1.x rebrand + dependency wave (post-v1.0)
+
+| # | Title | Task |
+|---|---|---|
+| 033 | Rename ai-browser-auditor → PixelCheck + AI-first MCP repositioning | v1.0 brand |
+| 034 | Multi-dimensional result envelope (`diagnostics` field) — Phase 0 | Phase 0 |
+| 035 | Stagehand v3.3.0 migration with Playwright + CDP bridge (originally filed as ADR-029) | T-NEW-1 |
+
 ---
 
-## Audit (refreshed 2026-05-02 — Wave 7-pre)
+## Audit (refreshed 2026-05-05 — batch 1 doc reconciliation)
 
-A consistency review of all **28 ADRs** (numbered 005-032; ADR-001 through
-ADR-004 were never written — early-project decisions never formalised; the
-five-digit zero padding starts at the first formalised decision):
+A consistency review of all **35 ADRs** (ADR-001..035; no gaps within 001-035
+— a single number conflict on 029 was resolved by renumbering the Stagehand
+v3 migration ADR to 035, see commit `ad8d71b`):
 
-- **All Accepted, none Superseded** — no decision has been overturned in
-  the v0.3 → v1.0 build-up
+- **Almost all Accepted; ADR-028 is `Superseded by ADR-035`** — single
+  reversal on the v0.3 → v1.x build-up
 - **Topics partition cleanly** — no two ADRs cover the same subject with
   conflicting decisions
 - **Cross-references are coherent**:
@@ -97,11 +116,19 @@ five-digit zero padding starts at the first formalised decision):
     evolve-later decisions)
 - **No `// TODO: write ADR for this` markers in source code**
 - **Public API exports listed in ADR-018 stay coherent across ADRs**
+- **Founding ADR-001..004** (back-filled 2026-05-02) capture v1.0 positioning
+  retroactively — AI-first positioning, primitive-first architecture,
+  registration as research-only, and worktree-isolated dev — and are cited
+  by ADR-033 (rebrand) which extends the AI-first positioning narrative.
+- **ADR-034** (multi-dimensional envelope) builds on ADR-007 (schema
+  versioning) and is the active Phase 0 / 1.3.0 work line.
+- **ADR-035** (Stagehand v3) supersedes ADR-028 (deferred decision) and
+  closes the 3 transitive vulnerabilities waived in SECURITY.md v1.0.0.
 
 Conclusion: ADR set is **internally consistent** and **complete enough
-for v1.0 ship**. Future ADRs will land as new behaviour is introduced
-(Phase 3 / Phase 4 work — multi-provider LLM, Web config UI, plugin
-system, etc).
+for v1.x ship**. Future ADRs will land as new behaviour is introduced
+(Phase 0 PR-B/C/D/E, Phase 3 / Phase 4 work — multi-provider LLM, Web
+config UI, plugin system, etc).
 
 ---
 
@@ -113,9 +140,11 @@ system, etc).
 | `Accepted` | Decision is binding; behaviour implemented or in-progress |
 | `Superseded by ADR-NNN` | Replaced by a later decision; left here for history |
 
-Currently all 28 ADRs are `Accepted`. When a decision is reversed, mark
-the old one `Superseded by ADR-XXX` (don't delete) and write a new ADR
-explaining the new direction + why the old one no longer fits.
+Currently 34 of 35 ADRs are `Accepted`; **ADR-028 is `Superseded by ADR-035`**
+(Stagehand v3 deferral was reversed when v3.3.0 dropped the vulnerable
+transitive deps). When a decision is reversed, mark the old one
+`Superseded by ADR-XXX` (don't delete) and write a new ADR explaining the
+new direction + why the old one no longer fits.
 
 ---
 
