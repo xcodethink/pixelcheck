@@ -43,6 +43,18 @@ import { normaliseLocale, type Locale } from "./core/i18n.js";
 import { registerSecret } from "./core/logger.js";
 import { runDoctor, renderDoctorReport } from "./commands/doctor.js";
 import {
+  findLatestReport,
+  loadAuditReport,
+  runExplain,
+  renderExplainText,
+  renderExplainJson,
+} from "./commands/explain.js";
+import {
+  generateCompletion,
+  SUPPORTED_SHELLS,
+  type Shell,
+} from "./commands/completions.js";
+import {
   runInitInteractive,
   writeSampleScenario,
 } from "./commands/init-interactive.js";
@@ -630,6 +642,72 @@ program
     },
   );
 
+// ── explain command: explain audit issues ───────────────────────────
+
+program
+  .command("explain <query>")
+  .description(
+    "Explain an audit issue. <query> is an issue index (0-based) or a dimension name (e.g. localization, accessibility).",
+  )
+  .option("--json", "Output machine-readable JSON")
+  .option("--locale <locale>", "Report language (en, zh-CN, ja, es, de)")
+  .option("--report <path>", "Path to a specific audit.json file")
+  .action(
+    (
+      query: string,
+      explainOpts: {
+        json?: boolean;
+        locale?: string;
+        report?: string;
+      },
+    ) => {
+      const locale = normaliseLocale(explainOpts.locale);
+
+      // Resolve the audit report
+      let reportPath = explainOpts.report;
+      if (!reportPath) {
+        reportPath = findLatestReport() ?? undefined;
+        if (!reportPath) {
+          safeError(
+            chalk.red(
+              "[pixelcheck] No audit report found. Run `pixelcheck run` first, or specify --report <path>.",
+            ),
+          );
+          process.exit(1);
+        }
+      }
+
+      if (!fs.existsSync(reportPath)) {
+        safeError(
+          chalk.red(`[pixelcheck] Report not found: ${reportPath}`),
+        );
+        process.exit(1);
+      }
+
+      let audit;
+      try {
+        audit = loadAuditReport(reportPath);
+      } catch (err) {
+        safeError(
+          chalk.red(
+            `[pixelcheck] Failed to parse report: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+        process.exit(1);
+      }
+
+      const result = runExplain(query, audit);
+
+      if (explainOpts.json) {
+        console.log(renderExplainJson(result));
+      } else {
+        for (const line of renderExplainText(result, locale)) {
+          console.log(line);
+        }
+      }
+    },
+  );
+
 // ── explore command: ad-hoc autonomous exploration ──────────────────
 
 program
@@ -1017,6 +1095,35 @@ program
     }
     const hasErrors = result.entries.some((e) => e.errors.length > 0);
     process.exit(hasErrors ? 1 : 0);
+  });
+
+// ── completions command: shell tab-completion scripts ────────────────
+
+program
+  .command("completions <shell>")
+  .description(
+    "Generate shell completion scripts. Supported shells: bash, zsh, fish.",
+  )
+  .action((shell: string) => {
+    const lower = shell.toLowerCase();
+    if (!(SUPPORTED_SHELLS as readonly string[]).includes(lower)) {
+      console.error(
+        `Unknown shell: "${shell}". Supported shells: ${SUPPORTED_SHELLS.join(", ")}`,
+      );
+      console.error("");
+      console.error("Usage:");
+      console.error(
+        "  pixelcheck completions bash > ~/.bash_completion.d/pixelcheck",
+      );
+      console.error(
+        "  pixelcheck completions zsh  > ~/.zfunc/_pixelcheck",
+      );
+      console.error(
+        "  pixelcheck completions fish > ~/.config/fish/completions/pixelcheck.fish",
+      );
+      process.exit(1);
+    }
+    process.stdout.write(generateCompletion(lower as Shell, program));
   });
 
 program.parse();
