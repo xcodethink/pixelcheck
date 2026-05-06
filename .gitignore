@@ -39,3 +39,15 @@ docs/archive/
 docs/release-notes/
 docs/SLO.md
 docs/assets/og-*
+
+# Internal Claude Code session work + planning. The progress/ directory
+# itself is selectively committed (RELEASE-READINESS-CHECKLIST.md,
+# RISK-REGISTER*.md, HANDOFF-PROTOCOL.md are public governance records);
+# the patterns below keep session-progress / internal plans / retros out
+# of the public tarball + GitHub history.
+progress/STATUS.md
+progress/EXECUTION-PLAN.md
+progress/QUALITY-ROADMAP.md
+progress/retros/
+progress/plans/
+progress/ADR-034-Phase0-RESUME.md
