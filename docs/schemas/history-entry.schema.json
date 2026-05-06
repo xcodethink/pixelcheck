@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/history-entry.schema.json",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/history-entry.schema.json",
   "title": "HistoryEntry",
   "description": "Compact summary of a historical audit run as returned by get_last_report.",
   "x-result-schema-version": "1.3.0",
