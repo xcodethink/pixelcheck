@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/act-result.schema.json",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/act-result.schema.json",
   "title": "ActResult",
   "description": "MCP tool envelope returned by `act` (N-2 primitive). Per-step outcome of an action sequence (goto / click / fill / press / wait / wait_for / scroll / screenshot / act / note) plus a final DOM summary, console errors, and screenshot.",
   "x-result-schema-version": "1.3.0",

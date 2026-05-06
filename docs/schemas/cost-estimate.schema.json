@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/cost-estimate.schema.json",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/cost-estimate.schema.json",
   "title": "CostEstimate",
   "description": "Static cost band ({typical, min, max, unit, notes?}) for one invocation of a tool. Used by AI agents at plan time to budget calls. Real spend is reported on each tool's envelope `cost_usd`.",
   "x-result-schema-version": "1.3.0",
