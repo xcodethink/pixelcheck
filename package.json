@@ -1,8 +1,8 @@
 {
   "name": "pixelcheck",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "mcpName": "io.github.xcodethink/pixelcheck",
-  "description": "MCP-first browser primitives for AI agents \u2014 real eyes and hands on the web. Local-first. Vendor-agnostic. Yours to own.",
+  "description": "MCP-first browser primitives for AI agents — real eyes and hands on the web. Local-first. Vendor-agnostic. Yours to own.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -87,7 +87,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.92.0",
+    "@anthropic-ai/sdk": "^0.94.0",
     "@browserbasehq/stagehand": "^3.3.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "axe-core": "^4.11.4",

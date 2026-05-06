@@ -5,9 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-05-06 — Phase 0 complete + commercial-grade tooling
 
-### Added — Phase 0 / ADR-034: `diagnose` primitive + MCP tool (PR-E)
+> **Recommended for all users.** Major feature release completing the
+> Phase 0 multi-dimensional diagnostics pipeline (PR-B through PR-E),
+> plus 10 new CLI/library capabilities for commercial-grade workflows.
+> Schema bump 1.3.0 (additive, backward compatible). Anthropic SDK
+> upgraded to 0.94.0. 2158 tests (up from 1871). 83 public API exports
+> (up from 67).
+
+### Added
+
+- **Phase 0 complete** — WhiteboxCollector (popups/network/cookies/storage),
+  PerformanceCollector (Web Vitals), VisualCollector (scoring), and
+  `pixelcheck.diagnose` MCP tool. Full page-health diagnosis in one call.
+- **Plugin hook system** (`src/core/plugin.ts`) — extensible lifecycle
+  hooks: beforeAudit, afterAudit, beforeStep, afterStep, onIssue,
+  onError, transform. Plugin isolation (errors don't cascade).
+- **Progress bar + ETA** (`src/core/progress.ts`) — ProgressReporter
+  with TTY spinner (ora) and non-TTY plain text. ETA calculation.
+- **`pixelcheck explain`** command — human-readable issue explanations
+  with WCAG references, fix suggestions, and `--json` output.
+- **Shell completions** (`pixelcheck completions bash|zsh|fish`) —
+  dynamic introspection of all commands and options.
+- **Output verbosity** (`--quiet`/`--verbose`) — three-level control
+  integrated with pino logger. `PIXELCHECK_VERBOSITY` env support.
+- **Debug log** (`src/core/debug-log.ts`) — NDJSON debug trace for
+  post-mortem analysis. Enable via `PIXELCHECK_DEBUG_LOG=1`.
+- **Local LLM fallback** (`src/core/llm-provider.ts`) — Ollama provider
+  with automatic fallback chain. `PIXELCHECK_LLM_PROVIDER` env.
+- **Retry strategy** (`src/core/retry.ts`) — configurable exponential
+  backoff with jitter. Non-retryable error detection.
+- **Resume from checkpoint** (`src/core/checkpoint.ts`) — save/load
+  checkpoint for interrupted audit runs.
+- **Min-repro generator** (`src/core/min-repro.ts`) — extract minimal
+  reproduction scenario from failed audit runs.
+
+### Changed
+
+- `@anthropic-ai/sdk` upgraded from 0.92.0 to 0.94.0.
+- Public API surface expanded from 67 to 83 exports.
+- Test count increased from 1871 to 2158 (+287 tests).
+
+### Removed
+
+- 11 stale git worktrees cleaned up (Phase 0 PR branches, fix branches,
+  decommissioned v0.3/v1 worktrees).
+
+### Phase 0 / ADR-034: `diagnose` primitive + MCP tool (PR-E)
 
 > **No version bump** — still v1.3.0. PR-E completes Phase 0 by turning
 > the entire diagnostics plumbing (envelope from PR-A; whitebox from

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/xcodethink/ai-browser-auditor/blob/main/docs/schemas/diagnose-result.schema.json",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/diagnose-result.schema.json",
   "title": "DiagnoseResult",
   "description": "MCP tool envelope returned by `diagnose` (PR-E preset / ADR-034). Holistic page-health diagnosis. Captures the URL with eager visual scoring, reads every diagnostics dimension (performance / network / popups / cookies / storage / visual), and returns a commercial-grade structured report: per-finding severity + dimension + confidence + evidence_refs + standards_mapping (Core Web Vitals / WCAG / OWASP / GDPR), a 0-100 overall_health_score, per-dimension drill-down scores, and a CTO-readable executive_summary.",
   "x-result-schema-version": "1.3.0",
