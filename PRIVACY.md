@@ -1,6 +1,6 @@
 # Privacy & Data Handling
 
-`ai-browser-auditor` runs **on your machine** and acts on behalf of you, the
+`pixelcheck` runs **on your machine** and acts on behalf of you, the
 operator. This document explains what data the tool processes, where it
 goes, and how to control it.
 
@@ -30,7 +30,7 @@ explicitly noted in [MIGRATION.md](MIGRATION.md).
 |---|---|
 | Does it call home / phone home? | **No.** Zero telemetry. |
 | Does it log user data without consent? | **No.** First-run prompt explicitly informs the user data leaves the machine via Anthropic API. |
-| Where is data stored? | **Locally**, in the project's `reports/` directory + `~/.ai-browser-auditor/` cache. |
+| Where is data stored? | **Locally**, in the project's `reports/` directory + `~/.pixelcheck/` cache (legacy `~/.ai-browser-auditor/` still resolved via `AUDIT_HOME` alias). |
 | What leaves your machine? | Page screenshots + DOM + LLM prompts → Claude API only. URLs / metadata never logged anywhere else. |
 | Default behaviour for sensitive inputs? | **Password / secret / API-key inputs are redacted before screenshots** (`--redact-inputs` enabled by default). |
 | GDPR / CCPA scope | You (the operator) are the **data controller**. We ship the tool; we never receive your audit data. |
@@ -39,7 +39,7 @@ explicitly noted in [MIGRATION.md](MIGRATION.md).
 
 ## What data the tool sees
 
-When you run `ai-audit run` against a target site, the tool:
+When you run `pixelcheck run` (legacy alias `ai-audit run`) against a target site, the tool:
 
 1. **Launches a headless Chromium** via Playwright on your machine.
 2. **Navigates to the target URL(s)** as defined in your scenarios.
@@ -65,16 +65,19 @@ Three locations, all on your local filesystem:
 | Path | What's there | Permissions | Retention default |
 |---|---|---|---|
 | `<projectDir>/reports/<runId>/` | Per-run artifacts: audit.json, audit.html, audit.pdf, audit.sarif, screenshots, console.log | `0700` (T22 — owner-only) | Forever (manual delete) |
-| `~/.ai-browser-auditor/result-cache.db` | Memoised LLM results to avoid re-burning vision tokens (M9-4) | `0700` | TTL 24h, auto-pruned |
-| `~/.ai-browser-auditor/cost-ledger.json` | Daily cost counter for budget enforcement (M5-6) | `0700` | TTL 30d, auto-pruned |
-| `~/.ai-browser-auditor/plan-cache.db` | Cached autonomous plans by site host + DOM hash | `0700` | TTL 7d, auto-pruned |
-| `~/.ai-browser-auditor/memory.db` | Per-site facts learned across runs | `0700` | TTL 30d, auto-pruned |
-| `~/.ai-browser-auditor/consent.json` | Records that you acknowledged the first-run consent prompt | `0700` | Forever (delete to re-prompt) |
+| `~/.pixelcheck/result-cache.db` | Memoised LLM results to avoid re-burning vision tokens (M9-4) | `0700` | TTL 24h, auto-pruned |
+| `~/.pixelcheck/cost-ledger.json` | Daily cost counter for budget enforcement (M5-6) | `0700` | TTL 30d, auto-pruned |
+| `~/.pixelcheck/plan-cache.db` | Cached autonomous plans by site host + DOM hash | `0700` | TTL 7d, auto-pruned |
+| `~/.pixelcheck/memory.db` | Per-site facts learned across runs | `0700` | TTL 30d, auto-pruned |
+| `~/.pixelcheck/consent.json` | Records that you acknowledged the first-run consent prompt | `0700` | Forever (delete to re-prompt) |
 
-`<projectDir>` defaults to your shell `cwd` when you ran `ai-audit run`. You
-can override the report destination with `--out <dir>`.
+`<projectDir>` defaults to your shell `cwd` when you ran `pixelcheck run`
+(or the legacy alias `ai-audit run`). You can override the report
+destination with `--out <dir>`.
 
-The `~/.ai-browser-auditor/` cache root is overridable via `AUDIT_HOME=/some/path`.
+The `~/.pixelcheck/` cache root is overridable via `PIXELCHECK_HOME=/some/path`
+(legacy alias `AUDIT_HOME` still honoured for users upgrading from v0.x;
+slated for removal in v2.0 per [DEPRECATION-POLICY.md](docs/DEPRECATION-POLICY.md)).
 
 ---
 
@@ -185,6 +188,8 @@ find reports/ -maxdepth 1 -type d -mtime +30 -exec rm -rf {} \;
 To wipe ALL local cache state:
 
 ```bash
+rm -rf ~/.pixelcheck/
+# (also wipe the legacy backward-compat path if you upgraded from v0.x)
 rm -rf ~/.ai-browser-auditor/
 ```
 
@@ -196,8 +201,8 @@ subsequent runs catch up).
 If you audited a page that included data subject to a deletion request:
 
 1. Delete the per-run report directory: `rm -rf reports/<runId>`
-2. Wipe the result cache: `rm ~/.ai-browser-auditor/result-cache.db`
-3. Wipe the memory db (if the page contributed facts): `rm ~/.ai-browser-auditor/memory.db`
+2. Wipe the result cache: `rm ~/.pixelcheck/result-cache.db`
+3. Wipe the memory db (if the page contributed facts): `rm ~/.pixelcheck/memory.db`
 4. (Optional) Forward the deletion request to Anthropic per their published
    process: https://www.anthropic.com/privacy#user-rights
 
@@ -259,9 +264,11 @@ Claude API for evaluation. See PRIVACY.md for what data leaves your
 machine. Continue? [y/N]:
 ```
 
-Acknowledging once writes a marker to `~/.ai-browser-auditor/consent.json`
-(version + timestamp + agreed). Subsequent runs do not re-prompt unless
-the consent version changes (a major privacy policy update bumps it).
+Acknowledging once writes a marker to `~/.pixelcheck/consent.json`
+(version + timestamp + agreed; legacy `~/.ai-browser-auditor/consent.json`
+also recognised for users upgrading from v0.x). Subsequent runs do not
+re-prompt unless the consent version changes (a major privacy policy
+update bumps it).
 
 For non-interactive contexts (CI / MCP server / scripted), bypass the
 prompt with:
@@ -279,7 +286,7 @@ policy permits it.**
 To revoke + re-consent:
 
 ```bash
-rm ~/.ai-browser-auditor/consent.json
+rm ~/.pixelcheck/consent.json ~/.ai-browser-auditor/consent.json 2>/dev/null
 ```
 
 ---

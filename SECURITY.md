@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-`ai-browser-auditor` follows semantic versioning. We provide security
+`pixelcheck` follows semantic versioning. We provide security
 patches according to the schedule below.
 
 | Version | Status | Patches until |
@@ -22,7 +22,7 @@ critical security patches for **6 months**, then enters end-of-life.
 Use **GitHub Security Advisories** (the only supported private channel for
 v1.0):
 
-- Visit: `https://github.com/xcodethink/ai-browser-auditor/security/advisories/new`
+- Visit: `https://github.com/xcodethink/pixelcheck/security/advisories/new`
 - Allows private discussion + coordinated disclosure with maintainers
 - Tracks the lifecycle (acknowledged → triaged → fixed → CVE issued)
   natively within GitHub
@@ -139,7 +139,7 @@ unnecessary once upstream catches up).
 
 This policy covers vulnerabilities in:
 
-- The `ai-browser-auditor` source code (CLI, MCP server, library)
+- The `pixelcheck` source code (CLI, MCP server, library)
 - The Node.js modules we directly publish under `dist/`
 - Our `package.json` direct + transitive dependencies (where we have
   upgrade authority)
