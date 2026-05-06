@@ -77,3 +77,40 @@ export {
   type HistoryEntry,
   type RunDiff,
 } from "./core/history.js";
+export {
+  ProgressReporter,
+  isTTY,
+  type ProgressSummary,
+  type ProgressEvent,
+} from "./core/progress.js";
+export {
+  createProvider,
+  AnthropicProvider,
+  OllamaProvider,
+  FallbackLLMProvider,
+  OllamaConnectionError,
+  OllamaApiError,
+  AllProvidersFailedError,
+  type LLMProvider,
+  type LLMProviderName,
+  type LLMProviderConfig,
+  type ChatMessage,
+  type ChatOptions,
+  type ChatResponse,
+  type VisionOptions,
+  type VisionProviderResponse,
+} from "./core/llm-provider.js";
+export {
+  saveCheckpoint,
+  loadCheckpoint,
+  clearCheckpoint,
+  canResume,
+  type Checkpoint,
+} from "./core/checkpoint.js";
+export {
+  withRetry,
+  computeBackoff,
+  DEFAULT_RETRY_STRATEGY,
+  type RetryStrategy,
+  type WithRetryOptions,
+} from "./core/retry.js";
