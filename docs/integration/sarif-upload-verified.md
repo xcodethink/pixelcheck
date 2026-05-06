@@ -74,7 +74,7 @@ screenshot. We re-verify when:
          - uses: github/codeql-action/upload-sarif@v3
            with:
              sarif_file: docs/integration/fixture-sarif.json
-             category: ai-browser-auditor-fixture-test
+             category: pixelcheck-fixture-test
    ```
 
    ```bash

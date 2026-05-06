@@ -4,7 +4,7 @@
   "out": "docs/api",
   "tsconfig": "tsconfig.json",
   "readme": "none",
-  "name": "ai-browser-auditor public API",
+  "name": "pixelcheck public API",
   "includeVersion": true,
   "excludeInternal": true,
   "excludePrivate": true,

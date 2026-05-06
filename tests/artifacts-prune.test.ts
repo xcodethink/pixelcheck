@@ -5,7 +5,7 @@
  *   - Default retention is 30 days
  *   - Env override sets retention per kind (AUDIT_<KIND>_RETENTION_DAYS)
  *   - 0 means "infinite retention" (skip), not "delete everything"
- *   - Default dir is ~/.ai-browser-auditor/<kind> unless AUDIT_<KIND>_DIR set
+ *   - Default dir is ~/.pixelcheck/<kind> unless AUDIT_<KIND>_DIR set
  *   - Missing dir → skipped (not an error)
  *   - Mtime older than cutoff → deleted; younger → kept
  *   - bytesFreed reflects the recursive size of deleted entries
@@ -100,7 +100,7 @@ describe("retention day resolution", () => {
 });
 
 describe("artifact dir resolution", () => {
-  it("defaults to ~/.ai-browser-auditor/<kind> with AUDIT_HOME applied", () => {
+  it("defaults to ~/.pixelcheck/<kind> with PIXELCHECK_HOME applied", () => {
     expect(defaultArtifactDir("sees")).toBe(path.join(tmpHome, "sees"));
     expect(defaultArtifactDir("compares")).toBe(
       path.join(tmpHome, "compares"),

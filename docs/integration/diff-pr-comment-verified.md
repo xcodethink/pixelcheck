@@ -92,7 +92,7 @@ These need human eyes + a screenshot. We re-verify when:
    ```yaml
    - uses: marocchino/sticky-pull-request-comment@v2
      with:
-       header: ai-browser-auditor-diff
+       header: pixelcheck-diff
        path: docs/integration/fixture-diff.md
    ```
 
@@ -167,7 +167,7 @@ jobs:
         run: npx ai-audit diff baseline-${{ github.sha }} pr-${{ github.event.pull_request.number }} --format markdown --output diff.md
       - uses: marocchino/sticky-pull-request-comment@v2
         with:
-          header: ai-browser-auditor-diff
+          header: pixelcheck-diff
           path: diff.md
 ```
 
@@ -183,7 +183,7 @@ will be the officially-recommended pattern in v1.0 README.
 | Tables don't render aligned | GFM table syntax broken | grep `\|` count per row in fixture-diff.md — must be consistent |
 | Emoji squares (▲ ▼ ✅ 🆕) | Browser missing emoji font OR wrong UTF-8 | check `Content-Type` of paste; force UTF-8 |
 | Up-arrow on issues count instead of down | Polarity logic broken in renderDiffMarkdown (issuesDelta sign or labelling) | check `src/core/reporter-diff.ts > issuesDeltaCells` |
-| sticky-pull-request-comment stacks (doesn't update) | `header:` field changed between runs | pin a stable `header:` like `ai-browser-auditor-diff` |
+| sticky-pull-request-comment stacks (doesn't update) | `header:` field changed between runs | pin a stable `header:` like `pixelcheck-diff` |
 | GitLab/Bitbucket renders differently | Not strictly GFM | document in compatibility table; consider HTML-fallback render in v1.x |
 
 ---
