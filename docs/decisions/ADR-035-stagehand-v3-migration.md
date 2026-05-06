@@ -1,4 +1,12 @@
-# ADR-029 — Stagehand v3.3.0 migration with Playwright + CDP bridge
+# ADR-035 — Stagehand v3.3.0 migration with Playwright + CDP bridge
+
+> **Numbering note**: Originally filed as ADR-029 alongside the stagehand v3 PR
+> (#15) on 2026-05-03. Renumbered to ADR-035 on 2026-05-05 because
+> ADR-029-file-lock-race-isolation (the M9-3.2 file-lock fix, Wave 1) had
+> already taken the 029 slot two days earlier (commit `91b2805`, 2026-05-01).
+> First-to-commit wins; this ADR moves to the next available slot after
+> ADR-034. All references in CHANGELOG / SECURITY.md / docs/releases /
+> ADR-028 have been updated.
 
 - **Status**: Accepted
 - **Date**: 2026-05-03
@@ -153,7 +161,8 @@ Migration unfolded in 6 atomic commits on `feat/stagehand-v3-migration`:
 5. `src/core/stagehand-wrapper.ts` (follow-up) — fix
    `localBrowserLaunchOptions.cdpUrl` + `ws://` URL discovered via T5.
 6. `docs/decisions/{ADR-028-stagehand-v3-deferred.md → Superseded,
-   ADR-029-stagehand-v3-migration.md (this file)}`, `CHANGELOG.md`,
+   ADR-035-stagehand-v3-migration.md (this file, originally filed as
+   ADR-029 — see numbering note at top)}`, `CHANGELOG.md`,
    `SECURITY.md` (transitive vulns closure).
 
 ## Alternatives rejected
