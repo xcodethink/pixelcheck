@@ -37,6 +37,10 @@
 
 ---
 
+> **If PixelCheck helps you, [give it a star](https://github.com/xcodethink/pixelcheck/stargazers) — it helps others discover the project.**
+
+---
+
 ## Right now, you're a screenshotting middleman.
 
 Your AI agent is writing 80% of your frontend. It's fast. It's good at code. But it's blind.
