@@ -87,7 +87,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.94.0",
+    "@anthropic-ai/sdk": "^0.95.1",
     "@browserbasehq/stagehand": "^3.3.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "axe-core": "^4.11.4",
