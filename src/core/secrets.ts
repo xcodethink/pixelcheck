@@ -71,7 +71,7 @@ export function buildRedactPatterns(configPatterns: string[]): string[] {
   ];
   for (const k of secretEnvKeys) {
     const v = process.env[k];
-    if (v && v.length >= 8) patterns.add(v);
+    if (v && v.length >= 4) patterns.add(v);
   }
   return Array.from(patterns);
 }
@@ -101,8 +101,9 @@ export function redactDeep<T>(value: T, patterns: string[]): T {
     return value.map((v) => redactDeep(v, patterns)) as unknown as T;
   }
   if (typeof value === "object") {
-    const out: Record<string, unknown> = {};
+    const out: Record<string, unknown> = Object.create(null);
     for (const [k, v] of Object.entries(value)) {
+      if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
       out[k] = redactDeep(v, patterns);
     }
     return out as unknown as T;

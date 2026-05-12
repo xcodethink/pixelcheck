@@ -175,6 +175,8 @@ async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   if (!url) {
     throw new Error("diagnose: `url` is required");
   }
+  const { assertSafeUrl } = await import("../../core/url-guard.js");
+  assertSafeUrl(url, { allowPrivate: process.env.PIXELCHECK_ALLOW_PRIVATE === "1" });
 
   const personaId = asString(args.persona);
   const persona = await loadPersonaHints(personaId);
