@@ -166,6 +166,10 @@ async function asSideInput(v: unknown, label: string): Promise<CompareSideInput>
   if (!url && !capture) {
     throw new Error(`compare: side ${label} requires either url or capture`);
   }
+  if (url) {
+    const { assertSafeUrl } = await import("../../core/url-guard.js");
+    assertSafeUrl(url, { allowPrivate: process.env.PIXELCHECK_ALLOW_PRIVATE === "1" });
+  }
   const personaId = asString(o.persona);
   const persona = await loadPersonaHints(personaId);
 

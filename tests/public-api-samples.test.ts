@@ -101,15 +101,19 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "VisitStepSchema",
   "WCAG_CATALOG",
   "WaitForStepSchema",
+  "act",
   "attachConsoleLogger",
   "buildExecutionMatrix",
   "canResume",
   "clearCheckpoint",
+  "compare",
   "computeBackoff",
   "computeSummary",
   "createProvider",
   "detectCiEnvironment",
+  "diagnose",
   "diffRuns",
+  "extract",
   "extractDomSummary",
   "findWcagCriterion",
   "formatDomSummary",
@@ -117,6 +121,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "generateMutations",
   "isTTY",
   "isWcagIssue",
+  "judge",
   "loadCheckpoint",
   "loadHistory",
   "loadPersonas",
@@ -134,6 +139,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "runAudit",
   "saveAuditToHistory",
   "saveCheckpoint",
+  "see",
   "substituteTemplate",
   "summarizeWcag",
   "t",
@@ -160,22 +166,27 @@ describe("public surface snapshot — src/index.ts", () => {
     expect(actual).toEqual([...EXPECTED_RUNTIME_EXPORTS]);
   });
 
-  it("ships exactly 83 runtime exports (bump this when intentionally adding a public symbol)", () => {
-    expect(Object.keys(lib)).toHaveLength(83);
+  it("ships exactly 89 runtime exports (bump this when intentionally adding a public symbol)", () => {
+    expect(Object.keys(lib)).toHaveLength(89);
   });
 
   const functionExports: Array<keyof typeof lib> = [
+    "act",
     "attachConsoleLogger",
     "buildExecutionMatrix",
+    "compare",
     "computeSummary",
     "detectCiEnvironment",
+    "diagnose",
     "diffRuns",
+    "extract",
     "extractDomSummary",
     "findWcagCriterion",
     "formatDomSummary",
     "formatRunsCount",
     "generateMutations",
     "isWcagIssue",
+    "judge",
     "loadHistory",
     "loadPersonas",
     "loadProjectConfig",
@@ -191,6 +202,7 @@ describe("public surface snapshot — src/index.ts", () => {
     "resolvePersonaSecrets",
     "runAudit",
     "saveAuditToHistory",
+    "see",
     "substituteTemplate",
     "summarizeWcag",
     "t",

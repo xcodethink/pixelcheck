@@ -295,7 +295,7 @@ function makeRunDir(root: string): string {
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const rand = crypto.randomBytes(3).toString("hex");
   const dir = path.join(root, `${ts}-${rand}`);
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
 }
 
@@ -544,7 +544,7 @@ async function computeExtract(opts: ExtractOptions): Promise<ExtractResult> {
   const model = opts.model ?? DEFAULT_MODEL;
 
   const artifactsRoot = opts.artifactsRoot ?? defaultArtifactsRoot();
-  fs.mkdirSync(artifactsRoot, { recursive: true });
+  fs.mkdirSync(artifactsRoot, { recursive: true, mode: 0o700 });
   const runDir = makeRunDir(artifactsRoot);
 
   // Convert schema up-front so a malformed JSON Schema fails fast

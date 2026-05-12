@@ -132,7 +132,7 @@ For each **(persona x scenario)** combination:
  1. Launch Chromium with device-accurate fingerprint
     (viewport, locale, timezone, UA, regional proxy)
                         |
- 2. Execute scenario steps semantically via Stagehand 2.0
+ 2. Execute scenario steps semantically via Stagehand 3.x
     ("click the sign-up button" not "click #btn-37")
                         |
  3. 5-Layer Reliability Stack ensures 98%+ step success
@@ -961,7 +961,7 @@ Setting a retention to `0` means **infinite retention** (skip prune for that kin
 ## Built With
 
 - [Playwright](https://playwright.dev/) — browser automation
-- [Stagehand 2.0](https://github.com/browserbase/stagehand) — AI-driven semantic browser control
+- [Stagehand 3.x](https://github.com/browserbase/stagehand) — AI-driven semantic browser control
 - [Claude](https://anthropic.com/claude) (Vision + Computer Use) — visual evaluation and pixel-level review
 - [axe-core](https://github.com/dequelabs/axe-core) — WCAG accessibility auditing
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — local audit history and trend tracking
@@ -982,7 +982,7 @@ You have four real options if you want an AI agent to operate the visual web tod
 | **Intelligence** | LLM-driven actions | Static rules | Hosted LLM (you pay per session) | LLM vision + rules + Computer Use, your LLM key |
 | **User simulation** | Single anonymous session | None | Single signed-in session | 18 personas × 17 countries × 6 script systems |
 | **Anti-detection** | None | N/A | Built-in (browser identity) | 9 fingerprints + 15 stealth patches |
-| **Output contract** | Action results | Pass/fail checklist | Conversational replies | **30 published JSON Schemas + 67 named API** |
+| **Output contract** | Action results | Pass/fail checklist | Conversational replies | **31 published JSON Schemas + 89 named API** |
 | **History** | None | None | Per-session, vendor-locked | SQLite trends + run-to-run diff, yours |
 | **Cost model** | Free OSS, your LLM bill | Free OSS | Subscription + per-session | Free OSS, your LLM bill, no PixelCheck markup |
 | **Where your data lives** | Your machine | Your machine | Vendor cloud | **Your machine. Period.** |
@@ -1026,9 +1026,9 @@ Starting **v1.0.0**, the following surfaces are stable per
 
 - **CLI** — flags, subcommands, exit codes, env var names
 - **Config schema** — `config.yaml` / `personas/*.yaml` / `scenarios/*.yaml`
-- **Result Schema** — version 1.2.0, the 30 published JSON Schemas in `docs/schemas/`
-- **MCP tool surface** — 12 tool names + input/output schemas
-- **Library exports** — 67 named exports from `src/index.ts`
+- **Result Schema** — version 1.2.0, the 31 published JSON Schemas in `docs/schemas/`
+- **MCP tool surface** — 13 tool names + input/output schemas
+- **Library exports** — 89 named exports from `src/index.ts`
 
 Breaking changes only land in **major version bumps** (v2.0, v3.0, ...). Minor
 and patch releases are guaranteed backward-compatible. Deprecation cycle is
@@ -1125,7 +1125,6 @@ Third-party dependencies and their licenses are documented in
 - [FAQ.md](FAQ.md) — common questions on API key + cost, scenarios + personas, reports + output, privacy, native binaries
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — runtime errors and fixes (API + auth, audit run, browser, reports, CI, performance)
 - [docs/INSTALLATION.md](docs/INSTALLATION.md) — install matrix + corporate proxy + Alpine / Docker / air-gapped recipes
-- [docs/SLO.md](docs/SLO.md) — Service Level Objectives (commercial-grade commitments + explicit out-of-scope items)
 - **API reference** — generate locally with `npm run docs:api` → `docs/api/index.html` (TypeDoc, not committed)
 - [docs/decisions/](docs/decisions/) — 28 Architecture Decision Records explaining design rationale
 
