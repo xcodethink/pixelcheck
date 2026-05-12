@@ -127,6 +127,8 @@ async function loadPersonaHints(id: string | undefined): Promise<SeePersonaHints
 
 async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   const url = requireString(args.url, "url");
+  const { assertSafeUrl } = await import("../../core/url-guard.js");
+  assertSafeUrl(url, { allowPrivate: process.env.PIXELCHECK_ALLOW_PRIVATE === "1" });
   const goal = typeof args.goal === "string" && args.goal.length > 0 ? args.goal : undefined;
   const personaId =
     typeof args.persona === "string" && args.persona.length > 0 ? args.persona : undefined;

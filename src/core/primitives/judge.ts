@@ -153,7 +153,7 @@ function makeRunDir(root: string): string {
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const rand = crypto.randomBytes(3).toString("hex");
   const dir = path.join(root, `${ts}-${rand}`);
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
 }
 
@@ -349,7 +349,7 @@ async function computeJudge(opts: JudgeOptions): Promise<JudgeResult> {
   const personaId = opts.persona?.id ?? DEFAULT_JUDGE_PERSONA_ID;
 
   const artifactsRoot = opts.artifactsRoot ?? defaultJudgeArtifactsRoot();
-  fs.mkdirSync(artifactsRoot, { recursive: true });
+  fs.mkdirSync(artifactsRoot, { recursive: true, mode: 0o700 });
   const runDir = makeRunDir(artifactsRoot);
 
   let urlInput = opts.capture?.url_input ?? opts.url ?? "";

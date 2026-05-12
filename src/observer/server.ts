@@ -6,6 +6,7 @@
  */
 
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
+import { randomBytes } from "node:crypto";
 import { WebSocketServer, type WebSocket } from "ws";
 import type { AgentEvent, AgentEventBus } from "../agent/events.js";
 import type { SessionStore } from "./session-store.js";
@@ -33,12 +34,17 @@ export class ObserverServer {
   private _sessionStore: SessionStore;
   private _registry?: SessionRegistry;
   private _port: number;
+  private _token: string;
+
+  /** The bearer token required for API/WS access. Printed at startup. */
+  get token(): string { return this._token; }
 
   constructor(opts: ObserverServerOptions) {
     this._eventBus = opts.eventBus;
     this._sessionStore = opts.sessionStore;
     this._registry = opts.registry;
     this._port = opts.port;
+    this._token = randomBytes(16).toString("hex");
 
     // HTTP server — serves dashboard
     this._httpServer = createServer(this._handleHttp.bind(this));
@@ -60,7 +66,7 @@ export class ObserverServer {
     return new Promise<void>((resolve, reject) => {
       this._httpServer.listen(this._port, "127.0.0.1", () => {
         log.info(
-          { port: this._port, url: `http://localhost:${this._port}` },
+          { port: this._port, url: `http://localhost:${this._port}`, token: this._token },
           `observer dashboard listening`,
         );
         resolve();
@@ -108,9 +114,19 @@ export class ObserverServer {
 
   // ── Private ─────────────────────────────────────────────────
 
+  private _checkAuth(req: IncomingMessage): boolean {
+    const url = new URL(req.url ?? "/", `http://127.0.0.1:${this._port}`);
+    const tokenParam = url.searchParams.get("token");
+    if (tokenParam === this._token) return true;
+    const authHeader = req.headers.authorization;
+    if (authHeader === `Bearer ${this._token}`) return true;
+    return false;
+  }
+
   private _handleHttp(req: IncomingMessage, res: ServerResponse): void {
     const url = req.url ?? "/";
 
+    // Dashboard pages are served without auth (token is embedded in WS/API URLs)
     if (url === "/" || url === "/index.html") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(getDashboardHtml());
@@ -146,6 +162,13 @@ export class ObserverServer {
           events: entry.store.events.slice(-200),
         }),
       );
+      return;
+    }
+
+    // All /api/* routes require auth
+    if (url.startsWith("/api/") && !this._checkAuth(req)) {
+      res.writeHead(401, { "Content-Type": "text/plain" });
+      res.end("Unauthorized — pass ?token=<token> or Authorization: Bearer <token>");
       return;
     }
 
@@ -193,7 +216,13 @@ export class ObserverServer {
     res.end("Not found");
   }
 
-  private _handleWsConnection(ws: WebSocket): void {
+  private _handleWsConnection(ws: WebSocket, req: IncomingMessage): void {
+    // Verify token from query string
+    const reqUrl = new URL(req.url ?? "/", `http://127.0.0.1:${this._port}`);
+    if (reqUrl.searchParams.get("token") !== this._token) {
+      ws.close(4001, "Unauthorized");
+      return;
+    }
     this._clients.add(ws);
 
     // Send current state as initial payload

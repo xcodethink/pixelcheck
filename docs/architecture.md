@@ -19,7 +19,7 @@
 │  └─ L4: Auto Computer Use    (Sonnet lightweight / Opus critical)│
 ├──────────────────────────────────────────────────────────────────┤
 │  Core services                                                    │
-│  ├─ Stagehand wrapper  (Stagehand 2.5 + post-init stealth)       │
+│  ├─ Stagehand wrapper  (Stagehand 3.x + post-init stealth)       │
 │  ├─ Computer Use loop  (Playwright-backed action handlers)       │
 │  ├─ Vision critic      (Claude vision + 5-dim scoring)           │
 │  ├─ axe-core engine    (WCAG accessibility analysis)             │
@@ -60,7 +60,7 @@
 
 ## Why we let Stagehand own the browser
 
-Stagehand 2.5's `init()` does not accept a BYO `BrowserContext`. We have three options:
+Stagehand 3.x's `init()` does not accept a BYO `BrowserContext`. We have three options:
 
 | Option | Pros | Cons |
 |---|---|---|

@@ -129,9 +129,14 @@ describe("buildRedactPatterns", () => {
     expect(patterns).toContain("https://hooks.slack.com/aaaa");
   });
 
-  it("ignores secrets shorter than 8 chars", () => {
-    process.env.ANTHROPIC_API_KEY = "short";
+  it("ignores secrets shorter than 4 chars", () => {
+    process.env.ANTHROPIC_API_KEY = "abc";
     expect(buildRedactPatterns([])).toEqual([]);
+  });
+
+  it("includes secrets with 4+ chars", () => {
+    process.env.ANTHROPIC_API_KEY = "abcd";
+    expect(buildRedactPatterns([])).toEqual(["abcd"]);
   });
 
   it("dedupes via Set semantics — same secret only once", () => {
