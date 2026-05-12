@@ -114,3 +114,11 @@ export {
   type RetryStrategy,
   type WithRetryOptions,
 } from "./core/retry.js";
+
+// ── Core primitives ─────────────────────────────────────────────────
+export { see, type SeeOptions, type SeeResult } from "./core/primitives/see.js";
+export { act, type ActOptions, type ActResult, type ActStep, type ActStepResult } from "./core/primitives/act.js";
+export { extract, type ExtractOptions, type ExtractResult } from "./core/primitives/extract.js";
+export { judge, type JudgeOptions, type JudgeResult } from "./core/primitives/judge.js";
+export { compare, type CompareOptions, type CompareResult, type CompareSideInput } from "./core/primitives/compare.js";
+export { diagnose, type DiagnoseOptions, type DiagnoseResult } from "./core/primitives/diagnose.js";

@@ -148,6 +148,8 @@ function asObjectOrUndefined(v: unknown): JsonSchemaSubset | undefined {
 
 async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   const url = requireString(args.url, "url");
+  const { assertSafeUrl } = await import("../../core/url-guard.js");
+  assertSafeUrl(url, { allowPrivate: process.env.PIXELCHECK_ALLOW_PRIVATE === "1" });
   const personaId =
     typeof args.persona === "string" && args.persona.length > 0 ? args.persona : undefined;
   const persona = await loadPersonaHints(personaId);

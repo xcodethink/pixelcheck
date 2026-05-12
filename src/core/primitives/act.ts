@@ -244,7 +244,7 @@ function makeRunDir(root: string): string {
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const rand = crypto.randomBytes(3).toString("hex");
   const dir = path.join(root, `${ts}-${rand}`);
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
 }
 
@@ -272,7 +272,7 @@ export async function act(opts: ActOptions): Promise<ActResult> {
   const engine: ActEngine = opts.engine ?? pickEngine(opts.steps);
 
   const artifactsRoot = opts.artifactsRoot ?? defaultArtifactsRoot();
-  fs.mkdirSync(artifactsRoot, { recursive: true });
+  fs.mkdirSync(artifactsRoot, { recursive: true, mode: 0o700 });
   const runDir = makeRunDir(artifactsRoot);
 
   const stepResults: ActStepResult[] = [];

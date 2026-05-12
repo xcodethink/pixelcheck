@@ -158,7 +158,7 @@ This policy **does not** cover:
 ## Privacy / Data Handling
 
 For data-handling concerns (what data is collected, where it is sent,
-retention), see [docs/PRIVACY.md](docs/PRIVACY.md) (added in T22).
+retention), see [PRIVACY.md](PRIVACY.md) (added in T22).
 
 ---
 

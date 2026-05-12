@@ -126,7 +126,7 @@ function makeRunDir(root: string): string {
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const rand = crypto.randomBytes(3).toString("hex");
   const dir = path.join(root, `${ts}-${rand}`);
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
 }
 
@@ -234,12 +234,12 @@ export async function compare(opts: CompareOptions): Promise<CompareResult> {
   const model = opts.model ?? DEFAULT_COMPARE_MODEL;
 
   const artifactsRoot = opts.artifactsRoot ?? defaultCompareArtifactsRoot();
-  fs.mkdirSync(artifactsRoot, { recursive: true });
+  fs.mkdirSync(artifactsRoot, { recursive: true, mode: 0o700 });
   const runDir = makeRunDir(artifactsRoot);
   const sideADir = path.join(runDir, "a");
   const sideBDir = path.join(runDir, "b");
-  fs.mkdirSync(sideADir, { recursive: true });
-  fs.mkdirSync(sideBDir, { recursive: true });
+  fs.mkdirSync(sideADir, { recursive: true, mode: 0o700 });
+  fs.mkdirSync(sideBDir, { recursive: true, mode: 0o700 });
 
   const judgeImpl = opts._judge ?? judge;
   const callVisionImpl = opts._callVision ?? callVision;

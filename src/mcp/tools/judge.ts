@@ -199,6 +199,10 @@ async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   if (!url && !capture) {
     throw new Error("judge: either `url` or `capture` is required");
   }
+  if (url) {
+    const { assertSafeUrl } = await import("../../core/url-guard.js");
+    assertSafeUrl(url, { allowPrivate: process.env.PIXELCHECK_ALLOW_PRIVATE === "1" });
+  }
 
   const personaId = asString(args.persona);
   const persona = await loadPersonaHints(personaId);

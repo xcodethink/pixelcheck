@@ -130,7 +130,7 @@ function makeRunDir(root: string): string {
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const rand = crypto.randomBytes(3).toString("hex");
   const dir = path.join(root, `${ts}-${rand}`);
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
 }
 
@@ -386,7 +386,7 @@ async function computeDiagnose(opts: DiagnoseOptions): Promise<DiagnoseResult> {
   const personaId = opts.persona?.id ?? DEFAULT_DIAGNOSE_PERSONA_ID;
   const model = opts.model ?? DEFAULT_DIAGNOSE_MODEL;
   const artifactsRoot = opts.artifactsRoot ?? defaultDiagnoseArtifactsRoot();
-  fs.mkdirSync(artifactsRoot, { recursive: true });
+  fs.mkdirSync(artifactsRoot, { recursive: true, mode: 0o700 });
   const runDir = makeRunDir(artifactsRoot);
 
   let urlFinal = opts.url;
