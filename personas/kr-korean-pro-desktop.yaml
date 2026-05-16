@@ -5,6 +5,7 @@ language: 한국어
 locale: ko-KR
 timezone: Asia/Seoul
 device_class: desktop
+network_profile: broadband
 ua_class: windows
 viewport:
   width: 2560

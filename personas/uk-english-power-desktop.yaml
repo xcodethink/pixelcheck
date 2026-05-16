@@ -5,6 +5,7 @@ language: English
 locale: en-GB
 timezone: Europe/London
 device_class: desktop
+network_profile: broadband
 ua_class: windows
 viewport:
   width: 1920

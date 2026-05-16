@@ -5,6 +5,7 @@ language: العربية
 locale: ar-SA
 timezone: Asia/Riyadh
 device_class: mobile
+network_profile: 4g
 ua_class: iphone
 viewport:
   width: 393

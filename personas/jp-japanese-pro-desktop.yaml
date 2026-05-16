@@ -5,6 +5,7 @@ language: 日本語
 locale: ja-JP
 timezone: Asia/Tokyo
 device_class: desktop
+network_profile: broadband
 ua_class: macbook
 viewport:
   width: 1440

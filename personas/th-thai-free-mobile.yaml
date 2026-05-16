@@ -5,6 +5,7 @@ language: ไทย
 locale: th-TH
 timezone: Asia/Bangkok
 device_class: mobile
+network_profile: 3g
 ua_class: iphone
 viewport:
   width: 375
