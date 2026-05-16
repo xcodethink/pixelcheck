@@ -157,6 +157,15 @@ export interface SeeResult {
     height?: number;
   } | null;
   note: string | null;
+  /** Visual state detected from screenshot (loading / ready / error / empty / partial). */
+  visual_state?: "loading" | "ready" | "error" | "empty" | "partial";
+  /** Key interactive elements detected from screenshot with approximate positions. */
+  key_elements?: Array<{
+    label: string;
+    type: string;
+    region: "top-left" | "top-center" | "top-right" | "center-left" | "center" | "center-right" | "bottom-left" | "bottom-center" | "bottom-right";
+    obscured?: boolean;
+  }>;
   persona_id: string;
   artifacts_dir: string;
   cost_usd: number;
@@ -315,6 +324,8 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
   let consoleSection: SeeResult["console"] = null;
   let screenshot: SeeResult["screenshot"] = null;
   let note: string | null = null;
+  let visualState: SeeResult["visual_state"] = undefined;
+  let keyElements: SeeResult["key_elements"] = undefined;
   let costUsd = 0;
   let status: SeeResult["status"] = "ok";
   let errorMsg: string | undefined;
@@ -385,6 +396,23 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
         });
         note = noteResult.text;
         costUsd += noteResult.costUsd;
+      }
+
+      // Visual state + key elements detection (lightweight, no extra API call
+      // when goal is set — reuse the screenshot already in memory).
+      if (buf && !opts._open) {
+        try {
+          const vsResult = await detectVisualState({
+            buf,
+            model: opts.criticModel ?? DEFAULT_CRITIC_MODEL,
+            callVisionImpl: opts._callVision ?? callVision,
+          });
+          visualState = vsResult.visual_state;
+          keyElements = vsResult.key_elements;
+          costUsd += vsResult.costUsd;
+        } catch (err) {
+          log.warn({ err: err instanceof Error ? err.message : String(err) }, "see: visual state detection failed");
+        }
       }
 
       // ADR-034 Phase 0: collect diagnostics before context.close().
@@ -476,6 +504,8 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
     console: consoleSection,
     screenshot,
     note,
+    ...(visualState ? { visual_state: visualState } : {}),
+    ...(keyElements?.length ? { key_elements: keyElements } : {}),
     persona_id: personaId,
     artifacts_dir: runDir,
     cost_usd: costUsd,
@@ -534,6 +564,48 @@ async function synthesizeNote(args: {
       "see: note synthesis failed",
     );
     return { text: "", costUsd: 0 };
+  }
+}
+
+async function detectVisualState(args: {
+  buf: Buffer;
+  model: string;
+  callVisionImpl: typeof callVision;
+}): Promise<{
+  visual_state: SeeResult["visual_state"];
+  key_elements: SeeResult["key_elements"];
+  costUsd: number;
+}> {
+  const compressed = await compressForVision(args.buf);
+  const resp: VisionResponse = await args.callVisionImpl({
+    model: args.model,
+    systemPrompt: `You are a UI state analyzer. Given a screenshot, respond ONLY with valid JSON (no markdown, no explanation):
+{
+  "visual_state": "loading" | "ready" | "error" | "empty" | "partial",
+  "key_elements": [
+    { "label": "element text or purpose", "type": "button|link|input|nav|modal|form", "region": "top-left|top-center|top-right|center-left|center|center-right|bottom-left|bottom-center|bottom-right", "obscured": false }
+  ]
+}
+Rules:
+- visual_state: "ready" if page looks fully loaded and functional, "loading" if spinner/skeleton visible, "error" if error message/crash visible, "empty" if blank or no content, "partial" if some content loaded but parts missing
+- key_elements: list up to 5 most important interactive elements. "obscured" = true if the element is partially hidden by a popup/overlay/banner
+- region: divide the viewport into a 3x3 grid, report which cell the element center falls in`,
+    userPrompt: "Analyze this page screenshot.",
+    images: [{ base64: compressed.base64, mediaType: compressed.mediaType }],
+    maxTokens: 512,
+  });
+
+  try {
+    const raw = resp.text.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(raw);
+    return {
+      visual_state: parsed.visual_state,
+      key_elements: Array.isArray(parsed.key_elements) ? parsed.key_elements.slice(0, 5) : undefined,
+      costUsd: resp.costUsd,
+    };
+  } catch {
+    log.warn("see: could not parse visual state JSON, falling back");
+    return { visual_state: undefined, key_elements: undefined, costUsd: resp.costUsd };
   }
 }
 
