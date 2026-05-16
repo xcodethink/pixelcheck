@@ -5,6 +5,7 @@ language: Français
 locale: fr-FR
 timezone: Europe/Paris
 device_class: mobile
+network_profile: 4g
 ua_class: iphone
 viewport:
   width: 390

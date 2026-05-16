@@ -62,6 +62,7 @@ export interface SeePersonaHints {
   locale?: string;
   timezone?: string;
   user_agent?: string;
+  network_profile?: string;
 }
 
 export interface SeeOptions {
@@ -189,6 +190,7 @@ export type OpenFn = (cfg: {
   locale: string;
   timezone: string;
   userAgent?: string;
+  networkProfile?: string;
   headless: boolean;
   timeoutMs: number;
   waitFor: WaitFor;
@@ -328,6 +330,7 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
       locale,
       timezone,
       userAgent,
+      networkProfile: persona.network_profile,
       headless,
       timeoutMs,
       waitFor,
@@ -543,6 +546,22 @@ const defaultOpen: OpenFn = async (cfg) => {
     userAgent: cfg.userAgent,
   });
   const page = await context.newPage();
+
+  // Network throttling — apply persona's network_profile via CDP
+  if (cfg.networkProfile) {
+    const { resolveNetworkProfile } = await import("../network-profiles.js");
+    const profile = resolveNetworkProfile(cfg.networkProfile);
+    if (profile) {
+      const cdp = await context.newCDPSession(page);
+      await cdp.send("Network.emulateNetworkConditions", {
+        offline: profile.offline,
+        downloadThroughput: profile.downloadThroughput,
+        uploadThroughput: profile.uploadThroughput,
+        latency: profile.latency,
+      });
+    }
+  }
+
   // ADR-034 Phase 0 — attach white-box collector AFTER newPage so the
   // popup listener doesn't capture the main page itself, BEFORE goto so
   // popup / network events on the initial navigation are captured.

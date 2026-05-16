@@ -119,6 +119,7 @@ async function loadPersonaHints(id: string | undefined): Promise<SeePersonaHints
       viewport: p.viewport,
       locale: p.locale,
       timezone: p.timezone,
+      network_profile: (p as Record<string, unknown>).network_profile as string | undefined,
     };
   } catch {
     return { id };
