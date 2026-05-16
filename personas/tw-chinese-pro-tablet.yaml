@@ -5,6 +5,7 @@ language: 繁體中文
 locale: zh-TW
 timezone: Asia/Taipei
 device_class: tablet
+network_profile: 4g
 ua_class: ipad
 viewport:
   width: 820

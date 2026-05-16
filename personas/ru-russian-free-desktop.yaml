@@ -5,6 +5,7 @@ language: Русский
 locale: ru-RU
 timezone: Europe/Moscow
 device_class: desktop
+network_profile: broadband
 ua_class: windows
 viewport:
   width: 1920

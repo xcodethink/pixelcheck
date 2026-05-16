@@ -5,6 +5,7 @@ language: English
 locale: en-US
 timezone: America/New_York
 device_class: mobile
+network_profile: 4g
 ua_class: iphone
 viewport:
   width: 393

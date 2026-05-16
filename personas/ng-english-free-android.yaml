@@ -5,6 +5,7 @@ language: English
 locale: en-NG
 timezone: Africa/Lagos
 device_class: mobile
+network_profile: 3g
 ua_class: android
 viewport:
   width: 360

@@ -5,6 +5,7 @@ language: Deutsch
 locale: de-DE
 timezone: Europe/Berlin
 device_class: tablet
+network_profile: 4g
 ua_class: ipad
 viewport:
   width: 1024
