@@ -5,6 +5,7 @@ language: 简体中文
 locale: zh-CN
 timezone: Asia/Shanghai
 device_class: mobile
+network_profile: 4g
 ua_class: android
 viewport:
   width: 360

@@ -5,6 +5,7 @@ language: Português
 locale: pt-BR  # browser locale stays pt-BR for accept-language fidelity
 timezone: America/Sao_Paulo
 device_class: desktop
+network_profile: broadband
 ua_class: windows
 viewport:
   width: 1920
