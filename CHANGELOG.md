@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`doctor` now checks the headless-shell binary separately** — every
+  pixelcheck primitive launches Chromium with `headless: true`, which on
+  modern Playwright runs the `chromium-headless-shell` build (a *separate*
+  download from full Chromium). `doctor` previously only checked full
+  Chromium, so it could report `[OK] Chromium binary` while `see`/`judge`/
+  `act` still crashed at launch with `Executable doesn't exist at
+  .../chromium_headless_shell-<rev>/...`. New `[*] Headless-shell binary`
+  check closes that blind spot. (`src/core/browser-install.ts`)
+- **`pixelcheck doctor --fix`** — self-heals a missing headless-shell
+  binary by downloading the Chrome-for-Testing zip and unpacking it with
+  the system archiver, **bypassing Playwright's bundled extractor**, which
+  can hang indefinitely while unpacking the ~150 MB executable on some
+  macOS hosts (download succeeds, then freezes at 0% CPU on "extracting
+  archive"). Falls back to advising `npx playwright install
+  chromium-headless-shell` on platforms with no published CfT build.
+
+### Fixed
+
+- Resolved the "`doctor` says OK but the first `see` fails" first-run
+  papercut where a Playwright upgrade bumps the pinned browser build but
+  the headless-shell variant was never downloaded.
+
 ## [1.2.0] - 2026-05-06 — Phase 0 complete + commercial-grade tooling
 
 > **Recommended for all users.** Major feature release completing the

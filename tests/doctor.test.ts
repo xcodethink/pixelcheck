@@ -172,6 +172,31 @@ describe("runDoctor — individual checks", () => {
     expect(c.status).toBe("skip");
     expect(c.message).toContain("--skip-network");
   });
+
+  it("Headless-shell binary: skipped when --skip-browser", async () => {
+    const r = await runDoctor({
+      projectDir: tmpRoot,
+      skipNetwork: true,
+      skipBrowser: true,
+    });
+    const c = findCheck(r, "Headless-shell binary");
+    expect(c.status).toBe("skip");
+    expect(c.message).toContain("--skip-browser");
+  });
+
+  it("Headless-shell binary: distinct check from full Chromium binary", async () => {
+    const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+    // Both checks must be present and separate — the historical bug was that
+    // only the full-Chromium check existed.
+    const chromium = findCheck(r, "Chromium binary");
+    const headless = findCheck(r, "Headless-shell binary");
+    expect(chromium.name).not.toBe(headless.name);
+    expect(["ok", "warn", "skip"]).toContain(headless.status);
+    // When missing, the remedy must point at the self-heal path.
+    if (headless.status === "warn") {
+      expect(headless.remedy).toMatch(/doctor --fix|playwright install/);
+    }
+  });
 });
 
 describe("runDoctor — aggregate exitCode", () => {
