@@ -209,7 +209,14 @@ export function findLatestReport(searchDirs?: string[]): string | null {
     pixelcheckHome(),
   ];
 
-  let newest: { path: string; mtime: number } | null = null;
+  const candidates: { path: string; mtime: number }[] = [];
+  const consider = (candidatePath: string): void => {
+    try {
+      candidates.push({ path: candidatePath, mtime: fs.statSync(candidatePath).mtimeMs });
+    } catch {
+      // skip unreadable files
+    }
+  };
 
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue;
@@ -221,32 +228,19 @@ export function findLatestReport(searchDirs?: string[]): string | null {
     }
     for (const entry of entries) {
       const auditJson = path.join(dir, entry, "audit.json");
-      if (fs.existsSync(auditJson)) {
-        try {
-          const stat = fs.statSync(auditJson);
-          if (!newest || stat.mtimeMs > newest.mtime) {
-            newest = { path: auditJson, mtime: stat.mtimeMs };
-          }
-        } catch {
-          // skip unreadable files
-        }
-      }
+      if (fs.existsSync(auditJson)) consider(auditJson);
       // Also check if the entry itself is an audit.json (flat layout)
-      if (entry === "audit.json") {
-        const flat = path.join(dir, entry);
-        try {
-          const stat = fs.statSync(flat);
-          if (!newest || stat.mtimeMs > newest.mtime) {
-            newest = { path: flat, mtime: stat.mtimeMs };
-          }
-        } catch {
-          // skip
-        }
-      }
+      if (entry === "audit.json") consider(path.join(dir, entry));
     }
   }
 
-  return newest?.path ?? null;
+  if (candidates.length === 0) return null;
+  // Newest by mtime; ties broken by lexicographically-greater path. Run dirs are
+  // timestamp-prefixed (e.g. `2026-05-02_run2`), so the later run wins. Without
+  // this tie-break the result is non-deterministic on fast filesystems where two
+  // sibling reports written in the same millisecond share an mtime.
+  candidates.sort((a, b) => b.mtime - a.mtime || b.path.localeCompare(a.path));
+  return candidates[0].path;
 }
 
 /**
