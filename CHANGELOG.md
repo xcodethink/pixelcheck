@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `findLatestReport` now resolves report recency deterministically: ties on
+  `mtime` are broken by lexicographically-greater path (timestamp-prefixed run
+  dirs → later run wins). Previously two sibling reports written in the same
+  millisecond (common on fast CI filesystems) produced a non-deterministic
+  result, causing `tests/commands/explain.test.ts` to flake on Linux/Windows
+  CI runners. Hardened the test with explicit `utimesSync` mtimes and added a
+  same-mtime tie-break case.
+
 ## [1.2.0] - 2026-05-06 — Phase 0 complete + commercial-grade tooling
 
 > **Recommended for all users.** Major feature release completing the
