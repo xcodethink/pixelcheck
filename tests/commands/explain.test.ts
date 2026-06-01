@@ -207,13 +207,39 @@ describe("findLatestReport", () => {
     fs.mkdirSync(run1, { recursive: true });
     fs.mkdirSync(run2, { recursive: true });
 
-    // Write run1 first
-    fs.writeFileSync(path.join(run1, "audit.json"), JSON.stringify(makeAuditFixture()));
-    // Write run2 later (newer mtime)
-    fs.writeFileSync(path.join(run2, "audit.json"), JSON.stringify(makeAuditFixture()));
+    const audit1 = path.join(run1, "audit.json");
+    const audit2 = path.join(run2, "audit.json");
+    fs.writeFileSync(audit1, JSON.stringify(makeAuditFixture()));
+    fs.writeFileSync(audit2, JSON.stringify(makeAuditFixture()));
+    // Pin explicit, distinct mtimes so this exercises mtime ordering rather
+    // than relying on wall-clock gaps between two sub-millisecond writes
+    // (which collide on fast CI filesystems — the original flake).
+    fs.utimesSync(audit1, new Date("2026-05-01T00:00:00Z"), new Date("2026-05-01T00:00:00Z"));
+    fs.utimesSync(audit2, new Date("2026-05-02T00:00:00Z"), new Date("2026-05-02T00:00:00Z"));
 
     const result = findLatestReport([reportsDir]);
-    expect(result).toBe(path.join(run2, "audit.json"));
+    expect(result).toBe(audit2);
+  });
+
+  it("breaks mtime ties by lexicographically-greater path (later timestamped run)", () => {
+    const reportsDir = path.join(tmpRoot, "reports-tie");
+    const run1 = path.join(reportsDir, "2026-05-01_run1");
+    const run2 = path.join(reportsDir, "2026-05-02_run2");
+    fs.mkdirSync(run1, { recursive: true });
+    fs.mkdirSync(run2, { recursive: true });
+
+    const audit1 = path.join(run1, "audit.json");
+    const audit2 = path.join(run2, "audit.json");
+    fs.writeFileSync(audit1, JSON.stringify(makeAuditFixture()));
+    fs.writeFileSync(audit2, JSON.stringify(makeAuditFixture()));
+    // Identical mtimes — the tie must resolve deterministically to the
+    // later-named (timestamp-prefixed) directory regardless of readdir order.
+    const sameTime = new Date("2026-05-01T12:00:00Z");
+    fs.utimesSync(audit1, sameTime, sameTime);
+    fs.utimesSync(audit2, sameTime, sameTime);
+
+    const result = findLatestReport([reportsDir]);
+    expect(result).toBe(audit2);
   });
 
   it("returns null for empty reports directory", () => {
