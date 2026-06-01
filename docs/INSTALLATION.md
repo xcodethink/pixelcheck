@@ -340,8 +340,10 @@ cd pixelcheck
 npm ci
 npm run build
 
-# 3. Pre-download Chromium (skipped during npm install if env var set)
-npx playwright install chromium
+# 3. Pre-download the browser pixelcheck launches (Chrome Headless Shell).
+#    Use pixelcheck's installer so the cached revision matches what it runs.
+#    Add --headed to also cache full Chromium for headed runs.
+npx pixelcheck install
 
 # 4. Bundle everything
 tar czf pixelcheck-offline-v1.0.0.tar.gz \
@@ -402,7 +404,7 @@ know the constraint.
 | `node-gyp rebuild` failure on macOS | Missing Xcode CLT | `xcode-select --install` |
 | `node-gyp rebuild` failure on Alpine | Missing python3 / make / g++ | `apk add --no-cache python3 make g++` |
 | `Cannot find module 'better-sqlite3'` after Node major upgrade | Stale native binding from old Node ABI | `npm rebuild better-sqlite3` (or `npm rebuild` for everything) |
-| `Error: ENOENT: no such file or directory ... chromium` | `npm install` skipped Playwright browser download | `npx playwright install chromium` |
+| `Error: ENOENT: no such file or directory ... chromium` | `npm install` skipped the browser download | `npx pixelcheck install` (or `pixelcheck doctor --fix`) |
 | `request to https://api.anthropic.com failed, reason: self-signed certificate in certificate chain` | Corporate MITM proxy without trusted CA | Set `NODE_EXTRA_CA_CERTS=/path/to/corp-ca.pem` |
 | `request failed, reason: getaddrinfo ENOTFOUND api.anthropic.com` | Outbound DNS / firewall blocking | Set `HTTPS_PROXY` env var or whitelist `api.anthropic.com` in firewall |
 | `Error [ERR_REQUIRE_ESM]: require() of ES Module` | Trying to use the package as CommonJS | This is an ESM-only package; use `import` or set `"type": "module"` in your project |
