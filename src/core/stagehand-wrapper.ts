@@ -17,6 +17,7 @@ import {
 } from "playwright";
 import type { Persona } from "./types.js";
 import { getLogger } from "./logger.js";
+import { launchWithBrowserAutoInstall } from "./browser-install.js";
 
 const log = getLogger("stagehand-wrapper");
 
@@ -198,27 +199,35 @@ export async function createStagehandWrapper(
   let browser: Browser | undefined;
   let context: BrowserContext;
 
+  // Both launch paths are wrapped so a fresh machine missing the
+  // headless-shell binary self-heals (download + retry once) instead of
+  // crashing with a raw Playwright "Executable doesn't exist" stack. See
+  // launchWithBrowserAutoInstall in browser-install.ts.
   if (opts.userDataDir) {
-    context = await chromium.launchPersistentContext(opts.userDataDir, {
-      args: launchArgs,
-      headless: stealthOpts.headless,
-      viewport: stealthOpts.viewport,
-      deviceScaleFactor: stealthOpts.deviceScaleFactor,
-      hasTouch: stealthOpts.hasTouch,
-      locale: stealthOpts.locale,
-      timezoneId: stealthOpts.timezoneId,
-      extraHTTPHeaders: stealthOpts.extraHTTPHeaders,
-      proxy: stealthOpts.proxy,
-      recordHar: stealthOpts.recordHar,
-      recordVideo: stealthOpts.recordVideo,
-    });
+    context = await launchWithBrowserAutoInstall(() =>
+      chromium.launchPersistentContext(opts.userDataDir!, {
+        args: launchArgs,
+        headless: stealthOpts.headless,
+        viewport: stealthOpts.viewport,
+        deviceScaleFactor: stealthOpts.deviceScaleFactor,
+        hasTouch: stealthOpts.hasTouch,
+        locale: stealthOpts.locale,
+        timezoneId: stealthOpts.timezoneId,
+        extraHTTPHeaders: stealthOpts.extraHTTPHeaders,
+        proxy: stealthOpts.proxy,
+        recordHar: stealthOpts.recordHar,
+        recordVideo: stealthOpts.recordVideo,
+      }),
+    );
   } else {
-    browser = await chromium.launch({
-      args: launchArgs,
-      headless: stealthOpts.headless,
-      proxy: stealthOpts.proxy,
-      tracesDir: stealthOpts.tracesDir,
-    });
+    browser = await launchWithBrowserAutoInstall(() =>
+      chromium.launch({
+        args: launchArgs,
+        headless: stealthOpts.headless,
+        proxy: stealthOpts.proxy,
+        tracesDir: stealthOpts.tracesDir,
+      }),
+    );
     context = await browser.newContext({
       viewport: stealthOpts.viewport,
       deviceScaleFactor: stealthOpts.deviceScaleFactor,
