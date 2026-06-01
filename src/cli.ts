@@ -622,16 +622,23 @@ program
   .option("--verbose", "Show diagnostic details (env values via redaction)")
   .option("--skip-network", "Skip api.anthropic.com reachability check")
   .option("--skip-browser", "Skip the Playwright Chromium binary check")
+  .option(
+    "--fix",
+    "Self-heal a missing headless-shell binary by downloading it directly",
+  )
   .action(
     async (doctorOpts: {
       verbose?: boolean;
       skipNetwork?: boolean;
       skipBrowser?: boolean;
+      fix?: boolean;
     }) => {
       const report = await runDoctor({
         verbose: doctorOpts.verbose,
         skipNetwork: doctorOpts.skipNetwork,
         skipBrowser: doctorOpts.skipBrowser,
+        fix: doctorOpts.fix,
+        onFixProgress: (line) => console.log(chalk.gray(`  ${line}`)),
       });
       for (const line of renderDoctorReport(report, {
         verbose: doctorOpts.verbose,
