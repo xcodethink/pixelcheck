@@ -27,6 +27,10 @@ import { createRequire } from "node:module";
 import { request } from "node:https";
 import { URL } from "node:url";
 import { pixelcheckHome } from "../core/home-dir.js";
+import {
+  resolveHeadlessShell,
+  ensureHeadlessShell,
+} from "../core/browser-install.js";
 
 const esmRequire = createRequire(import.meta.url);
 
@@ -58,6 +62,14 @@ export interface DoctorOptions {
   skipBrowser?: boolean;
   /** Where to look for project config / scenarios / personas. Defaults to cwd. */
   projectDir?: string;
+  /**
+   * Attempt to self-heal a missing headless-shell binary by downloading it
+   * (bypassing Playwright's bundled extractor, which can hang on some hosts).
+   * Wired to `pixelcheck doctor --fix`.
+   */
+  fix?: boolean;
+  /** Sink for self-heal progress lines (defaults to no-op). */
+  onFixProgress?: (line: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -416,6 +428,59 @@ function checkChromiumBinary(): DoctorCheck {
   }
 }
 
+/**
+ * Verify Playwright's *headless-shell* binary is downloaded. This is a
+ * SEPARATE artifact from the full Chromium build checked above:
+ * `chromium.launch({ headless: true })` — which every pixelcheck primitive
+ * uses — runs `chromium_headless_shell-<rev>/.../chrome-headless-shell`, not
+ * the full Chromium. Before this check, doctor could report "[OK] Chromium
+ * binary" while `see`/`judge`/`act` still crashed at launch.
+ *
+ * The standard remedy (`npx playwright install chromium-headless-shell`) can
+ * hang on some macOS hosts while extracting, so the remedy also points at
+ * `pixelcheck doctor --fix`, which downloads + unpacks directly.
+ */
+function checkHeadlessShellBinary(): DoctorCheck {
+  let info: ReturnType<typeof resolveHeadlessShell>;
+  try {
+    info = resolveHeadlessShell();
+  } catch (err) {
+    return {
+      name: "Headless-shell binary",
+      status: "skip",
+      message: `could not resolve headless-shell path: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+  if (!info) {
+    return {
+      name: "Headless-shell binary",
+      status: "skip",
+      message: "playwright-core browsers.json not readable",
+      remedy:
+        "If `see`/`judge` later fail to launch, run " +
+        "`pixelcheck doctor --fix` or `npx playwright install chromium-headless-shell`.",
+    };
+  }
+  if (info.present) {
+    return {
+      name: "Headless-shell binary",
+      status: "ok",
+      message: `Chrome Headless Shell ${info.browserVersion || `v${info.revision}`} found`,
+      detail: `Path: ${info.executablePath}`,
+    };
+  }
+  return {
+    name: "Headless-shell binary",
+    status: "warn",
+    message: `missing: ${info.executablePath}`,
+    detail: `Playwright headless-shell v${info.revision} (${info.browserVersion || "unknown version"})`,
+    remedy:
+      "Run `pixelcheck doctor --fix` to download it directly " +
+      "(bypasses Playwright's extractor, which can hang on macOS), " +
+      "or `npx playwright install chromium-headless-shell`.",
+  };
+}
+
 // ─────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────
@@ -442,9 +507,32 @@ export async function runDoctor(
   checks.push(checkDiskSpace());
   if (!opts.skipBrowser) {
     checks.push(checkChromiumBinary());
+    let headlessCheck = checkHeadlessShellBinary();
+    // Self-heal: if --fix is set and the headless-shell binary is missing,
+    // download it directly (bypassing Playwright's extractor) and re-check.
+    if (opts.fix && headlessCheck.status === "warn") {
+      const progress = opts.onFixProgress ?? (() => {});
+      progress("Headless-shell missing — attempting self-heal...");
+      const heal = await ensureHeadlessShell({ onProgress: progress });
+      if (heal.status === "installed" || heal.status === "already-present") {
+        headlessCheck = checkHeadlessShellBinary();
+      } else {
+        headlessCheck = {
+          ...headlessCheck,
+          message: `${headlessCheck.message} — self-heal ${heal.status}`,
+          remedy: heal.message,
+        };
+      }
+    }
+    checks.push(headlessCheck);
   } else {
     checks.push({
       name: "Chromium binary",
+      status: "skip",
+      message: "skipped (--skip-browser)",
+    });
+    checks.push({
+      name: "Headless-shell binary",
       status: "skip",
       message: "skipped (--skip-browser)",
     });

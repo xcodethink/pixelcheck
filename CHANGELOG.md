@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`doctor` now checks the headless-shell binary separately** — every
+  pixelcheck primitive launches Chromium with `headless: true`, which on
+  modern Playwright runs the `chromium-headless-shell` build (a *separate*
+  download from full Chromium). `doctor` previously only checked full
+  Chromium, so it could report `[OK] Chromium binary` while `see`/`judge`/
+  `act` still crashed at launch with `Executable doesn't exist at
+  .../chromium_headless_shell-<rev>/...`. New `[*] Headless-shell binary`
+  check closes that blind spot. (`src/core/browser-install.ts`)
+- **`pixelcheck doctor --fix`** — self-heals a missing headless-shell
+  binary by downloading the Chrome-for-Testing zip and unpacking it with
+  the system archiver, **bypassing Playwright's bundled extractor**, which
+  can hang indefinitely while unpacking the ~150 MB executable on some
+  macOS hosts (download succeeds, then freezes at 0% CPU on "extracting
+  archive"). Falls back to advising `npx playwright install
+  chromium-headless-shell` on platforms with no published CfT build.
+
 ### Security
 - Patched 3 moderate production advisories via semver-compatible bumps
   (lockfile-only, no API changes): `protobufjs` 7.5.6→7.6.2
@@ -17,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   advisories remain (below the gate threshold; require breaking bumps).
 
 ### Fixed
+
+- Resolved the "`doctor` says OK but the first `see` fails" first-run
+  papercut where a Playwright upgrade bumps the pinned browser build but
+  the headless-shell variant was never downloaded.
 - `findLatestReport` now resolves report recency deterministically: ties on
   `mtime` are broken by lexicographically-greater path (timestamp-prefixed run
   dirs → later run wins). Previously two sibling reports written in the same
