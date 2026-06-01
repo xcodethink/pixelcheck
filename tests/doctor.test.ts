@@ -191,10 +191,44 @@ describe("runDoctor — individual checks", () => {
     const chromium = findCheck(r, "Chromium binary");
     const headless = findCheck(r, "Headless-shell binary");
     expect(chromium.name).not.toBe(headless.name);
-    expect(["ok", "warn", "skip"]).toContain(headless.status);
+    // Headless-shell is `fail` when missing (it breaks every audit), `ok`
+    // when present. Full Chromium is `ok`/`skip` (only headed runs need it).
+    expect(["ok", "fail"]).toContain(headless.status);
     // When missing, the remedy must point at the self-heal path.
-    if (headless.status === "warn") {
-      expect(headless.remedy).toMatch(/doctor --fix|playwright install/);
+    if (headless.status === "fail") {
+      expect(headless.remedy).toMatch(/install|doctor --fix/);
+    }
+  });
+
+  it("Headless-shell missing → FAIL + honest summary (clean-room repro)", async () => {
+    // Point Playwright at an empty browser cache to simulate a fresh machine
+    // where the headless-shell was never downloaded. This is the exact
+    // first-run state that previously reported "[OK]"/"[WARN]" + an
+    // "audits will work" summary while the first launch then crashed.
+    const emptyCache = fs.mkdtempSync(path.join(os.tmpdir(), "pw-empty-"));
+    const prev = process.env.PLAYWRIGHT_BROWSERS_PATH;
+    process.env.PLAYWRIGHT_BROWSERS_PATH = emptyCache;
+    try {
+      const r = await runDoctor({ projectDir: tmpRoot, skipNetwork: true });
+      const headless = findCheck(r, "Headless-shell binary");
+      expect(headless.status).toBe("fail");
+      expect(headless.remedy).toMatch(/install|doctor --fix/);
+
+      // Full Chromium absence must NOT be a blocking signal (headless audits
+      // don't need it).
+      const chromium = findCheck(r, "Chromium binary");
+      expect(chromium.status).toBe("skip");
+
+      // The aggregate must be blocking, and the rendered summary must NOT
+      // claim audits will work — the core lie this fix removes.
+      expect(r.exitCode).toBe(1);
+      const summary = renderDoctorReport(r).join("\n");
+      expect(summary).not.toMatch(/audits will work/i);
+      expect(summary).toMatch(/blocking failure/i);
+    } finally {
+      if (prev === undefined) delete process.env.PLAYWRIGHT_BROWSERS_PATH;
+      else process.env.PLAYWRIGHT_BROWSERS_PATH = prev;
+      fs.rmSync(emptyCache, { recursive: true, force: true });
     }
   });
 });
