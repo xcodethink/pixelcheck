@@ -25,11 +25,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   archive"). Falls back to advising `npx playwright install
   chromium-headless-shell` on platforms with no published CfT build.
 
+### Security
+- Patched 3 moderate production advisories via semver-compatible bumps
+  (lockfile-only, no API changes): `protobufjs` 7.5.6→7.6.2
+  (GHSA-jggg-4jg4-v7c6, recursive-descriptor DoS), `qs` 6.15.1→6.15.2
+  (GHSA-q8mj-m7cp-5q26, stringify DoS), `ws` 8.20.0→8.21.0
+  (GHSA-58qx-3vcg-4xpx, uninitialized memory disclosure). Clears the
+  `npm audit (production, moderate+)` CI gate. 17 low-severity transitive
+  advisories remain (below the gate threshold; require breaking bumps).
+
 ### Fixed
 
 - Resolved the "`doctor` says OK but the first `see` fails" first-run
   papercut where a Playwright upgrade bumps the pinned browser build but
   the headless-shell variant was never downloaded.
+- `findLatestReport` now resolves report recency deterministically: ties on
+  `mtime` are broken by lexicographically-greater path (timestamp-prefixed run
+  dirs → later run wins). Previously two sibling reports written in the same
+  millisecond (common on fast CI filesystems) produced a non-deterministic
+  result, causing `tests/commands/explain.test.ts` to flake on Linux/Windows
+  CI runners. Hardened the test with explicit `utimesSync` mtimes and added a
+  same-mtime tie-break case.
 
 ## [1.2.0] - 2026-05-06 — Phase 0 complete + commercial-grade tooling
 
