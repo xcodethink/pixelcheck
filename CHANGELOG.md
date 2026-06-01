@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Patched 3 moderate production advisories via semver-compatible bumps
+  (lockfile-only, no API changes): `protobufjs` 7.5.6→7.6.2
+  (GHSA-jggg-4jg4-v7c6, recursive-descriptor DoS), `qs` 6.15.1→6.15.2
+  (GHSA-q8mj-m7cp-5q26, stringify DoS), `ws` 8.20.0→8.21.0
+  (GHSA-58qx-3vcg-4xpx, uninitialized memory disclosure). Clears the
+  `npm audit (production, moderate+)` CI gate. 17 low-severity transitive
+  advisories remain (below the gate threshold; require breaking bumps).
+
 ### Fixed
 - `findLatestReport` now resolves report recency deterministically: ties on
   `mtime` are broken by lexicographically-greater path (timestamp-prefixed run
