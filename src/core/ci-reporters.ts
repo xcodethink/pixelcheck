@@ -588,3 +588,38 @@ export function detectCiEnvironment(env: NodeJS.ProcessEnv = process.env):
   if (env.CI === "true" || env.CI === "1") return "generic-ci";
   return null;
 }
+
+export const CI_FORMATS = ["junit", "sarif", "jsonl", "gha"] as const;
+
+/**
+ * Resolve `--ci-format` into the set of formats to emit.
+ *
+ * Default ("auto" / unset): emit all four when CI is detected, none
+ * otherwise — keeps developer-laptop runs clean. "all" / "none" /
+ * comma-separated subset are explicit overrides.
+ *
+ * Throws on an unknown token. Silently dropping it meant
+ * `--ci-format saraf` produced zero CI output and the build still passed
+ * green — the worst kind of CI misconfiguration. (Audit 2026-06-02 H7.)
+ */
+export function resolveCiFormats(
+  raw: string | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): Set<string> {
+  if (raw === undefined || raw === "auto") {
+    return detectCiEnvironment(env) ? new Set(CI_FORMATS) : new Set();
+  }
+  if (raw === "none") return new Set();
+  if (raw === "all") return new Set(CI_FORMATS);
+  const requested = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const unknown = requested.filter(
+    (r) => !(CI_FORMATS as readonly string[]).includes(r),
+  );
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown --ci-format value(s): ${unknown.join(", ")}. ` +
+        `Valid formats: ${CI_FORMATS.join(", ")} (or "all", "none", "auto").`,
+    );
+  }
+  return new Set(requested);
+}
