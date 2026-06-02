@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { textResult, errorResult, stampedTextResult } from "../src/mcp/result.js";
+import { installProcessGuards } from "../src/mcp/server.js";
 import { requireString, resolvePersona } from "../src/mcp/helpers.js";
 import {
   AuditUrlResultSchema,
@@ -77,6 +78,33 @@ describe("resolvePersona", () => {
 
   it("throws when no personas at all", () => {
     expect(() => resolvePersona(new Map(), undefined)).toThrow();
+  });
+});
+
+describe("installProcessGuards (D2-L2)", () => {
+  it("installs unhandledRejection + uncaughtException guards", () => {
+    // Before the fix the long-lived MCP server had no process-level guards,
+    // so a stray async rejection (e.g. a screencast frame callback firing
+    // after its tool call returned) would terminate the whole server under
+    // Node's default policy. installProcessGuards() must register both.
+    installProcessGuards();
+    expect(process.listenerCount("unhandledRejection")).toBeGreaterThanOrEqual(1);
+    expect(
+      process.listenerCount("uncaughtExceptionMonitor"),
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("is idempotent — repeated calls do not stack duplicate listeners", () => {
+    installProcessGuards();
+    const rejections = process.listenerCount("unhandledRejection");
+    const monitors = process.listenerCount("uncaughtExceptionMonitor");
+    // runMcpServer() runs once per test-spawned server; the module flag must
+    // keep us from leaking a listener (and a MaxListenersExceededWarning) on
+    // every spin-up.
+    installProcessGuards();
+    installProcessGuards();
+    expect(process.listenerCount("unhandledRejection")).toBe(rejections);
+    expect(process.listenerCount("uncaughtExceptionMonitor")).toBe(monitors);
   });
 });
 
