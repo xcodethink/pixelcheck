@@ -29,7 +29,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuditRun, Issue, ScenarioRunResult } from "./types.js";
-import { redactDeep } from "./secrets.js";
+import { redactDeep, buildRedactPatterns } from "./secrets.js";
 import { findWcagCriterion, wcagHelpUrl, wcagSarifRuleId } from "./wcag.js";
 import { getPackageVersion } from "./version.js";
 
@@ -50,8 +50,11 @@ export const SEVERITY_LEVELS = {
 } as const;
 
 function applyRedaction(audit: AuditRun): AuditRun {
-  const patterns = audit.redact_patterns ?? [];
-  return patterns.length > 0 ? redactDeep(audit, patterns) : audit;
+  // Always redact + always seed from buildRedactPatterns so known env secrets
+  // (API key, SCAMLENS_ADMIN_COOKIE, STRIPE_TEST_*) are stripped from SARIF /
+  // JUnit / JSONL / GHA output even when the runner attached no patterns —
+  // matching the reporter.ts C2 fix. (Audit 2026-06-02 C2.)
+  return redactDeep(audit, buildRedactPatterns(audit.redact_patterns ?? []));
 }
 
 // ─────────────────────────────────────────────────────────────
