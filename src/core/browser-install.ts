@@ -182,12 +182,67 @@ export function resolveHeadlessShell(): HeadlessShellInfo | null {
   };
 }
 
-/** Follow redirects and stream a URL to a destination file. */
+/**
+ * Hosts the browser binary may be downloaded from. The CfT headless-shell URL
+ * starts at `cdn.playwright.dev` and legitimately 307-redirects to the
+ * Chrome-for-Testing Google Cloud Storage bucket; the Microsoft host is
+ * Playwright's official mirror. Any redirect off this allowlist (e.g. a
+ * compromised/poisoned CDN pointing at an attacker host) is refused so we never
+ * unpack + execute a binary fetched from an untrusted origin.
+ *
+ * NOTE on integrity: the upstream CfT/Playwright CDNs do not publish per-file
+ * cryptographic hashes that we could pin against, so we cannot do a true
+ * checksum verification here. The guarantee is therefore "HTTPS + pinned
+ * trusted origin + no third-party redirect + expected-size check" — the same
+ * trust model Playwright's own installer relies on. (Audit 2026-06-02 A1/A2.)
+ */
+const TRUSTED_DOWNLOAD_HOSTS: ReadonlySet<string> = new Set([
+  "cdn.playwright.dev",
+  "storage.googleapis.com",
+  "playwright.download.prss.microsoft.com",
+]);
+
+function assertTrustedDownloadUrl(rawUrl: string): URL {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    throw new Error(`refusing browser download: malformed URL ${rawUrl}`);
+  }
+  if (u.protocol !== "https:") {
+    throw new Error(
+      `refusing browser download over insecure ${u.protocol} (${u.host}) — HTTPS required`,
+    );
+  }
+  if (!TRUSTED_DOWNLOAD_HOSTS.has(u.hostname)) {
+    throw new Error(
+      `refusing browser download from untrusted host "${u.hostname}". ` +
+        `Allowed: ${[...TRUSTED_DOWNLOAD_HOSTS].join(", ")}. ` +
+        "If a redirect led here, the download origin may be compromised.",
+    );
+  }
+  return u;
+}
+
+/**
+ * Follow redirects and stream a URL to a destination file. Every hop (initial
+ * URL + each redirect target) is validated against {@link assertTrustedDownloadUrl}
+ * so the streamed-and-later-executed payload can only come from a pinned,
+ * HTTPS, trusted origin. Verifies the byte count against Content-Length when the
+ * server provides it.
+ */
 function downloadToFile(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const visit = (current: string, redirectsLeft: number): void => {
+      let validated: URL;
+      try {
+        validated = assertTrustedDownloadUrl(current);
+      } catch (err) {
+        reject(err);
+        return;
+      }
       https
-        .get(current, (res) => {
+        .get(validated, (res) => {
           const status = res.statusCode ?? 0;
           if (
             status >= 300 &&
@@ -196,6 +251,8 @@ function downloadToFile(url: string, dest: string): Promise<void> {
             redirectsLeft > 0
           ) {
             res.resume();
+            // Resolve relative redirects against the current (already-trusted)
+            // URL; the next hop is re-validated at the top of visit().
             const next = new URL(res.headers.location, current).toString();
             visit(next, redirectsLeft - 1);
             return;
@@ -207,9 +264,26 @@ function downloadToFile(url: string, dest: string): Promise<void> {
             );
             return;
           }
+          const expected = Number(res.headers["content-length"]) || 0;
+          let written = 0;
+          res.on("data", (chunk: Buffer) => {
+            written += chunk.length;
+          });
           const out = fs.createWriteStream(dest);
           res.pipe(out);
-          out.on("finish", () => out.close(() => resolve()));
+          out.on("finish", () =>
+            out.close(() => {
+              if (expected > 0 && written !== expected) {
+                reject(
+                  new Error(
+                    `download size mismatch: expected ${expected} bytes, got ${written} (possible truncation/tampering)`,
+                  ),
+                );
+                return;
+              }
+              resolve();
+            }),
+          );
           out.on("error", reject);
         })
         .on("error", reject);
@@ -218,19 +292,40 @@ function downloadToFile(url: string, dest: string): Promise<void> {
   });
 }
 
-/** Extract a zip into a directory using the system unzip, falling back to tar. */
+/**
+ * Extract a zip into a directory using the system archiver.
+ *
+ * Strategy by platform: Linux ships `unzip` but GNU `tar` cannot read zips, so
+ * `unzip` is tried first; macOS and Windows 10+ ship bsdtar (`tar`) which DOES
+ * read zips, used as the fallback when `unzip` is absent (Windows) or fails.
+ * If neither is available we throw an actionable error rather than leaving a
+ * half-extracted dir.
+ *
+ * Zip-slip: `unzip` skips `../` entries by default and bsdtar refuses absolute /
+ * traversal paths; combined with the pinned trusted download origin
+ * ({@link assertTrustedDownloadUrl}) the archive content is from Chrome-for-Testing,
+ * not attacker-controlled, so path-traversal is not a reachable vector here.
+ * (Audit 2026-06-02 A3/A4.)
+ */
 function extractZip(zipPath: string, destDir: string): void {
   fs.mkdirSync(destDir, { recursive: true });
-  try {
-    execFileSync("unzip", ["-o", "-q", zipPath, "-d", destDir], {
-      stdio: "ignore",
-    });
-    return;
-  } catch {
-    // bsdtar (macOS / Windows 10+) can unpack zips; GNU tar cannot, but on
-    // those hosts `unzip` above will have succeeded.
-    execFileSync("tar", ["-xf", zipPath, "-C", destDir], { stdio: "ignore" });
+  const attempts: Array<{ cmd: string; args: string[] }> = [
+    { cmd: "unzip", args: ["-o", "-q", zipPath, "-d", destDir] },
+    { cmd: "tar", args: ["-xf", zipPath, "-C", destDir] },
+  ];
+  const errors: string[] = [];
+  for (const { cmd, args } of attempts) {
+    try {
+      execFileSync(cmd, args, { stdio: "ignore" });
+      return;
+    } catch (err) {
+      errors.push(`${cmd}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
+  throw new Error(
+    `could not extract ${zipPath}: no working archiver found (${errors.join("; ")}). ` +
+      "Install `unzip` (Linux) or ensure `tar`/bsdtar is on PATH.",
+  );
 }
 
 export interface HealResult {
