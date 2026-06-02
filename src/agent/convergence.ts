@@ -47,7 +47,13 @@ export type ConvergenceSignal =
   | { type: "stuck"; consecutive_failures: number }
   | { type: "goal_met" }
   | { type: "budget_exceeded"; spent: number; cap: number }
-  | { type: "max_actions"; count: number; limit: number };
+  | { type: "max_actions"; count: number; limit: number }
+  // Terminal: the page state (url + DOM fingerprint) has not advanced for N
+  // consecutive actions regardless of per-action success — the agent is stuck
+  // (e.g. fill→click→fill→click on a login wall that never navigates). Distinct
+  // from loop_detected (which replans); this ends the unit so we stop burning
+  // budget. (Audit 2026-06-02 D2-C1.)
+  | { type: "no_progress"; actions: number };
 
 // ─────────────────────────────────────────────────────────────
 // Convergence Tracker
@@ -59,9 +65,18 @@ export class ConvergenceTracker {
   private _consecutiveFailures = 0;
   private _totalActions = 0;
 
+  // Stasis tracking: consecutive actions on an unchanged (url + DOM) state.
+  private _lastStateKey: string | null = null;
+  private _noProgressCount = 0;
+
   constructor(
     private _replanThreshold: number = 3,
     private _loopThreshold: number = 3,
+    // High by design: legitimate multi-field forms produce several actions on a
+    // structurally-stable page (the fingerprint ignores input values), but are
+    // bounded; a genuinely stuck loop is unbounded. 8 clears normal forms while
+    // still cutting the 26-step login-wall loop short.
+    private _noProgressThreshold: number = 8,
   ) {}
 
   get totalActions(): number {
@@ -85,6 +100,21 @@ export class ConvergenceTracker {
       this._consecutiveFailures = 0;
     } else {
       this._consecutiveFailures++;
+    }
+
+    // Stasis: track consecutive actions where the page state did not advance.
+    // Independent of per-action success and of the (LLM-authored) instruction
+    // text, so a fill→click→fill→click loop on a non-navigating page is caught
+    // even though each "fill" reports success and each instruction differs.
+    const stateKey = `${record.url}|${record.dom_fingerprint}`;
+    if (stateKey === this._lastStateKey) {
+      this._noProgressCount++;
+    } else {
+      this._noProgressCount = 0;
+      this._lastStateKey = stateKey;
+    }
+    if (this._noProgressCount >= this._noProgressThreshold) {
+      return { type: "no_progress", actions: this._noProgressCount + 1 };
     }
 
     // Check for loop
