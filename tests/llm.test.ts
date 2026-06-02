@@ -160,9 +160,13 @@ describe("estimateCost", () => {
     expect(estimateCost("claude-haiku-4-5-20251001", 0, 1_000_000)).toBe(4);
   });
 
-  it("falls back to sonnet pricing for an unknown model name", async () => {
+  it("falls back to the HIGHEST known rate for an unknown model (Audit 2026-06-02 E5)", async () => {
+    // Conservative fallback: an unknown/typo'd model must not be under-priced
+    // (previously fell back to the cheaper sonnet rate, silently under-counting
+    // the budget guard). Highest current rate is opus (15 in / 75 out).
     const { estimateCost } = await import("../src/core/llm.js");
-    expect(estimateCost("future-model-not-in-table", 1_000_000, 0)).toBe(3);
+    expect(estimateCost("future-model-not-in-table", 1_000_000, 0)).toBe(15);
+    expect(estimateCost("future-model-not-in-table", 0, 1_000_000)).toBe(75);
   });
 
   it("returns 0 for zero usage", async () => {
