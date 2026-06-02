@@ -61,7 +61,7 @@ export type ActStep =
   | { type: "goto"; url: string; wait_for?: WaitFor; timeout_ms?: number }
   | { type: "click"; selector: string; timeout_ms?: number }
   | { type: "fill"; selector: string; value: string; timeout_ms?: number }
-  | { type: "press"; key: string; selector?: string }
+  | { type: "press"; key: string; selector?: string; timeout_ms?: number }
   | { type: "wait"; ms: number }
   | {
       type: "wait_for";
@@ -545,7 +545,15 @@ async function runStep(ctx: RunStepCtx): Promise<ActStepResult> {
       }
       case "press": {
         if (ctx.step.selector) {
-          await ctx.page.locator(ctx.step.selector).first().press(ctx.step.key);
+          // Honour the per-step timeout while waiting for the target element,
+          // same as click/fill — a slow-to-appear target shouldn't hang on
+          // Playwright's default. (Audit 2026-06-02 E9.)
+          await ctx.page
+            .locator(ctx.step.selector)
+            .first()
+            .press(ctx.step.key, {
+              timeout: ctx.step.timeout_ms ?? ctx.defaultTimeoutMs,
+            });
         } else {
           await ctx.page.keyboard.press(ctx.step.key);
         }
@@ -570,6 +578,13 @@ async function runStep(ctx: RunStepCtx): Promise<ActStepResult> {
         } else if (typeof ctx.step.delta_y === "number") {
           const dy = ctx.step.delta_y;
           await ctx.page.evaluate((delta) => window.scrollBy(0, delta), dy);
+        } else {
+          // No to_bottom / selector / delta_y → there is nothing to scroll.
+          // Reporting success would mask a misconfigured step; fail loudly
+          // instead. (Audit 2026-06-02 E9.)
+          throw new Error(
+            "scroll step is a no-op: set one of to_bottom, selector, or delta_y",
+          );
         }
         return { ...base, duration_ms: Date.now() - t0 };
       }
