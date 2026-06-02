@@ -210,6 +210,6 @@ describe("renderMarkdown", () => {
     const md = renderMarkdown(report);
     expect(md).toMatch(/# Benchmark: fmt-test/);
     expect(md).toMatch(/pass@1.*100/);
-    expect(md).toMatch(/\| 1 \| do it \| ✓/);
+    expect(md).toMatch(/\| 1 \| do it \| \[OK\]/);
   });
 });
