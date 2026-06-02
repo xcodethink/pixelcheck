@@ -12,7 +12,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { BenchmarkTask } from "./task.js";
 import { evaluateTask, type TaskEvalResult } from "./evaluator.js";
-import type { Persona, ProjectConfig, Scenario } from "../core/types.js";
+import type { Persona, ProjectConfig } from "../core/types.js";
 import { RESULT_SCHEMA_VERSION } from "../core/result-schema.js";
 
 export interface BenchmarkRunOpts {

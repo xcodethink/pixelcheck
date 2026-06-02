@@ -413,7 +413,6 @@ export class WhiteboxCollector {
   private async collectStorage(): Promise<StorageSnapshot> {
     const raw = await this.mainPage
       .evaluate((cap: number) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const dump = (s: any): Record<string, string> => {
           const out: Record<string, string> = {};
           if (!s) return out;

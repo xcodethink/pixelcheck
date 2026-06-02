@@ -520,7 +520,6 @@ function renderTrendSection(history: HistoryEntry[]): string {
 function renderReliabilityStats(latest?: HistoryEntry): string {
   if (!latest) return "";
 
-  const prev = latest; // Would need two entries for delta; just show current stats
   return `<div class="reliability-stats">
     <div class="card">
       <div class="num" style="color:var(--pass)">${latest.passCount}</div>
