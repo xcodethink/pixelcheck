@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { callVision, extractJson, type VisionResponse } from "./llm.js";
 import { compressForVision } from "./image.js";
-import type { Persona, Scenario, StepResult, DimensionScore, Issue } from "./types.js";
+import type { Persona, Scenario, DimensionScore, Issue } from "./types.js";
 import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 
 const VisionVerdictSchema = z.object({

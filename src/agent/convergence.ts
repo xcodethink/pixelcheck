@@ -10,7 +10,7 @@
 import * as crypto from "node:crypto";
 import type { Page } from "playwright";
 import type { SuccessCriterion } from "../core/types.js";
-import { callVision, estimateCost } from "../core/llm.js";
+import { callVision } from "../core/llm.js";
 import { NetworkSignalCollector, type NetworkMatcher } from "./signals/network.js";
 import {
   PerformanceSignalCollector,

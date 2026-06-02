@@ -1,5 +1,4 @@
 import * as path from "node:path";
-import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import type { Page } from "playwright";
 import type {
