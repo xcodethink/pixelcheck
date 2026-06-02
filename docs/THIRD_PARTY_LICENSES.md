@@ -101,6 +101,28 @@ Apache-2.0 is fully compatible with MIT redistribution.
 
 ---
 
+## First-Party Vendored Code
+
+`license-checker` only sees packages in `node_modules`, so it cannot see
+source that is **vendored** directly into `pixelcheck`'s own tree. One such
+copy exists and is disclosed here for completeness:
+
+### stealth-core (`src/vendor/stealth-core/`)
+
+| Field | Value |
+|---|---|
+| What | First-party anti-detection / fingerprint helper, vendored verbatim |
+| Origin | `@xcodethink/stealth-core` — private, same owner as this repo |
+| License | **MIT** (same owner / same terms as pixelcheck) |
+| Why vendored | Publishing an anti-bot-detection library publicly would let detection vendors fingerprint-match its profiles — see [ADR-032](decisions/ADR-032-vendor-stealth-core.md) |
+| Provenance + version pin | [`src/vendor/stealth-core/PROVENANCE.md`](../src/vendor/stealth-core/PROVENANCE.md) + [`integrity.json`](../src/vendor/stealth-core/integrity.json) |
+| Integrity gate | `npm run check:vendor-integrity` (CI-enforced SHA-256 manifest) |
+
+Because the vendored library and pixelcheck share one owner and one MIT
+license, there is **no third-party copyleft obligation** introduced by it.
+
+---
+
 ## Updating This Document
 
 Run `npx license-checker --production --csv --out docs/third-party-licenses.csv` to regenerate the raw inventory. This document is updated when:

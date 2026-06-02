@@ -1,0 +1,16 @@
+{
+  "library": "stealth-core",
+  "vendored_from": "@xcodethink/stealth-core (private, first-party)",
+  "vendored_at": "2026-05-02",
+  "adr": "ADR-032",
+  "license": "MIT",
+  "algorithm": "sha256",
+  "files": {
+    "browser.ts": "a46d815b622fcd95496b24a0b8d2f5d7d6a7ad6fbb95fd87ca4de3567f63da64",
+    "fingerprints.ts": "271d85944ae90d96174ba904d1b50f59bd2fc4eb43abe6dcfd85060cce043310",
+    "index.ts": "85aab94577773db31de5b46b1902644bffa17fbe4eac22a5ce402bd4f6efe7fe",
+    "launch-options.ts": "27e1bc2d1702f047d16c8c81dd2e2b897ecbd40cf1bba072e17debd84c198a93",
+    "retry.ts": "524f69dff1005f823b1f8647a865f814b3a9afddf15d7b31fd12fb7d97eb8554",
+    "stealth-script.ts": "584d39dea1f2db12dfe914eba38f68fe295d2311f50ecca2c2a336990378577b"
+  }
+}
