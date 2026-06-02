@@ -87,8 +87,22 @@ export function normaliseLocale(raw: string | undefined): Locale {
   for (const supported of SUPPORTED_LOCALES) {
     if (supported.toLowerCase() === lower) return supported;
   }
-  // Family fallback: "zh" / "zh-Hans" / "zh-Hant" all map to zh-CN
-  if (lower.startsWith("zh")) return "zh-CN";
+  // Chinese family fallback. Only Simplified-script variants map to our
+  // single Chinese dictionary (zh-CN). Traditional-script variants
+  // (zh-Hant, zh-TW, zh-HK, zh-MO) read differently — serving them
+  // Simplified is a silent mistranslation, so they fall back to en until a
+  // Traditional dictionary exists. (Audit 2026-06-02 E8.)
+  if (lower.startsWith("zh")) {
+    const isTraditional =
+      lower.startsWith("zh-hant") ||
+      lower === "zh-tw" ||
+      lower.startsWith("zh-tw-") ||
+      lower === "zh-hk" ||
+      lower.startsWith("zh-hk-") ||
+      lower === "zh-mo" ||
+      lower.startsWith("zh-mo-");
+    return isTraditional ? DEFAULT_LOCALE : "zh-CN";
+  }
   if (lower.startsWith("ja")) return "ja";
   if (lower.startsWith("es")) return "es";
   if (lower.startsWith("de")) return "de";

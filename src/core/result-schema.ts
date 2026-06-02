@@ -792,6 +792,7 @@ export const ActStepSchema = z.discriminatedUnion("type", [
     type: z.literal("press"),
     key: z.string(),
     selector: z.string().optional(),
+    timeout_ms: z.number().int().positive().optional(),
   }),
   z.object({
     type: z.literal("wait"),
