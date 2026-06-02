@@ -24,6 +24,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   macOS hosts (download succeeds, then freezes at 0% CPU on "extracting
   archive"). Falls back to advising `npx playwright install
   chromium-headless-shell` on platforms with no published CfT build.
+- **`pixelcheck install`** — one command to fetch the browser binary
+  pixelcheck launches (Chrome Headless Shell), routed through the *bundled*
+  Playwright so the cached revision always matches what we run. `--headed`
+  also fetches full Chromium. See ADR-036. (`src/cli.ts`,
+  `src/core/browser-install.ts`)
+- **Automatic browser download on `npm install`** — a `postinstall` step
+  fetches the headless-shell so a fresh `npm i -g pixelcheck` is runnable
+  immediately, instead of crashing on the first `explore`/`run`. Skips on
+  CI and honours `PIXELCHECK_SKIP_BROWSER_DOWNLOAD` /
+  `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD`; never fails the install.
+  (`scripts/postinstall.mjs`)
+- **`doctor` MCP tool** — lets an MCP client (Claude Code, Cursor, ...)
+  diagnose the environment and, with `{ fix: true }`, download a missing
+  browser binary from inside the agent — no more dead-end
+  "Executable doesn't exist" with no recourse. (`src/mcp/tools/doctor.ts`)
+- **Global API-key fallback** — the CLI now also reads
+  `~/.pixelcheck/.env`, so a global install finds `ANTHROPIC_API_KEY`
+  without a `.env` in every project dir. Precedence: shell env > `./.env`
+  > `~/.pixelcheck/.env`. (`src/cli.ts`)
+
+### Changed
+
+- **Browser launches now self-heal.** `run` / `explore` and every MCP
+  browser primitive retry once after auto-installing a missing
+  headless-shell, so first use works regardless of whether the user ran
+  `doctor` first. (`src/core/stagehand-wrapper.ts`,
+  `launchWithBrowserAutoInstall`)
+- **`doctor` treats a missing headless-shell as a blocking `[FAIL]`**, not
+  a `[WARN]`. It previously warned and printed an "audits will work"
+  summary right before the first launch crashed. **CI note:** runners that
+  don't pre-install browsers should pass `--skip-browser` or run
+  `pixelcheck install`. The full-Chromium check is now `[SKIP]` when absent
+  (only `--headed` runs need it). (`src/commands/doctor.ts`)
+- **Install guidance no longer points at a bare
+  `npx playwright install chromium`** anywhere (README, INSTALLATION,
+  MIGRATION, doctor remedies). A bare install can resolve a *different*
+  Playwright revision than the one pixelcheck launches, leaving the user
+  "installed but still broken". Use `pixelcheck install` /
+  `pixelcheck doctor --fix`. (Linux `playwright install-deps` for system
+  libraries is unchanged.)
 
 ### Security
 - Patched 3 moderate production advisories via semver-compatible bumps
@@ -39,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolved the "`doctor` says OK but the first `see` fails" first-run
   papercut where a Playwright upgrade bumps the pinned browser build but
   the headless-shell variant was never downloaded.
+- **Fixed the fresh-install crash**: `npm i -g pixelcheck` followed by
+  `pixelcheck explore`/`run` no longer crashes with a raw Playwright
+  "Executable doesn't exist" stack — the browser now auto-installs at
+  install time and self-heals at launch. See ADR-036.
 - `findLatestReport` now resolves report recency deterministically: ties on
   `mtime` are broken by lexicographically-greater path (timestamp-prefixed run
   dirs → later run wins). Previously two sibling reports written in the same
