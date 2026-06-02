@@ -138,11 +138,35 @@ lint 0 problems, full suite 2222 passed, coverage gate green).
   test-isolation flake fixed (browsersRoot honors PLAYWRIGHT_BROWSERS_PATH
   first).
 
-### Still open (deferred — best-practice separate work)
+### Tech-debt sweep (2026-06-02, stacked on #44 — F4-F7 / G3 / G4)
+- **F4** vendored stealth-core: added LICENSE + PROVENANCE.md + committed
+  SHA-256 `integrity.json`; new `check:vendor-integrity` runs on every CI
+  runner (the canonical-diff check stays maintainer-local) + disclosed in
+  THIRD_PARTY_LICENSES.md. Regression test for tamper/extra/missing.
+- **F5** shipped custom-handler example ported `.ts` → self-contained `.js`
+  (no `../../src` dangling import; loads via dynamic import in an installed
+  pkg). Doc + regression test updated.
+- **F6** `engines.node` `>=18` → `>=20` (toolchain truth); purged stale
+  Node-18 / test-count / coverage-gate-name / "12-config" claims across
+  README-adjacent docs + ci.yml comments; coverage-gate job name genericized
+  so it can't drift; regression test locks engines/CI-matrix agreement.
+- **F7** no-console gate ported `bash` `.sh` → cross-platform `tsx` `.ts`
+  (npm test / prepublishOnly no longer need bash); regression test.
+- **G3 (rest)** added MCP-tool + observer + benchmark unit tests: MCP tools
+  5-10% → 20-94%, observer dashboards / doctor 0/22% → 100%, get_last_report
+  (B3 sandbox) / see → 94%, benchmark executor 0% → taskToScenario covered,
+  + a cross-tool SSRF regression (B2) over all 8 URL tools. Global coverage
+  79.1/67.6/80.7/80.6 → 81.1/69.8/82.9/82.7; floor ratcheted 74/62/75/75 →
+  76/64/77/77 (ADR-017). Remaining low: observer/server + screencast
+  (http/CDP — need integration mocking, diminishing returns).
+- **G4** documented the 17 LOW advisories honestly (single root cause
+  @ai-sdk/provider-utils) + dev-only moderate (brace-expansion) in
+  SECURITY.md; fixed the false "0 vulnerabilities" CI comment; clarified
+  windows-latest non-blocking + bench/dogfood observation in docs;
+  regression test locks the wording.
+
+### Still open (deferred — needs Wayne / out of scope)
 - **G1** branch protection on `main` — remote settings change; left for Wayne
   to apply (recommended after #43/#44 merge, requiring the CI check contexts).
-- **G3 (rest)** MCP-tool / observer / benchmark-executor test coverage
-  (5-10% / ~0%) — substantial test-authoring effort; own follow-up PR.
-- **F4-F7, G4** — vendored stealth-core LICENSE/provenance, shipped-`.ts`
-  example, engines.node/docs drift, undocumented advisories — not yet done.
+  AI must NOT `gh api` this without explicit approval.
 </content>
