@@ -224,7 +224,7 @@ program
   )
   .option(
     "--min-score <n>",
-    "Quality gate: fail with exit code 1 if overall score is below this threshold (0-10)",
+    "Quality gate: exit code 3 if overall score is below this threshold (0-10). Distinct from a scenario failure (exit 1).",
     parseFloatOpt,
   )
   .option(
@@ -878,7 +878,23 @@ program
       // Write the full report set (JSON + HTML + SPA + markdown) just like
       // the `run` command does. Without this, `explore` users got browser
       // artifacts but no machine-readable report or rich explorer.
-      const runDir = path.join(path.resolve(exploreOpts.out), audit.run_id);
+      const reportsDir = path.resolve(exploreOpts.out);
+      const runDir = path.join(reportsDir, audit.run_id);
+
+      // Persist to the history DB too — without this an `explore` run never
+      // entered history, so trends/diff were silently empty for the
+      // documented quick-start workflow. (Audit 2026-06-02 H3.)
+      try {
+        saveAuditToHistory(audit, reportsDir);
+        console.log(chalk.gray("  [history] Saved to history.db"));
+      } catch (histErr) {
+        console.warn(
+          chalk.yellow(
+            `  [history] Failed to save: ${histErr instanceof Error ? histErr.message : String(histErr)}`,
+          ),
+        );
+      }
+
       try {
         writeJsonReport(audit, runDir);
         writeHtmlReport(audit, runDir);
@@ -1561,18 +1577,26 @@ async function runCommand(opts: RunOpts): Promise<void> {
         audit.results.length
       : 0;
 
-  // Quality gate: --min-score
+  // Exit-code contract (documented for CI):
+  //   0 = clean pass
+  //   1 = one or more scenarios FAILED (functional break) — most severe
+  //   2 = passed with warnings (non-critical issues)
+  //   3 = quality-gate regression: overall score below --min-score
+  // Distinct codes let CI tell a score regression apart from a functional
+  // failure; before, both were 1 and a warn=2 was masked whenever the gate
+  // tripped. Precedence: a hard failure (1) dominates a gate regression (3),
+  // which dominates warnings (2). (Audit 2026-06-02 H4.)
+  if (audit.summary.fail > 0) process.exit(1);
+
   if (opts.minScore !== undefined && overallScore < opts.minScore) {
     console.log(
       chalk.red(
         `[QUALITY GATE] Overall score ${overallScore.toFixed(1)} < minimum ${opts.minScore} — failing build.`,
       ),
     );
-    process.exit(1);
+    process.exit(3);
   }
 
-  // Exit code: 0 = all pass, 1 = critical, 2 = warn
-  if (audit.summary.fail > 0) process.exit(1);
   if (audit.summary.pass_with_issues > 0) process.exit(2);
   process.exit(0);
 }
