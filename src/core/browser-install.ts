@@ -202,7 +202,7 @@ const TRUSTED_DOWNLOAD_HOSTS: ReadonlySet<string> = new Set([
   "playwright.download.prss.microsoft.com",
 ]);
 
-function assertTrustedDownloadUrl(rawUrl: string): URL {
+export function assertTrustedDownloadUrl(rawUrl: string): URL {
   let u: URL;
   try {
     u = new URL(rawUrl);

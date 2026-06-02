@@ -148,6 +148,25 @@ describe("writeJsonReport", () => {
     expect(html).toContain("secret-not-redacted");
   });
 
+  it("always redacts known env secrets even with empty redact_patterns (Audit 2026-06-02 C2)", () => {
+    const prev = process.env.SCAMLENS_ADMIN_COOKIE;
+    process.env.SCAMLENS_ADMIN_COOKIE = "session-token=supersecretvalue123";
+    try {
+      const audit = mkAudit({ redact_patterns: [] });
+      audit.results[0]!.issues.push({
+        severity: "low",
+        description: "leaked session-token=supersecretvalue123 into a finding",
+        recommendation: "n/a",
+      });
+      const json = fs.readFileSync(writeJsonReport(audit, tmp), "utf8");
+      expect(json).not.toContain("supersecretvalue123");
+      expect(json).toContain("[REDACTED]");
+    } finally {
+      if (prev === undefined) delete process.env.SCAMLENS_ADMIN_COOKIE;
+      else process.env.SCAMLENS_ADMIN_COOKIE = prev;
+    }
+  });
+
   it("skips redaction when redact_patterns is undefined", () => {
     const audit = mkAudit();
     delete (audit as Partial<AuditRun>).redact_patterns;
