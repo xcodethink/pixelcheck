@@ -151,7 +151,7 @@ export async function runAutonomousLoop(
   await performanceCollector.attach();
 
   // Most recent pre-action page snapshot for interaction-criterion checks.
-  let preActionSnapshot: PageSnapshot | null = null;
+  let preActionSnapshot: PageSnapshot | null;
 
   // Plan cache state (may remain null if disabled) — hoisted so `finally` can record outcome.
   const cacheDisabledOuter = process.env.AUDIT_PLAN_CACHE_DISABLED === "1";
