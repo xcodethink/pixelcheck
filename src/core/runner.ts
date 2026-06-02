@@ -467,6 +467,24 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
           );
           break;
         }
+
+        // A skipped CRITICAL step means the user could not complete the action
+        // (all `act` layers exhausted, fallback: skip). Status aggregation only
+        // looks at fail/warn, so without this a scenario whose critical journey
+        // step was skipped would report PASS — "looks green but the journey
+        // can't complete". Record a critical issue so it fails. (Audit 2026-06-02 E2.)
+        if (result.status === "skip" && step.critical) {
+          log.error(
+            { scenarioId: opts.scenario.id, stepId: step.id },
+            "critical step skipped — the journey could not complete",
+          );
+          issues.push({
+            severity: "critical",
+            description: `Critical step "${step.id}" (${step.type}) was skipped — the action could not be performed, so this journey cannot complete.`,
+            recommendation:
+              "Investigate why the step's selectors/agent could not perform the action; a critical step should not rely on fallback: skip.",
+          });
+        }
       }
     }
 
