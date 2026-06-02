@@ -529,8 +529,12 @@ export function renderGithubAnnotations(audit: AuditRun): string[] {
       const title = `[${issue.severity.toUpperCase()}] ${r.scenario_name} × ${r.persona_display_name}`;
       // Workflow-command newlines must be encoded as %0A; commas/colons
       // in the message are escaped to avoid breaking the parser.
+      // Use a real newline; encodeWorkflowCommandValue turns it into %0A once.
+      // Embedding a literal "%0A" here double-encoded to "%250A" (the % got
+      // escaped to %25), so annotations showed a stray "%0A" instead of a line
+      // break. (Audit 2026-06-02 H2.)
       const message = encodeWorkflowCommandValue(
-        `${issue.description}%0A→ ${issue.recommendation}`,
+        `${issue.description}\n→ ${issue.recommendation}`,
       );
       lines.push(
         `::${level} file=${encodeWorkflowCommandValue(file)},title=${encodeWorkflowCommandValue(title)}::${message}`,
