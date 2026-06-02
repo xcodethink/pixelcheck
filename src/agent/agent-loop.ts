@@ -347,6 +347,11 @@ export async function runAutonomousLoop(
           success: false,
         });
 
+        if (signal.type === "no_progress") {
+          // Terminal: page never advanced — replanning won't help, stop. (D2-C1)
+          convergenceReason = "no_progress";
+          break;
+        }
         if (signal.type === "stuck" || signal.type === "loop_detected") {
           if (failedPlans.length >= agentConfig.max_replans) {
             convergenceReason = "max_replans";
@@ -430,6 +435,16 @@ export async function runAutonomousLoop(
       }
 
       // Handle convergence signals
+      if (signal.type === "no_progress") {
+        // Terminal: the page has not advanced for N consecutive actions — the
+        // agent is stuck (e.g. a login wall that never navigates). Stop rather
+        // than burn the full action/budget cap making no progress. (D2-C1)
+        eventBus.emitEvent("convergence:no_progress", {
+          actions: (signal as { actions: number }).actions,
+        });
+        convergenceReason = "no_progress";
+        break;
+      }
       if (signal.type === "loop_detected") {
         eventBus.emitEvent("convergence:loop_detected", { hash: (signal as { repeated_hash: string }).repeated_hash });
         if (failedPlans.length >= agentConfig.max_replans) {

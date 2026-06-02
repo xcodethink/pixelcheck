@@ -36,15 +36,45 @@ describe("ConvergenceTracker", () => {
     expect(signal.type).toBe("loop_detected");
   });
 
-  it("does not trigger loop for different actions", () => {
+  it("does not trigger loop/no-progress when the page state keeps advancing", () => {
     const tracker = new ConvergenceTracker(3, 3);
 
+    // Distinct dom_fingerprint each step = real progress → never stuck.
     for (let i = 0; i < 10; i++) {
       const signal = tracker.recordAction(
-        makeRecord({ instruction: `Action ${i}` }),
+        makeRecord({ instruction: `Action ${i}`, dom_fingerprint: `fp-${i}` }),
       );
       expect(signal.type).toBe("continue");
     }
+  });
+
+  it("detects no_progress when the page never advances despite varied instructions (Audit 2026-06-02 D2-C1)", () => {
+    // The 26-step login-wall loop: every action 'succeeds' (fill passes) and
+    // every instruction differs, but url + dom_fingerprint never change.
+    // Default no-progress threshold is 8.
+    const tracker = new ConvergenceTracker(3, 3, 8);
+    let signal = tracker.recordAction(makeRecord({ instruction: "step 0" }));
+    for (let i = 1; i <= 8 && signal.type === "continue"; i++) {
+      signal = tracker.recordAction(
+        makeRecord({ instruction: `step ${i}`, success: true }),
+      );
+    }
+    expect(signal.type).toBe("no_progress");
+  });
+
+  it("legit multi-field form (below the no-progress threshold) does not trip", () => {
+    const tracker = new ConvergenceTracker(3, 3, 8);
+    // 6 fills on a structurally-stable form, then navigation (state changes).
+    for (let i = 0; i < 6; i++) {
+      const signal = tracker.recordAction(
+        makeRecord({ instruction: `fill field ${i}`, success: true }),
+      );
+      expect(signal.type).toBe("continue");
+    }
+    const navSignal = tracker.recordAction(
+      makeRecord({ instruction: "submit", dom_fingerprint: "next-page", success: true }),
+    );
+    expect(navSignal.type).toBe("continue");
   });
 
   it("does not trigger loop when URL differs", () => {
