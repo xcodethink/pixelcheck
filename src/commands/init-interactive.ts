@@ -162,20 +162,35 @@ export async function runInitInteractive(
  * scaffolder when no scenarios/*.yaml files exist yet.
  */
 export function sampleSmokeScenarioYaml(baseUrl: string): string {
+  // Must be a schema-valid scenario: every step needs an `id`, the scenario
+  // needs applies_to + scoring_dimensions, and only real step types are
+  // allowed. The previous sample used `- type: see` (an MCP primitive, NOT a
+  // scenario step) and omitted step ids / applies_to, so the single guided
+  // first-run path failed Zod parse on the very first `run`. (Audit 2026-06-02 H1.)
   return [
     "id: homepage-smoke",
     "name: Homepage smoke audit",
-    `description: First audit — visits the home page and runs basic checks.`,
+    "priority: P0",
+    `goal: "Verify the home page loads and the primary call-to-action is visible."`,
+    "",
+    "applies_to:",
+    "  personas:",
+    "    - us-english-free-mobile",
+    "",
+    "scoring_dimensions:",
+    "  - completion",
+    "  - visual_polish",
     "",
     "steps:",
-    `  - type: visit`,
+    "  - id: visit-home",
+    "    type: visit",
     `    url: ${baseUrl}`,
-    "",
-    "  - type: assert_a11y",
+    "  - id: a11y-home",
+    "    type: assert_a11y",
     "    standard: wcag22aa",
-    "",
-    "  - type: see",
-    `    goal: "Identify the primary call-to-action above the fold."`,
+    "  - id: assert-home-loads",
+    "    type: assert_visual",
+    `    instruction: "The home page loads fully with the primary call-to-action visible above the fold — no broken images, errors, or layout issues."`,
     "",
   ].join("\n");
 }
