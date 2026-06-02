@@ -345,6 +345,32 @@ describe("runAudit — status determination", () => {
     expect(audit.results[0].status).toBe("fail");
   });
 
+  it("a SKIPPED critical step fails the scenario (Audit 2026-06-02 E2)", async () => {
+    // act fallback:skip on a critical step returns status=skip — the action
+    // could not be performed, so the journey cannot complete. Previously this
+    // reported PASS (aggregation only counted fail/warn).
+    mockStepHandler.mockResolvedValueOnce(makeStepResult({ status: "skip" }));
+    const scenario = mkScenario({
+      steps: [{ id: "s1", type: "act", instruction: "do the thing", critical: true }],
+    });
+    const persona = mkPersona();
+
+    const { audit } = await runAudit({
+      config: mkConfig(),
+      personas: new Map([[persona.id, persona]]),
+      scenarios: [scenario],
+      matrix: [{ scenario, personaId: persona.id }],
+      outputRoot: tmp,
+    });
+
+    expect(audit.results[0].status).toBe("fail");
+    expect(
+      audit.results[0].issues.some(
+        (i) => i.severity === "critical" && /skipped/i.test(i.description),
+      ),
+    ).toBe(true);
+  });
+
   it("aborts subsequent steps after a critical step fails", async () => {
     mockStepHandler
       .mockResolvedValueOnce(
