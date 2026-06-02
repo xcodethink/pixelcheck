@@ -99,7 +99,6 @@ export async function runInitInteractive(
       "",
     ];
     for (const line of intro) {
-      // eslint-disable-next-line no-console
       console.log(line);
     }
 
@@ -130,15 +129,11 @@ export async function runInitInteractive(
     const runDoctorAfter = /^y/i.test(runDoctorAnswer);
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      // eslint-disable-next-line no-console
       console.log("");
-      // eslint-disable-next-line no-console
       console.log("Note: ANTHROPIC_API_KEY is not set in your environment.");
-      // eslint-disable-next-line no-console
       console.log(
         "      Get one at https://console.anthropic.com and set it before",
       );
-      // eslint-disable-next-line no-console
       console.log(
         "      running an audit:  export ANTHROPIC_API_KEY=sk-ant-...",
       );

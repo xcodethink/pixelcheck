@@ -12,7 +12,6 @@ import { getLogger } from "./logger.js";
 import type {
   Scenario,
   StepResult,
-  ScenarioRunResult,
   Issue,
 } from "./types.js";
 

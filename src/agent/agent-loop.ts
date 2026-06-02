@@ -16,7 +16,6 @@ import type {
   StepResult,
   ScenarioRunResult,
   Issue,
-  DimensionScore,
   AgentConfig,
 } from "../core/types.js";
 import { executeStep, type StepContext } from "../handlers/index.js";
@@ -29,7 +28,6 @@ import {
   revisePlan,
   microReplan,
   type Plan,
-  type PlannedStep,
 } from "./planner.js";
 import { PlanCache, computeDomSkeleton } from "./plan-cache.js";
 import { AgentMemory, formatFactsForPlanner } from "./memory.js";
