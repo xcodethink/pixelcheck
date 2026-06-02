@@ -391,7 +391,7 @@ export function renderCalibrationMarkdown(report: CalibrationReport): string {
   lines.push(`|---|---|---|---|---|`);
   for (const s of report.samples) {
     lines.push(
-      `| ${s.sample_id} | ${(s.agreement_rate * 100).toFixed(0)}% | ${s.max_distance.toFixed(1)} | ${s.issue_check.passed ? "✓" : "✗"} | $${s.cost_usd.toFixed(3)} |`,
+      `| ${s.sample_id} | ${(s.agreement_rate * 100).toFixed(0)}% | ${s.max_distance.toFixed(1)} | ${s.issue_check.passed ? "[OK]" : "[FAIL]"} | $${s.cost_usd.toFixed(3)} |`,
     );
   }
   return lines.join("\n") + "\n";

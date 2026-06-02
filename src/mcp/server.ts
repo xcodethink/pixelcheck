@@ -108,7 +108,57 @@ export function buildDefaultRegistry(): ToolRegistry {
   return registry;
 }
 
+// Install global process guards exactly once. The MCP server is a
+// long-lived stdio process (it outlives any single tool call), so a
+// single stray async rejection must not take it — and every other
+// in-flight tool call — down. Guarded by a module flag so repeated
+// runMcpServer() calls (the test suite spins it up many times) don't
+// stack duplicate listeners and trip MaxListenersExceededWarning.
+let processGuardsInstalled = false;
+
+/**
+ * Last-resort process-level guards for the long-lived MCP server (D2-L2).
+ *
+ * - `unhandledRejection`: under Node's default policy an unhandled
+ *   promise rejection terminates the process. For a stdio MCP server the
+ *   common source is fire-and-forget browser callbacks (screencast frame
+ *   handlers, CDP event listeners) whose promises reject *after* the
+ *   originating tool call has already returned and reported its own
+ *   failure. We log and keep serving instead of tearing down every other
+ *   concurrent tool call.
+ * - `uncaughtExceptionMonitor`: an uncaught exception leaves the process
+ *   in an undefined state — Node is explicit that you must not resume
+ *   normal operation after one. We therefore do NOT swallow it; the
+ *   monitor lets us emit a structured fatal log (with stack) and then
+ *   Node's default handler still terminates with a non-zero exit so a
+ *   supervising MCP client restarts us cleanly.
+ *
+ * Idempotent and exported for unit testing.
+ */
+export function installProcessGuards(): void {
+  if (processGuardsInstalled) return;
+  processGuardsInstalled = true;
+
+  process.on("unhandledRejection", (reason) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    log.error(
+      { err: err.message, stack: err.stack },
+      "unhandledRejection in MCP server — ignored, server kept alive",
+    );
+  });
+
+  process.on("uncaughtExceptionMonitor", (err) => {
+    log.fatal(
+      { err: err.message, stack: err.stack },
+      "uncaughtException in MCP server — process will terminate",
+    );
+  });
+}
+
 export async function runMcpServer(): Promise<void> {
+  installProcessGuards();
+
+
   const server = new Server(
     { name: "pixelcheck", version: getPackageVersion() },
     { capabilities: { tools: {} } },

@@ -16,7 +16,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import type Database from "better-sqlite3";
 import { openManagedDatabase, type Migration } from "./db-migrate.js";
-import type { AuditRun, DimensionScore, Issue } from "./types.js";
+import type { AuditRun } from "./types.js";
 import { RESULT_SCHEMA_VERSION } from "./result-schema.js";
 
 /**

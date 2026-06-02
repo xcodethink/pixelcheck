@@ -27,6 +27,7 @@ import {
   writeGithubAnnotationsReport,
   detectCiEnvironment,
   renderGithubAnnotations,
+  resolveCiFormats,
 } from "./core/ci-reporters.js";
 import { notifySlack, notifyTelegram } from "./core/notify.js";
 import { preflightUrls } from "./core/url-preflight.js";
@@ -38,7 +39,6 @@ import {
   renderDiffHtml,
   renderDiffJson,
   renderDiffMarkdown,
-  renderDiffText,
   writeDiffReport,
   type DiffReportFormat,
 } from "./core/reporter-diff.js";
@@ -94,29 +94,11 @@ dotenv.config({
 // before any log emission.
 for (const p of buildRedactPatterns([])) registerSecret(p);
 
-/**
- * Print user-facing text that may include error messages or other strings
- * which could embed a secret value. Runs the registered-secret list across
- * the text before writing.
- *
- * Use this for any console.{log,error} that interpolates `err.message`,
- * user-supplied URLs, or other untrusted-content fields.
- */
-function safePrint(...args: unknown[]): void {
-  const patterns = buildRedactPatterns([]);
-  const safeArgs = args.map((a) =>
-    typeof a === "string" ? redact(a, patterns) : a,
-  );
-  // eslint-disable-next-line no-console
-  console.log(...safeArgs);
-}
-
 function safeError(...args: unknown[]): void {
   const patterns = buildRedactPatterns([]);
   const safeArgs = args.map((a) =>
     typeof a === "string" ? redact(a, patterns) : a,
   );
-  // eslint-disable-next-line no-console
   console.error(...safeArgs);
 }
 
@@ -224,7 +206,7 @@ program
   )
   .option(
     "--min-score <n>",
-    "Quality gate: fail with exit code 1 if overall score is below this threshold (0-10)",
+    "Quality gate: exit code 3 if overall score is below this threshold (0-10). Distinct from a scenario failure (exit 1).",
     parseFloatOpt,
   )
   .option(
@@ -878,7 +860,23 @@ program
       // Write the full report set (JSON + HTML + SPA + markdown) just like
       // the `run` command does. Without this, `explore` users got browser
       // artifacts but no machine-readable report or rich explorer.
-      const runDir = path.join(path.resolve(exploreOpts.out), audit.run_id);
+      const reportsDir = path.resolve(exploreOpts.out);
+      const runDir = path.join(reportsDir, audit.run_id);
+
+      // Persist to the history DB too — without this an `explore` run never
+      // entered history, so trends/diff were silently empty for the
+      // documented quick-start workflow. (Audit 2026-06-02 H3.)
+      try {
+        saveAuditToHistory(audit, reportsDir);
+        console.log(chalk.gray("  [history] Saved to history.db"));
+      } catch (histErr) {
+        console.warn(
+          chalk.yellow(
+            `  [history] Failed to save: ${histErr instanceof Error ? histErr.message : String(histErr)}`,
+          ),
+        );
+      }
+
       try {
         writeJsonReport(audit, runDir);
         writeHtmlReport(audit, runDir);
@@ -1034,7 +1032,7 @@ program
       tag: opts.tag,
       execute: executeBenchmarkTask,
       onTaskComplete: (r) => {
-        const marker = r.passed ? chalk.green("✓") : chalk.red("✗");
+        const marker = r.passed ? chalk.green("[OK]") : chalk.red("[FAIL]");
         console.log(
           `  ${marker} ${r.task_id}  $${r.cost_usd.toFixed(3)}  ${r.duration_ms}ms  ${r.convergence_reason}`,
         );
@@ -1080,7 +1078,10 @@ program
       tag: opts.tag,
       outputDir: outDir,
       onSampleComplete: (s) => {
-        const marker = s.agreement_rate === 1 && s.issue_check.passed ? chalk.green("✓") : chalk.yellow("~");
+        const marker =
+          s.agreement_rate === 1 && s.issue_check.passed
+            ? chalk.green("[OK]")
+            : chalk.yellow("[WARN]");
         console.log(
           `  ${marker} ${s.sample_id}  agreement=${(s.agreement_rate * 100).toFixed(0)}%  max_dist=${s.max_distance.toFixed(1)}  $${s.cost_usd.toFixed(3)}`,
         );
@@ -1561,47 +1562,32 @@ async function runCommand(opts: RunOpts): Promise<void> {
         audit.results.length
       : 0;
 
-  // Quality gate: --min-score
+  // Exit-code contract (documented for CI):
+  //   0 = clean pass
+  //   1 = one or more scenarios FAILED (functional break) — most severe
+  //   2 = passed with warnings (non-critical issues)
+  //   3 = quality-gate regression: overall score below --min-score
+  // Distinct codes let CI tell a score regression apart from a functional
+  // failure; before, both were 1 and a warn=2 was masked whenever the gate
+  // tripped. Precedence: a hard failure (1) dominates a gate regression (3),
+  // which dominates warnings (2). (Audit 2026-06-02 H4.)
+  if (audit.summary.fail > 0) process.exit(1);
+
   if (opts.minScore !== undefined && overallScore < opts.minScore) {
     console.log(
       chalk.red(
         `[QUALITY GATE] Overall score ${overallScore.toFixed(1)} < minimum ${opts.minScore} — failing build.`,
       ),
     );
-    process.exit(1);
+    process.exit(3);
   }
 
-  // Exit code: 0 = all pass, 1 = critical, 2 = warn
-  if (audit.summary.fail > 0) process.exit(1);
   if (audit.summary.pass_with_issues > 0) process.exit(2);
   process.exit(0);
 }
 
 function collect(value: string, prev: string[]): string[] {
   return prev.concat([value]);
-}
-
-const CI_FORMATS = ["junit", "sarif", "jsonl", "gha"] as const;
-
-/**
- * Resolve --ci-format into the set of formats to emit.
- *
- * Default ("auto" / unset): emit all four when CI is detected, none
- * otherwise — keeps developer laptop runs clean.
- * "all" / "none" / comma-separated subset are explicit overrides.
- */
-function resolveCiFormats(raw: string | undefined): Set<string> {
-  if (raw === undefined || raw === "auto") {
-    return detectCiEnvironment() ? new Set(CI_FORMATS) : new Set();
-  }
-  if (raw === "none") return new Set();
-  if (raw === "all") return new Set(CI_FORMATS);
-  const requested = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  const out = new Set<string>();
-  for (const r of requested) {
-    if ((CI_FORMATS as readonly string[]).includes(r)) out.add(r);
-  }
-  return out;
 }
 
 function parseIntOpt(value: string): number {

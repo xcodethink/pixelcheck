@@ -20,6 +20,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   detectCiEnvironment,
+  resolveCiFormats,
+  CI_FORMATS,
   encodeWorkflowCommandValue,
   escapeXml,
   renderGithubAnnotations,
@@ -122,6 +124,35 @@ function makeAudit(over: Partial<AuditRun> = {}): AuditRun {
 // ─────────────────────────────────────────────────────────────
 // SEVERITY_LEVELS table sanity
 // ─────────────────────────────────────────────────────────────
+
+describe("resolveCiFormats (H7)", () => {
+  const noCi: NodeJS.ProcessEnv = {}; // no CI vars set
+
+  it("returns a comma-separated subset verbatim", () => {
+    expect(resolveCiFormats("junit,sarif", noCi)).toEqual(
+      new Set(["junit", "sarif"]),
+    );
+  });
+
+  it("'all' expands to every format; 'none' is empty", () => {
+    expect(resolveCiFormats("all", noCi)).toEqual(new Set(CI_FORMATS));
+    expect(resolveCiFormats("none", noCi)).toEqual(new Set());
+  });
+
+  it("auto/unset emits nothing off-CI and everything on-CI", () => {
+    expect(resolveCiFormats(undefined, noCi)).toEqual(new Set());
+    expect(resolveCiFormats("auto", { GITHUB_ACTIONS: "true" })).toEqual(
+      new Set(CI_FORMATS),
+    );
+  });
+
+  it("THROWS on an unknown token instead of silently dropping it", () => {
+    // The bug: `--ci-format saraf` used to yield an empty set → zero CI
+    // output → build passes green. Now it must fail loud.
+    expect(() => resolveCiFormats("saraf", noCi)).toThrow(/Unknown.*saraf/);
+    expect(() => resolveCiFormats("junit,saraf", noCi)).toThrow(/saraf/);
+  });
+});
 
 describe("SEVERITY_LEVELS — mapping table", () => {
   it("maps critical and high to SARIF error / GHA error", () => {
@@ -713,6 +744,12 @@ describe("GitHub Actions annotations writer", () => {
     expect(line).toMatch(/^::error file=audit\/signup\/us-desktop,/);
     expect(line).toContain("title=");
     expect(line).toContain("Login button not visible");
+  });
+
+  it("encodes the description→recommendation newline as %0A, not double-encoded %250A (Audit 2026-06-02 H2)", () => {
+    const line = renderGithubAnnotations(makeAudit())[0]!;
+    expect(line).toContain("%0A"); // a real newline, encoded once
+    expect(line).not.toContain("%250A"); // never the double-encoded form
   });
 
   it("escapes commas / newlines / colons inside the message", () => {

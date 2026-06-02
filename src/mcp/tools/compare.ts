@@ -16,7 +16,6 @@
  */
 
 import * as fs from "node:fs";
-import * as path from "node:path";
 import { loadPersonas, resolvePersonasDir } from "../../core/persona.js";
 import {
   compare,

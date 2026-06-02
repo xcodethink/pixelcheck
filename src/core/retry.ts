@@ -103,6 +103,13 @@ export interface WithRetryOptions {
   sleepFn?: (ms: number) => Promise<void>;
   /** Test seam: deterministic jitter source (returns 0..1). */
   randFn?: () => number;
+  /**
+   * Fired just before each backoff sleep, i.e. once per retry that will
+   * actually happen. `retryNumber` is 1-based (1 = first retry). Lets a
+   * caller surface how many retries were spent (e.g. StepResult.retries_used)
+   * without re-implementing retry counting.
+   */
+  onRetry?: (err: unknown, retryNumber: number, delayMs: number) => void;
 }
 
 /**
@@ -187,6 +194,7 @@ export async function withRetry<T>(
         "retrying after transient failure",
       );
 
+      if (opts.onRetry) opts.onRetry(err, attempt + 1, delayMs);
       await sleep(delayMs);
     }
   }

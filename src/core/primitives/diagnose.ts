@@ -606,15 +606,24 @@ function parseFinding(
     ? Math.min(1, Math.max(0, confidenceRaw))
     : 0.5;
 
-  const evidenceRefs = parseEvidenceRefs(o.evidence_refs);
+  const allRefs = parseEvidenceRefs(o.evidence_refs);
   const standardsMapping = parseStandardsMapping(o.standards_mapping);
 
-  // Anti-hallucination: severity != 'low' MUST cite at least one evidence ref.
-  // Drop the finding rather than emit an unsourced claim.
+  // Anti-hallucination, part 2: an evidence_ref must point at a path that
+  // actually exists in the diagnostics envelope the model was shown. Before
+  // this, any non-empty string passed — so a model could cite
+  // `/diagnostics/accessibility/contrast` (no such collector) and the finding
+  // sailed through. Keep only refs whose path is grounded in the real
+  // serialized diagnostics. (Audit 2026-06-02 E7/D3-M5.)
+  const validPaths = collectDiagnosticsPaths(diagnostics);
+  const evidenceRefs = allRefs.filter((r) => isGroundedPath(r.path, validPaths));
+
+  // severity != 'low' MUST cite at least one GROUNDED evidence ref. Drop the
+  // finding rather than emit a claim sourced from fabricated paths.
   if (severity !== "low" && evidenceRefs.length === 0) {
     log.warn(
-      { id, severity, dimension, title },
-      "diagnose: dropped finding without evidence_refs (anti-hallucination)",
+      { id, severity, dimension, title, citedPaths: allRefs.map((r) => r.path) },
+      "diagnose: dropped finding without grounded evidence_refs (anti-hallucination)",
     );
     return null;
   }
@@ -687,6 +696,44 @@ function parseStandardsMapping(v: unknown): StandardsReference[] {
     });
   }
   return out;
+}
+
+/**
+ * The set of JSON-pointer paths the model was actually shown — derived from
+ * the SAME serializer that builds the prompt's diagnostics block, so "what
+ * the model can cite" and "what we validate against" can never drift apart.
+ * Every rendered line carries its `/diagnostics/...` path as the leading
+ * token; collect them all.
+ */
+function collectDiagnosticsPaths(
+  diagnostics: SeeResult["diagnostics"] | undefined,
+): Set<string> {
+  const paths = new Set<string>();
+  const block = serializeDiagnosticsForPrompt(diagnostics);
+  for (const line of block.split("\n")) {
+    for (const token of line.trim().split(/\s+/)) {
+      if (token.startsWith("/diagnostics/")) {
+        paths.add(token.replace(/\/+$/, ""));
+      }
+    }
+  }
+  return paths;
+}
+
+/**
+ * A cited evidence path is grounded if it lines up (segment-wise) with a path
+ * the model was actually shown: an exact match, an ancestor of a rendered
+ * path (e.g. `/diagnostics/performance`), or a descendant of one (citing a
+ * field deeper than the summary rendered). A fabricated section like
+ * `/diagnostics/accessibility/*` matches none and is rejected.
+ */
+function isGroundedPath(refPath: string, validPaths: Set<string>): boolean {
+  const p = refPath.replace(/\/+$/, "");
+  if (validPaths.has(p)) return true;
+  for (const vp of validPaths) {
+    if (vp.startsWith(p + "/") || p.startsWith(vp + "/")) return true;
+  }
+  return false;
 }
 
 function dimensionDataAvailable(

@@ -434,7 +434,7 @@ async function computeJudge(opts: JudgeOptions): Promise<JudgeResult> {
     );
   }
 
-  const overall = computeOverallScore(verdicts);
+  const overall = computeOverallScore(verdicts, criteria.length);
   const durationMs = Date.now() - t0;
 
   // PR-D / ADR-034: judge IS visual scoring, so always emit a normalized
@@ -638,8 +638,25 @@ export function parseJudgeRawJson(
   };
 }
 
-export function computeOverallScore(verdicts: JudgeVerdict[]): number | null {
+/**
+ * Mean verdict score, scaled to the FULL rubric.
+ *
+ * `criteriaCount` is how many criteria were supposed to be scored. The model
+ * sometimes omits a criterion's verdict (often a low-scoring one); averaging
+ * only over the verdicts it *did* return spuriously raises the overall score.
+ * Dividing by the expected criteria count instead treats a missing verdict as
+ * an implicit 0 — incomplete judgment can never inflate the score, only drag
+ * it down. (Audit 2026-06-02 E6/D3-M2.) Omit `criteriaCount` (or pass 0) to
+ * keep the legacy "average over present verdicts" behavior.
+ */
+export function computeOverallScore(
+  verdicts: JudgeVerdict[],
+  criteriaCount = 0,
+): number | null {
   if (verdicts.length === 0) return null;
   const sum = verdicts.reduce((acc, v) => acc + v.score, 0);
-  return Number((sum / verdicts.length).toFixed(2));
+  const denom = criteriaCount > 0
+    ? Math.max(verdicts.length, criteriaCount)
+    : verdicts.length;
+  return Number((sum / denom).toFixed(2));
 }
