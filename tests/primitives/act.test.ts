@@ -48,7 +48,7 @@ interface FakePageState {
     goto: Array<{ url: string }>;
     click: Array<{ selector: string }>;
     fill: Array<{ selector: string; value: string }>;
-    press: Array<{ key: string; selector?: string }>;
+    press: Array<{ key: string; selector?: string; timeout?: number }>;
     waitForTimeout: number[];
     waitForSelector: Array<{ selector: string; state?: string }>;
     scroll: Array<{ deltaY?: number; toBottom?: boolean; selector?: string }>;
@@ -90,8 +90,8 @@ function makeFakePage(state: FakePageState): import("playwright").Page {
     },
     locator: (selector: string) => ({
       first: () => ({
-        press: async (key: string) => {
-          state.calls.press.push({ key, selector });
+        press: async (key: string, opts?: { timeout?: number }) => {
+          state.calls.press.push({ key, selector, timeout: opts?.timeout });
         },
         scrollIntoViewIfNeeded: async () => {
           state.calls.scroll.push({ selector });
@@ -389,6 +389,32 @@ describe("act — per-step dispatch (deterministic kinds)", () => {
     // assert "called at least once" — the dispatch itself succeeded if
     // status is "ok".
     expect(state.calls.evaluate).toBeGreaterThan(0);
+  });
+
+  it("press with selector forwards the per-step timeout (E9)", async () => {
+    const { open, state } = fakeOpen({});
+    const r = await act({
+      url: "https://x/",
+      steps: [{ type: "press", key: "Enter", selector: "#search", timeout_ms: 1234 }],
+      artifactsRoot: workspace,
+      _open: open,
+    });
+    expect(r.steps[0]!.status).toBe("ok");
+    expect(state.calls.press).toEqual([
+      { key: "Enter", selector: "#search", timeout: 1234 },
+    ]);
+  });
+
+  it("scroll with no target fails instead of silently passing (E9)", async () => {
+    const { open } = fakeOpen({});
+    const r = await act({
+      url: "https://x/",
+      steps: [{ type: "scroll" }],
+      artifactsRoot: workspace,
+      _open: open,
+    });
+    expect(r.steps[0]!.status).toBe("error");
+    expect(r.steps[0]!.error).toMatch(/no-op/);
   });
 });
 

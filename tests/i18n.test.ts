@@ -161,11 +161,20 @@ describe("normaliseLocale", () => {
     expect(normaliseLocale("EN")).toBe("en");
   });
 
-  it("collapses zh-* family variants to zh-CN", () => {
+  it("maps Simplified zh variants to zh-CN", () => {
     expect(normaliseLocale("zh")).toBe("zh-CN");
     expect(normaliseLocale("zh-Hans")).toBe("zh-CN");
-    expect(normaliseLocale("zh-Hant")).toBe("zh-CN");
-    expect(normaliseLocale("zh-TW")).toBe("zh-CN"); // Best-effort: TW falls back to zh-CN
+    expect(normaliseLocale("zh-Hans-CN")).toBe("zh-CN");
+    expect(normaliseLocale("zh-SG")).toBe("zh-CN");
+  });
+
+  it("falls back Traditional zh variants to en, not Simplified (E8)", () => {
+    // We have no Traditional dictionary; serving Simplified would be a silent
+    // mistranslation, so Traditional falls back to the default locale.
+    expect(normaliseLocale("zh-Hant")).toBe("en");
+    expect(normaliseLocale("zh-TW")).toBe("en");
+    expect(normaliseLocale("zh-HK")).toBe("en");
+    expect(normaliseLocale("zh-Hant-TW")).toBe("en");
   });
 
   it("collapses ja-* / es-* / de-* / en-* family variants", () => {

@@ -12,7 +12,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { BenchmarkTask } from "./task.js";
 import { evaluateTask, type TaskEvalResult } from "./evaluator.js";
-import type { Persona, ProjectConfig, Scenario } from "../core/types.js";
+import type { Persona, ProjectConfig } from "../core/types.js";
 import { RESULT_SCHEMA_VERSION } from "../core/result-schema.js";
 
 export interface BenchmarkRunOpts {
@@ -295,7 +295,7 @@ export function renderMarkdown(report: BenchmarkReport): string {
   lines.push(`|---|---|---|---|---|`);
   for (const t of report.tasks) {
     const intent = t.intent.length > 60 ? t.intent.slice(0, 57) + "..." : t.intent;
-    lines.push(`| ${t.task_id} | ${intent} | ${t.passed ? "✓" : "✗"} | $${t.cost_usd.toFixed(3)} | ${t.duration_ms}ms |`);
+    lines.push(`| ${t.task_id} | ${intent} | ${t.passed ? "[OK]" : "[FAIL]"} | $${t.cost_usd.toFixed(3)} | ${t.duration_ms}ms |`);
   }
   return lines.join("\n") + "\n";
 }

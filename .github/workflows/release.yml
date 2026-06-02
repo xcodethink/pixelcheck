@@ -1,0 +1,90 @@
+# Automated npm publish (Audit 2026-06-02 F3 / D6-H3).
+#
+# Before this, `npm publish` was a fully manual step from a developer box —
+# no guarantee the published tarball matched a clean, tested tree, and no
+# provenance. This workflow makes a release reproducible and attestable:
+# it triggers on a version tag, re-runs the full quality gate from a clean
+# checkout, refuses to publish if the tag doesn't match package.json, and
+# publishes with npm provenance.
+#
+# One-time setup (repo owner):
+#   - Add an automation `NPM_TOKEN` (npmjs.com → Access Tokens → Granular,
+#     publish scope for the `pixelcheck` package) to repo Actions secrets.
+#   - That's it — `id-token: write` below lets npm attach a provenance
+#     attestation linking the tarball to this workflow run + commit.
+#
+# Cutting a release:
+#   npm version <patch|minor|major>   # bumps package.json + creates the tag
+#   git push --follow-tags            # pushes the commit + vX.Y.Z tag → this runs
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Least privilege: read the repo, and mint an OIDC token so `npm publish
+# --provenance` can attest the build. No write scope on repo contents.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Verify tag matches package.json version
+        # Guard against a mistyped or stale tag publishing the wrong version.
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG does not match package.json version $PKG"
+            exit 1
+          fi
+          echo "Releasing version $PKG"
+
+      - name: Build
+        run: npm run build
+
+      - name: Quality gate (lint + tests + coverage floor)
+        run: |
+          npm run lint
+          npm run test:coverage:check
+
+      - name: Schemas idempotence
+        shell: bash
+        run: |
+          npm run schemas
+          if ! git diff --quiet docs/schemas/; then
+            echo "::error::npm run schemas produced uncommitted changes — regenerate and commit before tagging."
+            git diff docs/schemas/
+            exit 1
+          fi
+
+      - name: Publish (with provenance)
+        # publishConfig.access is already "public"; --provenance attaches the
+        # build attestation. prepublishOnly re-runs build+test as a final guard.
+        run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

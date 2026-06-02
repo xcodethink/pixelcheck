@@ -80,6 +80,19 @@ describe("writeSpaReport", () => {
     expect(html).toContain("demo-project");
   });
 
+  it("associates each filter label with its control via for= (H6 a11y)", () => {
+    const html = fs.readFileSync(writeSpaReport(mkAudit(), tmp), "utf8");
+    for (const id of ["fPersona", "fScenario", "fStatus", "fDimMax", "fSeverity"]) {
+      expect(html).toContain(`for="${id}"`);
+    }
+  });
+
+  it("uses the AA-contrast fail-badge background, not the 3.86:1 one (H6)", () => {
+    const html = fs.readFileSync(writeSpaReport(mkAudit(), tmp), "utf8");
+    expect(html).toContain(".status-fail { background: #3a1000;");
+    expect(html).not.toContain("#5a1e02");
+  });
+
   it("escapes angle brackets inside embedded JSON to prevent XSS", () => {
     const audit = mkAudit();
     audit.results[0]!.issues.push({

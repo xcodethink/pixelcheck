@@ -99,7 +99,8 @@ function renderSpa(audit: AuditRun): string {
   }
   .status-pass { background: #0e3a16; color: var(--pass); }
   .status-pass_with_issues { background: #4d2d00; color: var(--warn); }
-  .status-fail { background: #5a1e02; color: var(--fail); }
+  /* Darker bg so #f85149 text clears WCAG AA: the prior badge was 3.86:1; this is ~5:1. */
+  .status-fail { background: #3a1000; color: var(--fail); }
   .score-pill { font-size: 11px; color: var(--fg-dim); font-weight: 600; }
 
   .unit-body { margin-top: 10px; display: none; }
@@ -151,20 +152,20 @@ function renderSpa(audit: AuditRun): string {
   <div class="summary" id="summary"></div>
 
   <div class="filter-bar">
-    <label data-i18n="filter_persona">persona</label>
+    <label for="fPersona" data-i18n="filter_persona">persona</label>
     <select id="fPersona"><option value="" data-i18n="filter_all">all</option></select>
-    <label data-i18n="filter_scenario">scenario</label>
+    <label for="fScenario" data-i18n="filter_scenario">scenario</label>
     <select id="fScenario"><option value="" data-i18n="filter_all">all</option></select>
-    <label data-i18n="filter_status">status</label>
+    <label for="fStatus" data-i18n="filter_status">status</label>
     <select id="fStatus">
       <option value="" data-i18n="filter_all">all</option>
       <option value="pass">pass</option>
       <option value="pass_with_issues">warn</option>
       <option value="fail">fail</option>
     </select>
-    <label data-i18n="filter_dim_max">dim ≤</label>
+    <label for="fDimMax" data-i18n="filter_dim_max">dim ≤</label>
     <input id="fDimMax" type="number" min="0" max="10" step="0.5" placeholder="10" />
-    <label data-i18n="filter_issue">issue</label>
+    <label for="fSeverity" data-i18n="filter_issue">issue</label>
     <select id="fSeverity">
       <option value="" data-i18n="filter_any">any</option>
       <option value="critical">critical</option>

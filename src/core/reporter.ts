@@ -25,6 +25,21 @@ export function writeJsonReport(audit: AuditRun, runDir: string): string {
 /**
  * Write a terminal-friendly markdown summary.
  */
+/**
+ * Escape a string for safe inclusion in a Markdown table cell / inline
+ * context. `|` ends a table column, a backtick opens a code span, and a
+ * newline ends the row — all of which corrupt the rendered report when the
+ * value is audit-target-controlled (issue text, dimension/scenario names a
+ * page can influence). (Audit 2026-06-02 H9.)
+ */
+export function escapeMdCell(s: string): string {
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/`/g, "\\`")
+    .replace(/\r?\n/g, " ");
+}
+
 export function writeMarkdownSummary(
   inputAudit: AuditRun,
   runDir: string,
@@ -58,7 +73,7 @@ export function writeMarkdownSummary(
   lines.push("");
   for (const r of audit.results) {
     lines.push(
-      `### [${r.status.toUpperCase()}] ${r.scenario_name} — ${r.persona_display_name}`,
+      `### [${r.status.toUpperCase()}] ${escapeMdCell(r.scenario_name)} — ${escapeMdCell(r.persona_display_name)}`,
     );
     lines.push("");
     lines.push(`- Score: **${r.overall_score.toFixed(1)} / 10**`);
@@ -69,7 +84,7 @@ export function writeMarkdownSummary(
       lines.push("| Dimension | Score |");
       lines.push("|---|---|");
       for (const s of r.scores) {
-        lines.push(`| ${s.dimension} | ${s.score.toFixed(1)} |`);
+        lines.push(`| ${escapeMdCell(s.dimension)} | ${s.score.toFixed(1)} |`);
       }
     }
     if (r.issues.length > 0) {
@@ -77,9 +92,9 @@ export function writeMarkdownSummary(
       lines.push("**Issues:**");
       for (const issue of r.issues) {
         lines.push(
-          `- [${issue.severity.toUpperCase()}] ${issue.description}`,
+          `- [${issue.severity.toUpperCase()}] ${escapeMdCell(issue.description)}`,
         );
-        lines.push(`  - Recommendation: ${issue.recommendation}`);
+        lines.push(`  - Recommendation: ${escapeMdCell(issue.recommendation)}`);
       }
     }
     lines.push("");
@@ -505,7 +520,6 @@ function renderTrendSection(history: HistoryEntry[]): string {
 function renderReliabilityStats(latest?: HistoryEntry): string {
   if (!latest) return "";
 
-  const prev = latest; // Would need two entries for delta; just show current stats
   return `<div class="reliability-stats">
     <div class="card">
       <div class="num" style="color:var(--pass)">${latest.passCount}</div>

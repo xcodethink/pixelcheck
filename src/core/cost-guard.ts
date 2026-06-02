@@ -46,7 +46,6 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { estimateCost } from "./llm.js";
@@ -430,12 +429,27 @@ export class CostGuard {
         { timeoutMs: 30_000 },
       );
     } catch (err) {
+      // The ledger WRITE failed (lock timeout / fs error) so this call's spend
+      // was not persisted. Leaving dayUsdAfter at 0 would silently BYPASS the
+      // daily cap (it reads "0 spent today" → never fires). Best-effort re-read
+      // the ledger (lockless) and add this call's delta so the cap still tracks
+      // approximately rather than fail-open on contention. (Audit 2026-06-02 E4.)
+      try {
+        const today = this.readToday();
+        dayUsdAfter = today.usd + usd;
+        dayTokensAfter =
+          today.input_tokens + today.output_tokens + inputTokens + outputTokens;
+      } catch {
+        dayUsdAfter = usd;
+        dayTokensAfter = inputTokens + outputTokens;
+      }
       log.warn(
         {
           filePath: this.ledgerPath,
           err: err instanceof Error ? err.message : String(err),
+          estimatedDayUsd: dayUsdAfter,
         },
-        "ledger write failed — continuing with in-memory state",
+        "ledger write failed — daily cap using best-effort estimate (not bypassed)",
       );
     }
 

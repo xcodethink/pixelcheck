@@ -30,20 +30,24 @@ For **troubleshooting**, jump to the [Common errors](#common-install-errors--fix
 
 | Resource | Minimum | Recommended | Why |
 |---|---|---|---|
-| **Node.js** | 18.0.0 (LTS) | 20.x (Active LTS) or 22.x | declared in `package.json > engines.node` — install will fail on older |
-| **npm** | 8.0.0 | latest bundled with Node 20+ | `package.json > engines.npm` |
+| **Node.js** | 20.0.0 (Active LTS) | 20.x or 22.x | declared in `package.json > engines.node` (npm warns on older; the toolchain requires 20+ and 18 is untested) |
+| **npm** | 9.0.0 | latest bundled with Node 20+ | `package.json > engines.npm` |
 | **OS** | macOS 13 / Ubuntu 20.04 / Windows 10 / Alpine 3.18 | latest stable | Chromium prebuilt binaries available |
 | **CPU** | x64 or arm64 | — | `package.json > cpu: ["x64", "arm64"]` |
 | **Disk space** | ~500 MB | 1 GB | node_modules (~280 MB) + Chromium runtime (~200 MB) |
 | **RAM** | 2 GB free | 4 GB free | Chromium spawn + audit pipeline |
 | **Network** | HTTPS to api.anthropic.com + npmjs.org + cdn.playwright.dev | — | npm install + Chromium download + Claude API |
 
-**Tier-1 platforms** (CI-tested every PR via the 12-config matrix):
+**Tier-1 platforms** (CI-tested every PR via the 8-config matrix):
 
-- ubuntu-latest × Node 18 / 20 / 22
-- macos-13 (Intel x64) × Node 18 / 20 / 22
-- macos-14 (Apple Silicon arm64) × Node 18 / 20 / 22
-- windows-latest × Node 18 / 20 / 22
+- ubuntu-latest × Node 20 / 22
+- macos-13 (Intel x64) × Node 20 / 22
+- macos-14 (Apple Silicon arm64) × Node 20 / 22
+- windows-latest × Node 20 / 22 — **non-blocking** (`continue-on-error`):
+  the Windows configs run every PR and results are visible, but a Windows
+  failure does not gate merges while a few cross-process test races
+  (`mcp-stdio-e2e`, `mcp-concurrency-e2e`) are investigated. `package.json`
+  still lists `win32` as a supported `os`.
 
 **Tier-2** (best-effort, may need manual prereq install — see below):
 
@@ -85,7 +89,7 @@ in v1.0) to verify your environment.
 
 Out of the box on macOS 13+:
 
-- **Node.js 18+**: install via [Node.js LTS installer](https://nodejs.org/) or [Homebrew](https://brew.sh/) (`brew install node`)
+- **Node.js 20+**: install via [Node.js LTS installer](https://nodejs.org/) or [Homebrew](https://brew.sh/) (`brew install node`)
 - **Xcode Command Line Tools**: required by `node-gyp` for native deps
   ```bash
   xcode-select --install
