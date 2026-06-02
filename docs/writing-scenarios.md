@@ -130,20 +130,30 @@ The auditor automatically creates a mail.tm temp inbox at scenario start if any 
 ```yaml
 - id: install-extension
   type: custom
-  handler: ../scenarios/handlers/install-extension.ts
+  handler: ../scenarios/handlers/install-extension.js
   inputs:
     extension_path: ../../my-extension/dist
 ```
 
-The custom handler file must default-export an async function:
+Custom handlers are loaded at runtime via `await import(handlerPath)`, so the
+file must be runnable JavaScript on your Node (ship `.js`/`.mjs`, not `.ts`,
+unless you run pixelcheck under a TS loader). Don't import from pixelcheck's
+internal `src/` — only `dist/` is published, so such imports dangle for
+installed users; the step/context shapes are duck-typed at runtime. See the
+shipped example at `scenarios/handlers/install-extension.js`.
 
-```typescript
-export default async function (
-  step: Extract<Step, { type: "custom" }>,
-  ctx: StepContext,
-): Promise<Partial<StepResult>> {
+The handler file must default-export an async function `(step, ctx)` returning
+a `Partial<StepResult>` (use JSDoc for editor hints):
+
+```javascript
+/**
+ * @param {{ type: "custom", inputs?: Record<string, unknown> }} step
+ * @param {{ store: Record<string, unknown> }} ctx
+ * @returns {Promise<{ status: string, output?: Record<string, unknown> }>}
+ */
+export default async function (step, ctx) {
   // your logic
-  return { status: "pass", output: { ... } };
+  return { status: "pass", output: {} };
 }
 ```
 
