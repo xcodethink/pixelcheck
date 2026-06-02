@@ -116,8 +116,15 @@ jobs:
         # moderate findings (langsmith / uuid family); we resolve them
         # via `package.json#overrides` (`langsmith ^0.6.0`, `uuid
         # ^14.0.0`) — verified by T5 Stagehand smoke at runtime. Result:
-        # `npm audit --production` reports 0 vulnerabilities, so the
-        # gate can run at `--audit-level=moderate` instead of `high`.
+        # `npm audit --production` reports 0 MODERATE-or-higher findings, so
+        # this gate runs at `--audit-level=moderate` (not `high`).
+        #
+        # NOTE: there ARE 17 LOW advisories in the production tree (all one
+        # root cause: @ai-sdk/provider-utils "Uncontrolled Resource
+        # Consumption", fanned out across the @ai-sdk/* + `ai` packages).
+        # They are below this gate by design and tracked in SECURITY.md
+        # ("Known Advisories"). The dev tree additionally has 1 moderate
+        # (brace-expansion) that is NOT in --production and not shipped.
         run: npm audit --production --audit-level=moderate
 
       - name: License compliance (allowlist)
