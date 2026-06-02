@@ -137,12 +137,20 @@ const PRICING: Record<string, { in: number; out: number }> = {
   "claude-haiku-4-5-20251001": { in: 0.8, out: 4 },
 };
 
+// Most-expensive known rate — the conservative fallback for unknown model ids.
+// Falling back to a cheap rate (previously Sonnet) silently UNDER-counts spend
+// for a typo'd/new model, weakening every budget cap. Over-estimating an
+// unknown model is the safe direction for a guard. (Audit 2026-06-02 E5.)
+const HIGHEST_RATE = Object.values(PRICING).reduce((hi, x) =>
+  x.in + x.out > hi.in + hi.out ? x : hi,
+);
+
 export function estimateCost(
   model: string,
   inputTokens: number,
   outputTokens: number,
 ): number {
-  const p = PRICING[model] ?? PRICING["claude-sonnet-4-6"]!;
+  const p = PRICING[model] ?? HIGHEST_RATE;
   return (inputTokens * p.in + outputTokens * p.out) / 1_000_000;
 }
 
