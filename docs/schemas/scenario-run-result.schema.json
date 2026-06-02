@@ -288,6 +288,7 @@
                 "budget_exceeded",
                 "max_actions",
                 "max_replans",
+                "no_progress",
                 "error"
               ]
             }
