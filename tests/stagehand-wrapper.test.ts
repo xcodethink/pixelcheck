@@ -42,6 +42,7 @@ const mockState = vi.hoisted(() => {
     stagehandCfg: Record<string, unknown> | null;
     stagehandInitCalls: number;
     stagehandCloseCalls: number;
+    stagehandInitShouldHang: boolean;
     StagehandShouldBeUndefined: boolean;
     // CDP probe
     cdpReadyResponses: number; // mock fetch returns 200 after this many polls
@@ -61,6 +62,7 @@ const mockState = vi.hoisted(() => {
     stagehandCfg: null,
     stagehandInitCalls: 0,
     stagehandCloseCalls: 0,
+    stagehandInitShouldHang: false,
     StagehandShouldBeUndefined: false,
     cdpReadyResponses: 0,
   };
@@ -143,6 +145,11 @@ vi.mock("@browserbasehq/stagehand", async () => {
       mockState.capture.stagehandCfg = cfg;
     }
     async init() {
+      if (mockState.capture.stagehandInitShouldHang) {
+        // Never resolves — simulates a wedged CDP attach / model probe so
+        // the wrapper's init-timeout race can fire.
+        await new Promise(() => {});
+      }
       mockState.capture.stagehandInitCalls++;
     }
     async close() {
@@ -227,6 +234,7 @@ beforeEach(() => {
   c.stagehandCfg = null;
   c.stagehandInitCalls = 0;
   c.stagehandCloseCalls = 0;
+  c.stagehandInitShouldHang = false;
   c.StagehandShouldBeUndefined = false;
   for (const k of Object.keys(process.env)) delete process.env[k];
   Object.assign(process.env, savedEnv);
@@ -635,5 +643,18 @@ describe("createStagehandWrapper — failure modes", () => {
     });
     expect(w.fingerprint).toBeDefined();
     expect(mockState.capture.stagehandInitCalls).toBe(1);
+  });
+
+  it("times out a hung stagehand.init() and tears down the browser (D2-M3)", async () => {
+    mockState.capture.stagehandInitShouldHang = true;
+    process.env.PIXELCHECK_STAGEHAND_INIT_TIMEOUT_MS = "20";
+    await expect(
+      createStagehandWrapper({ persona: basePersona(), artifactsDir: scratch }),
+    ).rejects.toThrow(/stagehand\.init\(\) timed out/);
+    // No leak: the Stagehand CDP session + our Playwright context/browser
+    // are all closed on the timeout path.
+    expect(mockState.capture.stagehandCloseCalls).toBe(1);
+    expect(mockState.capture.contextCloseCalls).toBe(1);
+    expect(mockState.capture.browserCloseCalls).toBe(1);
   });
 });
