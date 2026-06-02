@@ -165,8 +165,26 @@ lint 0 problems, full suite 2222 passed, coverage gate green).
   windows-latest non-blocking + bench/dogfood observation in docs;
   regression test locks the wording.
 
-### Still open (deferred — needs Wayne / out of scope)
-- **G1** branch protection on `main` — remote settings change; left for Wayne
-  to apply (recommended after #43/#44 merge, requiring the CI check contexts).
-  AI must NOT `gh api` this without explicit approval.
+### G1 branch protection — partially applied (2026-06-02, Wayne approved "best practice")
+- **Done now (non-disruptive, pure upside):** `main` protection enabled via
+  `gh api PUT .../branches/main/protection` — `enforce_admins=true`,
+  `allow_force_pushes=false`, `allow_deletions=false`. History-destroying ops
+  are blocked for everyone incl. admins; normal pushes/merges/PRs (and the
+  #43/#44 merge train) are unaffected.
+- **Deferred to AFTER #43/#44 merge:** required status checks + required PR
+  reviews. The check contexts (`Test (ubuntu-latest · Node 20)` + 7 others,
+  `Playwright integration (real chromium)`, `Coverage gate (ADR-017 ratchet)`)
+  only become selectable once those workflows have run on `main`, and adding
+  them now could block the in-flight stacked PRs. Follow-up once merged:
+  ```
+  gh api -X PUT repos/xcodethink/pixelcheck/branches/main/protection --input - <<'JSON'
+  { "required_status_checks": { "strict": true,
+      "contexts": ["Test (ubuntu-latest · Node 20)", "Playwright integration (real chromium)", "Coverage gate (ADR-017 ratchet)"] },
+    "enforce_admins": true,
+    "required_pull_request_reviews": { "required_approving_review_count": 0 },
+    "restrictions": null, "allow_force_pushes": false, "allow_deletions": false }
+  JSON
+  ```
+  (solo repo: `required_approving_review_count: 0` keeps PR flow without a
+  second-reviewer deadlock; raise it if/when more maintainers join.)
 </content>
