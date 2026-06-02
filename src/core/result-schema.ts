@@ -430,6 +430,7 @@ const AgentSummarySchema = z.object({
     "budget_exceeded",
     "max_actions",
     "max_replans",
+    "no_progress",
     "error",
   ]),
 });
@@ -689,7 +690,7 @@ export const ExploreUrlResultSchema = z.object({
   schema_version: SchemaVersionField,
   status: z.enum(["pass", "pass_with_issues", "fail"]).optional(),
   convergence: z
-    .enum(["goal_met", "budget_exceeded", "max_actions", "max_replans", "error"])
+    .enum(["goal_met", "budget_exceeded", "max_actions", "max_replans", "no_progress", "error"])
     .optional(),
   criteria_met: z.array(z.string()).optional(),
   criteria_missed: z.array(z.string()).optional(),

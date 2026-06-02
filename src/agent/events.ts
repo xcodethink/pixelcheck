@@ -38,6 +38,7 @@ export type AgentEventType =
   // Convergence signals (autonomous mode)
   | "convergence:stuck"
   | "convergence:loop_detected"
+  | "convergence:no_progress"
   | "convergence:goal_met"
   | "convergence:budget_exceeded"
   // Success criteria (autonomous mode)
@@ -204,6 +205,7 @@ const EVENT_TAGS: Partial<Record<AgentEventType, string>> = {
   "thought:decision": "decide",
   "convergence:stuck": "convergence",
   "convergence:loop_detected": "convergence",
+  "convergence:no_progress": "convergence",
   "convergence:goal_met": "convergence",
   "convergence:budget_exceeded": "convergence",
   "criterion:met": "criterion",
