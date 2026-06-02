@@ -277,6 +277,13 @@ describe("renderDiffHtml — structure", () => {
     expect(html).toContain("AI Browser Audit Diff — demo-shop");
   });
 
+  it("sets <html lang> to the report locale, not a hardcoded en (H5)", () => {
+    expect(renderDiffHtml(regressionDiff())).toContain('<html lang="en">');
+    expect(renderDiffHtml(regressionDiff(), { locale: "zh-CN" })).toContain(
+      '<html lang="zh-CN">',
+    );
+  });
+
   it("emits 5 metric rows in the headline table", () => {
     const html = renderDiffHtml(regressionDiff());
     const headlineSection = html.split("Headline metrics")[1]?.split("</section>")[0] ?? "";

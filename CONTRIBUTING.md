@@ -34,8 +34,9 @@ Reporting channels are documented in `CODE_OF_CONDUCT.md`.
 
 ### Prerequisites
 
-- Node.js 18+ (LTS recommended; tested on 18 / 20 / 22)
-- npm 8+
+- Node.js 20+ (LTS recommended; CI tests on 20 / 22). The dev toolchain
+  (vitest, eslint) requires Node 20+, so 18 is not supported.
+- npm 9+ (ships with Node 20)
 - macOS / Linux / Windows / WSL2 — see [INSTALLATION.md](docs/INSTALLATION.md) for platform-specific prereqs
 
 ### Clone + install
@@ -72,10 +73,10 @@ real LLM calls; never in PR-trigger workflows that run on forks).
 ```bash
 npm run build                   # tsc — check types + emit dist/
 npm run typecheck               # tsc --noEmit (faster, no emit)
-npm test                        # full vitest unit suite (1555+ tests)
+npm test                        # full vitest unit suite (2200+ tests)
 npm run test:watch              # vitest in watch mode for active dev
 npm run test:coverage           # generate coverage HTML report
-npm run test:coverage:check     # enforce thresholds (60/54/60/60 per ADR-017)
+npm run test:coverage:check     # enforce thresholds (74/62/75/75 per ADR-017)
 npm run test:integration        # vitest forks pool (file-lock-race, M9-3.2)
 npm run test:integration:playwright  # real chromium e2e (recorder/wcag/trends/...)
 npm run bench                   # vitest bench → docs/perf-current.json
@@ -132,8 +133,8 @@ The project has **three test suites**:
 ### Coverage requirements
 
 Per [ADR-017](docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md),
-the global coverage floor is **60% statements / 54% branches / 60% functions
-/ 60% lines**. The floor ratchets up by ≥1 point on each task that produces
+the global coverage floor is **74% statements / 62% branches / 75% functions
+/ 75% lines**. The floor ratchets up by ≥1 point on each task that produces
 ≥1 point of coverage gain. CI fails any PR that drops below this floor.
 
 To inspect locally:
@@ -233,7 +234,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
    when CI is green
 3. **Self-review the diff** before requesting review — re-read every line
    yourself. The reviewer's time is more expensive than yours
-4. **CI must be green**: ci.yml (12 configs) + integration.yml (Playwright + race) + coverage.yml
+4. **CI must be green**: ci.yml (8 configs) + integration.yml (Playwright + race) + coverage.yml
 5. **Update CHANGELOG.md** under `## [Unreleased]` with a user-facing
    summary of the change
 6. **Update `docs/decisions/ADR-XXX.md`** for non-trivial design decisions
@@ -308,9 +309,14 @@ The `main` branch should have these GitHub Settings → Branches → Branch
 protection rules enabled (configure once when forking):
 
 - ✅ Require status checks before merging:
-  - `Test (ubuntu-latest · Node 20)` (and 11 other matrix configs from `ci.yml`)
+  - `Test (ubuntu-latest · Node 20)` (and 7 other matrix configs from `ci.yml`)
   - `Playwright integration (real chromium)` from `integration.yml`
-  - `Coverage gate (60/54/60/60 per ADR-017)` from `coverage.yml`
+  - `Coverage gate (ADR-017 ratchet)` from `coverage.yml`
+- **Observation-only (do NOT require as gates)**: the `windows-latest`
+  matrix configs run with `continue-on-error` (non-blocking — see
+  [docs/INSTALLATION.md](docs/INSTALLATION.md) Tier-1 note), and the
+  `bench.yml` (perf) + `dogfood.yml` workflows run in observation mode by
+  design. They surface signal but must not block merges.
 - ✅ Require conversation resolution before merging
 - ✅ Do not allow bypassing the above settings
 - ❌ Allow force pushes — keep this OFF on main

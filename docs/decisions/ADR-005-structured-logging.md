@@ -45,7 +45,7 @@ Phase 1 is "AI core + commercial-grade quality + OSS-ready", and the plan explic
 
 6. **CLI is the one exception**
    - `src/cli.ts` is the human-facing rendering layer. Chalk-styled `console.log` calls there are intentional UX (formatted tables, scoreboard, repro hints). They go to stdout because they ARE the command's output, not diagnostics about the command.
-   - Enforced by `scripts/check-no-console.sh`, wired into `npm test`, which fails the build if any other source file reintroduces `console.{log,error,warn,info,debug}(`.
+   - Enforced by `scripts/check-no-console.ts` (was `.sh`; ported to Node for cross-platform `npm test` — see F7), wired into `npm test`, which fails the build if any other source file reintroduces `console.{log,error,warn,info,debug}(`.
 
 ## Alternatives considered
 

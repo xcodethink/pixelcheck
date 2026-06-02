@@ -263,7 +263,7 @@ export function deriveTimeline(events: ReadonlyArray<AgentEvent>): TimelineStep[
           id: `criterion-${event.data.id ?? event.sequence}`,
           sequence: event.sequence,
           kind: "criterion",
-          label: `✓ ${String(event.data.description ?? event.data.id)}`,
+          label: `[OK] ${String(event.data.description ?? event.data.id)}`,
           status: "ok",
           timestamp: event.timestamp,
           event_sequences: [event.sequence],

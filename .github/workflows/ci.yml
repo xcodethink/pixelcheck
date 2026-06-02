@@ -6,12 +6,11 @@
 #
 # Why this exists (T26 closes RISK-REGISTER R43):
 # Pre-T26 the project had ZERO CI workflows running its own tests —
-# `npm test` 1555/1555 was only ever validated locally on the
-# maintainer's M-series Mac. Any cross-platform regression (Windows
-# path separator, Linux glibc version, Node 18 vs 22 difference,
-# native binary mismatch on macOS Intel vs arm64) would slip through
-# until a user reported it. This workflow makes "1555 测试全过" a
-# CI gate, not a dev claim.
+# `npm test` was only ever validated locally on the maintainer's
+# M-series Mac. Any cross-platform regression (Windows path separator,
+# Linux glibc version, Node 20 vs 22 difference, native binary mismatch
+# on macOS Intel vs arm64) would slip through until a user reported it.
+# This workflow makes "full suite green" a CI gate, not a dev claim.
 #
 # Branch protection (configured in repo Settings → Branches):
 #   - Require this workflow to pass before merging to main
@@ -19,8 +18,8 @@
 #   - Require coverage.yml to pass (test:coverage:check)
 #   - No force pushes to main
 #
-# Cost: ~12 min × 12 configs = ~2.4h CI minutes per PR. Within free
-# GitHub Actions tier for OSS repos (2000 min/month).
+# Cost: ~12 min × 8 configs (4 OS × Node 20/22) = ~1.6h CI minutes per
+# PR. Within free GitHub Actions tier for OSS repos (2000 min/month).
 
 name: CI
 
@@ -64,10 +63,10 @@ jobs:
         os: [ubuntu-latest, macos-13, macos-14, windows-latest]
         # Node 18 dropped from CI: vitest 4 (via rolldown) imports
         # `util.styleText` which is Node 20+. Node 18 hit EOL 2025-04.
-        # `package.json` engines still says `>=18` for now; tightening
-        # that is a separate semver decision (would be a breaking
-        # change for any user still on Node 18 even if it never worked
-        # with the current test toolchain).
+        # `package.json` engines now declares `>=20` to match (F4-F7 audit
+        # follow-up): claiming `>=18` was false since the toolchain never
+        # ran there. npm treats engines as a warning by default, so this
+        # corrects the claim without hard-breaking any install.
         node: [20, 22]
     steps:
       - name: Checkout
@@ -117,8 +116,15 @@ jobs:
         # moderate findings (langsmith / uuid family); we resolve them
         # via `package.json#overrides` (`langsmith ^0.6.0`, `uuid
         # ^14.0.0`) — verified by T5 Stagehand smoke at runtime. Result:
-        # `npm audit --production` reports 0 vulnerabilities, so the
-        # gate can run at `--audit-level=moderate` instead of `high`.
+        # `npm audit --production` reports 0 MODERATE-or-higher findings, so
+        # this gate runs at `--audit-level=moderate` (not `high`).
+        #
+        # NOTE: there ARE 17 LOW advisories in the production tree (all one
+        # root cause: @ai-sdk/provider-utils "Uncontrolled Resource
+        # Consumption", fanned out across the @ai-sdk/* + `ai` packages).
+        # They are below this gate by design and tracked in SECURITY.md
+        # ("Known Advisories"). The dev tree additionally has 1 moderate
+        # (brace-expansion) that is NOT in --production and not shipped.
         run: npm audit --production --audit-level=moderate
 
       - name: License compliance (allowlist)
@@ -129,12 +135,24 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.node == 20
         run: npm run license:check
 
+      - name: Vendor integrity check (stealth-core)
+        # Enforceable on EVERY runner: recomputes the SHA-256 of each
+        # vendored stealth-core file and compares against the committed
+        # manifest (src/vendor/stealth-core/integrity.json). Needs no
+        # upstream source, so unlike the drift check below it is never a
+        # no-op — it catches in-place edits, corruption, or added/removed
+        # vendored files. See ADR-032 + src/vendor/stealth-core/PROVENANCE.md (F4).
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        run: npm run check:vendor-integrity
+
       - name: Vendor drift check (stealth-core)
         # GitHub-hosted runners don't have an upstream stealth-core source
         # tree available, so AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1 turns
         # the check into a no-op when the canonical tree is absent. The
         # check still catches drift in any environment where the canonical
         # IS present (maintainer machines, dedicated runners, etc.).
+        # Integrity (above) is the enforceable runner gate; this is the
+        # canonical-equivalence gate for environments that have upstream.
         # See ADR-032 for the vendor model and intended drift workflow.
         if: matrix.os == 'ubuntu-latest' && matrix.node == 20
         env:

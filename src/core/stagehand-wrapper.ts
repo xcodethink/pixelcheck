@@ -103,26 +103,92 @@ function resolveFingerprintForPersona(persona: Persona): DeviceFingerprint {
 }
 
 /**
- * Ask the OS for an unused TCP port. There is a tiny race between us
- * closing the listener and Chromium binding to the port, but it's the
- * standard pattern for "free port discovery" and conflicts are rare
- * enough that retry-on-bind-failure is overkill for our use case.
+ * Bound on how long we wait for Stagehand's `init()` to attach to our
+ * already-launched browser. v3's init does CDP discovery + a model probe;
+ * if the model endpoint black-holes (or the CDP attach wedges) init never
+ * returns and the wrapper — which has ALREADY launched Chromium — hangs
+ * forever, leaking the browser + CDP port past the runner's per-unit
+ * deadline (which can't reach into a never-resolved wrapper promise to
+ * tear it down). Configurable; default 60s. (Audit 2026-06-02 D2-M3.)
  */
-function getFreePort(): Promise<number> {
+function stagehandInitTimeoutMs(): number {
+  const raw = Number(process.env.PIXELCHECK_STAGEHAND_INIT_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 60_000;
+}
+
+/**
+ * Race a promise against a wall-clock deadline. On timeout the returned
+ * promise rejects; the underlying work keeps running in the background, so
+ * the caller is responsible for tearing down whatever it owns (here: the
+ * browser, which abandons the wedged init).
+ */
+async function raceWithTimeout<T>(
+  work: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms,
+    );
+  });
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * Ports handed out by getFreePort() but not yet confirmed bound by the
+ * Chromium instance that asked for them. The OS won't return the same
+ * port to two *simultaneously open* listeners, but once we close our
+ * probe listener the freed ephemeral port can be re-handed to another
+ * unit's getFreePort() before this unit's Chromium binds it — and the
+ * tool fans units out in parallel. Reserving here lets concurrent callers
+ * skip a port that's mid-handoff. (Audit 2026-06-02 D2-M4.)
+ */
+const reservedCdpPorts = new Set<number>();
+
+function releaseCdpPort(port: number): void {
+  reservedCdpPorts.delete(port);
+}
+
+/**
+ * Ask the OS for an unused TCP port and reserve it process-locally so a
+ * concurrent unit doesn't pick the same just-freed port. There is still a
+ * tiny race against an *external* process binding the port between our
+ * close and Chromium's bind, but the in-process collision (the realistic
+ * one under our own fan-out) is closed. Caller MUST releaseCdpPort once
+ * Chromium owns the port (or on launch failure).
+ */
+function getFreePort(maxTries = 20): Promise<number> {
   return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.unref();
-    srv.on("error", reject);
-    srv.listen(0, "127.0.0.1", () => {
-      const addr = srv.address();
-      if (addr && typeof addr === "object") {
+    const attempt = (triesLeft: number): void => {
+      const srv = net.createServer();
+      srv.unref();
+      srv.on("error", reject);
+      srv.listen(0, "127.0.0.1", () => {
+        const addr = srv.address();
+        if (!addr || typeof addr !== "object") {
+          srv.close();
+          reject(new Error("getFreePort: server.address() returned null"));
+          return;
+        }
         const port = addr.port;
+        if (reservedCdpPorts.has(port) && triesLeft > 0) {
+          // Collided with an in-flight reservation — release the probe
+          // socket and try for a different port.
+          srv.close(() => attempt(triesLeft - 1));
+          return;
+        }
+        reservedCdpPorts.add(port);
         srv.close(() => resolve(port));
-      } else {
-        srv.close();
-        reject(new Error("getFreePort: server.address() returned null"));
-      }
-    });
+      });
+    };
+    attempt(maxTries);
   });
 }
 
@@ -274,7 +340,19 @@ export async function createStagehandWrapper(
   // Wait for Chromium's CDP endpoint to come up + read the WebSocket URL
   // from /json/version. Stagehand v3 wants the ws://... endpoint (raw CDP
   // over WebSocket); the http:// form is silently rejected with a 404.
-  const cdpWsUrl = await waitForCdpWsEndpoint(cdpPort);
+  let cdpWsUrl: string;
+  try {
+    cdpWsUrl = await waitForCdpWsEndpoint(cdpPort);
+  } catch (err) {
+    // Chromium launched but never advertised its CDP ws endpoint — tear
+    // down so we don't leak the browser (and free the reserved port).
+    await context.close().catch(() => undefined);
+    if (browser) await browser.close().catch(() => undefined);
+    releaseCdpPort(cdpPort);
+    throw err;
+  }
+  // Chromium now owns the port; concurrent units may reuse the number space.
+  releaseCdpPort(cdpPort);
 
   // Dynamic-import Stagehand so the project still typechecks if the package
   // is missing in odd environments.
@@ -324,7 +402,21 @@ export async function createStagehandWrapper(
     disablePino: true,
   });
 
-  await stagehand.init();
+  try {
+    await raceWithTimeout(
+      stagehand.init(),
+      stagehandInitTimeoutMs(),
+      "stagehand.init()",
+    );
+  } catch (err) {
+    // init hung or threw — tear down everything we launched (Stagehand's
+    // CDP session + our Playwright browser) so a wedged init doesn't leak
+    // Chromium past the runner's per-unit deadline.
+    await stagehand.close({ force: true }).catch(() => undefined);
+    await context.close().catch(() => undefined);
+    if (browser) await browser.close().catch(() => undefined);
+    throw err;
+  }
 
   // v2-style adapter: handlers / instruction-mutator / primitives keep
   // calling { action: "x" } / { instruction: "x", schema } object-arg form.

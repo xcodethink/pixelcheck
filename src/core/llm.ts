@@ -137,12 +137,20 @@ const PRICING: Record<string, { in: number; out: number }> = {
   "claude-haiku-4-5-20251001": { in: 0.8, out: 4 },
 };
 
+// Most-expensive known rate — the conservative fallback for unknown model ids.
+// Falling back to a cheap rate (previously Sonnet) silently UNDER-counts spend
+// for a typo'd/new model, weakening every budget cap. Over-estimating an
+// unknown model is the safe direction for a guard. (Audit 2026-06-02 E5.)
+const HIGHEST_RATE = Object.values(PRICING).reduce((hi, x) =>
+  x.in + x.out > hi.in + hi.out ? x : hi,
+);
+
 export function estimateCost(
   model: string,
   inputTokens: number,
   outputTokens: number,
 ): number {
-  const p = PRICING[model] ?? PRICING["claude-sonnet-4-6"]!;
+  const p = PRICING[model] ?? HIGHEST_RATE;
   return (inputTokens * p.in + outputTokens * p.out) / 1_000_000;
 }
 
@@ -237,6 +245,19 @@ function repairTruncatedJson(input: string): string | null {
   let inStr = false;
   let escape = false;
   let lastSafeEnd = -1;
+  // True while scanning an unterminated bare value (number / true / false /
+  // null). We do NOT advance lastSafeEnd over its characters: a bare value
+  // is only trustworthy once a delimiter proves it's complete. A number cut
+  // mid-digit (e.g. `123` of `12345`) would otherwise close into
+  // structurally-valid-but-WRONG JSON that silently "passes". (Audit
+  // 2026-06-02 D2-M5/D3-M1 — implements the walk-back this function's own
+  // comment always promised but never did.)
+  let inBareValue = false;
+  // lastSafeEnd as it stood just before the most recently-closed string. A
+  // closing quote optimistically marks a safe end (good for a string VALUE),
+  // but if the very next structural char is `:` the string was actually a
+  // KEY — `{"k"` is not resumable — so we roll lastSafeEnd back to here.
+  let safeEndBeforeString = -1;
 
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
@@ -249,11 +270,37 @@ function repairTruncatedJson(input: string): string | null {
       continue;
     }
     if (ch === '"') {
+      // A string starts/ends here — any pending bare value is terminated by
+      // it and is therefore complete up to this point.
+      if (inBareValue) {
+        lastSafeEnd = i;
+        inBareValue = false;
+      }
       inStr = !inStr;
-      if (!inStr) lastSafeEnd = i + 1;
+      if (!inStr) {
+        // String just closed — remember where we'd fall back to if this
+        // turns out to be a key (see the `:` handler below).
+        safeEndBeforeString = lastSafeEnd;
+        lastSafeEnd = i + 1;
+      }
       continue;
     }
     if (inStr) continue;
+
+    // A delimiter terminates (and thus confirms) a pending bare value: the
+    // value occupies [start, i); the delimiter at i is excluded.
+    const isStructural =
+      ch === "{" ||
+      ch === "[" ||
+      ch === "}" ||
+      ch === "]" ||
+      ch === "," ||
+      ch === ":";
+    if (inBareValue && (isStructural || /\s/.test(ch ?? ""))) {
+      lastSafeEnd = i;
+      inBareValue = false;
+    }
+
     if (ch === "{" || ch === "[") {
       stack.push(ch);
     } else if (ch === "}") {
@@ -266,14 +313,23 @@ function repairTruncatedJson(input: string): string | null {
         stack.pop();
         lastSafeEnd = i + 1;
       }
-    } else if (ch === "," || ch === ":" || /\s/.test(ch ?? "")) {
+    } else if (ch === ":") {
+      // The string immediately before this colon was a KEY, not a value, so
+      // its closing quote should not have counted as a safe end (`{"k"` is
+      // not resumable). Roll back to before that key.
+      lastSafeEnd = safeEndBeforeString;
+    } else if (ch === "," || /\s/.test(ch ?? "")) {
       // structural punctuation — don't update lastSafeEnd
     } else {
-      // value char (number, true, false, null) — accept up to comma
-      lastSafeEnd = i + 1;
+      // First char of a bare value (number, true, false, null). Provisional
+      // only — lastSafeEnd stays put until a delimiter terminates the token.
+      inBareValue = true;
     }
   }
 
+  // An unterminated bare value at end-of-input is dropped: lastSafeEnd was
+  // never advanced over it, so we fall back to the last delimiter-confirmed
+  // position.
   if (lastSafeEnd <= 0) return null;
 
   // Trim to last safe end, then strip any trailing partial element after a comma
