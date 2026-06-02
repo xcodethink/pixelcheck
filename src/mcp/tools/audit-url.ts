@@ -48,6 +48,10 @@ const inputSchema = {
 
 async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   const url = requireString(args.url, "url");
+  // SSRF guard: an MCP client is untrusted. Block private/internal/metadata
+  // targets unless the operator explicitly opts in. (Audit 2026-06-02 B2.)
+  const { assertSafeUrl } = await import("../../core/url-guard.js");
+  assertSafeUrl(url, { allowPrivate: process.env.PIXELCHECK_ALLOW_PRIVATE === "1" });
   const personaId = typeof args.persona === "string" ? args.persona : undefined;
   const costMode = (args.cost_mode as "max" | "balanced" | "economy") ?? "balanced";
   const budget = typeof args.budget_usd === "number" ? args.budget_usd : 2.0;
