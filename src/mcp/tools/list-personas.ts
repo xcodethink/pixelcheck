@@ -6,7 +6,7 @@
  */
 
 import * as path from "node:path";
-import { loadPersonas } from "../../core/persona.js";
+import { loadPersonas, resolvePersonasDir } from "../../core/persona.js";
 import { ListPersonasResultSchema } from "../../core/result-schema.js";
 import { stampedTextResult, type ToolResult } from "../result.js";
 import type { ToolDefinition } from "../registry.js";
@@ -23,7 +23,7 @@ const inputSchema = {
 
 async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   const dir = typeof args.personas_dir === "string" ? args.personas_dir : "./personas";
-  const personas = await loadPersonas(path.resolve(dir));
+  const personas = await loadPersonas(resolvePersonasDir(dir));
   const summary = Array.from(personas.values()).map((p) => ({
     id: p.id,
     display_name: p.display_name,
