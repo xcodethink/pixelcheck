@@ -328,6 +328,23 @@ test.describe("SARIF render + write pipeline", () => {
     //   (a) renderSarif logic changed → review and update fixture via:
     //       npx tsx scripts/gen-sarif-fixture.ts
     //   (b) regression introduced — investigate before committing.
+    //
+    // The tool `driver.version` mirrors package.json, so it changes every
+    // release. We normalize it to a sentinel on BOTH sides before comparing,
+    // so a version bump no longer breaks this test (and the fixture never
+    // needs a per-release re-pin). The SARIF schema version (top-level
+    // `version`) is left untouched — only the nested driver version is
+    // neutralized, structurally, to avoid string-collision with it.
+    const VERSION_SENTINEL = "0.0.0-fixture";
+    const neutralizeDriverVersion = (raw: string): string => {
+      const obj = JSON.parse(raw);
+      const driver = obj?.runs?.[0]?.tool?.driver;
+      if (driver && typeof driver.version === "string") {
+        driver.version = VERSION_SENTINEL;
+      }
+      return JSON.stringify(obj, null, 2);
+    };
+
     const audit = makeAuditWithWcagIssues();
     const sarif = renderSarif(audit);
     const generated = JSON.stringify(sarif, null, 2);
@@ -338,6 +355,8 @@ test.describe("SARIF render + write pipeline", () => {
     );
     const committed = fs.readFileSync(fixturePath, "utf8").trim();
 
-    expect(generated.trim()).toBe(committed);
+    expect(neutralizeDriverVersion(generated)).toBe(
+      neutralizeDriverVersion(committed),
+    );
   });
 });
