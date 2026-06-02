@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuditRun, ScenarioRunResult, Issue } from "./types.js";
-import { redactDeep } from "./secrets.js";
+import { redactDeep, buildRedactPatterns } from "./secrets.js";
 import { loadHistory, type HistoryEntry } from "./history.js";
 
 /**
@@ -12,8 +12,12 @@ import { loadHistory, type HistoryEntry } from "./history.js";
  */
 export function writeJsonReport(audit: AuditRun, runDir: string): string {
   const filePath = path.join(runDir, "audit.json");
-  const patterns = audit.redact_patterns ?? [];
-  const safe = patterns.length > 0 ? redactDeep(audit, patterns) : audit;
+  // Always redact, and always seed from buildRedactPatterns so known env
+  // secrets (ANTHROPIC_API_KEY, SCAMLENS_ADMIN_COOKIE, STRIPE_TEST_*, …) are
+  // stripped even when the runner attached no patterns — a report on disk must
+  // never carry a secret that reached the audit tree. (Audit 2026-06-02 C2.)
+  const patterns = buildRedactPatterns(audit.redact_patterns ?? []);
+  const safe = redactDeep(audit, patterns);
   fs.writeFileSync(filePath, JSON.stringify(safe, null, 2));
   return filePath;
 }
@@ -26,8 +30,8 @@ export function writeMarkdownSummary(
   runDir: string,
 ): string {
   const filePath = path.join(runDir, "summary.md");
-  const patterns = inputAudit.redact_patterns ?? [];
-  const audit = patterns.length > 0 ? redactDeep(inputAudit, patterns) : inputAudit;
+  const patterns = buildRedactPatterns(inputAudit.redact_patterns ?? []);
+  const audit = redactDeep(inputAudit, patterns);
   const lines: string[] = [];
   lines.push(`# Audit Run: ${audit.run_id}`);
   lines.push("");
@@ -94,8 +98,8 @@ export function writeHtmlReport(
   reportsDir?: string,
 ): string {
   const filePath = path.join(runDir, "audit.html");
-  const patterns = audit.redact_patterns ?? [];
-  const safe = patterns.length > 0 ? redactDeep(audit, patterns) : audit;
+  const patterns = buildRedactPatterns(audit.redact_patterns ?? []);
+  const safe = redactDeep(audit, patterns);
   const history = reportsDir
     ? loadHistory(reportsDir, { limit: 20, project: audit.project_name })
     : [];

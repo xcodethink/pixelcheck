@@ -13,8 +13,31 @@ import {
   loadPersonaFile,
   resolvePersonaSecrets,
   resolveEnvPlaceholders,
+  resolvePersonasDir,
+  resolveBundledPersonasDir,
 } from "../src/core/persona.js";
 import type { Persona } from "../src/core/types.js";
+
+describe("resolvePersonasDir (Audit 2026-06-02 F1 — MCP/global fallback)", () => {
+  it("falls back to the bundled personas/ when no userPath exists", () => {
+    const dir = resolvePersonasDir();
+    expect(dir).toBe(resolveBundledPersonasDir());
+    expect(fs.existsSync(dir)).toBe(true);
+    const yamls = fs.readdirSync(dir).filter((f) => f.endsWith(".yaml"));
+    expect(yamls.length).toBeGreaterThan(0); // the shipped personas
+  });
+
+  it("falls back to bundled when the user path does not exist", () => {
+    const dir = resolvePersonasDir("/nonexistent/personas/xyz");
+    expect(dir).toBe(resolveBundledPersonasDir());
+  });
+
+  it("prefers an existing user-supplied path", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "personas-pref-"));
+    expect(resolvePersonasDir(tmp)).toBe(path.resolve(tmp));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+});
 
 let scratch: string;
 const savedEnv = { ...process.env };

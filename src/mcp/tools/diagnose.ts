@@ -21,7 +21,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadPersonas } from "../../core/persona.js";
+import { loadPersonas, resolvePersonasDir } from "../../core/persona.js";
 import {
   diagnose,
   type DiagnoseOptions,
@@ -121,7 +121,7 @@ async function loadPersonaHints(
   id: string | undefined,
 ): Promise<SeePersonaHints | undefined> {
   if (!id) return undefined;
-  const dir = path.resolve("./personas");
+  const dir = resolvePersonasDir();
   if (!fs.existsSync(dir)) return { id };
   try {
     const personas = await loadPersonas(dir);

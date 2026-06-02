@@ -546,7 +546,7 @@ export interface ScenarioRunResult {
     total_actions: number;
     criteria_met: string[];
     criteria_missed: string[];
-    convergence_reason: "goal_met" | "budget_exceeded" | "max_actions" | "max_replans" | "error";
+    convergence_reason: "goal_met" | "budget_exceeded" | "max_actions" | "max_replans" | "no_progress" | "error";
   };
 }
 

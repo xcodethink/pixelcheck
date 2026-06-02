@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- CLI command output layer (Audit G2) */
 /**
  * `pixelcheck doctor` — diagnose the local environment before audit run.
  *
