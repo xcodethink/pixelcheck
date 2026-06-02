@@ -120,4 +120,29 @@ Ledger + status aggregation + primitive cost contracts have real bugs.
 **Wave 5 — UX/own-a11y:** H1 (broken init), H2-H5, H6 (own-a11y), H7-H9.
 
 Each wave: fix → add regression test (close the matching blind spot) → local CI green. Then one local full closed-loop, then publish.
+
+---
+
+## Remediation status (updated 2026-06-02)
+
+All fixes shipped with regression tests + local closed-loop (tsc clean,
+lint 0 problems, full suite 2222 passed, coverage gate green).
+
+- **PR #43** (`audit-2026-06-02-hardening`): OPS-0 (key rotation — Wayne),
+  A1-A4, B1-B3, C1-C4, D1-D3, E1-E2, F1, F2, G2.
+- **PR #44** (`audit-w5-followups`, stacked on #43): H1, H2, C2-gap, E3, E4,
+  E5 — then this session: **D4, D5, D6, D7, D8, E6, E7, E8, E9, H3, H4, H5,
+  H6, H7, H8, H9**; G2-tail (all 35 lint warnings cleared); G3-partial
+  (coverage floor 66/60/66/66 → 74/62/75/75, ~5pts under actual per
+  ADR-017); **F3** (release.yml — needs one-time NPM_TOKEN secret); doctor
+  test-isolation flake fixed (browsersRoot honors PLAYWRIGHT_BROWSERS_PATH
+  first).
+
+### Still open (deferred — best-practice separate work)
+- **G1** branch protection on `main` — remote settings change; left for Wayne
+  to apply (recommended after #43/#44 merge, requiring the CI check contexts).
+- **G3 (rest)** MCP-tool / observer / benchmark-executor test coverage
+  (5-10% / ~0%) — substantial test-authoring effort; own follow-up PR.
+- **F4-F7, G4** — vendored stealth-core LICENSE/provenance, shipped-`.ts`
+  example, engines.node/docs drift, undocumented advisories — not yet done.
 </content>
