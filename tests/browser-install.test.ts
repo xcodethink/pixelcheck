@@ -14,8 +14,37 @@ import {
   resolveHeadlessShell,
   isMissingBrowserBinaryError,
   launchWithBrowserAutoInstall,
+  assertTrustedDownloadUrl,
   _setEnsureHeadlessShellForTests,
 } from "../src/core/browser-install.js";
+
+describe("assertTrustedDownloadUrl (Audit 2026-06-02 A1/A2 — supply chain)", () => {
+  it("accepts the real Chrome-for-Testing download hosts over HTTPS", () => {
+    for (const u of [
+      "https://cdn.playwright.dev/builds/cft/1234/chrome-headless-shell-mac-arm64.zip",
+      "https://storage.googleapis.com/chrome-for-testing-public/x.zip",
+      "https://playwright.download.prss.microsoft.com/dbazure/x.zip",
+    ]) {
+      expect(() => assertTrustedDownloadUrl(u)).not.toThrow();
+    }
+  });
+
+  it("rejects an untrusted host (redirect-to-attacker)", () => {
+    expect(() =>
+      assertTrustedDownloadUrl("https://evil.example.com/chrome-headless-shell.zip"),
+    ).toThrow(/untrusted host/i);
+  });
+
+  it("rejects non-HTTPS even on a trusted host", () => {
+    expect(() =>
+      assertTrustedDownloadUrl("http://cdn.playwright.dev/x.zip"),
+    ).toThrow(/HTTPS required/i);
+  });
+
+  it("rejects a malformed URL", () => {
+    expect(() => assertTrustedDownloadUrl("not a url")).toThrow(/malformed/i);
+  });
+});
 
 describe("cftPlatformToken", () => {
   it("maps macOS arm64 / x64", () => {
