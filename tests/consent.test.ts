@@ -176,16 +176,43 @@ describe("ensureConsent — env / flag bypass", () => {
   });
 });
 
-describe("ensureConsent — non-TTY auto-acknowledge", () => {
-  it("non-TTY environments auto-consent + log warning", async () => {
-    const result = await ensureConsent({
-      consentPath,
-      isTTY: false,
-    });
+describe("ensureConsent — non-TTY requires explicit consent (Audit 2026-06-02 B1)", () => {
+  it("non-TTY with NO consent signal refuses (does not silently auto-grant)", async () => {
+    // Previously this auto-consented; that let an MCP server (always non-TTY)
+    // send page data to Anthropic with no human in the loop.
+    await expect(
+      ensureConsent({ consentPath, isTTY: false }),
+    ).rejects.toBeInstanceOf(ConsentDeclinedError);
+    // and nothing was persisted as "agreed"
+    expect(readConsent(consentPath)).toBeNull();
+  });
+
+  it("non-TTY WITH AUDIT_AUTO_CONSENT=1 still proceeds", async () => {
+    const prev = process.env.AUDIT_AUTO_CONSENT;
+    process.env.AUDIT_AUTO_CONSENT = "1";
+    try {
+      const result = await ensureConsent({ consentPath, isTTY: false });
+      expect(result.agreed).toBe(true);
+      expect(result.via).toBe("env");
+    } finally {
+      if (prev === undefined) delete process.env.AUDIT_AUTO_CONSENT;
+      else process.env.AUDIT_AUTO_CONSENT = prev;
+    }
+  });
+
+  it("non-TTY with a prior persisted consent proceeds", async () => {
+    // First grant via env, then a fresh non-TTY call should honor the persisted consent.
+    const prev = process.env.AUDIT_AUTO_CONSENT;
+    process.env.AUDIT_AUTO_CONSENT = "1";
+    try {
+      await ensureConsent({ consentPath, isTTY: false });
+    } finally {
+      if (prev === undefined) delete process.env.AUDIT_AUTO_CONSENT;
+      else process.env.AUDIT_AUTO_CONSENT = prev;
+    }
+    const result = await ensureConsent({ consentPath, isTTY: false });
     expect(result.agreed).toBe(true);
-    expect(result.via).toBe("non-tty");
-    const onDisk = readConsent(consentPath);
-    expect(onDisk!.agreed_via).toBe("non-tty");
+    expect(result.via).toBe("existing");
   });
 });
 

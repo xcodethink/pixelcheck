@@ -8,7 +8,7 @@
  */
 
 import * as path from "node:path";
-import { loadPersonas } from "../../core/persona.js";
+import { loadPersonas, resolvePersonasDir } from "../../core/persona.js";
 import { ProjectConfigSchema, ScenarioSchema } from "../../core/types.js";
 import { ExploreUrlResultSchema } from "../../core/result-schema.js";
 import { stampedTextResult, type ToolResult } from "../result.js";
@@ -38,6 +38,10 @@ const inputSchema = {
 
 async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   const url = requireString(args.url, "url");
+  // SSRF guard: an MCP client is untrusted. Block private/internal/metadata
+  // targets unless the operator explicitly opts in. (Audit 2026-06-02 B2.)
+  const { assertSafeUrl } = await import("../../core/url-guard.js");
+  assertSafeUrl(url, { allowPrivate: process.env.PIXELCHECK_ALLOW_PRIVATE === "1" });
   const goal = requireString(args.goal, "goal");
   const criteriaInput = Array.isArray(args.success_criteria)
     ? (args.success_criteria as string[])
@@ -48,7 +52,7 @@ async function handler(args: Record<string, unknown>): Promise<ToolResult> {
     typeof args.max_actions === "number" ? args.max_actions : 30;
 
   const { runAudit } = await import("../../core/runner.js");
-  const personas = await loadPersonas(path.resolve("./personas"));
+  const personas = await loadPersonas(resolvePersonasDir());
   const persona = resolvePersona(personas, personaId);
 
   const successCriteria =

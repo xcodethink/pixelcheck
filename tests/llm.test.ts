@@ -106,8 +106,12 @@ describe("getAnthropicClient", () => {
     const { getAnthropicClient } = await import("../src/core/llm.js");
     const c = getAnthropicClient();
     expect(c).toBeDefined();
+    // Includes a bounded per-request timeout + retries so a hung Anthropic
+    // call can't stall the agent loop for the SDK's 10-min default. (D2-C2)
     expect(sdkMock.capture.constructorArgs.at(-1)).toEqual({
       apiKey: "sk-test-abc",
+      timeout: 120_000,
+      maxRetries: 2,
     });
   });
 

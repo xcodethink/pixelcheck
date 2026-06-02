@@ -304,17 +304,52 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
   let fingerprintId = "unknown";
   let agentSummary: ScenarioRunResult["agent_summary"];
 
+  // Per-unit wall-clock deadline. Step (30s) and LLM (120s) timeouts bound
+  // individual ops, but a wedged browser/CDP call or unbounded fallback could
+  // still hang a unit forever — leaking the browser and blocking the whole
+  // matrix `Promise.all`. Race the unit work against a deadline; on timeout
+  // force-close the browser (which makes any in-flight op reject) so the unit
+  // ends cleanly with a recorded failure. (Audit 2026-06-02 D2-C3.)
+  const unitDeadlineMs =
+    Number(process.env.PIXELCHECK_UNIT_DEADLINE_MS) > 0
+      ? Number(process.env.PIXELCHECK_UNIT_DEADLINE_MS)
+      : 600_000;
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadlineHit = new Promise<"__deadline__">((resolve) => {
+    deadlineTimer = setTimeout(() => resolve("__deadline__"), unitDeadlineMs);
+  });
+
+  const work = (async (): Promise<void> => {
   try {
-    // Build admin cookies if scenario targets admin
+    // Build admin/session cookies only when the scenario targets admin AND an
+    // explicit admin_url is configured whose host matches the audit target.
+    // Never inject a (possibly global, SCAMLENS_ADMIN_COOKIE) session cookie
+    // into an unrelated origin just because a URL or scenario id contains
+    // "/admin" — that would leak the cookie to whatever site is being audited.
+    // (Audit 2026-06-02 C4.)
     const steps = opts.scenario.steps ?? [];
     const targetsAdmin = steps.some(
       (s) =>
         (s.type === "visit" && s.url.includes("/admin")) ||
         opts.scenario.id.includes("admin"),
     );
-    const adminCookies = targetsAdmin
-      ? buildAdminCookies(opts.config.admin_url ?? opts.config.base_url)
-      : [];
+    let adminCookies: ReturnType<typeof buildAdminCookies> = [];
+    if (targetsAdmin && opts.config.admin_url) {
+      try {
+        const adminHost = new URL(opts.config.admin_url).hostname;
+        const baseHost = new URL(opts.config.base_url).hostname;
+        if (adminHost === baseHost) {
+          adminCookies = buildAdminCookies(opts.config.admin_url);
+        } else {
+          log.warn(
+            { adminHost, baseHost },
+            "skipping admin-cookie injection: admin_url host differs from base_url host",
+          );
+        }
+      } catch {
+        log.warn("skipping admin-cookie injection: malformed admin_url/base_url");
+      }
+    }
 
     // Persistent storage for extension scenarios
     const userDataDir = opts.scenario.persistent_storage
@@ -432,6 +467,24 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
           );
           break;
         }
+
+        // A skipped CRITICAL step means the user could not complete the action
+        // (all `act` layers exhausted, fallback: skip). Status aggregation only
+        // looks at fail/warn, so without this a scenario whose critical journey
+        // step was skipped would report PASS — "looks green but the journey
+        // can't complete". Record a critical issue so it fails. (Audit 2026-06-02 E2.)
+        if (result.status === "skip" && step.critical) {
+          log.error(
+            { scenarioId: opts.scenario.id, stepId: step.id },
+            "critical step skipped — the journey could not complete",
+          );
+          issues.push({
+            severity: "critical",
+            description: `Critical step "${step.id}" (${step.type}) was skipped — the action could not be performed, so this journey cannot complete.`,
+            recommendation:
+              "Investigate why the step's selectors/agent could not perform the action; a critical step should not rely on fallback: skip.",
+          });
+        }
       }
     }
 
@@ -453,6 +506,30 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
         // ignore
       }
     }
+  }
+  })();
+
+  const outcome = await Promise.race([
+    work.then(() => "__done__" as const),
+    deadlineHit,
+  ]);
+  if (deadlineTimer) clearTimeout(deadlineTimer);
+  if (outcome === "__deadline__") {
+    log.error(
+      { scenarioId: opts.scenario.id, personaId: opts.persona.id, unitDeadlineMs },
+      "unit exceeded wall-clock deadline — forcing teardown",
+    );
+    issues.push({
+      severity: "critical",
+      description: `Unit exceeded the ${Math.round(unitDeadlineMs / 1000)}s wall-clock deadline and was aborted.`,
+      recommendation:
+        "A browser or LLM operation hung. Raise PIXELCHECK_UNIT_DEADLINE_MS if the unit legitimately needs longer, otherwise investigate the hang.",
+    });
+    // Force teardown so any in-flight browser op rejects and nothing leaks,
+    // then let the (now-unblocked) work promise unwind before we aggregate.
+    if (screencastHandle) await screencastHandle.stop().catch(() => {});
+    if (wrapper) await wrapper.close().catch(() => {});
+    await work.catch(() => {});
   }
 
   // Aggregate scores from critic results
