@@ -295,7 +295,7 @@ export function renderMarkdown(report: BenchmarkReport): string {
   lines.push(`|---|---|---|---|---|`);
   for (const t of report.tasks) {
     const intent = t.intent.length > 60 ? t.intent.slice(0, 57) + "..." : t.intent;
-    lines.push(`| ${t.task_id} | ${intent} | ${t.passed ? "✓" : "✗"} | $${t.cost_usd.toFixed(3)} | ${t.duration_ms}ms |`);
+    lines.push(`| ${t.task_id} | ${intent} | ${t.passed ? "[OK]" : "[FAIL]"} | $${t.cost_usd.toFixed(3)} | ${t.duration_ms}ms |`);
   }
   return lines.join("\n") + "\n";
 }
