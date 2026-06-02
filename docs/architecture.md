@@ -287,7 +287,7 @@ Key properties:
   - `LOG_PRETTY` — `1|true` force pretty, `0|false` force JSON, `auto` (default) decide by TTY
   - `LOG_FILE` — additionally tee logs to a file (created if missing)
 
-The CLI rendering layer (`src/cli.ts`) is the **only** module that may use `console.*` directly — those calls are user-facing chalk-styled UX, not diagnostics. A regression check (`scripts/check-no-console.sh`, wired into `npm test`) fails the build if any other source file reintroduces `console.{log,error,warn,info,debug}`.
+The CLI rendering layer (`src/cli.ts`) is the **only** module that may use `console.*` directly — those calls are user-facing chalk-styled UX, not diagnostics. A regression check (`scripts/check-no-console.ts`, wired into `npm test`) fails the build if any other source file reintroduces `console.{log,error,warn,info,debug}`.
 
 Sample log line (JSON mode):
 

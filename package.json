@@ -63,7 +63,7 @@
     "bench:check": "tsx scripts/check-perf.ts",
     "bench:update": "tsx scripts/check-perf.ts --update-baseline",
     "measure:memory": "node --expose-gc --import tsx scripts/measure-memory.ts",
-    "lint:no-console": "bash scripts/check-no-console.sh",
+    "lint:no-console": "tsx scripts/check-no-console.ts",
     "lint": "eslint src",
     "schemas": "tsx scripts/export-result-schemas.ts",
     "license:check": "license-checker --production --onlyAllow \"MIT;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;BSD;MPL-2.0;LGPL-3.0-or-later;Unlicense;CC-BY-3.0;CC-BY-4.0;CC0-1.0;0BSD;Apache*;(MIT OR WTFPL);(AFL-2.1 OR BSD-3-Clause);(BSD-2-Clause OR MIT OR Apache-2.0)\"",
