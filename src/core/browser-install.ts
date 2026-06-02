@@ -496,6 +496,7 @@ export async function launchWithBrowserAutoInstall<T>(
       throw new Error(
         `Browser auto-install ${heal.status}: ${heal.message}\n` +
           `Original launch error: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
       );
     }
     return await launch();
