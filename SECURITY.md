@@ -105,18 +105,54 @@ forced versions are major bumps over what `@browserbasehq/stagehand@3.3.0`
 and `@langchain/core` declare in their `dependencies`, but Stagehand
 runs cleanly against them.
 
-Result: `npm audit --production` reports **0 vulnerabilities**.
+Result: `npm audit --production` reports **0 moderate-or-higher findings**.
+(It does report LOW advisories — see "Known low advisories" below.)
 
 ### CI policy
 
 After ADR-035 + the post-v3 override cleanup above, CI runs
 `npm audit --production --audit-level=moderate` (tightened from the
-v1.0 `--audit-level=high` gate). All historical waivers are closed.
+v1.0 `--audit-level=high` gate). All historical moderate waivers are
+closed. Low advisories are surfaced but below this gate (documented
+below).
 
 When `@browserbasehq/stagehand` ships a new minor / patch that bumps
 its own internal langsmith / uuid pins, the `overrides` block can be
 removed in a follow-up PR (the override is harmless to keep but
 unnecessary once upstream catches up).
+
+---
+
+## Known low advisories (2026-06-02 audit)
+
+The 2026-06-02 production-grade audit (G4) flagged that the CI comment
+overclaimed "0 vulnerabilities" when `npm audit` actually reports LOW
+advisories. For honesty, here is the full current state. Reproduce with
+`npm audit` (full tree) and `npm audit --production` (shipped tree).
+
+### Production tree — 17 low, 1 root cause
+
+All 17 low advisories in the **production** tree trace to a single
+upstream issue and fan out across the AI-SDK family:
+
+| Advisory | Severity | Affected | Status |
+|---|---|---|---|
+| `@ai-sdk/provider-utils` — Uncontrolled Resource Consumption | low | `@ai-sdk/provider-utils` and every `@ai-sdk/*` provider + `ai` that depends on it (17 packages) | Accepted for now: below the moderate CI gate; no fix published upstream yet. Picks up automatically when the AI SDK ships a patched `provider-utils`. |
+
+These are transitive (we do not call the affected code path directly)
+and low severity, so they do not block the build. Tracked here so the
+"0 vulnerabilities" claim is never made again without qualification.
+
+### Dev-only tree — 1 moderate (NOT shipped)
+
+`npm audit` (full tree) additionally reports 1 **moderate**:
+
+| Advisory | Severity | Affected | Status |
+|---|---|---|---|
+| `brace-expansion` — large numeric range defeats the documented `max` DoS protection | moderate | dev-dependency transitive only | **Not in `--production`**, so not shipped to users and not gate-relevant. Picked up on the next dev-dep refresh. |
+
+Because it is absent from the production tree, the
+`npm audit --production --audit-level=moderate` gate is unaffected.
 
 ---
 

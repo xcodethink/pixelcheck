@@ -43,7 +43,11 @@ For **troubleshooting**, jump to the [Common errors](#common-install-errors--fix
 - ubuntu-latest × Node 20 / 22
 - macos-13 (Intel x64) × Node 20 / 22
 - macos-14 (Apple Silicon arm64) × Node 20 / 22
-- windows-latest × Node 20 / 22
+- windows-latest × Node 20 / 22 — **non-blocking** (`continue-on-error`):
+  the Windows configs run every PR and results are visible, but a Windows
+  failure does not gate merges while a few cross-process test races
+  (`mcp-stdio-e2e`, `mcp-concurrency-e2e`) are investigated. `package.json`
+  still lists `win32` as a supported `os`.
 
 **Tier-2** (best-effort, may need manual prereq install — see below):
 
