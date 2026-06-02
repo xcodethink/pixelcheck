@@ -290,6 +290,64 @@ describe("parseDiagnoseRawJson", () => {
     expect(out.findings).toHaveLength(0);
   });
 
+  it("DROPS a finding whose only evidence_ref cites a fabricated path (E7)", () => {
+    const out = parseDiagnoseRawJson(
+      {
+        executive_summary: "x",
+        findings: [
+          {
+            id: "fake_a11y",
+            severity: "high",
+            dimension: "accessibility",
+            title: "Contrast too low",
+            description: "Cites a diagnostics path that was never collected.",
+            root_cause: "Unknown",
+            recommendation: "Unknown",
+            confidence: 0.9,
+            // No accessibility collector exists → this path is not in the
+            // serialized diagnostics. Pre-E7 it passed the non-empty check.
+            evidence_refs: [
+              { path: "/diagnostics/accessibility/contrast_ratio", value: "2.1" },
+            ],
+          },
+        ],
+      },
+      richDiagnostics(),
+    );
+    expect(out.findings).toHaveLength(0);
+  });
+
+  it("keeps a finding when at least one evidence_ref is grounded, dropping the fabricated one (E7)", () => {
+    const out = parseDiagnoseRawJson(
+      {
+        executive_summary: "x",
+        findings: [
+          {
+            id: "mixed_refs",
+            severity: "high",
+            dimension: "performance",
+            title: "LCP slow",
+            description: "One real ref, one fabricated.",
+            root_cause: "Heavy hero.",
+            recommendation: "Optimize.",
+            confidence: 0.9,
+            evidence_refs: [
+              { path: "/diagnostics/made/up/path", value: "x" },
+              { path: "/diagnostics/performance/lcp_ms", value: "4200" },
+            ],
+          },
+        ],
+      },
+      richDiagnostics(),
+    );
+    expect(out.findings).toHaveLength(1);
+    // The fabricated ref is stripped; only the grounded one survives.
+    expect(out.findings[0].evidence_refs).toHaveLength(1);
+    expect(out.findings[0].evidence_refs[0].path).toBe(
+      "/diagnostics/performance/lcp_ms",
+    );
+  });
+
   it("ALLOWS a low-severity finding without evidence_refs (low bar exempt)", () => {
     const out = parseDiagnoseRawJson(
       {
