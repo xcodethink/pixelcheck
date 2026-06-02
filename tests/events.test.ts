@@ -99,6 +99,28 @@ describe("AgentEventBus", () => {
     await bus.waitIfPaused(); // Should not hang
   });
 
+  it("resume releases ALL concurrent waiters, not just the last (D2-M1)", async () => {
+    const bus = new AgentEventBus("test");
+    bus.pause();
+
+    // Two checkpoints await the same pause gate concurrently. A single-slot
+    // resolver would orphan the first waiter forever.
+    const resolved = [false, false];
+    const first = bus.waitIfPaused().then(() => {
+      resolved[0] = true;
+    });
+    const second = bus.waitIfPaused().then(() => {
+      resolved[1] = true;
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(resolved).toEqual([false, false]);
+
+    bus.resume();
+    await Promise.all([first, second]);
+    expect(resolved).toEqual([true, true]);
+  });
+
   it("pause emits pause:requested event", () => {
     const bus = new AgentEventBus("test");
     const events: string[] = [];
@@ -131,6 +153,26 @@ describe("AgentEventBus", () => {
     await waiting;
     expect(resolved).toBe(true);
     expect(bus.takeover).toBe(false);
+  });
+
+  it("endTakeover releases ALL concurrent waiters (D2-M1)", async () => {
+    const bus = new AgentEventBus("test");
+    bus.startTakeover();
+
+    const resolved = [false, false];
+    const first = bus.waitForTakeoverEnd().then(() => {
+      resolved[0] = true;
+    });
+    const second = bus.waitForTakeoverEnd().then(() => {
+      resolved[1] = true;
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(resolved).toEqual([false, false]);
+
+    bus.endTakeover();
+    await Promise.all([first, second]);
+    expect(resolved).toEqual([true, true]);
   });
 
   it("takeover emits events", () => {
