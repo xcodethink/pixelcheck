@@ -5,7 +5,6 @@
  * any API keys.
  */
 
-import * as path from "node:path";
 import { loadPersonas, resolvePersonasDir } from "../../core/persona.js";
 import { ListPersonasResultSchema } from "../../core/result-schema.js";
 import { stampedTextResult, type ToolResult } from "../result.js";

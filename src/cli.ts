@@ -39,7 +39,6 @@ import {
   renderDiffHtml,
   renderDiffJson,
   renderDiffMarkdown,
-  renderDiffText,
   writeDiffReport,
   type DiffReportFormat,
 } from "./core/reporter-diff.js";
@@ -95,29 +94,11 @@ dotenv.config({
 // before any log emission.
 for (const p of buildRedactPatterns([])) registerSecret(p);
 
-/**
- * Print user-facing text that may include error messages or other strings
- * which could embed a secret value. Runs the registered-secret list across
- * the text before writing.
- *
- * Use this for any console.{log,error} that interpolates `err.message`,
- * user-supplied URLs, or other untrusted-content fields.
- */
-function safePrint(...args: unknown[]): void {
-  const patterns = buildRedactPatterns([]);
-  const safeArgs = args.map((a) =>
-    typeof a === "string" ? redact(a, patterns) : a,
-  );
-  // eslint-disable-next-line no-console
-  console.log(...safeArgs);
-}
-
 function safeError(...args: unknown[]): void {
   const patterns = buildRedactPatterns([]);
   const safeArgs = args.map((a) =>
     typeof a === "string" ? redact(a, patterns) : a,
   );
-  // eslint-disable-next-line no-console
   console.error(...safeArgs);
 }
 

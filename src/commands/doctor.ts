@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- CLI command output layer (Audit G2) */
 /**
  * `pixelcheck doctor` — diagnose the local environment before audit run.
  *
@@ -22,7 +21,6 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { createRequire } from "node:module";
 import { request } from "node:https";
