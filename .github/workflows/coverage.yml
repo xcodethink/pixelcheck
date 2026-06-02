@@ -3,9 +3,10 @@
 # Why separate from ci.yml:
 # - Coverage instrumentation is meaningfully slower (~2x test runtime)
 #   and we don't want to 12x that across the OS/Node matrix.
-# - Coverage thresholds (60/54/60/60 per ADR-017's ratchet contract)
-#   are platform-independent — testing on one config is sufficient
-#   to detect a regression.
+# - Coverage thresholds (per ADR-017's ratchet contract; the live numbers
+#   live in vitest.config.ts > coverage.thresholds and are NOT duplicated
+#   here so they can't drift) are platform-independent — testing on one
+#   config is sufficient to detect a regression.
 # - Failure on coverage shouldn't block a Windows-specific bug fix from
 #   merging when the rest of the matrix passes; making this a separate
 #   required check lets developers see "code is correct on all platforms,
@@ -19,7 +20,7 @@ on:
   pull_request:
     # No `branches:` filter — stacked PRs need coverage gates too,
     # otherwise a chain of 5 stacked PRs can drop coverage below the
-    # 60/54/60/60 threshold without anyone noticing until the final
+    # ratchet threshold without anyone noticing until the final
     # merge to main exposes the regression.
   push:
     branches: [main]
@@ -30,7 +31,7 @@ concurrency:
 
 jobs:
   coverage:
-    name: Coverage gate (60/54/60/60 per ADR-017)
+    name: Coverage gate (ADR-017 ratchet)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
