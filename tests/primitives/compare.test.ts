@@ -213,6 +213,34 @@ describe("compare — parseCompareRawJson", () => {
     expect(out.perCriterion[1]!.score_b).toBeNull();
   });
 
+  it("reconciles a winner that contradicts its numeric scores (E6)", () => {
+    const raw = {
+      per_criterion: [
+        // Stated winner "a" but b scored higher — derive from scores → "b".
+        { criterion_id: "visual_hierarchy", score_a: 3, score_b: 8, winner: "a", rationale: "x" },
+        // Scores tie → "tie" regardless of stated "a".
+        { criterion_id: "typography", score_a: 6, score_b: 6, winner: "a", rationale: "y" },
+      ],
+      overall_winner: "a",
+      summary: null,
+    };
+    const out = parseCompareRawJson(raw, criteria);
+    expect(out.perCriterion[0]!.winner).toBe("b");
+    expect(out.perCriterion[1]!.winner).toBe("tie");
+  });
+
+  it("keeps the stated label when a side score is null (fast label-only)", () => {
+    const raw = {
+      per_criterion: [
+        { criterion_id: "visual_hierarchy", score_a: null, score_b: null, winner: "a", rationale: "x" },
+      ],
+      overall_winner: "a",
+      summary: null,
+    };
+    const out = parseCompareRawJson(raw, criteria);
+    expect(out.perCriterion[0]!.winner).toBe("a");
+  });
+
   it("drops per-criterion entries with unknown criterion_id or invalid winner", () => {
     const raw = {
       per_criterion: [
