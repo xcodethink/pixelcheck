@@ -3,13 +3,29 @@ import { getCostGuard } from "./cost-guard.js";
 
 let client: Anthropic | null = null;
 
+/**
+ * Per-request timeout for Anthropic calls. The SDK default is 10 minutes, so a
+ * black-holed connection stalls the whole agent loop for that long before it
+ * even retries — the loop has no other wall-clock guard. Bound it to a
+ * configurable default (120s) so a hung request fails fast and the run can
+ * proceed/abort instead of wedging. (Audit 2026-06-02 D2-C2.)
+ */
+export function llmTimeoutMs(): number {
+  const raw = Number(process.env.PIXELCHECK_LLM_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 120_000;
+}
+
 export function getAnthropicClient(): Anthropic {
   if (!client) {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) {
       throw new Error("ANTHROPIC_API_KEY not set");
     }
-    client = new Anthropic({ apiKey: key });
+    client = new Anthropic({
+      apiKey: key,
+      timeout: llmTimeoutMs(),
+      maxRetries: 2,
+    });
   }
   return client;
 }

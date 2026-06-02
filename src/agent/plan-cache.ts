@@ -114,7 +114,7 @@ export class PlanCache {
    */
   static makeKey(input: CacheKeyInput): string {
     const personaClass = `${input.persona.country}|${input.persona.device_class}|${input.persona.payment_tier}`;
-    let host = "";
+    let host: string;
     try {
       host = new URL(input.start_url).host;
     } catch {
@@ -194,7 +194,7 @@ export class PlanCache {
     const db = this._open();
     const key = PlanCache.makeKey(input);
     const personaClass = `${input.persona.country}|${input.persona.device_class}|${input.persona.payment_tier}`;
-    let host = "";
+    let host: string;
     try {
       host = new URL(input.start_url).host;
     } catch {

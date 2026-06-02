@@ -75,7 +75,7 @@ export async function diffAgainstBaseline(
     };
   }
 
-  let odiff: { compare?: typeof import("odiff-bin").compare } | null = null;
+  let odiff: { compare?: typeof import("odiff-bin").compare } | null;
   try {
     odiff = (await import("odiff-bin").catch(() => null)) as
       | { compare?: typeof import("odiff-bin").compare }
