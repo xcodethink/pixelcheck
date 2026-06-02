@@ -304,6 +304,22 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
   let fingerprintId = "unknown";
   let agentSummary: ScenarioRunResult["agent_summary"];
 
+  // Per-unit wall-clock deadline. Step (30s) and LLM (120s) timeouts bound
+  // individual ops, but a wedged browser/CDP call or unbounded fallback could
+  // still hang a unit forever — leaking the browser and blocking the whole
+  // matrix `Promise.all`. Race the unit work against a deadline; on timeout
+  // force-close the browser (which makes any in-flight op reject) so the unit
+  // ends cleanly with a recorded failure. (Audit 2026-06-02 D2-C3.)
+  const unitDeadlineMs =
+    Number(process.env.PIXELCHECK_UNIT_DEADLINE_MS) > 0
+      ? Number(process.env.PIXELCHECK_UNIT_DEADLINE_MS)
+      : 600_000;
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadlineHit = new Promise<"__deadline__">((resolve) => {
+    deadlineTimer = setTimeout(() => resolve("__deadline__"), unitDeadlineMs);
+  });
+
+  const work = (async (): Promise<void> => {
   try {
     // Build admin/session cookies only when the scenario targets admin AND an
     // explicit admin_url is configured whose host matches the audit target.
@@ -472,6 +488,30 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
         // ignore
       }
     }
+  }
+  })();
+
+  const outcome = await Promise.race([
+    work.then(() => "__done__" as const),
+    deadlineHit,
+  ]);
+  if (deadlineTimer) clearTimeout(deadlineTimer);
+  if (outcome === "__deadline__") {
+    log.error(
+      { scenarioId: opts.scenario.id, personaId: opts.persona.id, unitDeadlineMs },
+      "unit exceeded wall-clock deadline — forcing teardown",
+    );
+    issues.push({
+      severity: "critical",
+      description: `Unit exceeded the ${Math.round(unitDeadlineMs / 1000)}s wall-clock deadline and was aborted.`,
+      recommendation:
+        "A browser or LLM operation hung. Raise PIXELCHECK_UNIT_DEADLINE_MS if the unit legitimately needs longer, otherwise investigate the hang.",
+    });
+    // Force teardown so any in-flight browser op rejects and nothing leaks,
+    // then let the (now-unblocked) work promise unwind before we aggregate.
+    if (screencastHandle) await screencastHandle.stop().catch(() => {});
+    if (wrapper) await wrapper.close().catch(() => {});
+    await work.catch(() => {});
   }
 
   // Aggregate scores from critic results
