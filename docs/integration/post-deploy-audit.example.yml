@@ -56,8 +56,11 @@ jobs:
       - name: Install pixelcheck
         run: npm install -g pixelcheck
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install browser (system libs + the revision pixelcheck launches)
+        # install-deps adds Linux shared libraries (libnss3, libgbm1, ...);
+        # `pixelcheck install` fetches the exact Chrome Headless Shell revision
+        # pixelcheck runs (a bare `npx playwright install` can pull a mismatch).
+        run: npx playwright install-deps chromium && npx pixelcheck install
 
       - name: Run audit
         env:

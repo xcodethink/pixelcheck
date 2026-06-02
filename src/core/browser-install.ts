@@ -327,3 +327,126 @@ export async function ensureHeadlessShell(opts: {
     }
   }
 }
+
+/**
+ * Does this launch error mean the browser executable is absent (vs. a real
+ * runtime fault we should not paper over)?
+ *
+ * Playwright's message is stable across versions:
+ *   "browserType.launch: Executable doesn't exist at <path>"
+ * followed by the "Please run the following command to download new
+ * browsers: npx playwright install" banner. We also match the
+ * headless-shell path fragment so a future message reword still trips it.
+ */
+export function isMissingBrowserBinaryError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    /Executable doesn't exist/i.test(msg) ||
+    /chrome-headless-shell/i.test(msg) ||
+    /playwright install/i.test(msg)
+  );
+}
+
+/**
+ * Test seam: lets unit tests inject a fake heal so the retry path can be
+ * exercised without real network egress. Production code never sets this.
+ */
+let _healOverrideForTests: typeof ensureHeadlessShell | null = null;
+export function _setEnsureHeadlessShellForTests(
+  fn: typeof ensureHeadlessShell | null,
+): void {
+  _healOverrideForTests = fn;
+}
+
+/**
+ * Launch a browser with one-shot self-heal.
+ *
+ * If the first attempt throws a "browser executable missing" error, download
+ * the headless-shell directly (bypassing Playwright's extractor, which can
+ * hang on some macOS hosts) and retry exactly once. Any OTHER error — or a
+ * second failure — propagates unchanged so genuine faults are never masked.
+ *
+ * This closes the worst first-run papercut: `pixelcheck explore` / `run` and
+ * every MCP primitive launch `chromium.launch({ headless: true })`, which on
+ * a fresh machine crashes because the headless-shell was never downloaded.
+ * Wrapping the launch makes those paths self-correct without the user first
+ * having to discover `pixelcheck doctor --fix`.
+ *
+ * Headed launches (full Chromium) are NOT auto-healed here — that binary is
+ * only needed for `--headed` runs; the retry will surface Playwright's own
+ * "install chromium" message, and `pixelcheck install --headed` installs it.
+ */
+export async function launchWithBrowserAutoInstall<T>(
+  launch: () => Promise<T>,
+  opts: { onProgress?: (line: string) => void } = {},
+): Promise<T> {
+  try {
+    return await launch();
+  } catch (err) {
+    if (!isMissingBrowserBinaryError(err)) throw err;
+    const progress =
+      opts.onProgress ??
+      ((line: string) => log.info({}, `browser-install: ${line}`));
+    progress(
+      "Browser binary missing — auto-installing Chrome Headless Shell (one-time) ...",
+    );
+    const heal = await (_healOverrideForTests ?? ensureHeadlessShell)({
+      onProgress: progress,
+    });
+    if (heal.status !== "installed" && heal.status !== "already-present") {
+      // Self-heal could not help (unsupported platform / download failure /
+      // or the missing binary was full Chromium for a headed run). Re-throw
+      // with both the heal outcome and the original launch error so the user
+      // sees an actionable message instead of a bare Playwright stack.
+      throw new Error(
+        `Browser auto-install ${heal.status}: ${heal.message}\n` +
+          `Original launch error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    return await launch();
+  }
+}
+
+/**
+ * Install the FULL Chromium build (not headless-shell) via the bundled
+ * playwright-core CLI, guaranteeing the revision matches the playwright the
+ * package actually launches. Only needed for `--headed` runs; headless audits
+ * use the headless-shell that {@link ensureHeadlessShell} provides.
+ *
+ * We route through the BUNDLED `playwright-core/cli.js` (resolved from this
+ * package's node_modules) rather than a bare `npx playwright install`: npx
+ * resolves whatever playwright version is latest on the registry, which can
+ * pin a DIFFERENT chromium revision than the one we launch — the exact
+ * version-skew trap that leaves a user "installed but still broken".
+ */
+export function installFullChromium(
+  opts: { onProgress?: (line: string) => void } = {},
+): HealResult {
+  const progress = opts.onProgress ?? (() => {});
+  try {
+    const cliPath = path.join(
+      path.dirname(esmRequire.resolve("playwright-core")),
+      "cli.js",
+    );
+    if (!fs.existsSync(cliPath)) {
+      return {
+        status: "error",
+        message:
+          `playwright-core cli.js not found at ${cliPath} — ` +
+          "run `npx playwright install chromium` manually.",
+      };
+    }
+    progress(
+      "Installing full Chromium via bundled Playwright (for --headed runs) ...",
+    );
+    execFileSync(process.execPath, [cliPath, "install", "chromium"], {
+      stdio: "inherit",
+    });
+    return { status: "installed", message: "full Chromium installed" };
+  } catch (err) {
+    return {
+      status: "error",
+      message: `full Chromium install failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}

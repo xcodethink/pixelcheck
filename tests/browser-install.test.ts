@@ -8,10 +8,13 @@
  * unsupported branches (no network egress from tests).
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   cftPlatformToken,
   resolveHeadlessShell,
+  isMissingBrowserBinaryError,
+  launchWithBrowserAutoInstall,
+  _setEnsureHeadlessShellForTests,
 } from "../src/core/browser-install.js";
 
 describe("cftPlatformToken", () => {
@@ -56,5 +59,88 @@ describe("resolveHeadlessShell", () => {
     const info = resolveHeadlessShell();
     if (!info) return;
     expect(info.executablePath.startsWith(info.installDir)).toBe(true);
+  });
+});
+
+describe("isMissingBrowserBinaryError", () => {
+  it("matches Playwright's missing-executable messages", () => {
+    expect(
+      isMissingBrowserBinaryError(
+        new Error(
+          "browserType.launch: Executable doesn't exist at /x/chromium_headless_shell-1217/y",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isMissingBrowserBinaryError(new Error("run npx playwright install")),
+    ).toBe(true);
+    expect(
+      isMissingBrowserBinaryError("missing chrome-headless-shell binary"),
+    ).toBe(true);
+  });
+
+  it("does NOT match unrelated runtime faults", () => {
+    expect(
+      isMissingBrowserBinaryError(new Error("Navigation timeout of 30000ms")),
+    ).toBe(false);
+    expect(
+      isMissingBrowserBinaryError(new Error("connect ECONNREFUSED 127.0.0.1")),
+    ).toBe(false);
+    expect(isMissingBrowserBinaryError(null)).toBe(false);
+  });
+});
+
+describe("launchWithBrowserAutoInstall", () => {
+  afterEach(() => _setEnsureHeadlessShellForTests(null));
+
+  it("returns the launch result and never heals on first-try success", async () => {
+    const heal = vi.fn();
+    _setEnsureHeadlessShellForTests(heal as never);
+    const launch = vi.fn().mockResolvedValue("browser");
+    await expect(launchWithBrowserAutoInstall(launch)).resolves.toBe("browser");
+    expect(launch).toHaveBeenCalledTimes(1);
+    expect(heal).not.toHaveBeenCalled();
+  });
+
+  it("rethrows a non-missing-binary error WITHOUT attempting a heal", async () => {
+    const heal = vi.fn();
+    _setEnsureHeadlessShellForTests(heal as never);
+    const launch = vi
+      .fn()
+      .mockRejectedValue(new Error("Navigation timeout of 30000ms"));
+    await expect(launchWithBrowserAutoInstall(launch)).rejects.toThrow(
+      /Navigation timeout/,
+    );
+    expect(launch).toHaveBeenCalledTimes(1);
+    expect(heal).not.toHaveBeenCalled();
+  });
+
+  it("heals once and retries when the binary is missing", async () => {
+    const heal = vi
+      .fn()
+      .mockResolvedValue({ status: "installed", message: "installed" });
+    _setEnsureHeadlessShellForTests(heal as never);
+    const launch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Executable doesn't exist at /x"))
+      .mockResolvedValueOnce("browser");
+    await expect(launchWithBrowserAutoInstall(launch)).resolves.toBe("browser");
+    expect(launch).toHaveBeenCalledTimes(2);
+    expect(heal).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces an actionable error when the heal itself fails", async () => {
+    const heal = vi
+      .fn()
+      .mockResolvedValue({ status: "error", message: "download failed" });
+    _setEnsureHeadlessShellForTests(heal as never);
+    const launch = vi
+      .fn()
+      .mockRejectedValue(new Error("Executable doesn't exist at /x"));
+    await expect(launchWithBrowserAutoInstall(launch)).rejects.toThrow(
+      /auto-install error: download failed[\s\S]*Original launch error/,
+    );
+    // Only the first launch ran; we did not blindly retry after a failed heal.
+    expect(launch).toHaveBeenCalledTimes(1);
   });
 });

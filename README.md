@@ -70,8 +70,8 @@ compare(a, b, criteria)     A/B comparison of two URLs (incl. blind mode)
 Now your agent navigates. Sees rendered HTML. Reads console errors. Clicks. Fills. Judges. Compares. **Without ever leaving its workflow** — drop into Claude Desktop, Cursor, Cline, Continue, Zed, or Claude Code via four lines in `~/.mcp.json`.
 
 ```bash
-npm install -g pixelcheck
-pixelcheck doctor                # 8-check environment health
+npm install -g pixelcheck        # browser binary auto-installs on install
+pixelcheck doctor                # verify environment (--fix self-heals)
 pixelcheck-mcp                   # MCP server (stdio transport)
 ```
 
@@ -415,8 +415,22 @@ pixelcheck run --project projects/my-app --min-score 7.5
 
 ```bash
 npm install pixelcheck
-npx playwright install chromium
 ```
+
+The browser binary pixelcheck needs (Chrome Headless Shell) is fetched
+automatically by a `postinstall` step. If that was skipped — CI,
+`--ignore-scripts`, an offline box, or `PIXELCHECK_SKIP_BROWSER_DOWNLOAD=1` —
+fetch it on demand with:
+
+```bash
+npx pixelcheck install            # headless audits (default)
+npx pixelcheck install --headed   # also fetch full Chromium for --headed runs
+```
+
+You never need a bare `npx playwright install` — pixelcheck installs the exact
+browser revision it launches (a bare install can pull a mismatched revision).
+A missing browser also self-heals on the first `run`/`explore`, and
+`pixelcheck doctor --fix` downloads it directly.
 
 > For corporate proxy / Alpine Linux / Docker / air-gapped environments,
 > see [docs/INSTALLATION.md](docs/INSTALLATION.md).
@@ -499,7 +513,8 @@ audit-after-deploy:
   runs-on: ubuntu-latest
   steps:
     - uses: actions/checkout@v4
-    - run: npm install pixelcheck && npx playwright install chromium
+    # CI sets CI=true, which skips the auto browser-download; fetch it explicitly.
+    - run: npm install pixelcheck && npx pixelcheck install
     - run: npx pixelcheck run --project .audit --min-score 7.0
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
