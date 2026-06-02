@@ -16,7 +16,7 @@ import { runCritic, type CriticResult } from "../core/critic.js";
 import { parseAxeTags, expandAxeStandard } from "../core/wcag.js";
 import { runComputerUseTask } from "../core/computer-use.js";
 import { substituteTemplate } from "../core/scenario.js";
-import { withRetry } from "../vendor/stealth-core/index.js";
+import { withRetry } from "../core/retry.js";
 import { waitForMessage } from "../core/email.js";
 import { diffAgainstBaseline, type DiffResult } from "../core/visual-diff.js";
 import { waitForPageStable } from "../core/page-stability.js";
@@ -70,16 +70,25 @@ export async function executeStep(
     // hint → instruction mutation → Opus computer-use) which IS its recovery
     // mechanism. Re-running it via the outer retry re-executes the whole
     // expensive cascade — including the Opus CU layer — multiplying spend on
-    // every attempt. Cap act at a single outer attempt; the cascade handles
+    // every attempt. Cap act at zero outer retries; the cascade handles
     // recovery. Other step types keep step.retry. (Audit 2026-06-02 E3.)
-    const maxAttempts = step.type === "act" ? 1 : step.retry + 1;
-    result = await withRetry(runOnce, {
-      maxAttempts,
-      baseDelay: 1000,
-      onRetry: (_err, attempt) => {
-        retriesUsed = attempt;
+    //
+    // Uses the canonical core retry (maxRetries = retries, NOT total attempts)
+    // so step execution shares one retry contract with the rest of the tool —
+    // including its non-retryable guard, which refuses to retry
+    // BudgetExceeded/ConsentDeclined (the vendored variant would have burned
+    // spend retrying a budget error). (Audit 2026-06-02 D2-H1.)
+    const maxRetries = step.type === "act" ? 0 : step.retry;
+    result = await withRetry(
+      runOnce,
+      { maxRetries, backoffMs: 1000 },
+      step.type,
+      {
+        onRetry: (_err, retryNumber) => {
+          retriesUsed = retryNumber;
+        },
       },
-    });
+    );
     consoleErrors.push(...ctx.recorder.drainConsoleErrors());
   } catch (err) {
     consoleErrors.push(...ctx.recorder.drainConsoleErrors());

@@ -67,6 +67,35 @@ describe("withRetry", () => {
     expect(sleepFn).toHaveBeenCalledTimes(3);
   });
 
+  it("fires onRetry once per actual retry with a 1-based retry number (D2-H1)", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("fail-1"))
+      .mockRejectedValueOnce(new Error("fail-2"))
+      .mockResolvedValue("ok");
+    const seen: Array<{ n: number; msg: string }> = [];
+    const result = await withRetry(fn, { maxRetries: 3 }, "test-op", {
+      sleepFn,
+      randFn: noJitter,
+      onRetry: (err, retryNumber) => {
+        seen.push({ n: retryNumber, msg: (err as Error).message });
+      },
+    });
+    expect(result).toBe("ok");
+    // Two failures → two retries → onRetry fired twice, numbered 1 then 2.
+    expect(seen).toEqual([
+      { n: 1, msg: "fail-1" },
+      { n: 2, msg: "fail-2" },
+    ]);
+  });
+
+  it("does not fire onRetry when the first attempt succeeds", async () => {
+    const fn = vi.fn().mockResolvedValue("ok");
+    const onRetry = vi.fn();
+    await withRetry(fn, {}, "test-op", { sleepFn, onRetry });
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
   // ───────────────────────────────────────────────────────
   // withRetry — exhaustion
   // ───────────────────────────────────────────────────────
