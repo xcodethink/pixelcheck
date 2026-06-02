@@ -358,7 +358,7 @@ function enforceLruCaps(args: {
   // they can run `sqlite3 result-cache.db "VACUUM"` manually.
   if (maxDiskMb > 0) {
     const cap = maxDiskMb * 1024 * 1024;
-    let size = 0;
+    let size: number;
     try {
       size = fs.statSync(dbPath).size;
     } catch {
