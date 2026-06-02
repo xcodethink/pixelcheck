@@ -1,7 +1,42 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { PersonaSchema, type Persona } from "./types.js";
+
+/**
+ * Locate the personas/ directory bundled with the npm package. Resolved
+ * relative to this compiled module (dist/core/persona.js → <pkg>/personas).
+ * Returns null if not found.
+ */
+export function resolveBundledPersonasDir(): string | null {
+  try {
+    const candidate = fileURLToPath(new URL("../../personas", import.meta.url));
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+      return candidate;
+    }
+  } catch {
+    // import.meta.url may not be a file URL under some bundlers
+  }
+  return null;
+}
+
+/**
+ * Resolve a personas directory: prefer an existing user-supplied path, else
+ * fall back to the bundled personas/. Without this, MCP tools resolved a
+ * CWD-relative "./personas" that almost never exists for a global/MCP install,
+ * so the persona feature silently no-op'd for every MCP user — the same class
+ * of bug fixed for the CLI in v1.0.1 but never wired into MCP. (Audit 2026-06-02 F1.)
+ */
+export function resolvePersonasDir(userPath?: string): string {
+  if (userPath) {
+    const resolved = path.resolve(userPath);
+    if (fs.existsSync(resolved)) return resolved;
+  }
+  const bundled = resolveBundledPersonasDir();
+  if (bundled) return bundled;
+  return path.resolve(userPath ?? "personas");
+}
 
 /**
  * Load all persona YAML files from a directory.

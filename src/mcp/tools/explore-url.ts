@@ -8,7 +8,7 @@
  */
 
 import * as path from "node:path";
-import { loadPersonas } from "../../core/persona.js";
+import { loadPersonas, resolvePersonasDir } from "../../core/persona.js";
 import { ProjectConfigSchema, ScenarioSchema } from "../../core/types.js";
 import { ExploreUrlResultSchema } from "../../core/result-schema.js";
 import { stampedTextResult, type ToolResult } from "../result.js";
@@ -52,7 +52,7 @@ async function handler(args: Record<string, unknown>): Promise<ToolResult> {
     typeof args.max_actions === "number" ? args.max_actions : 30;
 
   const { runAudit } = await import("../../core/runner.js");
-  const personas = await loadPersonas(path.resolve("./personas"));
+  const personas = await loadPersonas(resolvePersonasDir());
   const persona = resolvePersona(personas, personaId);
 
   const successCriteria =

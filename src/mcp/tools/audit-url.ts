@@ -8,7 +8,7 @@
  */
 
 import * as path from "node:path";
-import { loadPersonas } from "../../core/persona.js";
+import { loadPersonas, resolvePersonasDir } from "../../core/persona.js";
 import { ProjectConfigSchema, ScenarioSchema } from "../../core/types.js";
 import { AuditUrlResultSchema } from "../../core/result-schema.js";
 import { stampedTextResult, type ToolResult } from "../result.js";
@@ -65,7 +65,7 @@ async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   const { writeSpaReport } = await import("../../core/reporter-spa.js");
   const { writeJsonReport } = await import("../../core/reporter.js");
 
-  const personas = await loadPersonas(path.resolve(personasDir));
+  const personas = await loadPersonas(resolvePersonasDir(personasDir));
   const persona = resolvePersona(personas, personaId);
 
   // Build an ad-hoc autonomous scenario (schema fills defaults)
