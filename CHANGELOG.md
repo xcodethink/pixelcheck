@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-02 — security hardening, MCP test coverage, Node 20
+
+> Supersedes the unreleased accumulation since 1.2.0 (1.2.1 was tagged
+> without its own changelog section; its notes are included here — the npm
+> delta is 1.2.1 → 1.3.0). Headline: requires Node 20+, supply-chain +
+> SSRF hardening, and the flagship MCP surface is now unit-tested.
+
 ### Added
 
 - **`doctor` now checks the headless-shell binary separately** — every
@@ -64,6 +71,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "installed but still broken". Use `pixelcheck install` /
   `pixelcheck doctor --fix`. (Linux `playwright install-deps` for system
   libraries is unchanged.)
+- **Requires Node.js 20+** (`engines.node` `>=18` → `>=20`). Node 18 reached
+  end-of-life 2025-04-30 and the toolchain (vitest 4 via rolldown imports
+  `util.styleText`; eslint) needs Node 20 — the old `>=18` claim was never
+  exercised (CI is 20/22 only). `npm` treats `engines` as a warning, so this
+  is discouraged-not-blocked for Node-18 holdouts. Purged stale Node-18 /
+  test-count / coverage-gate-name / matrix-size claims from README /
+  CONTRIBUTING / INSTALLATION / MIGRATION. (audit F6)
+- **No-console lint gate is now cross-platform** — ported from a hardcoded
+  `bash` script to Node (`tsx`), so `npm test` / `prepublishOnly` no longer
+  break on bash-less Windows or minimal publish environments. (audit F7)
 
 ### Security
 - Patched 3 moderate production advisories via semver-compatible bumps
@@ -73,6 +90,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (GHSA-58qx-3vcg-4xpx, uninitialized memory disclosure). Clears the
   `npm audit (production, moderate+)` CI gate. 17 low-severity transitive
   advisories remain (below the gate threshold; require breaking bumps).
+- **Supply-chain: the vendored `stealth-core` copy now has a committed
+  SHA-256 integrity manifest** (`src/vendor/stealth-core/integrity.json`)
+  enforced on every CI runner via `check:vendor-integrity` — detects
+  tampering/drift of the bundled copy with no upstream source needed (the
+  prior drift check was a runner no-op). Added a vendored LICENSE +
+  PROVENANCE.md and disclosed it in THIRD_PARTY_LICENSES.md. (audit F4)
+- **SSRF guard coverage locked across the whole MCP surface** — a cross-tool
+  regression now asserts `see` / `audit_url` / `explore_url` / `extract` /
+  `act` / `diagnose` / `judge` / `compare` all reject private / loopback /
+  cloud-metadata (`169.254.169.254`) targets at the handler boundary, before
+  any browser launch. (audit B2 follow-up / G3)
+- **Honest advisory disclosure** — SECURITY.md now documents the 17 low
+  advisories (single root cause: `@ai-sdk/provider-utils`) + the dev-only
+  moderate; corrected the CI comment that claimed "0 vulnerabilities". (audit G4)
 
 ### Fixed
 
@@ -90,6 +121,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   result, causing `tests/commands/explain.test.ts` to flake on Linux/Windows
   CI runners. Hardened the test with explicit `utimesSync` mtimes and added a
   same-mtime tie-break case.
+- **Shipped custom-handler example is runnable again** —
+  `scenarios/handlers/install-extension` shipped in the tarball as raw `.ts`
+  importing the unpublished `src/` tree (a dangling import for any installed
+  user). Ported to a self-contained ESM `.js` that loads via dynamic import.
+  (audit F5)
+
+### Tested
+
+- **Flagship MCP surface + observer now unit-tested.** MCP tools went from
+  5–10% to 20–94% statement coverage, observer dashboards / `doctor` / the
+  `get_last_report` path-sandbox (B3) from 0–22% to 94–100%, and the
+  benchmark scenario builder from 0%. Global coverage 79/68/81/81 → 81/70/83/83;
+  the ADR-017 floor was ratcheted 74/62/75/75 → 76/64/77/77. (audit G3)
 
 ## [1.2.0] - 2026-05-06 — Phase 0 complete + commercial-grade tooling
 
