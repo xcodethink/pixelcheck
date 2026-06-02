@@ -305,16 +305,35 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
   let agentSummary: ScenarioRunResult["agent_summary"];
 
   try {
-    // Build admin cookies if scenario targets admin
+    // Build admin/session cookies only when the scenario targets admin AND an
+    // explicit admin_url is configured whose host matches the audit target.
+    // Never inject a (possibly global, SCAMLENS_ADMIN_COOKIE) session cookie
+    // into an unrelated origin just because a URL or scenario id contains
+    // "/admin" — that would leak the cookie to whatever site is being audited.
+    // (Audit 2026-06-02 C4.)
     const steps = opts.scenario.steps ?? [];
     const targetsAdmin = steps.some(
       (s) =>
         (s.type === "visit" && s.url.includes("/admin")) ||
         opts.scenario.id.includes("admin"),
     );
-    const adminCookies = targetsAdmin
-      ? buildAdminCookies(opts.config.admin_url ?? opts.config.base_url)
-      : [];
+    let adminCookies: ReturnType<typeof buildAdminCookies> = [];
+    if (targetsAdmin && opts.config.admin_url) {
+      try {
+        const adminHost = new URL(opts.config.admin_url).hostname;
+        const baseHost = new URL(opts.config.base_url).hostname;
+        if (adminHost === baseHost) {
+          adminCookies = buildAdminCookies(opts.config.admin_url);
+        } else {
+          log.warn(
+            { adminHost, baseHost },
+            "skipping admin-cookie injection: admin_url host differs from base_url host",
+          );
+        }
+      } catch {
+        log.warn("skipping admin-cookie injection: malformed admin_url/base_url");
+      }
+    }
 
     // Persistent storage for extension scenarios
     const userDataDir = opts.scenario.persistent_storage
