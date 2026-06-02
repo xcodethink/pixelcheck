@@ -470,11 +470,31 @@ describe("extractJson", () => {
     });
   });
 
-  it("repairs a truncated array (missing closing bracket)", async () => {
+  it("repairs a truncated array, dropping the unterminated trailing number", async () => {
     const { extractJson } = await import("../src/core/llm.js");
+    // The final `4` has no delimiter after it, so we can't tell it apart
+    // from `4` of a longer `456…` cut mid-digit. The repair drops it rather
+    // than risk a structurally-valid-but-WRONG value (D2-M5/D3-M1).
     const text = '{"items":[1, 2, 3, 4';
     const result = extractJson<{ items: number[] }>(text);
+    expect(result.items).toEqual([1, 2, 3]);
+  });
+
+  it("recovers a trailing number that IS delimiter-terminated", async () => {
+    const { extractJson } = await import("../src/core/llm.js");
+    // Here the `4` is followed by `,` — proof it's complete — so it's kept.
+    const text = '{"items":[1, 2, 3, 4,';
+    const result = extractJson<{ items: number[] }>(text);
     expect(result.items).toEqual([1, 2, 3, 4]);
+  });
+
+  it("does not fabricate a wrong number from one cut mid-digit (D2-M5/D3-M1)", async () => {
+    const { extractJson } = await import("../src/core/llm.js");
+    // `{"n":12345` could be `12345` or the head of `1234567`. The repair
+    // must NOT silently emit n:12345; it drops the unverifiable value (here
+    // leaving nothing parseable, so it throws — a loud failure beats a
+    // silent wrong plan).
+    expect(() => extractJson('{"n":12345')).toThrow(/No valid JSON found/);
   });
 
   it("drops a truncated string and keeps the prior fully-formed key/value", async () => {
@@ -489,11 +509,14 @@ describe("extractJson", () => {
     );
   });
 
-  it("repairs nested truncation (object inside array)", async () => {
+  it("repairs nested truncation, keeping only delimiter-confirmed elements", async () => {
     const { extractJson } = await import("../src/core/llm.js");
+    // `{"x":1}` is fully closed (safe). The trailing `{"y":2` ends on an
+    // unterminated number, so that whole partial object is dropped rather
+    // than emit a possibly-wrong `2`.
     const text = '{"a":[{"x":1},{"y":2';
     const result = extractJson<{ a: Array<Record<string, number>> }>(text);
-    expect(result.a).toEqual([{ x: 1 }, { y: 2 }]);
+    expect(result.a).toEqual([{ x: 1 }]);
   });
 
   it("strips trailing commas before closing", async () => {
