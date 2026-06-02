@@ -125,28 +125,33 @@ export class ObserverServer {
 
   private _handleHttp(req: IncomingMessage, res: ServerResponse): void {
     const url = req.url ?? "/";
+    // Match routes on the PATHNAME, not the raw url — req.url includes the
+    // query string, so a bare `url === "/api/state"` failed to resolve
+    // "/api/state?token=…" (it 404'd). Parsing the pathname makes ?token=
+    // auth work the same as the Authorization header. (audit follow-up)
+    const pathname = new URL(url, `http://127.0.0.1:${this._port}`).pathname;
 
     // Dashboard pages are served without auth (token is embedded in WS/API URLs)
-    if (url === "/" || url === "/index.html") {
+    if (pathname === "/" || pathname === "/index.html") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(getDashboardHtml());
       return;
     }
 
     // Multi-session grid dashboard (only enabled when registry is attached)
-    if ((url === "/grid" || url === "/grid/") && this._registry) {
+    if ((pathname === "/grid" || pathname === "/grid/") && this._registry) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(getGridHtml());
       return;
     }
 
-    if (url === "/api/grid" && this._registry) {
+    if (pathname === "/api/grid" && this._registry) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(this._registry.gridSnapshot()));
       return;
     }
 
-    if (url.startsWith("/api/session/") && this._registry) {
+    if (pathname.startsWith("/api/session/") && this._registry) {
       const sid = decodeURIComponent(url.replace("/api/session/", "").split("?")[0]!);
       const entry = this._registry.getEntry(sid);
       if (!entry) {
@@ -166,26 +171,26 @@ export class ObserverServer {
     }
 
     // All /api/* routes require auth
-    if (url.startsWith("/api/") && !this._checkAuth(req)) {
+    if (pathname.startsWith("/api/") && !this._checkAuth(req)) {
       res.writeHead(401, { "Content-Type": "text/plain" });
       res.end("Unauthorized — pass ?token=<token> or Authorization: Bearer <token>");
       return;
     }
 
-    if (url === "/api/state") {
+    if (pathname === "/api/state") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(this._sessionStore.state));
       return;
     }
 
-    if (url === "/api/events") {
+    if (pathname === "/api/events") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(this._sessionStore.events.slice(-100)));
       return;
     }
 
     // Full event history for timeline scrubbing (bounded by MAX_EVENT_FETCH).
-    if (url.startsWith("/api/events/all")) {
+    if (pathname.startsWith("/api/events/all")) {
       const parsed = new URL(url, `http://127.0.0.1:${this._port}`);
       const start = Number(parsed.searchParams.get("start") ?? "0");
       const end = Number(parsed.searchParams.get("end") ?? String(Number.MAX_SAFE_INTEGER));
@@ -195,14 +200,14 @@ export class ObserverServer {
       return;
     }
 
-    if (url === "/api/timeline") {
+    if (pathname === "/api/timeline") {
       const timeline = deriveTimeline(this._sessionStore.events);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(timeline));
       return;
     }
 
-    if (url.startsWith("/api/screenshot")) {
+    if (pathname.startsWith("/api/screenshot")) {
       const parsed = new URL(url, `http://127.0.0.1:${this._port}`);
       const seq = Number(parsed.searchParams.get("seq") ?? "0");
       const path = screenshotAt(this._sessionStore.events, seq);
