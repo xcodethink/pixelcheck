@@ -66,8 +66,15 @@ export async function executeStep(
   };
 
   try {
+    // `act` runs its own 4-layer reliability cascade (stagehand → selector
+    // hint → instruction mutation → Opus computer-use) which IS its recovery
+    // mechanism. Re-running it via the outer retry re-executes the whole
+    // expensive cascade — including the Opus CU layer — multiplying spend on
+    // every attempt. Cap act at a single outer attempt; the cascade handles
+    // recovery. Other step types keep step.retry. (Audit 2026-06-02 E3.)
+    const maxAttempts = step.type === "act" ? 1 : step.retry + 1;
     result = await withRetry(runOnce, {
-      maxAttempts: step.retry + 1,
+      maxAttempts,
       baseDelay: 1000,
       onRetry: (_err, attempt) => {
         retriesUsed = attempt;
