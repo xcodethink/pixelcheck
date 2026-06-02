@@ -38,6 +38,10 @@ const inputSchema = {
 
 async function handler(args: Record<string, unknown>): Promise<ToolResult> {
   const url = requireString(args.url, "url");
+  // SSRF guard: an MCP client is untrusted. Block private/internal/metadata
+  // targets unless the operator explicitly opts in. (Audit 2026-06-02 B2.)
+  const { assertSafeUrl } = await import("../../core/url-guard.js");
+  assertSafeUrl(url, { allowPrivate: process.env.PIXELCHECK_ALLOW_PRIVATE === "1" });
   const goal = requireString(args.goal, "goal");
   const criteriaInput = Array.isArray(args.success_criteria)
     ? (args.success_criteria as string[])

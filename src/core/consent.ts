@@ -211,16 +211,20 @@ export async function ensureConsent(
     return { agreed: true, via: "flag", path: consentPath };
   }
 
-  // 4. Non-TTY (CI / MCP server / scripted) — implicit auto-consent
+  // 4. Non-TTY (CI / MCP server / scripted) with NO explicit consent signal —
+  // refuse rather than silently auto-grant. Previously this path implicitly
+  // consented on the user's behalf, so an MCP server (always non-TTY) sent page
+  // data to Anthropic with no human ever in the loop. Consent must be explicit:
+  // a prior persisted consent (step 1), AUDIT_AUTO_CONSENT=1 (step 2), or
+  // --auto-consent (step 3) — all handled above. (Audit 2026-06-02 B1.)
   const isTTY = opts.isTTY ?? Boolean(process.stdin.isTTY);
   if (!isTTY) {
-    writeConsent(consentPath, "non-tty", now);
     log.warn(
       { consentPath },
-      "non-TTY environment detected; consent auto-acknowledged " +
-        "(set AUDIT_AUTO_CONSENT=1 or use --auto-consent to suppress this warning)",
+      "non-TTY environment with no consent signal; refusing. " +
+        "Set AUDIT_AUTO_CONSENT=1 (after reading PRIVACY.md) or pass --auto-consent.",
     );
-    return { agreed: true, via: "non-tty", path: consentPath };
+    throw new ConsentDeclinedError();
   }
 
   // 5. Interactive prompt
