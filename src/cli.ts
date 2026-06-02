@@ -27,6 +27,7 @@ import {
   writeGithubAnnotationsReport,
   detectCiEnvironment,
   renderGithubAnnotations,
+  resolveCiFormats,
 } from "./core/ci-reporters.js";
 import { notifySlack, notifyTelegram } from "./core/notify.js";
 import { preflightUrls } from "./core/url-preflight.js";
@@ -1603,29 +1604,6 @@ async function runCommand(opts: RunOpts): Promise<void> {
 
 function collect(value: string, prev: string[]): string[] {
   return prev.concat([value]);
-}
-
-const CI_FORMATS = ["junit", "sarif", "jsonl", "gha"] as const;
-
-/**
- * Resolve --ci-format into the set of formats to emit.
- *
- * Default ("auto" / unset): emit all four when CI is detected, none
- * otherwise — keeps developer laptop runs clean.
- * "all" / "none" / comma-separated subset are explicit overrides.
- */
-function resolveCiFormats(raw: string | undefined): Set<string> {
-  if (raw === undefined || raw === "auto") {
-    return detectCiEnvironment() ? new Set(CI_FORMATS) : new Set();
-  }
-  if (raw === "none") return new Set();
-  if (raw === "all") return new Set(CI_FORMATS);
-  const requested = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  const out = new Set<string>();
-  for (const r of requested) {
-    if ((CI_FORMATS as readonly string[]).includes(r)) out.add(r);
-  }
-  return out;
 }
 
 function parseIntOpt(value: string): number {
