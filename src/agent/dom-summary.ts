@@ -63,10 +63,31 @@ export async function extractDomSummary(
         const href = tag === "a" ? (el as HTMLAnchorElement).pathname : "";
         const id = el.id ? `#${el.id}` : "";
         const disabled = (el as HTMLButtonElement).disabled ? " [disabled]" : "";
-        const value =
+        // Redact sensitive field values before they leave the machine for the
+        // LLM. The screenshot path masks password/secret/card inputs; this text
+        // path must too, or a typed password/OTP/token/server-reflected secret
+        // leaks even with --redact-inputs on. (Audit 2026-06-02 C1.)
+        const SENSITIVE_HINT =
+          /pass|pwd|otp|2fa|mfa|cvc|cvv|card|ssn|secret|token|auth|session|\bpin\b|bearer|csrf|xsrf|credential|security[-_]?code|account[-_]?number/i;
+        const fieldName = (el.getAttribute("name") ?? "").toLowerCase();
+        const fieldAutocomplete = (el.getAttribute("autocomplete") ?? "").toLowerCase();
+        const isSensitiveField =
+          type === "password" ||
+          type === "hidden" ||
+          SENSITIVE_HINT.test(fieldName) ||
+          SENSITIVE_HINT.test((el.id ?? "").toLowerCase()) ||
+          SENSITIVE_HINT.test(fieldAutocomplete) ||
+          SENSITIVE_HINT.test(placeholder) ||
+          SENSITIVE_HINT.test(ariaLabel);
+        const rawValue =
           tag === "input" || tag === "select" || tag === "textarea"
-            ? ((el as HTMLInputElement).value ?? "").slice(0, 30)
+            ? ((el as HTMLInputElement).value ?? "")
             : "";
+        const value = !rawValue
+          ? ""
+          : isSensitiveField
+            ? "[redacted]"
+            : rawValue.slice(0, 30);
 
         const parts = [
           `<${tag}${id}`,
