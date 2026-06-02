@@ -103,7 +103,7 @@ ai-audit prune                         → pixelcheck prune
 
    ```yaml
    # GitHub Actions
-   - run: npm install pixelcheck && npx playwright install chromium
+   - run: npm install pixelcheck && npx pixelcheck install
    - run: npx pixelcheck run --project .audit --min-score 7.0
    ```
 

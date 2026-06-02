@@ -43,6 +43,12 @@ import { normaliseLocale, type Locale } from "./core/i18n.js";
 import { registerSecret } from "./core/logger.js";
 import { runDoctor, renderDoctorReport } from "./commands/doctor.js";
 import {
+  ensureHeadlessShell,
+  installFullChromium,
+  resolveHeadlessShell,
+} from "./core/browser-install.js";
+import { pixelcheckHome } from "./core/home-dir.js";
+import {
   findLatestReport,
   loadAuditReport,
   runExplain,
@@ -66,7 +72,20 @@ import { getPackageVersion } from "./core/version.js";
 // to stdout on every CLI invocation. That noise breaks any consumer that
 // parses CLI stdout (and would corrupt MCP stdio JSON-RPC frames if this
 // path were ever shared with the MCP server entry).
-dotenv.config({ quiet: true });
+//
+// Load order: the project `.env` (cwd) first, then `~/.pixelcheck/.env` as a
+// fallback. dotenv keeps the FIRST value it sees for a key and never overrides
+// a var already present in the real environment, so precedence is:
+//   shell env  >  ./.env  >  ~/.pixelcheck/.env
+// The home fallback is what lets a GLOBAL install (`npm i -g pixelcheck`) find
+// ANTHROPIC_API_KEY without a `.env` in every project directory.
+dotenv.config({
+  quiet: true,
+  path: [
+    path.join(process.cwd(), ".env"),
+    path.join(pixelcheckHome(), ".env"),
+  ],
+});
 
 // Register all known env-derived secrets with the logger redaction layer
 // before any log emission.
@@ -648,6 +667,61 @@ program
       process.exit(report.exitCode);
     },
   );
+
+// ── install command: download the browser binary pixelcheck needs ───
+
+program
+  .command("install")
+  .description(
+    "Download the browser binary pixelcheck needs (Chrome Headless Shell). " +
+      "Usually automatic via postinstall; run this if the browser is missing.",
+  )
+  .option(
+    "--headed",
+    "Also install full Chromium (only needed for `--headed` runs)",
+  )
+  .action(async (installOpts: { headed?: boolean }) => {
+    const progress = (line: string) => console.log(chalk.gray(`  ${line}`));
+    let failed = false;
+
+    const existing = resolveHeadlessShell();
+    if (existing?.present) {
+      console.log(
+        chalk.green("[OK] Chrome Headless Shell already installed."),
+      );
+    } else {
+      console.log("Installing Chrome Headless Shell ...");
+      const heal = await ensureHeadlessShell({ onProgress: progress });
+      if (heal.status === "installed" || heal.status === "already-present") {
+        console.log(chalk.green(`[OK] ${heal.message}`));
+      } else {
+        console.log(chalk.red(`[FAIL] ${heal.message}`));
+        failed = true;
+      }
+    }
+
+    if (installOpts.headed) {
+      const r = installFullChromium({ onProgress: progress });
+      if (r.status === "installed") {
+        console.log(chalk.green(`[OK] ${r.message}`));
+      } else {
+        console.log(chalk.red(`[FAIL] ${r.message}`));
+        failed = true;
+      }
+    }
+
+    console.log("");
+    if (failed) {
+      console.log(
+        chalk.yellow(
+          "Some installs failed. Re-run `pixelcheck install`, or see " +
+            "docs/INSTALLATION.md for offline / proxy setups.",
+        ),
+      );
+      process.exit(1);
+    }
+    console.log("Run `pixelcheck doctor` to verify your environment.");
+  });
 
 // ── explain command: explain audit issues ───────────────────────────
 

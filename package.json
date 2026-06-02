@@ -25,6 +25,7 @@
   ],
   "files": [
     "dist/",
+    "scripts/postinstall.mjs",
     "docs/schemas/",
     "personas/",
     "scenarios/",
@@ -46,6 +47,7 @@
   "homepage": "https://github.com/xcodethink/pixelcheck#readme",
   "scripts": {
     "build": "tsc",
+    "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "npm run build && npm test",
     "typecheck": "tsc --noEmit",
     "audit": "tsx src/cli.ts",

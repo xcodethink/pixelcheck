@@ -393,21 +393,26 @@ function checkChromiumBinary(): DoctorCheck {
         name: "Chromium binary",
         status: "warn",
         message: "Playwright did not return an executable path",
-        remedy: "Run `npx playwright install chromium` to download Chromium.",
+        remedy:
+        "Only needed for `--headed` runs — headless audits use the " +
+        "headless-shell. Install with `pixelcheck install --headed`.",
       };
     }
     if (!fs.existsSync(exe)) {
-      // Warn (not fail): browser-launching commands fail with their own
-      // helpful "install chromium" message; CLI commands like `doctor`,
-      // `list-personas`, `init`, plus MCP tools that don't launch a browser
-      // (`see` against fixture data, schema introspection) all keep working.
-      // Hard-fail here would also break first-run UX on CI runners that
-      // intentionally don't pre-install chromium (ours, for instance).
+      // SKIP, not warn: full Chromium is only needed for `--headed` runs.
+      // Every default (headless) audit uses the headless-shell, checked
+      // separately below. Surfacing this as a warning made a correctly
+      // headless-ready environment look not-fully-green and (pre-fix)
+      // pointed users at a bare `npx playwright install chromium` that pulls
+      // a DIFFERENT revision than we launch. `skip` keeps the report honest:
+      // nothing is broken for the common path.
       return {
         name: "Chromium binary",
-        status: "warn",
-        message: `Playwright executable missing: ${exe}`,
-        remedy: "Run `npx playwright install chromium` to download Chromium.",
+        status: "skip",
+        message:
+          "full Chromium not installed (only needed for `--headed` runs; " +
+          "`pixelcheck install --headed` adds it)",
+        detail: `Would launch from: ${exe}`,
       };
     }
     return {
@@ -422,8 +427,8 @@ function checkChromiumBinary(): DoctorCheck {
       status: "skip",
       message: `playwright module not loadable: ${err instanceof Error ? err.message : String(err)}`,
       remedy:
-        "If `npx pixelcheck run` later fails to launch a browser, try " +
-        "`npx playwright install chromium`.",
+        "If a later `pixelcheck run` fails to launch a browser, run " +
+        "`pixelcheck install` or `pixelcheck doctor --fix`.",
     };
   }
 }
@@ -469,15 +474,20 @@ function checkHeadlessShellBinary(): DoctorCheck {
       detail: `Path: ${info.executablePath}`,
     };
   }
+  // FAIL, not warn: every pixelcheck primitive launches
+  // `chromium.launch({ headless: true })`, so a missing headless-shell means
+  // `run` / `explore` / all MCP browser tools crash. Reporting this as a
+  // non-blocking warning (with an "audits will work" summary) was the single
+  // most misleading first-run signal — it told users everything was fine
+  // right before the first launch threw. The remedy is one command.
   return {
     name: "Headless-shell binary",
-    status: "warn",
+    status: "fail",
     message: `missing: ${info.executablePath}`,
     detail: `Playwright headless-shell v${info.revision} (${info.browserVersion || "unknown version"})`,
     remedy:
-      "Run `pixelcheck doctor --fix` to download it directly " +
-      "(bypasses Playwright's extractor, which can hang on macOS), " +
-      "or `npx playwright install chromium-headless-shell`.",
+      "Run `pixelcheck install` (or `pixelcheck doctor --fix`) to download it " +
+      "directly — bypasses Playwright's extractor, which can hang on macOS.",
   };
 }
 
@@ -508,9 +518,10 @@ export async function runDoctor(
   if (!opts.skipBrowser) {
     checks.push(checkChromiumBinary());
     let headlessCheck = checkHeadlessShellBinary();
-    // Self-heal: if --fix is set and the headless-shell binary is missing,
-    // download it directly (bypassing Playwright's extractor) and re-check.
-    if (opts.fix && headlessCheck.status === "warn") {
+    // Self-heal: if --fix is set and the headless-shell binary is missing
+    // (now a `fail`), download it directly (bypassing Playwright's extractor)
+    // and re-check.
+    if (opts.fix && headlessCheck.status === "fail") {
       const progress = opts.onFixProgress ?? (() => {});
       progress("Headless-shell missing — attempting self-heal...");
       const heal = await ensureHeadlessShell({ onProgress: progress });
@@ -589,11 +600,13 @@ export function renderDoctorReport(
     lines.push("All checks passed. You're ready to run `pixelcheck run`.");
   } else if (failCount === 0) {
     lines.push(
-      `${warnCount} warning(s); audits will work but consider the remedies above.`,
+      `${warnCount} warning(s) — review the remedies above. ` +
+        "Headless audits are ready to run.",
     );
   } else {
     lines.push(
-      `${failCount} blocking failure(s); fix the [FAIL] items above before running an audit.`,
+      `${failCount} blocking failure(s); fix the [FAIL] items above before ` +
+        "running an audit. For a missing browser, run `pixelcheck install`.",
     );
   }
   return lines;
