@@ -215,9 +215,9 @@ output viewport since v0.3.5).
 
 v1.0 ships first-party GitHub Actions workflows in `.github/workflows/`:
 
-- `ci.yml` — 12-config matrix (4 OS × 3 Node) running every PR
+- `ci.yml` — 8-config matrix (4 OS × 2 Node: 20 / 22) running every PR
 - `integration.yml` — Playwright e2e + file-lock-race on Ubuntu
-- `coverage.yml` — coverage gate (60/54/60/60)
+- `coverage.yml` — coverage gate (ADR-017 ratchet; thresholds in vitest.config.ts)
 - `sbom.yml` — CycloneDX SBOM on release tag
 
 If your fork pre-v0.3 had its own `.github/workflows/`, you'll see no

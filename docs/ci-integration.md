@@ -59,6 +59,11 @@ The CLI emits CI-friendly exit codes:
 | 0 | All scenarios pass |
 | 1 | One or more scenarios failed (critical issues or critical step failures) |
 | 2 | All scenarios passed but with warn-level issues |
+| 3 | Quality-gate regression: overall score below `--min-score` (no hard failure) |
+
+A hard scenario failure (1) takes precedence over a gate regression (3), which
+takes precedence over warnings (2). Code 3 lets CI distinguish a score
+regression from a functional failure.
 
 GitHub Actions will mark the job as failed for non-zero codes. You may want to allow exit code 2 to pass (warning-only) in your workflow:
 

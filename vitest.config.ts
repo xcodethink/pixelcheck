@@ -99,10 +99,19 @@ export default defineConfig({
         //     (agent-loop +8 tests for criterion verification dispatcher /
         //      screenshot catch / micro-replan escalate; agent-loop 77.35→88.46%;
         //      vendor exclude per ADR-032 keeps coverage signal focused)
-        statements: 66,
-        branches: 60,
-        functions: 66,
-        lines: 66,
+        //   Audit 2026-06-02 (D6-M1/M2): the floor had drifted to ~13-15pts
+        //     below the actual baseline (79.1 / 67.64 / 80.67 / 80.59), so a
+        //     large regression wouldn't trip it — defeating the gate. Re-set
+        //     to ~5pts below actual, restoring ADR-017's "a few points below"
+        //     intent (catches a real regression; still absorbs local/CI variance).
+        //   Audit 2026-06-02 G3 (MCP-tool + observer + benchmark tests): MCP
+        //     tools 5-10%→20-94%, observer dashboards/doctor 0/22%→100%,
+        //     get_last_report/see→94%. Baseline rose to 81.1 / 69.8 / 82.86 /
+        //     82.67; ratchet the floor +2 (keeping the same ~5-6pt gap).
+        statements: 76,
+        branches: 64,
+        functions: 77,
+        lines: 77,
       },
     },
   },

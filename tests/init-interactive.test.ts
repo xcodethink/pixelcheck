@@ -10,11 +10,30 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { parse as parseYaml } from "yaml";
 import {
   runInitInteractive,
   sampleSmokeScenarioYaml,
   writeSampleScenario,
 } from "../src/commands/init-interactive.js";
+import { ScenarioSchema } from "../src/core/types.js";
+
+describe("sampleSmokeScenarioYaml is a schema-valid scenario (Audit 2026-06-02 H1)", () => {
+  it("parses cleanly through ScenarioSchema — the guided first-run must not be broken", () => {
+    const yaml = sampleSmokeScenarioYaml("https://example.com");
+    const parsed = parseYaml(yaml);
+    // Previously used a non-existent `see` step + omitted step ids/applies_to,
+    // so `pixelcheck run` failed Zod parse on the first guided run.
+    expect(() => ScenarioSchema.parse(parsed)).not.toThrow();
+    const scenario = ScenarioSchema.parse(parsed);
+    expect(scenario.steps.length).toBeGreaterThan(0);
+    // every step has an id + a real step type (no `see`)
+    for (const s of scenario.steps) {
+      expect(s.id).toBeTruthy();
+      expect(s.type).not.toBe("see");
+    }
+  });
+});
 
 let tmpRoot: string;
 
@@ -124,7 +143,11 @@ describe("sampleSmokeScenarioYaml", () => {
     expect(yaml).toContain("url: https://example.com");
     expect(yaml).toContain("type: assert_a11y");
     expect(yaml).toContain("standard: wcag22aa");
-    expect(yaml).toContain("type: see");
+    // assert_visual (a real scenario step), NOT the bogus `see` MCP primitive
+    expect(yaml).toContain("type: assert_visual");
+    expect(yaml).not.toContain("type: see");
+    expect(yaml).toContain("applies_to:");
+    expect(yaml).toContain("scoring_dimensions:");
   });
 
   it("interpolates the supplied baseUrl into the visit step", () => {

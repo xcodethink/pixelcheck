@@ -236,7 +236,7 @@ export function buildVisualScoring(args: {
       location: f.location,
       recommendation: f.recommendation,
     })),
-    overall_score: computeOverallScore(args.raw.verdicts),
+    overall_score: computeOverallScore(args.raw.verdicts, args.criteria.length),
     summary: args.raw.summary,
     model: args.model,
     cost_usd: args.raw.costUsd,

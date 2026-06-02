@@ -66,8 +66,13 @@ export class AgentEventBus extends EventEmitter {
   private _sequence = 0;
   private _paused = false;
   private _takeover = false;
-  private _pauseResolve: (() => void) | null = null;
-  private _takeoverResolve: (() => void) | null = null;
+  // Multiple loop checkpoints can await the same pause/takeover gate
+  // concurrently (e.g. agent loop + a sub-task both at a checkpoint), so
+  // we hold every waiter, not just the last one. A single-slot resolver
+  // would orphan all but the most-recent waiter on resume — a permanent
+  // hang (D2-M1).
+  private _pauseResolvers: Array<() => void> = [];
+  private _takeoverResolvers: Array<() => void> = [];
 
   constructor(public readonly sessionId: string) {
     super();
@@ -112,10 +117,12 @@ export class AgentEventBus extends EventEmitter {
     if (!this._paused) return;
     this._paused = false;
     this.emitEvent("pause:resumed");
-    // Atomic swap: grab resolve before nulling to avoid race with waitIfPaused()
-    const resolve = this._pauseResolve;
-    this._pauseResolve = null;
-    if (resolve) resolve();
+    // Atomic swap: snapshot then clear before resolving so every pending
+    // waiter is released and a resolver that re-enters waitIfPaused()
+    // can't be dropped.
+    const resolvers = this._pauseResolvers;
+    this._pauseResolvers = [];
+    for (const resolve of resolvers) resolve();
   }
 
   /**
@@ -124,7 +131,7 @@ export class AgentEventBus extends EventEmitter {
   async waitIfPaused(): Promise<void> {
     if (!this._paused) return;
     return new Promise<void>((resolve) => {
-      this._pauseResolve = resolve;
+      this._pauseResolvers.push(resolve);
     });
   }
 
@@ -150,10 +157,11 @@ export class AgentEventBus extends EventEmitter {
     if (!this._takeover) return;
     this._takeover = false;
     this.emitEvent("takeover:end");
-    // Atomic swap: grab resolve before nulling to avoid race
-    const resolve = this._takeoverResolve;
-    this._takeoverResolve = null;
-    if (resolve) resolve();
+    // Atomic swap: snapshot then clear before resolving so every pending
+    // waiter is released (see resume() for the single-resolver hazard).
+    const resolvers = this._takeoverResolvers;
+    this._takeoverResolvers = [];
+    for (const resolve of resolvers) resolve();
   }
 
   /**
@@ -162,7 +170,7 @@ export class AgentEventBus extends EventEmitter {
   async waitForTakeoverEnd(): Promise<void> {
     if (!this._takeover) return;
     return new Promise<void>((resolve) => {
-      this._takeoverResolve = resolve;
+      this._takeoverResolvers.push(resolve);
     });
   }
 

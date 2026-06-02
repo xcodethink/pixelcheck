@@ -120,4 +120,71 @@ Ledger + status aggregation + primitive cost contracts have real bugs.
 **Wave 5 — UX/own-a11y:** H1 (broken init), H2-H5, H6 (own-a11y), H7-H9.
 
 Each wave: fix → add regression test (close the matching blind spot) → local CI green. Then one local full closed-loop, then publish.
+
+---
+
+## Remediation status (updated 2026-06-02)
+
+All fixes shipped with regression tests + local closed-loop (tsc clean,
+lint 0 problems, full suite 2222 passed, coverage gate green).
+
+- **PR #43** (`audit-2026-06-02-hardening`): OPS-0 (key rotation — Wayne),
+  A1-A4, B1-B3, C1-C4, D1-D3, E1-E2, F1, F2, G2.
+- **PR #44** (`audit-w5-followups`, stacked on #43): H1, H2, C2-gap, E3, E4,
+  E5 — then this session: **D4, D5, D6, D7, D8, E6, E7, E8, E9, H3, H4, H5,
+  H6, H7, H8, H9**; G2-tail (all 35 lint warnings cleared); G3-partial
+  (coverage floor 66/60/66/66 → 74/62/75/75, ~5pts under actual per
+  ADR-017); **F3** (release.yml — needs one-time NPM_TOKEN secret); doctor
+  test-isolation flake fixed (browsersRoot honors PLAYWRIGHT_BROWSERS_PATH
+  first).
+
+### Tech-debt sweep (2026-06-02, stacked on #44 — F4-F7 / G3 / G4)
+- **F4** vendored stealth-core: added LICENSE + PROVENANCE.md + committed
+  SHA-256 `integrity.json`; new `check:vendor-integrity` runs on every CI
+  runner (the canonical-diff check stays maintainer-local) + disclosed in
+  THIRD_PARTY_LICENSES.md. Regression test for tamper/extra/missing.
+- **F5** shipped custom-handler example ported `.ts` → self-contained `.js`
+  (no `../../src` dangling import; loads via dynamic import in an installed
+  pkg). Doc + regression test updated.
+- **F6** `engines.node` `>=18` → `>=20` (toolchain truth); purged stale
+  Node-18 / test-count / coverage-gate-name / "12-config" claims across
+  README-adjacent docs + ci.yml comments; coverage-gate job name genericized
+  so it can't drift; regression test locks engines/CI-matrix agreement.
+- **F7** no-console gate ported `bash` `.sh` → cross-platform `tsx` `.ts`
+  (npm test / prepublishOnly no longer need bash); regression test.
+- **G3 (rest)** added MCP-tool + observer + benchmark unit tests: MCP tools
+  5-10% → 20-94%, observer dashboards / doctor 0/22% → 100%, get_last_report
+  (B3 sandbox) / see → 94%, benchmark executor 0% → taskToScenario covered,
+  + a cross-tool SSRF regression (B2) over all 8 URL tools. Global coverage
+  79.1/67.6/80.7/80.6 → 81.1/69.8/82.9/82.7; floor ratcheted 74/62/75/75 →
+  76/64/77/77 (ADR-017). Remaining low: observer/server + screencast
+  (http/CDP — need integration mocking, diminishing returns).
+- **G4** documented the 17 LOW advisories honestly (single root cause
+  @ai-sdk/provider-utils) + dev-only moderate (brace-expansion) in
+  SECURITY.md; fixed the false "0 vulnerabilities" CI comment; clarified
+  windows-latest non-blocking + bench/dogfood observation in docs;
+  regression test locks the wording.
+
+### G1 branch protection — partially applied (2026-06-02, Wayne approved "best practice")
+- **Done now (non-disruptive, pure upside):** `main` protection enabled via
+  `gh api PUT .../branches/main/protection` — `enforce_admins=true`,
+  `allow_force_pushes=false`, `allow_deletions=false`. History-destroying ops
+  are blocked for everyone incl. admins; normal pushes/merges/PRs (and the
+  #43/#44 merge train) are unaffected.
+- **Deferred to AFTER #43/#44 merge:** required status checks + required PR
+  reviews. The check contexts (`Test (ubuntu-latest · Node 20)` + 7 others,
+  `Playwright integration (real chromium)`, `Coverage gate (ADR-017 ratchet)`)
+  only become selectable once those workflows have run on `main`, and adding
+  them now could block the in-flight stacked PRs. Follow-up once merged:
+  ```
+  gh api -X PUT repos/xcodethink/pixelcheck/branches/main/protection --input - <<'JSON'
+  { "required_status_checks": { "strict": true,
+      "contexts": ["Test (ubuntu-latest · Node 20)", "Playwright integration (real chromium)", "Coverage gate (ADR-017 ratchet)"] },
+    "enforce_admins": true,
+    "required_pull_request_reviews": { "required_approving_review_count": 0 },
+    "restrictions": null, "allow_force_pushes": false, "allow_deletions": false }
+  JSON
+  ```
+  (solo repo: `required_approving_review_count: 0` keeps PR flow without a
+  second-reviewer deadlock; raise it if/when more maintainers join.)
 </content>

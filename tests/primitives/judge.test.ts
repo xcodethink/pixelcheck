@@ -321,6 +321,27 @@ describe("judge — computeOverallScore", () => {
     ];
     expect(computeOverallScore(v)).toBeCloseTo(7.23, 2);
   });
+
+  it("does not let a missing verdict inflate the score (E6)", () => {
+    // 3 criteria were expected, but the model only returned 2 (both high).
+    // Averaging over the 2 present would read 8.0; scaling to the full
+    // rubric treats the omitted criterion as 0 → 16/3 = 5.33.
+    const v = [
+      { criterion_id: "a", score: 8, rationale: "", evidence: [] },
+      { criterion_id: "b", score: 8, rationale: "", evidence: [] },
+    ];
+    expect(computeOverallScore(v)).toBeCloseTo(8.0, 2); // legacy (no count)
+    expect(computeOverallScore(v, 3)).toBeCloseTo(5.33, 2); // scaled to rubric
+  });
+
+  it("never divides by less than the verdicts present", () => {
+    const v = [
+      { criterion_id: "a", score: 6, rationale: "", evidence: [] },
+      { criterion_id: "b", score: 8, rationale: "", evidence: [] },
+    ];
+    // A bogus tiny criteriaCount must not over-inflate by shrinking denom.
+    expect(computeOverallScore(v, 1)).toBeCloseTo(7.0, 2);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -559,7 +580,7 @@ describe("judge — schema field plumbing via _see + _callVision", () => {
     expect(r.cost_usd).toBeCloseTo(0.003, 5);
   });
 
-  it("overall_score is mean of returned verdicts", async () => {
+  it("overall_score scales partial verdicts to the full rubric (E6)", async () => {
     const screenshotPath = path.join(workspace, "ss.png");
     const mock = JSON.stringify({
       verdicts: [
@@ -575,7 +596,9 @@ describe("judge — schema field plumbing via _see + _callVision", () => {
       _see: fakeSee({ screenshot_path: screenshotPath }),
       _callVision: visionStub(mock),
     });
-    expect(r.overall_score).toBe(7);
+    // Only 2 of the aesthetic rubric's criteria were scored; the rest count
+    // as 0 so an incomplete judgment can't inflate the headline score.
+    expect(r.overall_score).toBeCloseTo(14 / AESTHETIC_CRITERIA.length, 2);
   });
 
   // ── PR-D / ADR-034 — diagnostics.visual mirror ───────────────
@@ -615,7 +638,12 @@ describe("judge — schema field plumbing via _see + _callVision", () => {
     expect(r.diagnostics?.visual?.verdicts[0]?.kind).toBe("aesthetic");
     expect(r.diagnostics?.visual?.findings).toHaveLength(1);
     expect(r.diagnostics?.visual?.summary).toBe("Strong layout overall.");
-    expect(r.diagnostics?.visual?.overall_score).toBe(9);
+    // One verdict (score 9) over the full aesthetic rubric — scaled down so a
+    // single returned verdict can't read as a perfect overall score (E6).
+    expect(r.diagnostics?.visual?.overall_score).toBeCloseTo(
+      9 / AESTHETIC_CRITERIA.length,
+      2,
+    );
   });
 
   it("emits a vision_error diagnostics.visual envelope when status='error' (PR-D)", async () => {

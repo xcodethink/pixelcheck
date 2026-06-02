@@ -113,12 +113,21 @@ function readHeadlessShellEntry(): BrowsersJsonEntry | null {
 }
 
 /**
- * Locate the ms-playwright browser cache root. Prefer deriving it from the
- * full-Chromium executable path Playwright already resolves (honors any
- * custom PLAYWRIGHT_BROWSERS_PATH and node_modules layout); fall back to the
- * documented per-OS default.
+ * Locate the ms-playwright browser cache root.
+ *
+ * An explicit `PLAYWRIGHT_BROWSERS_PATH` is the authoritative override per
+ * Playwright's contract, so it wins outright (the `"0"` sentinel means
+ * "browsers live in node_modules" — defer to executablePath() for that).
+ * Checking it FIRST also keeps the resolution honest within a single
+ * process: `pw.chromium.executablePath()` is resolved + cached by Playwright
+ * at first use, so it would otherwise ignore a later env change (the source
+ * of a doctor test-isolation flake). When the env var is unset we derive the
+ * root from the full-Chromium executable path Playwright resolves (honors the
+ * node_modules layout); failing that, the documented per-OS default.
  */
 function browsersRoot(): string {
+  const envPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (envPath && envPath !== "0") return envPath;
   try {
     const pw = esmRequire("playwright") as {
       chromium: { executablePath?: () => string };
@@ -129,10 +138,8 @@ function browsersRoot(): string {
       if (m && m[1]) return m[1];
     }
   } catch {
-    // fall through to env / per-OS default
+    // fall through to per-OS default
   }
-  const envPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
-  if (envPath && envPath !== "0") return envPath;
   const home = os.homedir();
   if (process.platform === "darwin") {
     return path.join(home, "Library", "Caches", "ms-playwright");

@@ -120,7 +120,6 @@ export class ErrorSignalCollector {
     this._page.on("console", this._onConsole);
     this._page.on("pageerror", this._onPageError);
     this._page.on("requestfailed", this._onRequestFailed);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this._page.on("response", this._onResponse as any);
   }
 
@@ -130,7 +129,6 @@ export class ErrorSignalCollector {
     this._page.off("console", this._onConsole);
     this._page.off("pageerror", this._onPageError);
     this._page.off("requestfailed", this._onRequestFailed);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this._page.off("response", this._onResponse as any);
   }
 

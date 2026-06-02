@@ -152,7 +152,7 @@ export async function waitForMessage(
         // Fetch full content
         return await getMessage(inbox, match.id);
       }
-    } catch (err) {
+    } catch {
       // Network glitch — keep polling
     }
     await new Promise((r) => setTimeout(r, 3000));
