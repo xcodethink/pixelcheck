@@ -36,7 +36,7 @@ export async function executeBenchmarkTask(
   const eventBus = new AgentEventBus(`bench_${task.task_id}`);
   const stripeSecrets = getStripeSecrets();
   const cost = { value: 0 };
-  let convergenceReason = "error";
+  let convergenceReason: string;
   let finalAnswer: string | undefined;
   let wrapper: Awaited<ReturnType<typeof createStagehandWrapper>> | undefined;
 

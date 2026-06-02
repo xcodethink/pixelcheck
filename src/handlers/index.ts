@@ -57,7 +57,7 @@ export async function executeStep(
   ctx: StepContext,
 ): Promise<StepResult> {
   const startedAt = Date.now();
-  let result: Partial<StepResult> = {};
+  let result: Partial<StepResult>;
   let retriesUsed = 0;
   const consoleErrors: ConsoleError[] = [];
 
