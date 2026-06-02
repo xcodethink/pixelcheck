@@ -593,11 +593,13 @@ export function parseCompareRawJson(
     if (!allowedIds.has(id)) continue;
     const w = typeof o.winner === "string" ? o.winner : "";
     if (!allowedWinners.has(w as CompareWinner)) continue;
+    const scoreA = clampScoreOrNull(o.score_a);
+    const scoreB = clampScoreOrNull(o.score_b);
     perCriterion.push({
       criterion_id: id,
-      score_a: clampScoreOrNull(o.score_a),
-      score_b: clampScoreOrNull(o.score_b),
-      winner: w as CompareWinner,
+      score_a: scoreA,
+      score_b: scoreB,
+      winner: reconcileWinner(scoreA, scoreB, w as CompareWinner),
       rationale: typeof o.rationale === "string" ? o.rationale : "",
     });
   }
@@ -610,6 +612,27 @@ export function parseCompareRawJson(
   const summary = typeof obj.summary === "string" && obj.summary.length > 0 ? obj.summary : null;
 
   return { perCriterion, overallWinner, summary };
+}
+
+/**
+ * Reconcile a stated per-criterion winner against its numeric scores.
+ *
+ * When both side scores are present they are the objective signal — a stated
+ * winner that contradicts them is a model self-inconsistency (e.g. it labels
+ * "a" the winner while scoring a:3 b:8). Derive the winner from the scores so
+ * the verdict is internally coherent. When a score is missing (fast mode can
+ * emit labels only) there's nothing to cross-check against, so keep the
+ * stated label. (Audit 2026-06-02 E6/D3-M3.)
+ */
+function reconcileWinner(
+  scoreA: number | null,
+  scoreB: number | null,
+  stated: CompareWinner,
+): CompareWinner {
+  if (scoreA === null || scoreB === null) return stated;
+  if (scoreA > scoreB) return "a";
+  if (scoreB > scoreA) return "b";
+  return "tie";
 }
 
 function clampScoreOrNull(v: unknown): number | null {
