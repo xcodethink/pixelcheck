@@ -104,10 +104,14 @@ export default defineConfig({
         //     large regression wouldn't trip it — defeating the gate. Re-set
         //     to ~5pts below actual, restoring ADR-017's "a few points below"
         //     intent (catches a real regression; still absorbs local/CI variance).
-        statements: 74,
-        branches: 62,
-        functions: 75,
-        lines: 75,
+        //   Audit 2026-06-02 G3 (MCP-tool + observer + benchmark tests): MCP
+        //     tools 5-10%→20-94%, observer dashboards/doctor 0/22%→100%,
+        //     get_last_report/see→94%. Baseline rose to 81.1 / 69.8 / 82.86 /
+        //     82.67; ratchet the floor +2 (keeping the same ~5-6pt gap).
+        statements: 76,
+        branches: 64,
+        functions: 77,
+        lines: 77,
       },
     },
   },
