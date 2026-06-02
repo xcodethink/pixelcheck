@@ -75,23 +75,26 @@ describe("observer HTTP/WS server (G3 follow-up)", () => {
     expect((await fetch(`${base}/api/state`)).status).toBe(401);
   });
 
-  it("serves the exact-match data routes when authed via Authorization header", async () => {
-    // NOTE: /api/state, /api/events, /api/timeline are matched with `url ===`,
-    // which includes the query string — so they only resolve when there is NO
-    // query (i.e. token supplied via the Authorization header, not ?token=).
-    // The query-bearing routes below use startsWith and accept ?token=.
-    // (Flagged as a server routing quirk; not changed here — test task.)
-    const hdr = { headers: { authorization: `Bearer ${token}` } };
-    for (const route of ["/api/state", "/api/events", "/api/timeline"]) {
-      expect((await fetch(`${base}${route}`, hdr)).status, route).toBe(200);
+  it("serves all data routes with ?token= (routing matches on pathname)", async () => {
+    // Routes match on the pathname, so the query string (?token=) no longer
+    // breaks the exact-match routes — they resolve the same as the
+    // startsWith ones. (Regression guard for the audit routing fix.)
+    for (const route of [
+      "/api/state",
+      "/api/events",
+      "/api/timeline",
+      "/api/events/all?start=0",
+      "/api/screenshot?seq=0",
+    ]) {
+      const sep = route.includes("?") ? "&" : "?";
+      const res = await fetch(`${base}${route}${sep}token=${token}`);
+      expect(res.status, route).toBe(200);
     }
   });
 
-  it("serves the query-bearing data routes with ?token=", async () => {
-    for (const route of ["/api/events/all?start=0", "/api/screenshot?seq=0"]) {
-      const res = await fetch(`${base}${route}&token=${token}`);
-      expect(res.status, route).toBe(200);
-    }
+  it("also accepts the Authorization: Bearer header", async () => {
+    const hdr = { headers: { authorization: `Bearer ${token}` } };
+    expect((await fetch(`${base}/api/state`, hdr)).status).toBe(200);
   });
 
   it("404s unknown routes", async () => {
