@@ -312,6 +312,11 @@ protection rules enabled (configure once when forking):
   - `Test (ubuntu-latest · Node 20)` (and 7 other matrix configs from `ci.yml`)
   - `Playwright integration (real chromium)` from `integration.yml`
   - `Coverage gate (ADR-017 ratchet)` from `coverage.yml`
+- **Observation-only (do NOT require as gates)**: the `windows-latest`
+  matrix configs run with `continue-on-error` (non-blocking — see
+  [docs/INSTALLATION.md](docs/INSTALLATION.md) Tier-1 note), and the
+  `bench.yml` (perf) + `dogfood.yml` workflows run in observation mode by
+  design. They surface signal but must not block merges.
 - ✅ Require conversation resolution before merging
 - ✅ Do not allow bypassing the above settings
 - ❌ Allow force pushes — keep this OFF on main
