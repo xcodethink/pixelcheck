@@ -8,8 +8,9 @@
  *   - No scenario YAML
  *   - No persona file required (persona hints are optional)
  *   - No reporter / SPA / history pipeline
- *   - 0 LLM cost when `goal` is omitted
- *   - One vision call when `goal` is provided
+ *   - 0 LLM cost when `goal` is omitted (snapshot only; result is cacheable)
+ *   - When `goal` is provided: the goal vision call, plus a lightweight
+ *     visual-state / key-elements vision call (gated on `goal`, see below)
  *
  * Architectural note: this primitive deliberately bypasses Stagehand and the
  * runner. It uses raw Playwright. Stagehand's init cost (~3-5 s + LLM-bound
@@ -398,9 +399,14 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
         costUsd += noteResult.costUsd;
       }
 
-      // Visual state + key elements detection (lightweight, no extra API call
-      // when goal is set — reuse the screenshot already in memory).
-      if (buf && !opts._open) {
+      // Visual state + key-elements detection. This makes its OWN vision call,
+      // so it must only run when a goal is set — otherwise a goal-less `see`
+      // (documented as 0 LLM cost, and snapshot-cacheable) would silently pay
+      // for a Sonnet call on every snapshot. Gating on goal restores the
+      // "0 cost without goal" contract and the goal-less cache. (Audit 2026-06-02 E1.)
+      const hasGoalForVisualState =
+        typeof opts.goal === "string" && opts.goal.length > 0;
+      if (buf && !opts._open && hasGoalForVisualState) {
         try {
           const vsResult = await detectVisualState({
             buf,

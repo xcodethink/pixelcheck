@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+/* eslint-disable no-console -- CLI output layer: console IS the user-facing
+   product here, not a stray debug leak. Library code (src/core, src/agent)
+   keeps no-console as an error and routes through the logger. (Audit G2) */
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";

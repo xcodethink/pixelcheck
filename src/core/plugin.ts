@@ -130,7 +130,7 @@ async function runHook(
     const fn = plugin[hookName];
     if (typeof fn === "function") {
       try {
-        await (fn as Function).apply(plugin, args);
+        await (fn as (...a: unknown[]) => unknown).apply(plugin, args);
       } catch (err) {
         log.error(
           { plugin: plugin.name, hook: hookName, err: (err as Error).message },

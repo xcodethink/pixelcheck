@@ -57,7 +57,7 @@ export async function executeStep(
   ctx: StepContext,
 ): Promise<StepResult> {
   const startedAt = Date.now();
-  let result: Partial<StepResult> = {};
+  let result: Partial<StepResult>;
   let retriesUsed = 0;
   const consoleErrors: ConsoleError[] = [];
 
@@ -799,6 +799,7 @@ async function handleCustom(
       `Custom handler ${handlerPath} failed: ${
         err instanceof Error ? err.message : String(err)
       }`,
+      { cause: err },
     );
   }
 }
