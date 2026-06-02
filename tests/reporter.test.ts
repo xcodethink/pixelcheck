@@ -234,6 +234,29 @@ describe("writeMarkdownSummary", () => {
     expect(md).toContain("| visual_polish | 7.5 |");
   });
 
+  it("escapes pipes / backticks / newlines so audit-derived text can't corrupt tables (H9)", () => {
+    const audit = mkAudit();
+    audit.results[0] = makeUnit({
+      scenario_name: "Check|out",
+      scores: [{ dimension: "a|b", score: 5, justification: "" }],
+      issues: [
+        {
+          severity: "high",
+          description: "broke on `code` and a | pipe\nsecond line",
+          recommendation: "fix | it",
+        },
+      ],
+    });
+    const md = fs.readFileSync(writeMarkdownSummary(audit, tmp), "utf8");
+    // The dimension cell pipe is escaped, keeping the table 2-column.
+    expect(md).toContain("| a\\|b | 5.0 |");
+    // Raw unescaped pipes from audit content must not appear in the issue line.
+    expect(md).toContain("broke on \\`code\\` and a \\| pipe second line");
+    expect(md).toContain("Recommendation: fix \\| it");
+    // Heading pipe escaped too.
+    expect(md).toContain("Check\\|out");
+  });
+
   it("omits the dimension table when scores are empty", () => {
     const audit = mkAudit();
     audit.results[0]!.scores = [];

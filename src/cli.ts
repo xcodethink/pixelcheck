@@ -1051,7 +1051,7 @@ program
       tag: opts.tag,
       execute: executeBenchmarkTask,
       onTaskComplete: (r) => {
-        const marker = r.passed ? chalk.green("✓") : chalk.red("✗");
+        const marker = r.passed ? chalk.green("[OK]") : chalk.red("[FAIL]");
         console.log(
           `  ${marker} ${r.task_id}  $${r.cost_usd.toFixed(3)}  ${r.duration_ms}ms  ${r.convergence_reason}`,
         );
@@ -1097,7 +1097,10 @@ program
       tag: opts.tag,
       outputDir: outDir,
       onSampleComplete: (s) => {
-        const marker = s.agreement_rate === 1 && s.issue_check.passed ? chalk.green("✓") : chalk.yellow("~");
+        const marker =
+          s.agreement_rate === 1 && s.issue_check.passed
+            ? chalk.green("[OK]")
+            : chalk.yellow("[WARN]");
         console.log(
           `  ${marker} ${s.sample_id}  agreement=${(s.agreement_rate * 100).toFixed(0)}%  max_dist=${s.max_distance.toFixed(1)}  $${s.cost_usd.toFixed(3)}`,
         );
