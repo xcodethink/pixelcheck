@@ -63,7 +63,7 @@ export async function compressForVision(input: Buffer): Promise<CompressedImage>
     };
   }
 
-  let sharpMod: typeof import("sharp") | null = null;
+  let sharpMod: typeof import("sharp") | null;
   try {
     sharpMod = (await import("sharp")) as unknown as typeof import("sharp");
   } catch {

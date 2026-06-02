@@ -85,6 +85,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Lint (eslint)
+        # ESLint was configured but never enforced in CI (Audit 2026-06-02 G2).
+        # Run once on Ubuntu x Node 20 — lint results are platform-independent.
+        # Fails on errors; the no-console policy allows the CLI output layer.
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        run: npm run lint
+
       - name: Unit tests (vitest)
         run: npm test
 

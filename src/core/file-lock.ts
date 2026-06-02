@@ -163,7 +163,7 @@ export async function withFileLock<T>(
   const staleAfterMs = opts.staleAfterMs ?? 30_000;
   const start = now();
   let backoff = 5;
-  let lastHolder: LockHolder | null = null;
+  let lastHolder: LockHolder | null;
 
   while (true) {
     if (tryAcquire(lockPath)) break;
