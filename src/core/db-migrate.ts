@@ -147,7 +147,7 @@ export function runMigrations(
       }
       const desc = m.description ? ` (${m.description})` : "";
       const msg = e instanceof Error ? e.message : String(e);
-      throw new Error(`migration v${m.version}${desc} failed: ${msg}`);
+      throw new Error(`migration v${m.version}${desc} failed: ${msg}`, { cause: e });
     }
   }
   return { applied, finalVersion: target };
