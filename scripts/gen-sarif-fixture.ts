@@ -97,6 +97,15 @@ const audit: AuditRun = {
 };
 
 const sarif = renderSarif(audit);
+// Neutralize the tool driver version (mirrors package.json) to a stable
+// sentinel so the committed fixture doesn't need a re-pin every release. The
+// matching test (wcag-axe.test.ts) normalizes the generated SARIF the same
+// way before comparing. The SARIF schema version (top-level) is untouched.
+const driver = (sarif as { runs?: Array<{ tool?: { driver?: { version?: string } } }> })
+  .runs?.[0]?.tool?.driver;
+if (driver && typeof driver.version === "string") {
+  driver.version = "0.0.0-fixture";
+}
 const out = path.join(process.cwd(), "docs/integration/fixture-sarif.json");
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(sarif, null, 2));
