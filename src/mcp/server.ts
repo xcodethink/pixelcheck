@@ -28,6 +28,7 @@
  *   - list_capabilities (meta)      — self-describe the MCP server (M9-5)
  *   - calibrate_critic  (meta)      — run the critic calibration gate
  *   - get_last_report   (meta)      — read the most recent audit summary
+ *   - doctor            (meta)      — diagnose / self-heal the environment
  *
  * Adding a new tool: drop a file under `src/mcp/tools/<name>.ts` exporting
  * a `ToolDefinition`, then push it into the `ALL_TOOLS` array below.
@@ -69,6 +70,7 @@ import { listScenariosTool } from "./tools/list-scenarios.js";
 import { listCapabilitiesTool } from "./tools/list-capabilities.js";
 import { calibrateCriticTool } from "./tools/calibrate-critic.js";
 import { getLastReportTool } from "./tools/get-last-report.js";
+import { doctorTool } from "./tools/doctor.js";
 
 const log = getLogger("mcp.server");
 
@@ -96,6 +98,7 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   listCapabilitiesTool,
   calibrateCriticTool,
   getLastReportTool,
+  doctorTool,
 ];
 
 /** Build a fresh registry containing every shipped tool. */
