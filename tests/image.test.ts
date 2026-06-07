@@ -7,7 +7,7 @@
 import { describe, it, expect } from "vitest";
 import * as crypto from "node:crypto";
 import sharp from "sharp";
-import { compressForVision } from "../src/core/image.js";
+import { compressForVision, compressForVisionMulti } from "../src/core/image.js";
 
 async function makePng(width: number, height: number): Promise<Buffer> {
   return sharp({
@@ -108,6 +108,63 @@ describe("compressForVision — large inputs", () => {
     expect(out.width!).toBeLessThanOrEqual(1500);
     expect(out.height!).toBeLessThanOrEqual(1500);
   }, 30_000);
+});
+
+/**
+ * Regression for 2026-06-07: a 1280×8587 full-page PNG that was only 1.47 MB
+ * slipped past the byte-only bypass and 400'd the vision API with
+ * "image dimensions exceed max allowed size: 8000 pixels". A small-byte but
+ * over-8000px image must now be resized, not sent as-is.
+ */
+describe("compressForVision — tall-page hard-limit guard (8000px)", () => {
+  it("does NOT bypass a small-byte PNG taller than 8000px; clamps long edge", async () => {
+    const tall = await makePng(1280, 8587); // uniform color → compresses tiny
+    expect(tall.length).toBeLessThan(2_500_000); // would have hit the old bypass
+    const out = await compressForVision(tall);
+    // Must have been resized (bypass leaves width/height undefined).
+    expect(out.width).toBeDefined();
+    expect(out.height).toBeDefined();
+    const longEdge = Math.max(out.width!, out.height!);
+    expect(longEdge).toBeLessThanOrEqual(1568);
+    // And the actual emitted bytes decode to dimensions under the hard limit.
+    const meta = await sharp(Buffer.from(out.base64, "base64")).metadata();
+    expect(Math.max(meta.width ?? 0, meta.height ?? 0)).toBeLessThanOrEqual(8000);
+  }, 30_000);
+
+  it("still bypasses a small PNG within dimension limits", async () => {
+    const small = await makePng(800, 600);
+    const out = await compressForVision(small);
+    expect(out.bytes).toBe(small.length); // untouched
+    expect(out.width).toBeUndefined();
+  });
+});
+
+describe("compressForVisionMulti — tall-page slicing", () => {
+  it("returns a single image for a short page", async () => {
+    const short = await makePng(1280, 800);
+    const out = await compressForVisionMulti(short);
+    expect(out).toHaveLength(1);
+  });
+
+  it("returns thumbnail + slices for a very tall page, each API-safe", async () => {
+    const tall = await sharp(noiseRgb(1280, 8600), {
+      raw: { width: 1280, height: 8600, channels: 3 },
+    })
+      .png({ compressionLevel: 6 })
+      .toBuffer();
+
+    const out = await compressForVisionMulti(tall);
+    // 1 thumbnail + multiple native-resolution slices.
+    expect(out.length).toBeGreaterThan(1);
+    expect(out.length).toBeLessThanOrEqual(1 + 8); // thumbnail + MAX_SLICES
+
+    for (const img of out) {
+      expect(img.bytes).toBeLessThanOrEqual(5_000_000);
+      const meta = await sharp(Buffer.from(img.base64, "base64")).metadata();
+      expect(meta.width ?? 0).toBeLessThanOrEqual(8000);
+      expect(meta.height ?? 0).toBeLessThanOrEqual(8000);
+    }
+  }, 60_000);
 });
 
 describe("compressForVision — base64 round-trip", () => {
