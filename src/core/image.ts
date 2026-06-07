@@ -198,6 +198,22 @@ const SLICE_TRIGGER_HEIGHT = Math.round(SLICE_HEIGHT * 1.2);
  * This is the correct input for rubric scoring (`runJudgeVision`); a single
  * downscaled image of an 8000 px page is illegible and scores inaccurately.
  */
+/**
+ * Appended to an otherwise single-image vision prompt when the page was tall
+ * enough that `compressForVisionMulti` returned a thumbnail + slices. Keeps the
+ * model from treating "the screenshot" as one frame and from double-counting
+ * content that appears in the slice overlap. (The `judge` primitive builds its
+ * own richer variant inline; this is the shared note for the simpler
+ * note / diagnose vision calls.)
+ */
+export const MULTI_IMAGE_PROMPT_NOTE =
+  "\n\nThis page is too tall to capture in one legible image, so it is provided " +
+  "as MULTIPLE images: the FIRST is a low-resolution full-page thumbnail for " +
+  "macro context (do NOT read fine text from it); the REMAINING images are " +
+  "high-resolution vertical slices from top to bottom (~20% overlap — read " +
+  "exact text only from these). Treat them as one continuous page and do not " +
+  "double-count content that appears in the overlap between slices.";
+
 export async function compressForVisionMulti(
   input: Buffer,
 ): Promise<CompressedImage[]> {
