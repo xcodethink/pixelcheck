@@ -226,15 +226,14 @@ export async function compressForVisionMulti(
   const sharp =
     (sharpMod as unknown as { default?: typeof import("sharp") }).default ?? sharpMod;
 
-  let width = 0;
-  let height = 0;
+  let meta: Awaited<ReturnType<ReturnType<typeof sharp>["metadata"]>>;
   try {
-    const meta = await sharp(input).metadata();
-    width = meta.width ?? 0;
-    height = meta.height ?? 0;
+    meta = await sharp(input).metadata();
   } catch {
     return [await compressForVision(input)];
   }
+  const width = meta.width ?? 0;
+  const height = meta.height ?? 0;
 
   // Short / unknown pages: a single image is legible enough.
   if (width === 0 || height === 0 || height <= SLICE_TRIGGER_HEIGHT) {
