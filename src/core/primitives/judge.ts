@@ -29,7 +29,7 @@ import * as os from "node:os";
 
 import { getLogger } from "../logger.js";
 import { callVision, extractJson, type VisionResponse } from "../llm.js";
-import { compressForVision } from "../image.js";
+import { compressForVisionMulti } from "../image.js";
 import { RESULT_SCHEMA_VERSION } from "../result-schema.js";
 import type {
   JudgeCriterionSpec,
@@ -269,9 +269,19 @@ ${criterionLines}
 Return ONLY the JSON. No prose, no code fences. Limit findings to 10 most important.`;
 }
 
-export function buildJudgeUserPrompt(criteria: JudgeCriterionSpec[]): string {
+export function buildJudgeUserPrompt(
+  criteria: JudgeCriterionSpec[],
+  multiImage = false,
+): string {
   const ids = criteria.map((c) => c.id).join(", ");
-  return `Score the screenshot on these criteria: ${ids}.
+  const target = multiImage ? "page" : "screenshot";
+  const multiNote = multiImage
+    ? `
+
+This page is too tall to capture in one legible image, so it is provided as MULTIPLE images: the FIRST image is a low-resolution full-page thumbnail for macro context (layout / where sections are) — do NOT read fine text from it. The REMAINING images are high-resolution vertical slices (top → bottom, ~20% overlap) — read exact text only from these. Together they are one continuous page; score it as a whole and do not double-count content that appears in the overlap between slices.`
+    : "";
+
+  return `Score the ${target} on these criteria: ${ids}.${multiNote}
 
 Return JSON only, matching the schema in the system prompt. The verdicts array MUST contain exactly one entry per criterion above (do not skip any). Use the exact criterion_id strings.`;
 }
@@ -531,15 +541,23 @@ export async function runJudgeVision(args: {
   model: string;
   callVisionImpl: typeof callVision;
 }): Promise<JudgeVisionRaw> {
-  const compressed = await compressForVision(args.buf);
+  // Tall full-page screenshots exceed Anthropic's 8000 px hard limit (400) and,
+  // even when downscaled to fit, lose the text legibility rubric scoring needs.
+  // compressForVisionMulti returns a macro thumbnail + native-resolution slices
+  // for tall pages, or a single image for normal ones.
+  const compressed = await compressForVisionMulti(args.buf);
+  const multiImage = compressed.length > 1;
   const systemPrompt = buildJudgeSystemPrompt(args.criteria);
-  const userPrompt = buildJudgeUserPrompt(args.criteria);
+  const userPrompt = buildJudgeUserPrompt(args.criteria, multiImage);
 
   const resp = await args.callVisionImpl({
     model: args.model,
     systemPrompt,
     userPrompt,
-    images: [{ base64: compressed.base64, mediaType: compressed.mediaType }],
+    images: compressed.map((c) => ({
+      base64: c.base64,
+      mediaType: c.mediaType,
+    })),
     maxTokens: 4096,
   });
 
