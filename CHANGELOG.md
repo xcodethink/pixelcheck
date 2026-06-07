@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Vision scoring of tall desktop pages no longer fails with Anthropic's
+  `image dimensions exceed max allowed size: 8000 pixels` 400 error. A
+  full-page screenshot taller than 8000px but under the 2.5 MB byte-bypass
+  (e.g. a 1280×8587 landing page at 1.47 MB) was sent uncompressed and
+  rejected, skipping visual scoring entirely (`overall_score: null`).
+  `compressForVision` now enforces the 8000px hard edge limit before the
+  byte-size bypass, so no oversized image ever reaches the API.
+
+### Added
+- `compressForVisionMulti` — slices a tall full-page screenshot into a macro
+  thumbnail + native-resolution overlapping slices that span the whole page,
+  so rubric scoring reads tall pages at legible resolution instead of one
+  squashed sub-1568px image. `runJudgeVision` (the `judge` primitive and
+  `VisualCollector`) now sends these multi-image inputs for tall pages.
+
 ## [1.3.0] - 2026-06-02 — security hardening, MCP test coverage, Node 20
 
 > Supersedes the unreleased accumulation since 1.2.0 (1.2.1 was tagged
