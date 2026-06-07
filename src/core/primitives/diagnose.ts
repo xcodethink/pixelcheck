@@ -45,7 +45,7 @@ import * as os from "node:os";
 
 import { getLogger } from "../logger.js";
 import { callVision, extractJson } from "../llm.js";
-import { compressForVision } from "../image.js";
+import { compressForVisionMulti, MULTI_IMAGE_PROMPT_NOTE } from "../image.js";
 import {
   RESULT_SCHEMA_VERSION,
   type DiagnoseDimension,
@@ -433,21 +433,28 @@ async function computeDiagnose(opts: DiagnoseOptions): Promise<DiagnoseResult> {
     }
 
     const buf = fs.readFileSync(screenshot.path);
-    const compressed = await compressForVision(buf);
+    const compressed = await compressForVisionMulti(buf);
+    const multiImage = compressed.length > 1;
     const diagnosticsBlock = serializeDiagnosticsForPrompt(diagnostics);
     const systemPrompt = buildDiagnoseSystemPrompt();
-    const userPrompt = buildDiagnoseUserPrompt({
+    const baseUserPrompt = buildDiagnoseUserPrompt({
       urlFinal,
       title,
       diagnosticsBlock,
     });
+    const userPrompt = multiImage
+      ? baseUserPrompt + MULTI_IMAGE_PROMPT_NOTE
+      : baseUserPrompt;
 
     const callVisionImpl = opts._callVision ?? callVision;
     const resp = await callVisionImpl({
       model,
       systemPrompt,
       userPrompt,
-      images: [{ base64: compressed.base64, mediaType: compressed.mediaType }],
+      images: compressed.map((c) => ({
+        base64: c.base64,
+        mediaType: c.mediaType,
+      })),
       maxTokens: 6144,
     });
     costUsd += resp.costUsd;
