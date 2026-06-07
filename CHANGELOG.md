@@ -22,6 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so rubric scoring reads tall pages at legible resolution instead of one
   squashed sub-1568px image. `runJudgeVision` (the `judge` primitive and
   `VisualCollector`) now sends these multi-image inputs for tall pages.
+- `cn-chinese-pro-desktop` persona (李娜, 上海, Windows 1440×900). Simplified
+  Chinese previously had no desktop persona — only `cn-chinese-free-mobile`
+  and `tw-chinese-pro-tablet` — so a "Chinese desktop" audit had no fitting
+  persona to run.
+
+### Changed
+- The `note` vision calls (`see` with a goal, `act` `note` steps) and the
+  `diagnose` reasoning call now also use `compressForVisionMulti`, so they can
+  read below-the-fold / footer text on tall pages instead of a squashed
+  single image. `compare` (A/B framing) and `see`'s visual-state detector
+  (3×3 grid) intentionally stay single-image — slicing would break their
+  semantics — and rely on the new 8000px floor in `compressForVision`.
 
 ## [1.3.0] - 2026-06-02 — security hardening, MCP test coverage, Node 20
 
