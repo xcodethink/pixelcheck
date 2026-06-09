@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Override `hono` to `^4.12.21` (resolves transitively to 4.12.25), clearing
+  four moderate advisories pulled in via `@modelcontextprotocol/sdk` /
+  `@hono/node-server` (GHSA-xrhx-7g5j-rcj5 IPv6 deny-rule bypass,
+  GHSA-3hrh-pfw6-9m5x Set-Cookie injection, GHSA-f577-qrjj-4474 JWT scheme,
+  GHSA-2gcr-mfcq-wcc3 mount routing). The `npm audit --production
+  --audit-level=moderate` CI gate is green again (17 low remain, unchanged).
+
 ### Fixed
 - Vision scoring of tall desktop pages no longer fails with Anthropic's
   `image dimensions exceed max allowed size: 8000 pixels` 400 error. A
