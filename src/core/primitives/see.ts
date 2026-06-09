@@ -34,7 +34,11 @@ import { chromium, type Page } from "playwright";
 import { getLogger } from "../logger.js";
 import { extractDomSummary } from "../../agent/dom-summary.js";
 import { callVision, type VisionResponse } from "../llm.js";
-import { compressForVision } from "../image.js";
+import {
+  compressForVision,
+  compressForVisionMulti,
+  MULTI_IMAGE_PROMPT_NOTE,
+} from "../image.js";
 import type { ConsoleError } from "../types.js";
 import { RESULT_SCHEMA_VERSION, type ResultCacheMeta } from "../result-schema.js";
 import { withResultCache } from "../result-cache.js";
@@ -554,13 +558,17 @@ async function synthesizeNote(args: {
   callVisionImpl: typeof callVision;
 }): Promise<{ text: string; costUsd: number }> {
   try {
-    const compressed = await compressForVision(args.buf);
+    const compressed = await compressForVisionMulti(args.buf);
+    const multiImage = compressed.length > 1;
     const resp: VisionResponse = await args.callVisionImpl({
       model: args.model,
       systemPrompt:
-        "You are a careful UI observer. Answer the user's question about the screenshot in 1-3 sentences. Cite only what you can actually see. If the question cannot be answered from the screenshot, say so plainly. Do not speculate or invent.",
-      userPrompt: args.goal,
-      images: [{ base64: compressed.base64, mediaType: compressed.mediaType }],
+        "You are a careful UI observer. Answer the user's question about the page in 1-3 sentences. Cite only what you can actually see. If the question cannot be answered from what is shown, say so plainly. Do not speculate or invent.",
+      userPrompt: multiImage ? args.goal + MULTI_IMAGE_PROMPT_NOTE : args.goal,
+      images: compressed.map((c) => ({
+        base64: c.base64,
+        mediaType: c.mediaType,
+      })),
       maxTokens: 512,
     });
     return { text: resp.text.trim(), costUsd: resp.costUsd };
@@ -582,6 +590,10 @@ async function detectVisualState(args: {
   key_elements: SeeResult["key_elements"];
   costUsd: number;
 }> {
+  // Deliberately single-image (not compressForVisionMulti): this detects
+  // overall load state ("loading" / "ready" / "error") and maps key elements
+  // onto a 3x3 viewport grid — both assume ONE frame, which slicing would
+  // break. compressForVision still enforces the 8000px hard limit.
   const compressed = await compressForVision(args.buf);
   const resp: VisionResponse = await args.callVisionImpl({
     model: args.model,
