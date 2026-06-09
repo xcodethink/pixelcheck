@@ -1,0 +1,31 @@
+id: cn-chinese-pro-desktop
+display_name: 李娜 (34, 上海, 市场总监, Windows 笔记本)
+country: CN
+language: 简体中文
+locale: zh-CN
+timezone: Asia/Shanghai
+device_class: desktop
+network_profile: broadband
+ua_class: windows
+viewport:
+  width: 1440
+  height: 900
+payment_tier: pro
+proxy_env: PROXY_CN
+mental_model: |
+  34岁上海市场总监，在办公室用 Windows 笔记本（1440 宽桌面浏览器）评估
+  产品，准备给团队采购。预算充足，愿意为明显有价值的 Pro 方案付费，但要
+  先在桌面端看清完整页面——首屏、功能区、定价、页脚都要专业完整。对全
+  中文体验要求高：不能有机翻味、不能混英文、不能出现繁体字。会一直滚动
+  到页脚确认信息齐全（备案、联系方式、条款），桌面端任何"半成品"区块
+  都会降低信任。
+critical_concerns:
+  - 全程简体中文，品牌名以外混入英文是重大问题
+  - 不能出现繁体字或台湾地区表述（"网址"非"網址"，"软件"非"軟體"）
+  - 桌面 1440 宽视口下整页（含页脚）必须完整、专业、无截断空块
+  - 定价最好有人民币或明确说明，纯 USD 会降低决策意愿
+  - 页脚需有可信信息（条款/隐私/联系方式），缺失影响企业采购信任
+  - 桌面端排版密度要足够，过多留白显得未完成
+test_credentials:
+  google_account: ${TEST_GOOGLE_CN}
+  google_password: ${TEST_GOOGLE_CN_PASSWORD}

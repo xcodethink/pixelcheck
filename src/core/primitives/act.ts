@@ -39,7 +39,7 @@ import { chromium, type BrowserContext, type Page } from "playwright";
 import { getLogger } from "../logger.js";
 import { extractDomSummary } from "../../agent/dom-summary.js";
 import { callVision, type VisionResponse } from "../llm.js";
-import { compressForVision } from "../image.js";
+import { compressForVisionMulti, MULTI_IMAGE_PROMPT_NOTE } from "../image.js";
 import { RESULT_SCHEMA_VERSION } from "../result-schema.js";
 import type { ConsoleError } from "../types.js";
 import {
@@ -621,13 +621,19 @@ async function runStep(ctx: RunStepCtx): Promise<ActStepResult> {
       }
       case "note": {
         const buf = await ctx.page.screenshot({ fullPage: true, type: "png" });
-        const compressed = await compressForVision(buf);
+        const compressed = await compressForVisionMulti(buf);
+        const multiImage = compressed.length > 1;
         const resp: VisionResponse = await ctx.callVisionImpl({
           model: ctx.criticModel,
           systemPrompt:
-            "You are a careful UI observer. Answer the user's question about the screenshot in 1-3 sentences. Cite only what you can actually see. If the question cannot be answered from the screenshot, say so plainly. Do not speculate or invent.",
-          userPrompt: ctx.step.goal,
-          images: [{ base64: compressed.base64, mediaType: compressed.mediaType }],
+            "You are a careful UI observer. Answer the user's question about the page in 1-3 sentences. Cite only what you can actually see. If the question cannot be answered from what is shown, say so plainly. Do not speculate or invent.",
+          userPrompt: multiImage
+            ? (ctx.step.goal ?? "") + MULTI_IMAGE_PROMPT_NOTE
+            : ctx.step.goal,
+          images: compressed.map((c) => ({
+            base64: c.base64,
+            mediaType: c.mediaType,
+          })),
           maxTokens: 512,
         });
         return {

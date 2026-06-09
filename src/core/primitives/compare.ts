@@ -521,6 +521,11 @@ export async function runCompareSynthesis(args: {
   model: string;
   callVisionImpl: typeof callVision;
 }): Promise<CompareSynthesisRaw> {
+  // Deliberately single-image per side (not compressForVisionMulti): the
+  // synthesis hinges on labelled "SIDE A" vs "SIDE B" frames, and slicing each
+  // side into N images would destroy that pairing (the model could not tell
+  // which slices belong to which side). compressForVision still enforces the
+  // 8000px hard limit, so tall pages downscale safely instead of 400-ing.
   const bufA = fs.readFileSync(args.sideACapture.screenshot_path);
   const bufB = fs.readFileSync(args.sideBCapture.screenshot_path);
   const compA = await compressForVision(bufA);

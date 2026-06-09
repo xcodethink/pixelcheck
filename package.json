@@ -115,7 +115,8 @@
   "overrides": {
     "langsmith": "^0.6.0",
     "uuid": "^14.0.0",
-    "ip-address": "^10.2.0"
+    "ip-address": "^10.2.0",
+    "hono": "^4.12.21"
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "^4.2.1",
