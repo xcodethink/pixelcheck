@@ -6,10 +6,19 @@
  * caused by operating on pages that haven't finished loading, hydrating,
  * or laying out.
  *
- * Three-phase gate:
+ * Four-phase gate:
  *   1. Network idle — no pending requests for 500ms
  *   2. DOM stable — no mutations for 300ms
  *   3. Framework hydration — SPA-specific signals (Next.js, Astro, Nuxt, etc.)
+ *   4. Content readiness — loading skeletons / spinners have cleared
+ *
+ * Phases 1–3 measure *interactivity* readiness. They cannot tell a settled
+ * loading skeleton from settled real content — both are static, hydrated DOM.
+ * A client-rendered page that fetches its data AFTER hydration (e.g. an Astro
+ * `client:load` dashboard) passes 1–3 while still showing placeholders, so a
+ * snapshot taken then captures the skeleton and reads as "perpetually loading /
+ * broken" when the page is in fact fine, just photographed ~1s too early.
+ * Phase 4 closes that gap by waiting for known loading indicators to disappear.
  */
 
 import type { Page } from "playwright";
@@ -23,6 +32,15 @@ export interface StabilityOptions {
   skipDom?: boolean;
   /** Skip hydration check. Default false. */
   skipHydration?: boolean;
+  /** Skip content-readiness (loading-skeleton clearance) check. Default false. */
+  skipContentReady?: boolean;
+  /**
+   * Max time to wait for loading skeletons / spinners to clear (ms).
+   * Independent of `timeout`: this phase is about *data* readiness, not
+   * interactivity, and only pages that actually show a skeleton ever wait.
+   * Default 8000.
+   */
+  contentReadyTimeout?: number;
 }
 
 /**
@@ -42,6 +60,7 @@ export async function waitForPageStable(
     networkIdle: false,
     domStable: false,
     hydrated: false,
+    contentReady: false,
     totalMs: 0,
   };
   const start = Date.now();
@@ -140,6 +159,62 @@ export async function waitForPageStable(
     }
   }
 
+  // Phase 4: Content readiness — wait for loading skeletons / spinners to clear.
+  //
+  // Zero-cost on pages without loading indicators (the common case): the in-page
+  // check returns "ready" immediately when none are found. Only a page actually
+  // showing a skeleton pays the wait, bounded by `contentReadyTimeout`.
+  //
+  // Signal tiers avoid false waits on decorative animation:
+  //   - STRONG (semantic): aria-busy / role=progressbar / data-loading — any one
+  //     present means the app declares itself loading.
+  //   - WEAK (class-based): animate-pulse / animate-spin / skeleton / shimmer —
+  //     a lone decorative spinner is fine; a CLUSTER (>=3) reads as a real
+  //     skeleton screen.
+  if (!opts?.skipContentReady) {
+    const contentBudget = opts?.contentReadyTimeout ?? 8000;
+    try {
+      report.contentReady = await page.evaluate((maxMs: number) => {
+        return new Promise<boolean>((resolve) => {
+          const STRONG =
+            '[aria-busy="true"],[data-loading="true"],[role="progressbar"]';
+          const WEAK =
+            '.animate-pulse,.animate-spin,.shimmer,[class*="skeleton" i],[class*="loading" i],[class*="placeholder" i]';
+          const stillLoading = (): boolean => {
+            try {
+              if (document.querySelectorAll(STRONG).length > 0) return true;
+              return document.querySelectorAll(WEAK).length >= 3;
+            } catch {
+              return false;
+            }
+          };
+          // No loading indicators → already content-ready (zero cost).
+          if (!stillLoading()) {
+            resolve(true);
+            return;
+          }
+          if (maxMs <= 0) {
+            resolve(false);
+            return;
+          }
+          const startedAt = Date.now();
+          const iv = setInterval(() => {
+            if (!stillLoading()) {
+              clearInterval(iv);
+              resolve(true);
+            } else if (Date.now() - startedAt >= maxMs) {
+              clearInterval(iv);
+              resolve(false);
+            }
+          }, 150);
+        });
+      }, contentBudget);
+    } catch {
+      // Eval failure (CSP / closed context) → don't block the gate.
+      report.contentReady = true;
+    }
+  }
+
   report.totalMs = Date.now() - start;
   return report;
 }
@@ -148,5 +223,8 @@ export interface StabilityReport {
   networkIdle: boolean;
   domStable: boolean;
   hydrated: boolean;
+  /** True once loading skeletons/spinners cleared (or none were present).
+   *  False if a skeleton was still showing when contentReadyTimeout elapsed. */
+  contentReady: boolean;
   totalMs: number;
 }

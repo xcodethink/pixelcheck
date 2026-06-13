@@ -32,6 +32,7 @@ describe("waitForPageStable — happy path", () => {
     expect(r.networkIdle).toBe(true);
     expect(r.domStable).toBe(true);
     expect(r.hydrated).toBe(true);
+    expect(r.contentReady).toBe(true);
     expect(r.totalMs).toBeGreaterThanOrEqual(0);
   });
 });
@@ -126,6 +127,7 @@ describe("waitForPageStable — DOM phase", () => {
     const r = await waitForPageStable(page, {
       skipNetwork: true,
       skipDom: true,
+      skipContentReady: true,
     });
     // Only the hydration evaluate ran
     expect(domCalls).toBe(1);
@@ -172,9 +174,77 @@ describe("waitForPageStable — hydration phase", () => {
       skipNetwork: true,
       skipDom: true,
       skipHydration: true,
+      skipContentReady: true,
     });
     expect(calls).toBe(0);
     expect(r.hydrated).toBe(false);
+  });
+});
+
+describe("waitForPageStable — content-readiness phase", () => {
+  it("reflects evaluate() returning true (no skeleton / skeleton cleared)", async () => {
+    const page = makePage({ evaluate: async () => true });
+    const r = await waitForPageStable(page, {
+      skipNetwork: true,
+      skipDom: true,
+      skipHydration: true,
+    });
+    expect(r.contentReady).toBe(true);
+  });
+
+  it("reflects evaluate() returning false (skeleton never cleared before timeout)", async () => {
+    const page = makePage({ evaluate: async () => false });
+    const r = await waitForPageStable(page, {
+      skipNetwork: true,
+      skipDom: true,
+      skipHydration: true,
+    });
+    expect(r.contentReady).toBe(false);
+  });
+
+  it("assumes contentReady=true when evaluate throws (CSP / closed context)", async () => {
+    const page = makePage({
+      evaluate: async () => {
+        throw new Error("CSP blocked unsafe-eval");
+      },
+    });
+    const r = await waitForPageStable(page, {
+      skipNetwork: true,
+      skipDom: true,
+      skipHydration: true,
+    });
+    expect(r.contentReady).toBe(true);
+  });
+
+  it("skips content-readiness when skipContentReady=true", async () => {
+    let calls = 0;
+    const page = makePage({
+      evaluate: async () => {
+        calls++;
+        return true;
+      },
+    });
+    const r = await waitForPageStable(page, {
+      skipNetwork: true,
+      skipDom: true,
+      skipHydration: true,
+      skipContentReady: true,
+    });
+    expect(calls).toBe(0);
+    expect(r.contentReady).toBe(false);
+  });
+
+  it("forwards contentReadyTimeout to the content-readiness evaluate", async () => {
+    const page = makePage({ evaluate: vi.fn(async () => true) });
+    await waitForPageStable(page, {
+      skipNetwork: true,
+      skipDom: true,
+      skipHydration: true,
+      contentReadyTimeout: 5000,
+    });
+    const evalMock = page.evaluate as unknown as ReturnType<typeof vi.fn>;
+    // Only the content-readiness evaluate ran: (fn, contentBudget)
+    expect(evalMock.mock.calls[0][1]).toBe(5000);
   });
 });
 
