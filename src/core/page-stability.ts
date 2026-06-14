@@ -165,12 +165,15 @@ export async function waitForPageStable(
   // check returns "ready" immediately when none are found. Only a page actually
   // showing a skeleton pays the wait, bounded by `contentReadyTimeout`.
   //
-  // Signal tiers avoid false waits on decorative animation:
+  // Signal tiers, tuned so the common cases are caught without false waits on
+  // decorative animation:
   //   - STRONG (semantic): aria-busy / role=progressbar / data-loading — any one
   //     present means the app declares itself loading.
-  //   - WEAK (class-based): animate-pulse / animate-spin / skeleton / shimmer —
-  //     a lone decorative spinner is fine; a CLUSTER (>=3) reads as a real
-  //     skeleton screen.
+  //   - SPINNER: a spinning ring (animate-spin / *spinner*) is almost always a
+  //     loading indicator — even a LONE one (a small card fetching data) counts.
+  //   - SOFT (placeholder): animate-pulse / skeleton / shimmer / placeholder are
+  //     used for both real skeleton screens AND decorative pulses (e.g. a "LIVE"
+  //     dot), so only a CLUSTER (>=3) reads as a genuine loading screen.
   if (!opts?.skipContentReady) {
     const contentBudget = opts?.contentReadyTimeout ?? 8000;
     try {
@@ -178,12 +181,14 @@ export async function waitForPageStable(
         return new Promise<boolean>((resolve) => {
           const STRONG =
             '[aria-busy="true"],[data-loading="true"],[role="progressbar"]';
-          const WEAK =
-            '.animate-pulse,.animate-spin,.shimmer,[class*="skeleton" i],[class*="loading" i],[class*="placeholder" i]';
+          const SPINNER = '.animate-spin,[class*="spinner" i]';
+          const SOFT =
+            '.animate-pulse,.shimmer,[class*="skeleton" i],[class*="loading" i],[class*="placeholder" i]';
           const stillLoading = (): boolean => {
             try {
               if (document.querySelectorAll(STRONG).length > 0) return true;
-              return document.querySelectorAll(WEAK).length >= 3;
+              if (document.querySelectorAll(SPINNER).length > 0) return true;
+              return document.querySelectorAll(SOFT).length >= 3;
             } catch {
               return false;
             }
