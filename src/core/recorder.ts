@@ -70,6 +70,14 @@ export class Recorder {
     const filename = `${idx}-${safeLabel}.png`;
     const filepath = path.join(this.artifactsDir, filename);
 
+    // Full-page captures audit whole-page content, so force scroll-reveal
+    // animations to their end state first (avoids false "empty void" from
+    // opacity:0 sections). Viewport captures (fullPage=false) are left alone
+    // so act/see can still catch a genuinely stuck animation or loading frame.
+    if (fullPage) {
+      await this.settleAnimations();
+    }
+
     if (shouldRedactInputs(opts.redactInputs)) {
       await redactSensitiveInputs(this.page);
     }
@@ -132,6 +140,12 @@ export class Recorder {
     // even entire components). Without this pre-scroll, segments at the
     // bottom of the page would show empty placeholders.
     await this.triggerLazyLoad();
+
+    // ─── 1.2. Force scroll-reveal animations to their end state ───────
+    // Without this, revealed sections snap back to opacity:0 during the
+    // fullPage capture and render as black, causing false "empty void"
+    // findings. See settleAnimations() for the full rationale.
+    await this.settleAnimations();
 
     // ─── 1.5. Redact sensitive inputs before any screenshot ──────────
     // T22 (R37): replace password / secret / token / api-key field
@@ -213,6 +227,88 @@ export class Recorder {
       segments,
       segmentPaths,
     };
+  }
+
+  /**
+   * Force scroll-reveal animations to their END state before a screenshot.
+   *
+   * WHY: pages that reveal content on scroll (IntersectionObserver + opacity
+   * 0→1, "animate-in" / "reveal" / AOS / framer-motion whileInView, etc.) are
+   * a major source of FALSE "empty dark void / low-contrast body text"
+   * findings. A `fullPage: true` screenshot resizes the viewport to the full
+   * document height, which makes IntersectionObservers re-evaluate; sections
+   * that were revealed during the pre-scroll snap back to opacity:0 and render
+   * as solid black. The critic then reports missing/invisible content that is
+   * actually present.
+   *
+   * Three layers of defense, all best-effort:
+   *  1. Emulate `prefers-reduced-motion: reduce` — well-behaved reveal libs
+   *     skip straight to the final state when this is set.
+   *  2. `getAnimations().finish()` — force any running Web Animations / CSS
+   *     transitions to their end frame.
+   *  3. Inject a stylesheet that neutralizes animation/transition and forces
+   *     opacity:1 on the common reveal-element selectors, as a fallback for
+   *     libs that gate visibility purely via a class + IntersectionObserver.
+   *
+   * This is intentionally conservative: it only touches opacity/animation/
+   * transition, never layout, so it cannot introduce a *different* visual
+   * artifact. Call AFTER triggerLazyLoad(), BEFORE any screenshot.
+   */
+  private async settleAnimations(): Promise<void> {
+    try {
+      // Layer 1: reduced-motion tells compliant libraries to skip animation.
+      await this.page.emulateMedia({ reducedMotion: "reduce" });
+
+      // Layers 2+3 run in the page context.
+      await this.page.evaluate(() => {
+        // Layer 2: finish every in-flight animation/transition.
+        try {
+          for (const anim of document.getAnimations()) {
+            try {
+              anim.finish();
+            } catch {
+              // finite-only; ignore infinite/unfinishable animations
+            }
+          }
+        } catch {
+          // getAnimations unsupported; fall through to CSS override
+        }
+
+        // Layer 3: fallback stylesheet for class-gated reveal elements.
+        // Covers the common patterns: opacity-0 utility (Tailwind), AOS
+        // (data-aos), and *reveal*/*fade*/*animate* class names that start
+        // hidden. Forcing opacity to 1 makes their content visible for the
+        // screenshot without altering position or size.
+        const STYLE_ID = "pixelcheck-settle-animations";
+        if (!document.getElementById(STYLE_ID)) {
+          const style = document.createElement("style");
+          style.id = STYLE_ID;
+          style.textContent = `
+            *, *::before, *::after {
+              animation-duration: 0s !important;
+              animation-delay: 0s !important;
+              transition-duration: 0s !important;
+              transition-delay: 0s !important;
+            }
+            .opacity-0,
+            [class*="reveal" i],
+            [class*="fade" i],
+            [class*="animate-in" i],
+            [data-aos]:not(.aos-animate) {
+              opacity: 1 !important;
+              transform: none !important;
+              visibility: visible !important;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      });
+
+      // Brief settle so the forced end-states paint before capture.
+      await this.page.waitForTimeout(150);
+    } catch {
+      // Page may have closed; not fatal — screenshot proceeds without settle.
+    }
   }
 
   /**
