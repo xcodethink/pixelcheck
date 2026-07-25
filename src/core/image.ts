@@ -121,8 +121,11 @@ export async function compressForVision(input: Buffer): Promise<CompressedImage>
   }
 
   // sharp default export shape varies between CJS and ESM interop builds.
-  const sharp =
-    (sharpMod as unknown as { default?: typeof import("sharp") }).default ?? sharpMod;
+  // sharp 0.35 switched its type export to `export = sharp` (CJS), so
+  // `typeof import("sharp")` is no longer callable. Resolve the runtime
+  // default-interop value and type it explicitly as the sharp factory.
+  const sharp = ((sharpMod as unknown as { default?: unknown }).default ??
+    sharpMod) as unknown as (input?: Buffer) => import("sharp").Sharp;
 
   const meta = await sharp(input).metadata();
   const longEdge = Math.max(meta.width ?? 0, meta.height ?? 0);
@@ -223,8 +226,11 @@ export async function compressForVisionMulti(
   } catch {
     return [await compressForVision(input)];
   }
-  const sharp =
-    (sharpMod as unknown as { default?: typeof import("sharp") }).default ?? sharpMod;
+  // sharp 0.35 switched its type export to `export = sharp` (CJS), so
+  // `typeof import("sharp")` is no longer callable. Resolve the runtime
+  // default-interop value and type it explicitly as the sharp factory.
+  const sharp = ((sharpMod as unknown as { default?: unknown }).default ??
+    sharpMod) as unknown as (input?: Buffer) => import("sharp").Sharp;
 
   let meta: Awaited<ReturnType<ReturnType<typeof sharp>["metadata"]>>;
   try {
