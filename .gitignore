@@ -51,3 +51,7 @@ progress/QUALITY-ROADMAP.md
 progress/retros/
 progress/plans/
 progress/ADR-034-Phase0-RESUME.md
+
+# --- 内部审计/战略不进公开仓 (2026-07-14) ---
+docs/audit/
+docs/strategy/

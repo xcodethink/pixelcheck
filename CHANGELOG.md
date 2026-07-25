@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   --audit-level=moderate` CI gate is green again (17 low remain, unchanged).
 
 ### Fixed
+- Full-page screenshots of scroll-reveal pages no longer render revealed
+  sections as solid black, which caused false high-severity "empty dark
+  voids" / "low-contrast body text" findings. Pages that gate visibility on
+  scroll (IntersectionObserver + `opacity 0→1`, `animate-in` / `reveal` /
+  AOS / framer-motion `whileInView`) snap back to `opacity:0` when Playwright
+  resizes the viewport to full document height for a `fullPage` capture. The
+  recorder now runs `settleAnimations()` before every full-page capture
+  (`screenshot(fullPage=true)` and `screenshotSegments()`): it emulates
+  `prefers-reduced-motion: reduce`, calls `getAnimations().finish()`, and
+  injects a fallback stylesheet forcing `opacity:1` on the common
+  reveal-element selectors. Viewport captures (`fullPage=false`, used by
+  interaction steps) are left untouched so a genuinely stuck animation or
+  loading frame is still caught. Verified in real chromium at the pixel level
+  (reveal region white/black without the fix → visible with it).
 - Vision scoring of tall desktop pages no longer fails with Anthropic's
   `image dimensions exceed max allowed size: 8000 pixels` 400 error. A
   full-page screenshot taller than 8000px but under the 2.5 MB byte-bypass
