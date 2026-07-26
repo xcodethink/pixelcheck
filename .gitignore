@@ -40,18 +40,14 @@ docs/release-notes/
 docs/SLO.md
 docs/assets/og-*
 
-# Internal Claude Code session work + planning. The progress/ directory
-# itself is selectively committed (RELEASE-READINESS-CHECKLIST.md,
-# RISK-REGISTER*.md, HANDOFF-PROTOCOL.md are public governance records);
-# the patterns below keep session-progress / internal plans / retros out
-# of the public tarball + GitHub history.
-progress/STATUS.md
-progress/EXECUTION-PLAN.md
-progress/QUALITY-ROADMAP.md
-progress/retros/
-progress/plans/
-progress/ADR-034-Phase0-RESUME.md
+# Internal Claude Code session work, planning, governance + thinking process.
+# NONE of this belongs in a public repo. 2026-07-25: reversed the earlier
+# "public governance records" exception — session progress, plans, retros,
+# risk registers, release-readiness + handoff protocols are all internal and
+# were stripped from the whole GitHub history via git filter-repo.
+progress/
 
-# --- 内部审计/战略不进公开仓 (2026-07-14) ---
+# --- internal audit / strategy / commercial review — never public (2026-07-14, extended 2026-07-25) ---
 docs/audit/
 docs/strategy/
+docs/commercial-audit-*.md
