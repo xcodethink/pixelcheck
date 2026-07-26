@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `.github/workflows/publish-mcp.yml` — the `server.json` entry is now pushed
+  to `registry.modelcontextprotocol.io` automatically on a version tag,
+  authenticating with GitHub OIDC (no stored secret). It waits for the npm
+  version to be visible first (the registry fetches the tarball to verify the
+  `mcpName` ownership claim), skips cleanly if that version is already
+  published, and reads the result back from the registry instead of trusting
+  the publisher's exit code. `workflow_dispatch` gives a backfill path.
+  Publishing had been manual, and was silently skipped for 1.2.1, 1.3.0 and
+  1.4.0 — the registry still advertises 1.2.0.
+- Contract tests asserting `server.json` agrees with `package.json` on version
+  (both the top-level field and the npm package entry), on `name` vs `mcpName`,
+  and on the package identifier. Nothing in the release path read `server.json`
+  before, which is how it drifted two releases without anyone noticing.
+
+### Changed
+- Dropped `macos-13` (Intel x64) from the CI matrix. GitHub had stopped
+  scheduling Intel macOS runners for this repo, so both `macos-13` jobs sat in
+  `queued` indefinitely — #60, #62 and #63 each merged with two permanently
+  pending checks. Known gap, deliberately accepted: `darwin-x64` now has no CI
+  coverage, and `better-sqlite3` / `sharp` ship distinct prebuilt binaries per
+  arch. Nothing was actually lost (those jobs never ran); the check list is now
+  honest about it.
+
 ## [1.4.0] - 2026-07-26 — scroll-reveal & tall-page vision fixes, content-readiness gate, dependency security
 
 > No public-API breaking changes. `sharp` moves to a new major (0.34 → 0.35)
