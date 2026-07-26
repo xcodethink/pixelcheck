@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-04-28
-- **Task**: M3-6 + M9-1 (MCP server 完整化 + tool surface 拆细)
+- **Task**: M3-6 + M9-1 (complete the MCP server; split the tool surface into finer tools)
 - **Builds on**: ADR-002 (primitive-first architecture), ADR-007 (result schema versioning), ADR-009 (concurrency safety)
 
 ## Context

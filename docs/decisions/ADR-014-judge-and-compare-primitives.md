@@ -159,7 +159,7 @@ Different criteria for side A vs side B. Rejected because:
 
 ### Good
 
-- **Closes the v1 primitive kit's judgement gap** — aesthetic and dark-pattern are the two most common questions Wayne (and AI agents) want to ask about a page.
+- **Closes the v1 primitive kit's judgement gap** — aesthetic quality and dark patterns are the two questions most often asked about a page, by humans and agents alike.
 - **Anchoring-bias-free comparisons** — by default, score absolutes are clean. Users who hit the cost bound can opt out.
 - **Cacheable per-side judgements** — a future M9-4 result cache can reuse a `judge` result across many `compare` calls (e.g. compare URL X against 10 alternatives → 1+10 judges, not 11×2).
 - **Rubric extensibility** — adding a new built-in rubric (e.g. accessibility-first) is a pure data addition, no prompt rewriting.

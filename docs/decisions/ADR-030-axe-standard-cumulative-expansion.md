@@ -1,51 +1,54 @@
-# ADR-030 — axe-core standard 累积展开（T-NEW-11，关 RISK-REGISTER R-NEW-11）
+# ADR-030 — Cumulative expansion of the axe-core standard tag
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: T-NEW-11（衍生于 T6 axe + SARIF 验证）
-- **Closes**: RISK-REGISTER-V2 R-NEW-11
+- **Task**: T-NEW-11 (derived from the T6 axe + SARIF verification)
+- **Closes**: risk-register entry R-NEW-11
 
 ## Context
 
-T6（真 axe + SARIF 验证）跑 fixture 时发现一个 **production bug**：
+Running fixtures during the axe + SARIF verification surfaced a **production
+bug**.
 
-`src/handlers/index.ts handleAssertA11y` 把用户传入的 `step.standard`
-（默认 `"wcag2aa"`）直接作为单元素数组传给 axe-core：
+`handleAssertA11y` in `src/handlers/index.ts` passed the caller's
+`step.standard` — default `"wcag2aa"` — straight to axe-core as a
+single-element array:
 
 ```ts
 runOnly: { type: "tag", values: [runOpts.standard] }
 ```
 
-axe-core 的 `runOnly: { type: "tag", values }` 是**精确匹配**——传
-`["wcag2aa"]` 只跑标记为 `wcag2aa` 的规则，**不含** Level A 规则。
+axe-core matches `runOnly: { type: "tag", values }` **exactly**. Passing
+`["wcag2aa"]` runs only rules tagged `wcag2aa`, and therefore **excludes every
+Level A rule**:
 
-具体后果：
-- `image-alt` (WCAG 1.1.1, Level A, axe tag `wcag2a`) — **不会被检测**
-- `label` (WCAG 4.1.2, Level A) — **不会被检测**
-- `button-name` (WCAG 4.1.2, Level A) — **不会被检测**
-- `link-name` (WCAG 2.4.4, Level A) — **不会被检测**
+- `image-alt` (WCAG 1.1.1, Level A, axe tag `wcag2a`) — never checked
+- `label` (WCAG 4.1.2, Level A) — never checked
+- `button-name` (WCAG 4.1.2, Level A) — never checked
+- `link-name` (WCAG 2.4.4, Level A) — never checked
 
-但 `color-contrast` (WCAG 1.4.3, Level AA, tag `wcag2aa`) — 被检测 ✓
+while `color-contrast` (WCAG 1.4.3, Level AA, tag `wcag2aa`) was checked.
 
-含义：**任何用 `standard: "wcag2aa"` 跑生产 audit 的用户结果都严重低估
-a11y 违规数**。Level A 是 AA 的子集（"AA 包含 A"），用户期望 AA 测试
-覆盖 A，但 axe 不这么自动展开。
+The consequence: **every audit run with `standard: "wcag2aa"` severely
+under-counted accessibility violations.** Level A is a subset of AA — "AA
+includes A" — so users reasonably expect an AA run to cover A, but axe does not
+expand it automatically.
 
 ## Decision
 
-新增 `expandAxeStandard()` 辅助函数到 `src/core/wcag.ts`，把单一 standard
-展开为完整累积 tag 列表，handler 调用 axe 前用它展开：
+Add `expandAxeStandard()` to `src/core/wcag.ts`, which expands a single standard
+into its full cumulative tag list, and use it in the handler before calling axe:
 
 ```ts
 const axeTags = expandAxeStandard(standard);
-// "wcag2aa"  → ["wcag2a", "wcag2aa"]
-// "wcag22aa" → ["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22a","wcag22aa"]
-// "best-practice" → ["best-practice"]  (axe 自家规则不累积)
+// "wcag2aa"       → ["wcag2a", "wcag2aa"]
+// "wcag22aa"      → ["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22a","wcag22aa"]
+// "best-practice" → ["best-practice"]   (axe's own rules do not accumulate)
 ```
 
-完整展开表（cumulative across version × level）：
+Full expansion table, cumulative across version and level:
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
 | `wcag2a` | `["wcag2a"]` |
 | `wcag2aa` | `["wcag2a", "wcag2aa"]` |
@@ -55,39 +58,64 @@ const axeTags = expandAxeStandard(standard);
 | `wcag22a` | `["wcag2a", "wcag21a", "wcag22a"]` |
 | `wcag22aa` | `["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"]` |
 | `best-practice` | `["best-practice"]` |
-| 未知值 | 原样返回（防御性 fallback） |
+| unknown value | returned unchanged (defensive fallback) |
 
-### Schema 变更
+### Schema change
 
-`AssertA11yStepSchema` 的 `standard` enum 加入 `wcag22a`（之前漏，axe 实际有此 tag），现在 8 个值。`wcag2aaa` / `wcag21aaa` / `wcag22aaa` 中只保留 `wcag2aaa`（AAA 商业 audit 极少要求；axe 本身在 2.1/2.2 也很少标 AAA tag）。
+`AssertA11yStepSchema.standard` gains `wcag22a`, which was missing even though
+axe defines the tag, bringing the enum to eight values. Of the AAA levels only
+`wcag2aaa` is kept: commercial audits rarely require AAA, and axe itself tags
+few AAA rules in 2.1 and 2.2.
 
-### 验证
+### Verification
 
-- **12 个新单测**（`tests/wcag.test.ts > expandAxeStandard`）：表驱动覆盖 8 个 enum + 未知值 fallback + 数组隔离 + Level A regression guard + WCAG 2.2 AA 完整 6 标签
-- **集成测试更新**（`tests/integration/playwright/wcag-axe.test.ts`）：第 1 测原本手动传 `["wcag2a", "wcag2aa"]`，改用 `expandAxeStandard("wcag2aa")` —— 同步走生产路径
-- **行业惯例对齐**：axe-core 官方 docs 推荐"WCAG 2.2 AA 完整 conformance"传 `["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"]`，与本展开一致
+- **12 new unit tests** (`tests/wcag.test.ts > expandAxeStandard`): table-driven
+  coverage of all eight enum values, the unknown-value fallback, array
+  isolation, a Level A regression guard, and the complete six-tag WCAG 2.2 AA
+  expansion.
+- **Integration test updated** (`tests/integration/playwright/wcag-axe.test.ts`):
+  the first case previously passed `["wcag2a", "wcag2aa"]` by hand and now calls
+  `expandAxeStandard("wcag2aa")`, so it exercises the production path.
+- **Matches upstream guidance**: axe-core's documentation recommends exactly
+  `["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"]` for full
+  WCAG 2.2 AA conformance.
 
 ## Alternatives rejected
 
-1. **不修，让用户自己传完整数组** —— 把行业惯用的 axe 陷阱让用户每次踩；违 "best-practice" 默认安全
-2. **改 enum 加 "wcag2-all" / "wcag22-aa-cumulative" 等显式值** —— 违 axe 标准 tag 命名；用户需要重新学一套
-3. **直接用 `[standard].concat(["wcag2a"])`**（硬编码加 A） —— 不能处理 21aa / 22aa；不优雅
-4. **保留旧行为 + warn**（runtime warning 提醒） —— a11y audit 是 commercial 必查项，warn 比 silent miss 好但不如直接修；warn 还会污染 logger
-5. **用 axe 的 `tags` filter 全跑然后 post-filter** —— 更慢 + 浪费；axe runOnly 就是为这个性能场景设计
-6. **AAA 完整支持 wcag21aaa / wcag22aaa** —— v1 范围之外（AAA 商业 audit 极少；如有用户要求再加一行展开表）
+1. **Leave it and require callers to pass the full array** — makes every user
+   fall into the same axe trap; violates safe-by-default.
+2. **Add explicit enum values such as `wcag2-all` or `wcag22-aa-cumulative`** —
+   departs from axe's standard tag names and forces users to learn a second
+   vocabulary.
+3. **Hard-code `[standard].concat(["wcag2a"])`** — does not handle 2.1 AA or 2.2
+   AA correctly.
+4. **Keep the old behaviour and emit a runtime warning** — accessibility results
+   are a commercial deliverable; a warning beats a silent miss but is worse than
+   fixing it, and it pollutes the log.
+5. **Run all rules and post-filter by tag** — slower and wasteful; `runOnly`
+   exists for exactly this.
+6. **Full AAA support for `wcag21aaa` / `wcag22aaa`** — out of scope for v1; one
+   more table row if a user needs it.
 
 ## Consequences
 
-- **生产 audit 准确性立即提升**：用 `wcag2aa` 默认值的所有 audit 现在会检测 Level A 违规。**用户老 audit 跟新 audit 对比可能违规数显著增加** —— 需要在 v1.0 release notes / MIGRATION.md 明确说明（"v1.0 修了 a11y 漏检 bug，相同站点 Level A 违规数会增加"）。
-- **公共 API 不变**：`AssertA11yStepSchema` 多一个 enum 值（`wcag22a`），但 schema 是输入约束（生产者格式），不是输出 Result Schema（消费者契约），所以**不触发 SemVer major bump**（输入容忍度从 7 → 8 个值是 backward-compatible）。
-- **Result Schema 1.2.0 不变**（无需 RESULT_SCHEMA_VERSION bump）。
-- **`expandAxeStandard` 现在是公共 API 的一部分**（待 src/index.ts 添加 export 时纳入；本次 commit 暂不导出，T-NEW-11.x follow-up 视用户需求决定）。
+- **Audit accuracy improves immediately**: every run using the default
+  `wcag2aa` now detects Level A violations. **Comparing an old audit to a new
+  one will show a materially higher violation count**, which the release notes
+  and migration guide must state explicitly.
+- **No public API break.** `AssertA11yStepSchema` gains an enum value, but that
+  schema constrains *input* (producer format) rather than the output result
+  schema (consumer contract). Widening input tolerance from seven to eight
+  accepted values is backward-compatible and does not force a major bump.
+- **Result Schema 1.2.0 is unchanged**; no `RESULT_SCHEMA_VERSION` bump.
+- **`expandAxeStandard` is a candidate for the public API**; it is not exported
+  in this change, pending demand.
 
 ## Files added / changed
 
-- `src/core/wcag.ts` — 加 `AxeStandard` 类型 + `STANDARD_EXPANSIONS` 常量表 + `expandAxeStandard()` 函数（~70 LoC）
-- `src/core/types.ts` — `AssertA11yStepSchema.standard` enum 加 `wcag22a` + 注释说明展开行为
-- `src/handlers/index.ts` — `handleAssertA11y` import `expandAxeStandard` + 用 `expandAxeStandard(standard)` 替代 `[standard]`
-- `tests/wcag.test.ts` — 12 个新 `expandAxeStandard` 测试（表驱动 8 + fallback + 数组隔离 + regression guard + 完整展开）
-- `tests/integration/playwright/wcag-axe.test.ts` — 第 1+2 测改用 `expandAxeStandard("wcag2aa")` 走生产路径
-- `docs/decisions/ADR-030-axe-standard-cumulative-expansion.md` — 此 ADR
+- `src/core/wcag.ts` — adds the `AxeStandard` type, the `STANDARD_EXPANSIONS` table and `expandAxeStandard()` (~70 LoC)
+- `src/core/types.ts` — `AssertA11yStepSchema.standard` gains `wcag22a`, with a comment describing the expansion
+- `src/handlers/index.ts` — `handleAssertA11y` uses `expandAxeStandard(standard)` instead of `[standard]`
+- `tests/wcag.test.ts` — 12 new tests
+- `tests/integration/playwright/wcag-axe.test.ts` — first two cases now go through the production path
+- `docs/decisions/ADR-030-axe-standard-cumulative-expansion.md` — this ADR

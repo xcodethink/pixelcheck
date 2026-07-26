@@ -15,7 +15,7 @@ Three problems with that:
 2. **No machine-readability**: CI pipelines, log shippers, and AI agents that consume our output need parseable JSON, not chalk-coded strings with embedded ANSI escapes.
 3. **No level control**: `console.log` is always-on. There's no way to silence verbose progress events for CI, or turn up debug for incident triage.
 
-Phase 1 is "AI core + commercial-grade quality + OSS-ready", and the plan explicitly lists logger as a prerequisite for **all** other tasks ("不允许 console.log 重新长出").
+Phase 1 is "AI core + commercial-grade quality + OSS-ready", and the plan lists the logger as a prerequisite for **all** other tasks, with the explicit condition that `console.log` must not grow back.
 
 ## Decision
 

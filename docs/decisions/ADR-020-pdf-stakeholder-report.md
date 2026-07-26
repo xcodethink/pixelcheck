@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: M2-1 — PDF 报告生成器
+- **Task**: M2-1 — PDF report generator
 - **Builds on**: ADR-019 (CI-friendly output formats — same "alternate serialisation, same source AuditRun" pattern)
 
 ## Context

@@ -2,9 +2,8 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-04
-- **Decider**: Wayne
 - **Builds on**: [ADR-002](./ADR-002-primitive-first-architecture.md) (primitive-first), [ADR-007](./ADR-007-result-schema-versioning.md) (result schema versioning)
-- **Phase**: Phase 0 of "AI 自动化测试 + 审计平台" upgrade
+- **Phase**: Phase 0 of the automated testing and audit platform upgrade
 
 ## Context
 
@@ -179,7 +178,7 @@ Makes consumers pay for runtime type narrowing on every read. Rejected.
 Collect everything but only serialize when status === "error". Saves
 tokens on the happy path.
 
-Wayne's product judgment: rejected. A professional audit never says "you
+Rejected on product grounds. A professional audit never says "you
 passed so I won't tell you anything." Visual / performance / accessibility
 checks must produce data even when functional check passed, so a
 downstream WCAG audit / Lighthouse report can roll the data up.
