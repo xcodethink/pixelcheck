@@ -31,12 +31,16 @@ const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(__filename), "..");
 
 /**
- * CJK ideographs plus Hiragana and Katakana. Deliberately not matching the
- * fullwidth-punctuation block on its own: a stray fullwidth comma is a typo,
- * not a translation, and flagging it would produce noise without protecting
- * anything.
+ * CJK ideographs (U+4E00–U+9FFF) plus Hiragana (U+3040–U+309F) and Katakana
+ * (U+30A0–U+30FF). Deliberately not matching the fullwidth-punctuation block on
+ * its own: a stray fullwidth comma is a typo, not a translation, and flagging
+ * it would produce noise without protecting anything.
+ *
+ * Written as escapes rather than literal characters on purpose — with literals
+ * this file matches itself, which is exactly what happened the first time it
+ * ran in CI.
  */
-const CJK = /[一-鿿぀-ゟ゠-ヿ]/;
+const CJK = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/;
 
 /**
  * Files where non-English text is the product content itself.
