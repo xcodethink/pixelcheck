@@ -239,3 +239,41 @@ describe("schema regeneration idempotence", () => {
     }
   });
 });
+
+describe("server.json — MCP registry entry coherence", () => {
+  // Why this exists: server.json is published to
+  // registry.modelcontextprotocol.io by a workflow separate from `npm
+  // publish`, and nothing in the release path read it. It silently drifted
+  // to 1.2.1 and stayed there through the 1.2.1 and 1.3.0 releases, so the
+  // registry advertised 1.2.0 while npm served 1.3.0. These assertions make
+  // that drift a red test instead of a discovery two releases later.
+  const readJson = (rel: string) =>
+    JSON.parse(fs.readFileSync(path.resolve(__dirname, rel), "utf8"));
+
+  it("version matches package.json (both the server and its npm package entry)", () => {
+    const pkg = readJson("../package.json");
+    const server = readJson("../server.json");
+    expect(server.version).toBe(pkg.version);
+
+    const npmPkg = server.packages.find(
+      (p: { registryType: string }) => p.registryType === "npm",
+    );
+    expect(npmPkg).toBeDefined();
+    expect(npmPkg.version).toBe(pkg.version);
+  });
+
+  it("identifies the same package and namespace as package.json", () => {
+    const pkg = readJson("../package.json");
+    const server = readJson("../server.json");
+
+    // The registry verifies namespace ownership by matching server.json's
+    // `name` against the `mcpName` field in the published npm tarball.
+    // If these diverge, `mcp-publisher publish` is rejected.
+    expect(server.name).toBe(pkg.mcpName);
+
+    const npmPkg = server.packages.find(
+      (p: { registryType: string }) => p.registryType === "npm",
+    );
+    expect(npmPkg.identifier).toBe(pkg.name);
+  });
+});
