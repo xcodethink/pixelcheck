@@ -1,0 +1,150 @@
+# Publish the server.json entry to registry.modelcontextprotocol.io.
+#
+# Why this is a separate workflow from release.yml:
+#   - The registry verifies namespace ownership by fetching the published
+#     npm tarball and matching its `mcpName` field against server.json's
+#     `name`. It can therefore only run AFTER `npm publish` has landed and
+#     the registry CDN can see the version, so it waits for npm below
+#     rather than racing release.yml.
+#   - `workflow_dispatch` gives a backfill path. That is not hypothetical:
+#     1.2.1, 1.3.0 and 1.4.0 all shipped to npm while the registry stayed
+#     on 1.2.0, because publishing was a manual step nobody remembered.
+#
+# Auth is GitHub OIDC (`login github-oidc`) — the registry maps the OIDC
+# token's repository owner to the `io.github.xcodethink` namespace, so
+# there is no long-lived secret to store or rotate. This is the method the
+# registry docs recommend.
+#
+# Drift guard: server.json's version is asserted against package.json both
+# here and in tests/public-api-contract.test.ts (which runs on every PR),
+# so a release cannot advertise one version on npm and another here.
+
+name: Publish to MCP Registry
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  # Manual backfill / retry. Runs against the checked-out ref's server.json.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required for `mcp-publisher login github-oidc`
+
+concurrency:
+  group: publish-mcp-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish server.json to MCP Registry
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve and cross-check version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG="$(node -p "require('./package.json').version")"
+          SRV="$(node -p "require('./server.json').version")"
+          SRV_NPM="$(node -p "require('./server.json').packages.find(p => p.registryType === 'npm').version")"
+
+          if [ "$PKG" != "$SRV" ] || [ "$PKG" != "$SRV_NPM" ]; then
+            echo "::error::Version drift — package.json $PKG, server.json $SRV, server.json npm package $SRV_NPM"
+            exit 1
+          fi
+
+          # On a tag push the tag must agree too; a dispatch has no tag.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            if [ "$TAG" != "$PKG" ]; then
+              echo "::error::Tag v$TAG does not match package.json version $PKG"
+              exit 1
+            fi
+          fi
+
+          echo "version=$PKG" >> "$GITHUB_OUTPUT"
+          echo "Publishing io.github.xcodethink/pixelcheck@$PKG"
+
+      - name: Skip if this version is already in the registry
+        id: existing
+        shell: bash
+        run: |
+          set -uo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          FOUND="$(curl -fsS --retry 3 --retry-delay 5 \
+            "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.xcodethink/pixelcheck" \
+            | jq -r --arg v "$VERSION" \
+                '[.servers[] | select(.server.name == "io.github.xcodethink/pixelcheck" and .server.version == $v)] | length' \
+            || echo "0")"
+          if [ "$FOUND" != "0" ]; then
+            echo "Version $VERSION is already published to the registry — nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for the npm version to be visible
+        # The registry fetches the tarball to verify the `mcpName` ownership
+        # claim, so publishing before npm has propagated fails validation.
+        # On a tag push this workflow starts alongside release.yml, which
+        # takes ~2 min to publish; poll rather than guess a sleep.
+        if: steps.existing.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -uo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          for attempt in $(seq 1 40); do
+            if npm view "pixelcheck@$VERSION" version >/dev/null 2>&1; then
+              echo "pixelcheck@$VERSION is on npm (attempt $attempt)."
+              exit 0
+            fi
+            echo "pixelcheck@$VERSION not on npm yet (attempt $attempt/40); sleeping 15s."
+            sleep 15
+          done
+          echo "::error::pixelcheck@$VERSION never appeared on npm after 10 minutes — did release.yml fail?"
+          exit 1
+
+      - name: Install mcp-publisher
+        if: steps.existing.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --version || true
+
+      - name: Authenticate (GitHub OIDC)
+        if: steps.existing.outputs.skip == 'false'
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish
+        if: steps.existing.outputs.skip == 'false'
+        run: ./mcp-publisher publish
+
+      - name: Verify the registry now serves this version
+        # Do not trust the publisher's own exit code — read it back from the
+        # registry, the same way the release record verifies npm.
+        if: steps.existing.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          for attempt in $(seq 1 10); do
+            LATEST="$(curl -fsS \
+              "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.xcodethink/pixelcheck" \
+              | jq -r '[.servers[] | select(.server.name == "io.github.xcodethink/pixelcheck" and ._meta["io.modelcontextprotocol.registry/official"].isLatest == true)] | .[0].server.version // "none"')"
+            if [ "$LATEST" = "$VERSION" ]; then
+              echo "Registry now serves $VERSION as latest."
+              exit 0
+            fi
+            echo "Registry latest is $LATEST, expected $VERSION (attempt $attempt/10); sleeping 10s."
+            sleep 10
+          done
+          echo "::error::Registry did not report $VERSION as latest after publish."
+          exit 1

@@ -57,10 +57,20 @@ jobs:
       # platform issues, not just the first.
       fail-fast: false
       matrix:
-        # macos-13 = Intel x64; macos-14 = Apple Silicon arm64. We run both
-        # because better-sqlite3 + sharp ship distinct prebuilt binaries
-        # per arch.
-        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
+        # macos-14 = Apple Silicon arm64.
+        #
+        # macos-13 (Intel x64) was dropped 2026-07-26: GitHub had stopped
+        # scheduling Intel macOS runners for this repo, so both macos-13 jobs
+        # sat in `queued` forever — #60, #62 and #63 all merged with two
+        # permanently pending checks, which trains everyone to ignore a
+        # non-green check list. Removing them makes the real state visible.
+        #
+        # Known gap, deliberately accepted: darwin-x64 now has no CI
+        # coverage, and better-sqlite3 + sharp ship distinct prebuilt
+        # binaries per arch. Nothing was actually lost — those jobs never
+        # ran — but darwin-x64 regressions will surface from users, not CI.
+        # Revisit if GitHub offers a working Intel macOS image again.
+        os: [ubuntu-latest, macos-14, windows-latest]
         # Node 18 dropped from CI: vitest 4 (via rolldown) imports
         # `util.styleText` which is Node 20+. Node 18 hit EOL 2025-04.
         # `package.json` engines now declares `>=20` to match (F4-F7 audit
