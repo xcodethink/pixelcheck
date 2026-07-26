@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-07-27 — English-only documentation, MCP registry automation
+
+> Packaging-only release. `dist/` is byte-identical to 1.4.0 — no source file
+> changed. The reason to publish is that the tarball ships `CHANGELOG.md`, and
+> the 1.4.0 tarball shipped one containing ~3,700 CJK characters of old internal
+> work log. This release ships the English rewrite.
+
 ### Added
 - `.github/workflows/publish-mcp.yml` — the `server.json` entry is now pushed
   to `registry.modelcontextprotocol.io` automatically on a version tag,
@@ -30,6 +37,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coverage, and `better-sqlite3` / `sharp` ship distinct prebuilt binaries per
   arch. Nothing was actually lost (those jobs never ran); the check list is now
   honest about it.
+- All documentation is English. Nine ADRs written in Chinese
+  (ADR-001/002/003/004/027/028/029/030/033) are translated, and the v1.0.0
+  changelog section — 224 lines of Chinese work log — is rewritten as English
+  release notes. Thirteen further documents had Chinese fragments, mostly
+  internal task titles. Non-English text that is *product content* is
+  deliberately unchanged: the translation tables (ADR-023), the WCAG section
+  headings (ADR-024), the Chinese and Japanese personas, and the tests
+  asserting those translations are correct.
+- Removed `projects/` from the repository. `.gitignore` had declared it
+  operator-private since 2026-05-03, but part of it was committed nine days
+  earlier and `.gitignore` does not apply to already-tracked files.
+
+### Removed
+- Personal and machine-specific references that had accumulated in the docs: a
+  real name in four ADRs, two absolute local filesystem paths, references to a
+  maintainer's private global configuration, and dead links to internal
+  planning documents that were never public.
 
 ## [1.4.0] - 2026-07-26 — scroll-reveal & tall-page vision fixes, content-readiness gate, dependency security
 
@@ -1984,6 +2008,7 @@ before merge). Fully additive — no breaking changes from v0.2.0.
 - **Stripe safety**: refuses to start if `pk_live_` keys detected in env
 - **Documentation**: architecture guide, scenario authoring guide, persona design guide, CI integration guide
 
+[1.4.1]: https://github.com/xcodethink/pixelcheck/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/xcodethink/pixelcheck/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/xcodethink/pixelcheck/compare/v1.2.1...v1.3.0
 [1.2.0]: https://github.com/xcodethink/pixelcheck/compare/v1.1.5...v1.2.0
