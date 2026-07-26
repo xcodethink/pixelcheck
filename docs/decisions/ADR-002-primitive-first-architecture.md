@@ -1,146 +1,146 @@
-# ADR-002: Primitive-first 架构（audit 降为预设组合）
+# ADR-002 — Primitive-first architecture (audit demoted to a preset)
 
-- **状态**：Accepted
-- **日期**：2026-04-25
-- **决策者**：Wayne
-- **依赖**：[ADR-001 AI-first 定位](./ADR-001-AI-first-positioning.md)
-
----
+- **Status**: Accepted
+- **Date**: 2026-04-25
+- **Builds on**: [ADR-001 — AI-first positioning](./ADR-001-AI-first-positioning.md)
 
 ## Context
 
-v0.3 的核心抽象是 **AuditRun**：
+The core abstraction in v0.3 was **AuditRun**:
 
 ```
 audit run = scenario × persona × URL → AuditResult
 ```
 
-这个抽象使所有能力都被框在"做一次审计"的范式里：
-- 想"看一眼"某 URL → 必须造一个最小 scenario + persona 走 audit run
-- 想"对比 A/B" → 跑两次 audit run 然后用 diff
-- 想"调研 5 个站" → 跑 5 次 audit run
-- 想让 AI "完成注册" → 必须把注册写成 scenario YAML
+Every capability had to be expressed as "perform one audit":
 
-但 ADR-001 锁定的 AI-first 定位下，AI 真正想要的是**底层 primitives**：
+- Look at a URL → invent a minimal scenario and persona, then run an audit.
+- Compare A against B → run two audits and diff them.
+- Survey five sites → run five audits.
+- Have an agent complete a signup → write the signup as scenario YAML.
+
+Under the AI-first positioning fixed by ADR-001, what an agent actually wants is
+the underlying primitives:
 
 ```
-AI: "帮我看一眼 stripe.com 的定价页"
-    → 直接 see('https://stripe.com/pricing')，不需要造 audit
+"Look at stripe.com's pricing page"
+    → see('https://stripe.com/pricing') directly, no audit to construct
 
-AI: "对比 5 个 SaaS pricing 页面，告诉我谁最人性化"
-    → for each site: see + extract → compare 全部
-    → 不是"5 次 audit run"
+"Compare five SaaS pricing pages and tell me which is most humane"
+    → per site: see + extract → compare across all of them
+    → not "five audit runs"
 
-AI: "我刚改了 CSS，去看看实际渲染"
-    → 单次 see 即可
+"I just changed some CSS — show me how it renders"
+    → a single see
 
-AI: "去这个网站注册一个号"
-    → register primitive，不是 scenario YAML
+"Sign up for an account on this site"
+    → a register primitive, not scenario YAML
 ```
 
-继续以 audit run 为核心抽象，会强迫 AI 用错误的颗粒度调用工具，**生产环境 AI 反复 burn token 跑过度抽象的流程**。
-
----
+Keeping audit-run as the core abstraction forces an agent to call tools at the
+wrong granularity, burning tokens on an over-abstracted flow on every call.
 
 ## Decision
 
-**v1.0 架构以 primitives 为一等公民，audit 降级为 primitive 的预设组合（preset）。**
+**v1.0 makes primitives first-class; audit becomes a preset composition of
+them.**
 
-### 新模型
+### The model
 
 ```
 primitives:
-  - see(url, opts)              ← 视觉 + DOM + 网络
-  - act(url, steps)             ← 动作序列
-  - compare(a, b, criteria)     ← A/B 对比 + 审美
-  - extract(url, schema)        ← 结构化提取
-  - register(service, profile)  ← 调研型注册
-  - critic(target, rubric)      ← 通用判断
+  - see(url, opts)              ← visual + DOM + network
+  - act(url, steps)             ← action sequence
+  - compare(a, b, criteria)     ← A/B comparison + taste
+  - extract(url, schema)        ← structured extraction
+  - register(service, profile)  ← research-only signup
+  - critic(target, rubric)      ← general judgement
   - ...
 
-presets（primitive 组合的便利 wrapper）:
-  - audit_run = preset(see + act + critic + report)
+presets (convenience wrappers over primitive compositions):
+  - audit_run         = preset(see + act + critic + report)
   - research_workflow = preset(see × N + extract × N + compare)
-  - ux_test = preset(act + see + critic)
+  - ux_test           = preset(act + see + critic)
   - register_evaluate = preset(register + see + critic)
 ```
 
-### MCP 暴露
+### MCP surface
 
-每个 primitive 是一个独立的 MCP tool：
+Each primitive is its own MCP tool:
+
 ```
 mcp__pixelcheck__see
 mcp__pixelcheck__act
 mcp__pixelcheck__compare
 mcp__pixelcheck__extract
 mcp__pixelcheck__register
-mcp__pixelcheck__audit_url       ← 预设的薄包装
+mcp__pixelcheck__audit_url       ← thin wrapper over the preset
 mcp__pixelcheck__list_personas
 ...
 ```
 
-AI 可以**自由组合调用**，也可以走预设。
+Callers compose freely, or take a preset.
 
-### v0.3 兼容
+### v0.3 compatibility
 
-- `pixelcheck audit ...` CLI 命令保留为预设的薄 shim
-- 用户旧 personas / scenarios YAML 依然能跑（通过 shim 翻译为新 primitives）
-- Wayne 一人用 → 不需要复杂的 deprecation policy
-
----
+- The `pixelcheck audit ...` CLI command stays as a thin shim over the preset.
+- Existing persona and scenario YAML keeps working; the shim translates it into
+  primitives.
+- With a single maintainer at this point, no elaborate deprecation policy is
+  needed.
 
 ## Consequences
 
-### 正面
+### Positive
 
-- AI 调用颗粒度匹配实际需求 → 节省 token / 节省时间
-- Primitive 可被多种 preset 复用 → 代码 DRY
-- 添加新 preset（research / register-evaluate / ...）几乎零成本
-- 测试更容易：每个 primitive 独立测试 + preset 组合测试
-- MCP tool surface 更清晰
+- Call granularity matches actual intent, saving tokens and wall-clock time.
+- Primitives are reused across presets, so the code stays DRY.
+- Adding a preset (research, register-evaluate, …) costs almost nothing.
+- Testing gets easier: each primitive is tested alone, presets are tested as
+  compositions.
+- The MCP tool surface reads more clearly.
 
-### 负面
+### Negative
 
-- 现有代码大量重写：runner / handlers / agent-loop 都要解构成 primitives
-- v0.3 的 audit-centric 文档需要全部更新
-- 学习曲线：新用户既要懂 primitives 又要懂 preset
-- 设计风险：primitives 颗粒度切错（太细 = AI 调用过多次；太粗 = 灵活性不足）
+- Substantial rewrite: runner, handlers and the agent loop all decompose into
+  primitives.
+- All audit-centric v0.3 documentation needs updating.
+- Steeper learning curve — newcomers meet both primitives and presets.
+- Design risk in choosing granularity: too fine means excessive round-trips, too
+  coarse loses the flexibility this change exists to buy.
 
-### 中性
+### Neutral
 
-- audit 这个词在 v1 里仍然存在（作为预设名），不会让 v0.3 用户彻底迷失
-- HTML 报告依然产出（从 audit preset 输出），但不是核心
+- The word "audit" survives in v1 as a preset name, so v0.3 users are not
+  completely disoriented.
+- HTML reports are still produced, by the audit preset, but are no longer
+  central.
 
----
+## Primitive design rules (binding from v1.0)
 
-## Primitive 设计原则（v1.0 起强制）
+1. **Independently testable** — no reliance on another primitive's side effects.
+2. **Zod / JSON Schema on both sides** — the contract machine consumers read.
+3. **Side effects owned internally** — browser launch, network calls and DB
+   writes each have one clear owner.
+4. **Dry-run support** — every primitive accepts `dry_run: true` so a caller can
+   preview without executing.
+5. **Composability first** — return shapes must be consumable by the next
+   primitive.
+6. **Versioned result schema** — each primitive carries its own SemVer.
 
-1. **每个 primitive 单独可测试**：不依赖其他 primitive 的副作用
-2. **输入输出都用 Zod / JSON Schema 定义**：AI 消费的契约
-3. **副作用集中在 primitive 内部**：浏览器启动 / 网络请求 / DB 写入都有明确 owner
-4. **支持 dry-run**：每个 primitive 提供 `dry_run: true` 选项给 AI 预览不执行
-5. **可组合性优先**：返回值结构要让下一个 primitive 能消费
-6. **Result schema 版本化**：每个 primitive 独立 SemVer
+## Alternatives considered
 
----
+**A. Stay audit-centric and add primitives as an "advanced API".**
+Rejected — two coexisting abstractions confuse users and double maintenance.
 
-## Alternatives Considered
+**B. Drop the audit concept entirely.**
+Rejected — audit remains a useful, common composition; keep it as a preset
+rather than as the core.
 
-### A. 保持 audit-centric，添加 primitives 作为"高级 API"
-
-**不选**。两套抽象并存 = 用户混乱 + 维护成本翻倍。
-
-### B. 完全废弃 audit 概念
-
-**不选**。Audit 仍是有用的预设（一种常见组合），保留作为 preset 而不是核心。
-
-### C. 让 audit 自动从 primitives 反推（用户写 audit YAML，系统转 primitives）
-
-**不选**。中间层抽象增加复杂度，不解决根本问题。
-
----
+**C. Derive primitives automatically from audit YAML.**
+Rejected — an extra translation layer adds complexity without addressing the
+granularity problem.
 
 ## References
 
-- ADR-001：[AI-first 定位](./ADR-001-AI-first-positioning.md)
-- 主方案 v3.0 第 5 部分：[架构原则](../../../project-internal planning)
+- ADR-001 — [AI-first positioning](./ADR-001-AI-first-positioning.md)

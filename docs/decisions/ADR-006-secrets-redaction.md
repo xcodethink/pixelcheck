@@ -15,7 +15,7 @@ ADR-005 introduced a structured logger but added no protection against secret va
 
 Reports were already protected via `secrets.redactDeep()` (applied in `reporter.ts` / `reporter-spa.ts` before disk write). Logs and CLI error output were not.
 
-The 7.1 engineering discipline list in the v3.0 plan explicitly requires "Secrets redaction (log + 输出 + report 不含 API key)".
+The engineering discipline list requires secrets redaction: no API key may appear in logs, command output or reports.
 
 ## Decision
 

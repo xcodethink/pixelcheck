@@ -118,7 +118,7 @@ longer needed.
 
 ## Verification matrix (functional parity vs v2.5.8)
 
-Per CLAUDE.md migration规范 (≥ 95% completion rate required):
+Per the project's migration rules (a completion rate of at least 95% is required):
 
 | Category | v2 behaviour | v3 result |
 |---|---|---|

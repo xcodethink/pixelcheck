@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: M2-3 — 历史趋势 chart + dashboard
+- **Task**: M2-3 — historical trend charts and dashboard
 - **Builds on**: ADR-020 (PDF stakeholder report — same "alternate consumption surface for the same audit data" pattern)
 
 ## Context

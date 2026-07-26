@@ -9,7 +9,7 @@
 
 PixelCheck is now used in two modes that can both touch shared state at the same time:
 
-1. **Multiple CLI processes** — Wayne sometimes runs an audit in one terminal, then kicks off a second `pixelcheck audit` in a parallel terminal while the first is still running. Both processes write the same JSON cost ledger and SQLite memory DB.
+1. **Multiple CLI processes** — an operator may run an audit in one terminal, then start a second `pixelcheck audit` in another while the first is still running. Both processes write the same JSON cost ledger and SQLite memory DB.
 2. **Single MCP server, multiple tool calls** — when an MCP server hosts the project's tools, an MCP client (Claude Code) may issue two `audit_url` calls back-to-back without waiting for the first to return. Both calls share one Node.js process, and any module-level singleton state (like the cost guard's per-run counters) is shared between them.
 
 ADR-008 explicitly punted on this with a *"last-write-wins, soft cap"* note. With the v1 push to AI-first usage and concurrent MCP fan-out, that's no longer enough — we now need real isolation, not "acceptable for a single-developer tool."
@@ -88,7 +88,7 @@ Rejected alternatives:
 
 - Two concurrent CLI runs share the daily ledger correctly; nothing is lost.
 - Two parallel MCP tool calls have independent per-run caps.
-- `record()` is now safe to call from concurrent processes (Wayne ran into a UNIQUE-constraint exception in the wild last week — that path is closed).
+- `record()` is now safe to call from concurrent processes. A UNIQUE-constraint exception was hit in real use the week before this change; that path is closed.
 - New `file-lock.ts` is reusable for any future shared JSON state (the persona registry, the calibration cache, etc.).
 
 **Negative**

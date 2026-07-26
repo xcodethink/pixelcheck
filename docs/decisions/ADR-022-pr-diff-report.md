@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: M2-5 — Audit diff 报告
+- **Task**: M2-5 — audit diff report
 - **Builds on**: ADR-019 (CI-friendly output formats — same "alternate serialisation, same source data" pattern), ADR-021 (trends dashboard — same "history.db is the source, render at the consumer's needs" architecture)
 
 ## Context

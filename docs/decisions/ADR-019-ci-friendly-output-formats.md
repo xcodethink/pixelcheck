@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: M2-6 — CI 友好格式输出
+- **Task**: M2-6 — CI-friendly output formats
 - **Builds on**: ADR-007 (result schema is the source of truth — these are alternate serialisations, not new schemas)
 
 ## Context

@@ -103,10 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so rubric scoring reads tall pages at legible resolution instead of one
   squashed sub-1568px image. `runJudgeVision` (the `judge` primitive and
   `VisualCollector`) now sends these multi-image inputs for tall pages.
-- `cn-chinese-pro-desktop` persona (李娜, 上海, Windows 1440×900). Simplified
-  Chinese previously had no desktop persona — only `cn-chinese-free-mobile`
-  and `tw-chinese-pro-tablet` — so a "Chinese desktop" audit had no fitting
-  persona to run.
+- `cn-chinese-pro-desktop` persona — a Simplified Chinese desktop profile
+  (Shanghai, Windows, 1440×900). Simplified Chinese previously had no desktop
+  persona, only `cn-chinese-free-mobile` and `tw-chinese-pro-tablet`, so a
+  Chinese desktop audit had no fitting persona to run.
 
 ### Changed
 - The `note` vision calls (`see` with a goal, `act` `note` steps) and the
@@ -1058,302 +1058,286 @@ generate a fresh template, or hand-add `id: <unique-name>` to each step.
 - **Migration for v0.x users**: see [MIGRATION.md](./MIGRATION.md). Net effect: replace `ai-audit` with `pixelcheck` in commands; `~/.ai-browser-auditor/` is auto-migrated on first run with backup; no data loss.
 - **Why now**: v1.0 ship is the brand-defining moment. Aligning npm package + README + launch materials + ADR-001 strategic positioning before publish avoids irreversible npm-name divergence and uses the 2026-Q2 MCP / vendor-agnostic narrative window.
 
-### Added / Tested (Wave 7-pre — Ship 前 100% 自验通 / 测试加固 / 自动化防回归)
+### Added / Tested (Wave 7-pre — pre-ship self-verification, test hardening, automated regression guards)
 
-- **R3 / R4 / R6 / R7-R10 / R12-R51（除 R26/R27/R44 partial）/ R57-R61 + R-NEW-V1-SHIP-1 全标 ✅** in RISK-REGISTER。剩 4 ⏳ 等 API key (R1/R2/R5) + 2 ⏳ 等 T33 publish (R55/R58) + 2 ⏸ ADR-027/028 v1.x (R26/R27)。
-- **vitest 1833 → 1853 (+20 测试) ✓ / Coverage 81/69.41/81.04/82.48 (vendor 排除 per ADR-032 / floor 66/60/66/66) / 1853/1853 ✓**
-- **新加 `.github/workflows/dogfood.yml`**：每 PR + push 跑 npm pack → fresh tmp 目录 install <tarball> → ai-audit --help / doctor / init 三个 binary 验证 + **1 MB tarball hard size gate**（exit 1 if > 1MB）防包体积膨胀。**自动化防 R-NEW-V1-SHIP-1 类 packaging bug 再发**。
-- **新加 `scripts/sync-vendor.sh`**：从 canonical ~/Developer/stealth-core/src/ 同步到 src/vendor/stealth-core/，diff-aware 报告 added/updated/unchanged + 检测 vendor 有但 canonical 没的 stale 文件。
-- **新加 `scripts/check-vendor-drift.ts`** + npm script `check:vendor-drift`：检测 vendor/canonical 漂移；3 exit 状态（match / drift / canonical-missing）+ env override `AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1`（CI mode）+ `AUDIT_VENDOR_DRIFT_OK=1`（intentional vendor lock）。**ADR-032 follow-up 真落地**。
-- **bench:check 0 regression / 4 IMPROVED**（renderTrendsHtml +89.6% / renderJunitXml +85.8% / renderDiffMarkdown +66.3% / renderHistoryTrendsHtml +37.1%）—— vitest 4 + Node 24 + Wave 1-6 代码优化的累积效应。
-- **license:check exit 0 / 289 prod deps 全 approved licenses**（MIT / Apache / ISC / BSD / 0BSD / Unlicense / 等）—— ci.yml license:check step 已就位。
-- **sbom 564 KB CycloneDX 1.6 JSON 生成验过** —— sbom.yml workflow on release tag 已就位；T33 publish 时上传 GitHub Release artifact。
-- **typedoc docs:api 89 documented exports**（43 functions + 25 types + 20 interfaces + 1 class）—— 不入仓库不入 npm tarball（按 ADR-032 决策；本地 `npm run docs:api` 一键生成）。
-- **20× integration flake test 本地连跑 0 flake** —— pre-T1 时代有 ~10-15% flake；T1 forks pool 修复 + Wave 7-pre 连验关 R4 残余。
-- **agent-loop coverage 77.35% → 88.46%** (+11pt)：新加 8 测覆盖 6 criterion verification types（dom / extract / network / performance / error / interaction / visual）+ takeScreenshotBase64 catch + microReplan kind=escalate path。
-- **vitest.config.ts coverage exclude 加 `src/vendor/**`** per ADR-032 —— vendored stealth-core 在 canonical 有自己测试，不应算 ai-browser-auditor 覆盖率。
-- **fixture-with-real-tokens Playwright e2e 关 R35 残余**（22/22 in 24s）：覆盖现实生产页面 patterns —— Stripe sk_live_ / pk_test_ / cc number / cvv，Login + 2FA + password reset + recovery code，OAuth bearer / AWS access key / API token 设置页。**13 sensitive fields 全 redact 验通**；**4 innocuous fields 不被误伤**；**3 v1.0 known heuristic gaps 文档化**（recovery_code / aws_access_key_id / cc_number — v1.x 扩展候选；测含注释让 future heuristic expansion 必须改测才能让它们通过）。
-- **doctor edge cases +15 测试**（21 → 36 测）：proxy 5 组合（HTTPS_PROXY 单 / 全 3 env / lowercase https_proxy alias）+ ANTHROPIC_API_KEY 5 状态（unset / sk-ant- / garbage / detail truncate 隐私验证）+ AUDIT_HOME 替换验证 + corrupted blocker file mkdir 优雅 fail。
-- **RELEASE-READINESS-CHECKLIST 80 项 → 49 ✅ / 12 ⚠ / 19 ❌ → 59 ✅ / 7 ⚠ / 14 ⏳/⏸**（Wave 7-pre +9 ✅）。剩 14 项纯粹"等 API key (4) + 等 publish (7) + v1.0-rc1 reviewer (3)"，不再有"我能做没做"项。
+- **Risk register cleared to the ship gate**: R3, R4, R6, R7–R10, R12–R51 (except R26/R27/R44, partial), R57–R61 and R-NEW-V1-SHIP-1 all closed. The remainder are blocked on an API key (R1/R2/R5), on the publish step itself (R55/R58), or deferred to v1.x per ADR-027/028 (R26/R27).
+- **Tests 1833 → 1853 (+20)**; coverage 81 / 69.41 / 81.04 / 82.48 with the vendored tree excluded per ADR-032, against a 66/60/66/66 floor.
+- **New `.github/workflows/dogfood.yml`**: every PR and push runs `npm pack`, installs the tarball into a fresh temp directory, and verifies all three binaries (`--help`, `doctor`, `init`), plus a **hard 1 MB tarball size gate** that exits non-zero if exceeded. This automates detection of the packaging class of bug that R-NEW-V1-SHIP-1 turned out to be.
+- **New `scripts/sync-vendor.sh`**: syncs the canonical stealth-core sources into `src/vendor/stealth-core/`, reporting added / updated / unchanged files and flagging vendored files that no longer exist upstream.
+- **New `scripts/check-vendor-drift.ts`** and the `check:vendor-drift` script: detects drift between vendored and canonical sources with three exit states (match / drift / canonical-missing), plus `AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1` for CI and `AUDIT_VENDOR_DRIFT_OK=1` for an intentional vendor lock. This is the ADR-032 follow-up actually landing.
+- **`bench:check`: zero regressions, four improvements** — `renderTrendsHtml` +89.6%, `renderJunitXml` +85.8%, `renderDiffMarkdown` +66.3%, `renderHistoryTrendsHtml` +37.1% — the cumulative effect of vitest 4, Node 24 and the Wave 1–6 optimisations.
+- **`license:check` exits 0**; all 289 production dependencies carry approved licences (MIT / Apache / ISC / BSD / 0BSD / Unlicense and similar). The CI step is in place.
+- **SBOM verified**: a 564 KB CycloneDX 1.6 JSON generates cleanly, and `sbom.yml` uploads it as a release artifact on a version tag.
+- **typedoc reports 89 documented exports** (43 functions, 25 types, 20 interfaces, 1 class). Per ADR-032 the output is neither committed nor shipped in the npm tarball; `npm run docs:api` generates it locally.
+- **20 consecutive integration runs, zero flakes** — down from the ~10–15% flake rate before the forks-pool fix, closing the remainder of R4.
+- **agent-loop coverage 77.35% → 88.46%** (+11pt): eight new tests covering all six criterion verification types (dom / extract / network / performance / error / interaction / visual), the `takeScreenshotBase64` catch path, and the `microReplan` escalate path.
+- **`vitest.config.ts` excludes `src/vendor/**` from coverage** per ADR-032 — the vendored sources have their own tests upstream and should not count here.
+- **Playwright end-to-end fixture with realistic tokens** closes the remainder of R35 (22/22 in 24s). It covers production-shaped patterns: Stripe `sk_live_` / `pk_test_` keys, card numbers and CVVs, login with 2FA, password reset and recovery codes, and OAuth bearer / AWS access key / API token settings pages. **All 13 sensitive fields redact correctly**, **four innocuous fields are left alone**, and **three known v1.0 heuristic gaps are documented** (`recovery_code`, `aws_access_key_id`, `cc_number`) as v1.x candidates — the test comments require any future heuristic expansion to update the test rather than silently pass.
+- **doctor edge cases, +15 tests** (21 → 36): five proxy combinations (a single `HTTPS_PROXY`, all three variables, and the lowercase alias), five API-key states (unset, well-formed, malformed, and detail truncation for privacy), home-directory override, and graceful failure on a corrupted blocker file.
+- **Release readiness checklist**: 80 items moved from 49 done / 12 warning / 19 outstanding to 59 done / 7 warning / 14 pending-or-deferred. The 14 remaining are all "waiting on an API key", "waiting on publish", or "waiting on release-candidate review" — nothing left that could have been done and was not.
 
-完整回归：tsc ✓ / build ✓ / **vitest 1853/1853 ✓** / **test:coverage:check pass at 66/60/66/66** ✓ / 0 schemas diff / lint:no-console ✓ / npm pack 555 → 570 KB / 315 → 333 files（vendored stealth-core）。
+Full regression: typecheck, build, **1853/1853 tests**, **coverage check passing at 66/60/66/66**, zero schema diff, `lint:no-console`, `npm pack` 555 → 570 KB and 315 → 333 files (the vendored sources).
 
-**v1.0 ship gate 当前状态**：✅ 0 P0 ship-blocker；80 项 checklist 全部归因；预估 **5h 全跑完**（API key 任务 ~3h + T33 publish ~2h）。
+**Ship gate**: no P0 blockers; every checklist item accounted for.
 
-### Fixed (T31.5 — v1.0 ship-blocker R-NEW-V1-SHIP-1: vendor stealth-core)
+### Fixed (T31.5 — v1.0 ship blocker R-NEW-V1-SHIP-1: vendoring stealth-core)
 
-- **关闭 R-NEW-V1-SHIP-1** ✅（v1.0 ship-blocker / 用户决策方案 B）。
-- **Vendor stealth-core into `src/vendor/stealth-core/`**：6 个源文件（browser / fingerprints / index / launch-options / retry / stealth-script）从 sibling repo `~/Developer/stealth-core/src/` 复制到 ai-browser-auditor 源树；TypeScript 一次 tsc 编译，输出到 `dist/vendor/stealth-core/`，跟随 `files: ["dist/", ...]` 进 npm tarball。
-- **2 个 import 改路径**：`src/core/stagehand-wrapper.ts` + `src/handlers/index.ts` 从 `from "stealth-core"` 改为 `from "../vendor/stealth-core/index.js"`。
-- **package.json 删 `"stealth-core": "file:../stealth-core"`**：lockfile regenerate（删除 extraneous `../stealth-core` 条目）。
-- **新 ADR-032**（~110 LoC）：3 选 1 决策记录（A publish to npm 拒绝因公开反指纹技术 / B vendor 选用 / C inline 拒绝因丢失 5 项目共享）+ 更新流程 + drift 检测计划 + 为什么不上 monorepo workspaces。
-- **Dogfood 再验证**（fresh dir `/tmp/abx-dogfood-postfix-…`）：`npm install <tarball>` 0 errors / `npx ai-audit --help` ✓ / `doctor --skip-network --verbose` 8 checks ✓ / `init test-project` 脚手架 ✓ —— **fresh install 装通**。
-- **Tarball 大小**：555 KB / 315 files → **570 KB / 333 files**（+15 KB / +18 files for vendored stealth-core 编译输出）；远低于 5 MB cap。
-- 完整回归：tsc ✓ / build ✓ / **vitest 1833/1833 ✓**（vendor 编译跟原 npm-resolved 包行为完全一致）/ 0 schemas diff。
-- **v1.0 ship-blocker 解除**。RELEASE-READINESS-CHECKLIST 项目数：49 ✅ / 12 ⚠ / 19 ❌ → 50+ ✅ / 12 ⚠ / 18- ❌（`fresh install 装通` 从 ❌ 改 ✅）。
+- **R-NEW-V1-SHIP-1 closed** (v1.0 ship blocker; option B was chosen).
+- **Vendored stealth-core into `src/vendor/stealth-core/`**: six source files (browser, fingerprints, index, launch-options, retry, stealth-script) copied from the sibling repository into this source tree. They compile in the same `tsc` pass, output to `dist/vendor/stealth-core/`, and ship in the npm tarball through the existing `files` entry.
+- **Two imports repointed**: `src/core/stagehand-wrapper.ts` and `src/handlers/index.ts` now import from `../vendor/stealth-core/index.js` instead of the package name.
+- **Removed the `file:` dependency** from `package.json` and regenerated the lockfile, dropping the extraneous entry.
+- **New ADR-032** (~110 LoC): the three-way decision record (A — publish to npm, rejected because it would expose anti-fingerprinting technique publicly; B — vendor, chosen; C — inline into `src/`, rejected because it loses sharing across projects), plus the update procedure, the drift-detection plan, and why monorepo workspaces were not adopted.
+- **Dogfood re-verified** in a fresh directory: tarball install with zero errors, `--help`, `doctor --skip-network --verbose` (8 checks) and `init` scaffolding all pass — a fresh install works.
+- **Tarball**: 555 KB / 315 files → **570 KB / 333 files** (+15 KB, +18 files for the vendored build output), far below the 5 MB cap.
+- Full regression: typecheck, build, **1833/1833 tests** (the vendored build behaves identically to the previously npm-resolved package), zero schema diff.
+- **The v1.0 ship blocker is cleared**, and the "fresh install works" checklist item flips to done.
 
-### Added (Wave 6 + T31/T32 — Phase 3 coverage 5 模块 + v1.0-rc1 dogfood + checklist 走查)
+### Added (Wave 6 + T31/T32 — Phase 3 coverage for five modules, release-candidate dogfood, checklist walkthrough)
 
-- **关闭 RISK-REGISTER R11** ✅（Phase 3 5 个 0%-2.4% 编排核心模块全提到 ≥77%）。**Wave 6 完整收尾 5/5**（T12 + T16 + T13 + T15 + T14）。
-- **T12 reporter.ts**（528 LoC, 0% → **99.11%** stmt）：`tests/reporter.test.ts` 41 tests 覆盖 3 exports（writeJsonReport / writeMarkdownSummary / writeHtmlReport）+ 5 内部 helpers（renderUnit / renderAgentSummary / renderTrendSection / renderReliabilityStats / escapeHtml）+ redact 应用 vs 跳过 fast path / trend section gating（history.length >= 2）/ SVG sparkline 组成（4 grid lines / dots / polyline / fill）/ 4 convergence_reason 颜色 / HTML 转义。
-- **T16 computer-use.ts**（449 LoC, 2.4% → **92.07%** stmt）：`tests/computer-use.test.ts` 40 tests 覆盖 14 actions（screenshot / left/right/middle/double/triple_click / left_click_drag / mouse_move / type / key / hold_key / scroll 4 directions / wait / left_mouse_down/up / zoom）+ 视口缩放 1280×800（无 scale）vs 3200×1800（scale ≈ 0.447）+ coordinate scaling round-trip + 3 modifier（shift/ctrl/cmd）+ unsupported action throw + tool_use without id edge case + max iterations 退出。
-- **T13 runner.ts**（567 LoC, 0.7% → **86.92%** stmt）：`tests/runner.test.ts` 26 tests 覆盖 happy path / runDir mode 0700 / fingerprint_id / redact_patterns / opts.tag / 状态判定（pass/pass_with_issues/fail）/ critical 步骤中断 / crash → critical issue / persona 缺失 skip / 自动模式 delegate / visual regression diff issue / multi-unit matrix / score 聚合（多 critic averaging）/ schema_version stamp / empty matrix。7 个 module mocks（stagehand-wrapper / handlers / agent-loop / recorder / observer × 4 / email）。
-- **T15 handlers/index.ts**（804 LoC, 0.4% → **90.04%** stmt）：`tests/handlers-index.test.ts` 48 tests 覆盖 12 handlers（visit / act 4-layer fallback / extract / observe / wait_for / assert_visual / assert_dom / assert_a11y / check_email / screenshot / computer_use / custom）+ executeStep retry / fail-screenshot / status 判定 / handleAct 4-layer 串联（stagehand → selector_hint → mutation → auto_selector → computer_use → fallback=skip / fail）+ critical_review Opus 8 iter + assert_visual escalation + assert_a11y axe injection fail / no violations / critical / impact_filter / max_violations / invalid shape。
-- **T14 agent-loop.ts**（777 LoC, 0.4% → **77.35%** stmt）：`tests/agent-loop.test.ts` 14 tests 覆盖 goal_met / budget_exceeded / max_actions / 计划耗尽 → revisePlan / navigator-requested replan / stuck + microReplan rewrite / stuck + microReplan skip / try crash → catch → critical issue / plan cache hit / cost_mode 3 路径（max → navigatorDecide / balanced + economy → economicNavigatorDecide）/ AUDIT_COST_MODE env override / agent_config defaults。13 个 vi.hoisted module mocks。**77.35% 接近 80%**——agent-loop 是最复杂模块，5 exit 路径 + cache + micro-replan + cost mode dispatch；放宽到 70%。
-- **Wave 6 项目级 coverage gain**：67/59/71/68 → **80.54/69.02/81.04/82.01**（**stmt/funcs/lines 跨过 80%**）；floor 60/54/60/60 → 65/59/65/65（+1pt per module 节奏，5 modules × +1pt = +5pt）。
-- **T31 v1.0-rc1 verdaccio dogfood**：`npm run build` ✓ + `npm pack` **555 KB / 315 files**（远低于 5MB cap）+ 在新 tmp 目录 `npm install <tarball>` 试装 → 🔴 **发现 ship-blocker R-NEW-V1-SHIP-1**（`stealth-core` 不在 npm public registry，package.json 用 `file:../stealth-core`），fresh install 失败 `Cannot find package 'stealth-core'`。**T31 设计目的就是 catch 这种 packaging bug**，dogfood 流程价值证明。dev-tree（worktree-v1-ai-first）`node dist/cli.js doctor --skip-network` 8 checks 全跑通 → 验 build artifacts 本身正常，纯 packaging 问题。
-- **R-NEW-V1-SHIP-1 入 RISK-REGISTER L11**（v1.0 ship-blocker）+ 3 修复方案文档化（A: publish stealth-core to npm 独立包 / B: bundle 进 dist/vendor / C: inline 源到 src/stealth）。**T33 publish gate**：必须先选一个修完才能 publish v1.0.0。**不擅自修复**因 CLAUDE.md 硬刹车规则（npm publish / 批量改文件 / 改包结构都需用户授权）。
-- **T32 RELEASE-READINESS-CHECKLIST 80 项走查**：**49 ✅ / 12 ⚠ / 19 ❌**。in-place tickbox + 评注写回 checklist。**ship gate 总结**：1 个 P0 ship-blocker（R-NEW-V1-SHIP-1）+ 等 ANTHROPIC_API_KEY 4 项（T8 calibration / T3 LLM cassette / T5 Stagehand smoke）+ T33 publish 工作 7 项 + v1.0-rc1 reviewer 实测 12 项不阻塞 ship。预估 **8-10h 到 v1.0 ship**（user 决策修 ship-blocker 后）。
-- 完整回归：tsc ✓ / build ✓ / **vitest 1664 → 1833 (+169) ✓** / lint:no-console ✓ / 0 schemas diff / npm pack 565.5 KB → 555 KB（含 .gitignore *.tgz 防 commit）/ test:coverage:check pass at 65/59/65/65。
+- **Risk-register R11 closed**: all five orchestration-core modules that sat between 0% and 2.4% coverage are now at 77% or above. Wave 6 completed 5/5.
+- **`reporter.ts`** (528 LoC, 0% → **99.11%** statements): 41 tests across the three exports (`writeJsonReport`, `writeMarkdownSummary`, `writeHtmlReport`) and five internal helpers, covering redaction applied versus the skip fast path, trend-section gating at two or more history entries, SVG sparkline composition (grid lines, dots, polyline, fill), all four convergence-reason colours, and HTML escaping.
+- **`computer-use.ts`** (449 LoC, 2.4% → **92.07%**): 40 tests across all 14 actions (screenshot, left/right/middle/double/triple click, drag, mouse move, type, key, hold key, four scroll directions, wait, mouse down/up, zoom), viewport scaling at 1280×800 (no scale) versus 3200×1800 (scale ≈ 0.447), coordinate scaling round-trips, three modifier keys, the unsupported-action throw, the `tool_use`-without-id edge case, and the max-iterations exit.
+- **`runner.ts`** (567 LoC, 0.7% → **86.92%**): 26 tests covering the happy path, run-directory mode 0700, fingerprint identity, redaction patterns, tagging, all three status outcomes, critical-step interruption, crash-to-critical-issue, missing-persona skip, automatic-mode delegation, visual regression issues, the multi-unit matrix, score aggregation across critics, schema-version stamping, and the empty matrix. Seven module mocks.
+- **`handlers/index.ts`** (804 LoC, 0.4% → **90.04%**): 48 tests across all 12 handlers, plus step retry, failure screenshots, status determination, the four-layer `act` fallback chain, the critical-review path, visual-assertion escalation, and axe assertion behaviour (injection failure, no violations, critical violations, impact filtering, max violations, invalid shape).
+- **`agent-loop.ts`** (777 LoC, 0.4% → **77.35%**): 14 tests covering goal-met, budget-exceeded, max-actions, plan exhaustion into revision, navigator-requested replanning, both stuck-plus-micro-replan outcomes, crash-to-critical-issue, plan cache hits, all three cost-mode paths, the cost-mode environment override, and agent config defaults. This is the most complex module — five exit paths, caching, micro-replanning and cost-mode dispatch — so its floor was set at 70%.
+- **Project coverage**: 67/59/71/68 → **80.54 / 69.02 / 81.04 / 82.01**, crossing 80% on statements, lines and functions. Floor raised 60/54/60/60 → 65/59/65/65.
+- **Release-candidate dogfood**: `npm pack` produced 555 KB / 315 files, well under the cap, but installing that tarball into a fresh directory **surfaced ship blocker R-NEW-V1-SHIP-1** — `stealth-core` was declared as a local `file:` dependency and is not on the public registry, so a fresh install failed to resolve it. Catching exactly this class of packaging bug is what the dogfood step exists for. The development tree itself was fine (`doctor --skip-network` passed all 8 checks), confirming a pure packaging problem.
+- **The blocker was filed with three documented remedies** (publish as a separate npm package, bundle into `dist/vendor`, or inline into `src/`) and gated the publish step. It was deliberately **not** fixed on the spot, because changing package structure ahead of a publish requires explicit authorisation.
+- **Release readiness checklist walked, all 80 items**: 49 done / 12 warning / 19 outstanding, ticked in place with notes. Summary: one P0 blocker, four items waiting on an API key, seven publish tasks, and 12 release-candidate review items that do not block shipping.
+- Full regression: typecheck, build, **1664 → 1833 tests (+169)**, `lint:no-console`, zero schema diff, `npm pack` 565.5 → 555 KB, coverage check passing at 65/59/65/65.
 
-### Added (Wave 5 — P1 收口 5 件套：T11 + T10 + T9 + T17 + T18)
+### Added (Wave 5 — five P1 closures: T11, T10, T9, T17, T18)
 
-- **关闭 RISK-REGISTER R11 / R49 / R50 / R51 / R52 / R53 / R65（partial）** ✅（7 risks）。**Wave 5 P1 收口** 5 个互不冲突的小任务并行推进：translation review template / CI bench observation / artifacts retention / result-cache LRU disk-quota / SPA core i18n.
+- **Closes risk-register R11, R49, R50, R51, R52, R53 and R65 (partial)** — seven risks. Wave 5 ran five small, non-conflicting tasks in parallel: translation review template, CI bench observation, artifact retention, result-cache LRU disk quota, and SPA core i18n.
 
-#### T11 — Native translation review template + GitHub issue template + README placeholder
+#### T11 — Native translation review template, GitHub issue template, README placeholder
 
-- **`docs/translation-review-template.md`**（~150 LoC）：reviewer 元数据 block + 90 keys 行级表（前 30 keys 行 + 自动生成剩余 60 keys 的命令）+ 5 cross-cutting feedback 段（style/register / cultural / number/unit/date / missing keys）+ sign-off checklist + 入库流程；每 reviewer 用文件 `docs/translation-review-<locale>-<reviewer>.md` 公开追踪。
-- **`.github/ISSUE_TEMPLATE/translation-review.yml`**：reviewer announce 渠道（避免两人撞同一 locale）+ profile / target date / questions 字段 + 3 acknowledgement checkboxes（已读 template / 会提 PR / 同意公开列名）。
-- **README "Localised reports" 段加 reviewer 表**：5 行（en source / zh-CN / ja / es / de），4 个 _pending_ 占位等 v1.x reviewer 反馈。
+- **`docs/translation-review-template.md`** (~150 LoC): a reviewer metadata block, a line-by-line table for 90 keys (the first 30 inline, with a command to generate the remaining 60), five cross-cutting feedback sections (style and register, cultural fit, number/unit/date conventions, missing keys), a sign-off checklist, and the submission process. Each reviewer files `docs/translation-review-<locale>-<reviewer>.md` so the work is publicly traceable.
+- **`.github/ISSUE_TEMPLATE/translation-review.yml`**: an announcement channel so two reviewers do not collide on the same locale, with profile, target date and question fields, plus three acknowledgement checkboxes (template read, PR will be raised, consent to public credit).
+- **README "Localised reports" gains a reviewer table**: five rows (English source, zh-CN, ja, es, de), with four pending placeholders awaiting v1.x reviewer feedback.
 
-#### T10 — CI bench observation workflow（5-run calibration window）
+#### T10 — CI bench observation workflow (five-run calibration window)
 
-- **新 `.github/workflows/bench.yml`**：weekly cron Sunday 03:17 UTC + workflow_dispatch + opt-in PR via `bench` label；ubuntu-latest Node 20 fixed runner profile；`npm run bench` + `npm run bench:check` continue-on-error；`docs/perf-current.json` 上传 90 天 retention artifact。
-- **新 `docs/decisions/ADR-031-ci-bench-observation-mode.md`**（~110 LoC）：5+ 次 observation 后做 promotion criteria（empirical p95 deviation × 1.5 → calibrated tolerance / 改 bench:check 为 required check / 加进 branch protection）+ "为什么不一开始就 gate" / "为什么不 skip" / "为什么不 12-config matrix" / "为什么不 every PR" 决策原则；docs/decisions/README.md Engineering 段补 ADR-031 行。
+- **New `.github/workflows/bench.yml`**: a weekly Sunday cron, `workflow_dispatch`, and opt-in on a PR via the `bench` label; a fixed ubuntu-latest / Node 20 runner profile; `bench` and `bench:check` run with `continue-on-error`; `docs/perf-current.json` is uploaded with 90-day retention.
+- **New `docs/decisions/ADR-031-ci-bench-observation-mode.md`** (~110 LoC): the promotion criteria after five or more observations (empirical p95 deviation × 1.5 becomes the calibrated tolerance, `bench:check` becomes a required check, and it joins branch protection), plus the reasoning for not gating from day one, not skipping benchmarks entirely, not running a 12-config matrix, and not running on every PR.
 
-#### T9 — Artifacts retention prune（CLI ai-audit prune + lazy MCP server prune）
+#### T9 — Artifact retention pruning (CLI `prune` plus lazy MCP-server pruning)
 
-- **新 `src/core/artifacts-prune.ts`**（~250 LoC）：5 primitive kinds（sees / acts / extracts / judges / compares）每 kind 独立 retention（默认 30 天）+ 独立 dir override（`AUDIT_<KIND>_DIR`）；mtime > cutoff → recursive rm；`pruneOneKind` / `pruneAllArtifacts` / `pruneIfStale` 三层 API；`pruneIfStale` 通过 `~/.ai-browser-auditor/prune-stamp.json` 实现 at-most-once-per-24h（mode 0600）；`renderPruneReport` 渲染 multi-line 摘要 pure 函数；`formatBytes` B/KB/MB/GB 渲染。
-- **CLI `ai-audit prune`**：用户显式触发；exit 1 if any kind 有 errors；skipStamp:true 让连跑两次都真跑。
-- **MCP server lazy prune on startup**：transport.connect 前调 `pruneIfStale()`，结果 log.info；失败 log.warn 不 block 启动。
-- **环境变量**：`AUDIT_SEES_RETENTION_DAYS` / `AUDIT_ACTS_RETENTION_DAYS` / `AUDIT_EXTRACTS_RETENTION_DAYS` / `AUDIT_JUDGES_RETENTION_DAYS` / `AUDIT_COMPARES_RETENTION_DAYS`，默认 30，**`0` 表 infinite retention 不是"立刻删除"**（与 logrotate / journald 一致）。
-- **README 新 "Artifact retention" 段**：CLI + 5 env vars 表 + MCP lazy prune 说明 + bulk-delete 用 `rm -rf`。
-- **28 新单测**（`tests/artifacts-prune.test.ts`）：retention 默认 + env override + 0 表 infinite + dir env override + 5 kind 全跑 + stamp file mode 0600 + skipStamp + pruneIfStale 24h 窗口（fresh / stale / malformed / missing）+ renderPruneReport / formatBytes / ARTIFACT_KINDS 数组形状。
+- **New `src/core/artifacts-prune.ts`** (~250 LoC): five primitive kinds (sees, acts, extracts, judges, compares), each with independent retention (30 days by default) and an independent directory override. Files older than the cutoff are removed recursively. Three API layers — `pruneOneKind`, `pruneAllArtifacts`, `pruneIfStale` — where `pruneIfStale` uses a stamp file (mode 0600) to run at most once per 24 hours. `renderPruneReport` is a pure function returning a multi-line summary, and `formatBytes` renders B/KB/MB/GB.
+- **CLI `prune`**: explicit user-triggered pruning; exits 1 if any kind reported errors; `skipStamp: true` makes two consecutive runs both do real work.
+- **Lazy prune on MCP server startup**: `pruneIfStale()` runs before transport connect, logging the result at info level; a failure logs a warning and does not block startup.
+- **Environment variables**: one `AUDIT_<KIND>_RETENTION_DAYS` per kind, default 30, where **`0` means infinite retention, not "delete immediately"** — consistent with logrotate and journald.
+- **README gains an "Artifact retention" section**: the CLI command, a table of the five variables, the lazy-prune behaviour, and a note that bulk deletion is a plain recursive directory delete.
+- **28 new tests** (`tests/artifacts-prune.test.ts`): default retention, environment overrides, `0` meaning infinite, directory overrides, all five kinds, stamp file mode 0600, `skipStamp`, the 24-hour window in all four states (fresh, stale, malformed, missing), plus `renderPruneReport`, `formatBytes` and the kind-array shape.
 
-#### T17 — Result-cache LRU disk-quota（MAX_ROWS / MAX_DISK_MB）
+#### T17 — Result-cache LRU disk quota (max rows / max disk MB)
 
-- **`src/core/result-cache.ts` migration v2** 加 `last_used_at INTEGER NOT NULL DEFAULT 0` + 回填 `last_used_at = created_at` + `idx_cache_last_used` index；migration runner 一次性 idempotent 升级。
-- **新 `enforceLruCaps()`** 在 `pruneCache` 内部调用：先 row-count cap（DELETE oldest `last_used_at` LIMIT overshoot），后 disk-MB cap（fs.statSync(dbPath) → 迭代删 ≤ 6 轮直到 size < cap 或 diminishing returns < 1%）；TTL prune 先跑，LRU 跑剩余。
-- **`lookupCache` 命中后 bump `last_used_at = now`**：让真用的 entry 不被 LRU 误伤（best-effort 写失败不 fail hit）。
-- **`storeCache` 写入也设 `last_used_at = now`**（INSERT + ON CONFLICT 都设）。
-- **环境变量**：`AUDIT_RESULT_CACHE_MAX_ROWS`（默认 10000）+ `AUDIT_RESULT_CACHE_MAX_DISK_MB`（默认 500）；**`0` 表 disabled**（与 retention 一致）。
-- **README "Result Cache" 段加 2 行**：MAX_ROWS + MAX_DISK_MB env vars。
-- **5 新单测**（`tests/result-cache.test.ts`）：lookup hit bump last_used_at 让 touched entry 抗 LRU + row-count cap 删 oldest + 0 disables + env vars 驱动 + TTL+LRU 混合（TTL prune 先 LRU 后）。
+- **`src/core/result-cache.ts` migration v2** adds `last_used_at INTEGER NOT NULL DEFAULT 0`, backfills it from `created_at`, and adds an index. The migration runner applies it idempotently.
+- **New `enforceLruCaps()`**, called inside `pruneCache`: first the row-count cap (delete the oldest `last_used_at` beyond the overshoot), then the disk-size cap (stat the database, then iterate up to six rounds until it is under the cap or the returns diminish below 1%). TTL pruning runs first; LRU handles the remainder.
+- **`lookupCache` bumps `last_used_at` on a hit**, so entries in active use are not evicted. The write is best-effort and never fails the hit.
+- **`storeCache` also sets `last_used_at`** on both the insert and conflict paths.
+- **Environment variables**: `AUDIT_RESULT_CACHE_MAX_ROWS` (default 10000) and `AUDIT_RESULT_CACHE_MAX_DISK_MB` (default 500); **`0` disables**, consistent with retention.
+- **README "Result Cache" gains two rows** for the new variables.
+- **5 new tests** (`tests/result-cache.test.ts`): a touched entry surviving LRU, the row-count cap removing the oldest, `0` disabling, environment-variable control, and the combined TTL-then-LRU ordering.
 
-#### T18 — Audit-explorer.html SPA 核心 i18n（27 keys × 5 locales + query string detection）
+#### T18 — Audit-explorer SPA core i18n (27 keys × 5 locales, query-string detection)
 
-- **新 `src/core/reporter-spa-i18n.ts`**（~200 LoC）：27 SPA UI keys（audit_explorer_title / btn_collapse / btn_expand_all / count_format / empty_no_results / 5 filter labels + 2 dropdown words / 3 section headings + 6 step column headers / 6 summary cards）× 5 locales (en / zh-CN / ja / es / de)；`SPA_I18N` 字典 + `normaliseSpaLocale` family fallback (`zh-Hans`/`zh-TW` → `zh-CN`)；`spaInterpolate` `{n}` placeholder 替换；`spaT` lookup with en fallback；`lintSpaTranslations` 强制 100% key coverage。
-- **`src/core/reporter-spa.ts` 改 SPA HTML+JS**：每 static label 加 `data-i18n="<key>"` attr → `applyStaticI18n()` boot 时一次扫齐；inline 第二个 `<script type="application/json" id="__AUDIT_I18N__">` 装 5 locale 字典 JSON（< / > 字符 escape 防 XSS）；boot JS 加 `resolveLocale()` priority order：`?lang=` query → `?locale=` query → `navigator.language` family fallback → en；`document.documentElement.lang` 同步；`renderSummary` / `renderUnits` / `renderUnit` 全部走 `t(key, vars)`；`new Date(audit.started_at).toLocaleString(LOCALE)` 让日期格式跟 locale。
-- **17 新单测**（`tests/reporter-spa-i18n.test.ts` 11 + `tests/reporter-spa.test.ts` +6 集成）：5 locale × 27 keys 100% 覆盖 + sentinel keys 在 zh/ja 真翻译不与 en 同字符串 + `normaliseSpaLocale` 7 路 fallback + `spaInterpolate` 缺 key 保留 placeholder + `spaT` count_format / section_steps_n 插值 + SPA HTML 含 `id="__AUDIT_I18N__"` + 5 locale 都进 inlined JSON + `data-i18n` 标在 10 个静态 label + 4 国家 sentinel 翻译进 HTML（"审计浏览器" / "監査エクスプローラー" / "Explorador de auditoría" / "Audit-Explorer"）+ JS 引用 URLSearchParams + navigator.language。
-- **README `audit-explorer.html` 备注**：加 "open with `?lang=zh-CN/ja/es/de` for localised UI chrome"。
+- **New `src/core/reporter-spa-i18n.ts`** (~200 LoC): 27 SPA UI keys across five locales (en, zh-CN, ja, es, de). Provides the `SPA_I18N` dictionary, `normaliseSpaLocale` with family fallback, `spaInterpolate` for `{n}` placeholders, `spaT` with English fallback, and `lintSpaTranslations` enforcing 100% key coverage.
+- **`src/core/reporter-spa.ts` HTML and JS updated**: every static label carries a `data-i18n` attribute, applied once at boot; a second inline JSON script tag carries all five locale dictionaries (with angle brackets escaped against XSS); the boot script resolves locale in priority order (`?lang=`, `?locale=`, `navigator.language` family fallback, then English) and syncs `document.documentElement.lang`; all render functions go through `t(key, vars)`; timestamps format per locale.
+- **17 new tests** (11 unit plus 6 integration): full coverage of 5 locales × 27 keys, sentinel keys genuinely differing from English in Chinese and Japanese, seven fallback paths, placeholder retention on a missing key, interpolation, the inlined JSON script tag, all five locales present in it, `data-i18n` on ten static labels, four localised sentinel strings reaching the HTML, and the boot script referencing `URLSearchParams` and `navigator.language`.
+- **README note on `audit-explorer.html`**: open with `?lang=zh-CN/ja/es/de` for localised UI chrome.
 
-完整回归：tsc ✓ / build ✓ / **vitest 1608 → 1664 (+56) ✓** / lint:no-console ✓ / 0 schemas diff / npm pack 565.5 KB / 315 files。
+Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-console`, zero schema diff, `npm pack` 565.5 KB / 315 files.
 
-### Added (T24 — Wave 3 收尾: FAQ + TROUBLESHOOTING + typedoc API ref)
+### Added (T24 — Wave 3 close-out: FAQ, troubleshooting guide, typedoc API reference)
 
-- **关闭 RISK-REGISTER R18 / R19 / R20 / R21** ✅。**Wave 3 第五颗子弹（5/5 完整收尾）** —— 用户文档闭环 + 公开 API 参考可生成。
-- **`FAQ.md`**（~250 LoC，5 大类 ~20 题）：API key + cost（key 哪里拿 / 单次审计 cost 区间 / BudgetExceededError 处理 / 不同 LLM 是否支持 / 怎么完全不烧 token）/ scenarios + personas（差别 / 第一个 scenario / 自定义 personas / 过滤跑特定 unit）/ reports + output（写哪 / CI 集成 / PDF 定制 / trends）/ privacy + data（什么数据离开 / consent prompt 是什么 / 删除数据 / password 是否泄漏 / GDPR-CCPA 立场）/ native binaries + cross-platform（Alpine 修复 / chromium 启动失败 / Windows 选哪个 shell / 装得慢 / ARM64 支持）。每条题都引向 source-of-truth（INSTALLATION.md / TROUBLESHOOTING.md / PRIVACY.md / ADR）。
-- **`docs/TROUBLESHOOTING.md`**（~290 LoC，6 大类 24 错误）：API + auth（4 个：缺 key / 401 / 429 / self-signed cert）/ audit run（5 个：consent declined / 项目不存在 / scenario validation / BudgetExceededError / axe-core injection）/ Browser + Playwright（4 个：target page closed / Timeout 30000 / 黑屏 screenshot / file-lock race）/ reports + output（4 个：PDF 缺 / HTML 空白 / no trends / schema regen drift）/ CI integration（4 个：SARIF reject / JUnit reject / sticky comment dup / disk space）/ performance + cost（3 个：审计慢 / cost 偏高 / 内存峰值）。每条 symptom + cause + fix + 可选 verbose flag。与 INSTALLATION.md 错误表分工：INSTALLATION 专注"装不上"，TROUBLESHOOTING 专注"装上了跑不通"。
-- **公开 API 参考**：装 `typedoc@^0.28.19` dev dep + `typedoc.json` 配置（entry `src/index.ts` / out `docs/api` / hideGenerator / excludeInternal）+ `npm run docs:api` script + `.gitignore` 加 `docs/api/`（生成产物不入仓库不臃肿）+ `npm run clean` 顺手 rm `docs/api`。本地 `npm run docs:api` 一键产出 2.3MB 静态 HTML（67 公开 export 全有页面）+ 67 个 export 自动追踪。**不入 npm tarball、不入 git、用户/贡献者本地按需生成**——避免 50MB 文档 inflate package。
-- **`src/core/consent.ts` 改 `console.log` → `output.write`**：替换为 readline output stream 直写不依赖 eslint-disable + 通过 `lint:no-console` 强校验（ADR-005 logger discipline）；行为完全等价（stdout 写 + 换行）。
-- **README.md 加 "Help & Reference" 段**（License 段后）：5 个一键入口 — FAQ.md / docs/TROUBLESHOOTING.md / docs/INSTALLATION.md / `npm run docs:api` / docs/decisions/。覆盖"我用 / 我跑不通 / 我装不上 / 我集成 API / 我看决策"5 大入口场景。
-- 完整回归：tsc ✓ / build ✓ / **vitest 1608/1608 ✓** / lint:no-console ✓ / npm pack 549.9 KB / 309 files (FAQ / TROUBLESHOOTING / docs/api 不入 tarball 因 `files` 字段精确控制) / 0 schemas diff / 0 bench regression。
+- **Closes risk-register R18, R19, R20 and R21.** The fifth and final Wave 3 item: user documentation is complete and a public API reference can be generated.
+- **`FAQ.md`** (~250 LoC, five categories, ~20 questions): API key and cost (where to get a key, per-audit cost range, handling budget errors, other LLMs, running without spending tokens); scenarios and personas (the difference, writing the first scenario, custom personas, filtering to one unit); reports and output (where they are written, CI integration, PDF customisation, trends); privacy and data (what leaves the machine, the consent prompt, deleting data, whether passwords leak, the GDPR/CCPA position); and native binaries and cross-platform concerns (Alpine, chromium launch failures, which Windows shell, slow installs, ARM64). Every answer points at its source of truth.
+- **`docs/TROUBLESHOOTING.md`** (~290 LoC, six categories, 24 errors): API and auth (4), audit run (5), browser and Playwright (4), reports and output (4), CI integration (4), and performance and cost (3). Each entry gives symptom, cause, fix and an optional verbose flag. The split against the installation guide is deliberate: installation covers "it will not install", troubleshooting covers "it installed but will not run".
+- **Public API reference**: adds `typedoc` as a dev dependency with configuration, an `npm run docs:api` script, `docs/api/` in `.gitignore`, and cleanup in `npm run clean`. Running it produces 2.3 MB of static HTML covering all 67 public exports. **It is not committed, not shipped in the npm tarball, and generated on demand** — avoiding a 50 MB documentation payload in the package.
+- **`src/core/consent.ts` switches `console.log` to a readline output stream**, so it passes `lint:no-console` without an eslint suppression (ADR-005 logger discipline). Behaviour is unchanged.
+- **README gains a "Help & Reference" section** with five entry points covering the "how do I use it / it will not run / it will not install / I am integrating the API / I want the decisions" cases.
+- Full regression: typecheck, build, **1608/1608 tests**, `lint:no-console`, `npm pack` 549.9 KB / 309 files (the new docs stay out of the tarball thanks to the `files` field), zero schema diff, zero bench regressions.
 
-### Added (T22 — Wave 3 PRIVACY + first-run consent + PII redaction)
+### Added (T22 — Wave 3 privacy policy, first-run consent, PII redaction)
 
-- **关闭 RISK-REGISTER R15 / R34 / R35 / R36 / R37 / R38 / R60** ✅ (7 risks)。**Wave 3 第四颗子弹** —— GDPR/CCPA 合规 baseline + 用户数据保护实施。
-- **`PRIVACY.md`**（~290 LoC）：什么数据 / 哪里存 / 什么离开机器 / 数据最小化控制 / retention + 删除（GDPR Article 17）/ 0 telemetry / GDPR-CCPA 你是 controller 我们不在数据路径 / consent 模型 / 报告渠道 GHSA。
-- **新 `src/core/consent.ts`**（~200 LoC）：first-run consent 5 优先级（existing valid → AUDIT_AUTO_CONSENT=1 env → --auto-consent flag → non-TTY 隐式 → interactive prompt）+ versioned consent record (`~/.ai-browser-auditor/consent.json`，schema 1.0.0 + consent_version 1) + readline/promises 零 dep + `promptFn` 测试 seam + ConsentDeclinedError。**CONSENT_VERSION bump 触发现有用户重新 prompt**（重大隐私政策更新路径）。
-- **CLI run 命令加 `--auto-consent` + `--no-redact-inputs` flags**：consent 在 dryRun 之前 gate；ANTHROPIC_API_KEY 缺时友好 catch（指向 console.anthropic.com + doctor）；ConsentDeclinedError 友好 catch 不 stack trace。
-- **recorder.ts 加 `redactSensitiveInputs(page)`**（~50 LoC）：`<input type="password">` + `autocomplete=current-password|new-password|one-time-code` + name/id/aria-label 匹配 `/password|secret|token|api[_-]?key|otp|pin/i` 启发式；DOM mutate `value = '********'` 不仅 CSS overlay（避免 autofill / vision OCR 看穿）；page-closed 错误 try/catch 不 fatal。`screenshot()` + `screenshotSegments()` 加 `redactInputs?: boolean` opt + `shouldRedactInputs(callerOpt)` 4 优先级（caller false → caller true → env AUDIT_REDACT_INPUTS=0 → default ON）。
-- **runner / recorder mkdirSync mode 0o700**（R36）：runDir / unitDir / artifactsDir 全 owner-only；加 inline 注释引 T22 R36；macOS / Linux 实施；Windows chmod 是 best-effort。
-- **24 新单测**：`tests/consent.test.ts` 19 测（read/write/agreed_via 5 路径 / mode 0600 / 优先级 / older consent_version 重 prompt / forward-compat 不 prompt / decline 不 write）+ `tests/integration/playwright/recorder.test.ts` 5 redact 测（真 chromium DOM mutation password 替 ******** + 非敏感不动 + name/id 启发式 / 默认 ON / opt-out OK）+ 修 7 recorder 单测 queue 跟 redactSensitiveInputs 多 evaluate 一次同步。
-- **README "Privacy & Data Handling" 段**新加：放在 Security 段前；列 0 telemetry + 单一外部 destination + 隐私-first 默认 + 引 PRIVACY.md。
-- 完整回归：tsc ✓ / build ✓ / **vitest 1589 → 1608 (+19) ✓** / **playwright 16 → 21 (+5) ✓ in 25s** / 0 schemas diff / 0 bench regression / npm pack 547 KB / 309 files。
+- **Closes risk-register R15, R34, R35, R36, R37, R38 and R60** — seven risks. The fourth Wave 3 item: a GDPR/CCPA baseline plus the user-data protections themselves.
+- **`PRIVACY.md`** (~290 LoC): what data exists, where it is stored, what leaves the machine, data-minimisation controls, retention and deletion (GDPR Article 17), zero telemetry, the GDPR/CCPA position that the user is the controller and this tool is not in the data path, the consent model, and the reporting channel.
+- **New `src/core/consent.ts`** (~200 LoC): first-run consent resolved in five priority steps (an existing valid record, an environment variable, a CLI flag, an implicit non-TTY path, then an interactive prompt), a versioned consent record written mode-restricted, zero dependencies via `node:readline/promises`, an injectable `promptFn` test seam, and `ConsentDeclinedError`. **Bumping the consent version re-prompts existing users**, which is the path for a material privacy-policy change.
+- **CLI gains `--auto-consent` and `--no-redact-inputs`**: consent gates ahead of the dry-run check; a missing API key is caught with a friendly message; a declined consent exits cleanly without a stack trace.
+- **`recorder.ts` gains `redactSensitiveInputs(page)`** (~50 LoC): matches `<input type="password">`, the relevant `autocomplete` values, and a name/id/aria-label heuristic for password, secret, token, API key, OTP and PIN. It **mutates the DOM value** rather than overlaying CSS, so neither autofill nor vision OCR can see through it, and a closed page is caught rather than fatal. Both screenshot paths accept a `redactInputs` option resolved in four priority steps, defaulting to on.
+- **Run and artifact directories are created mode 0700** (R36) — owner-only on macOS and Linux; best-effort on Windows.
+- **24 new tests**: 19 consent tests (read/write across all five resolution paths, file mode, priority order, re-prompt on an older consent version, forward compatibility, and no write on decline) and 5 real-chromium redaction tests (password replaced in the DOM, non-sensitive fields untouched, the name/id heuristic, default-on, and opt-out), plus seven existing recorder tests updated for the extra `evaluate` call.
+- **README gains a "Privacy & Data Handling" section** ahead of Security: zero telemetry, a single external destination, privacy-first defaults, and a pointer to `PRIVACY.md`.
+- Full regression: typecheck, build, **1589 → 1608 tests (+19)**, **Playwright 16 → 21 (+5) in 25s**, zero schema diff, zero bench regressions, `npm pack` 547 KB / 309 files.
 
-### Added (T23 — Wave 3 doctor + interactive init wizard + first-run UX)
+### Added (T23 — Wave 3 doctor command, interactive init wizard, first-run UX)
 
-- **关闭 RISK-REGISTER R45 / R46 / R47 / R61** ✅。**Wave 3 第三颗子弹** —— first-run UX 入口完整。
-- **新 `ai-audit doctor` 命令**（`src/commands/doctor.ts` ~250 LoC）：8 项 health check 一次性诊断 first-run readiness：Node version / Platform / ANTHROPIC_API_KEY / config.yaml / scenarios/ / personas/ / Network proxy / Data directory writable / api.anthropic.com reachable。每 check 返回结构化 `DoctorCheck`（status: ok/warn/fail/skip + message + remedy + verbose detail）+ aggregate `DoctorReport.exitCode`（0 if 无 fail，1 if any）。`renderDoctorReport()` 是纯函数返回行数组（caller 控制输出方式）；CLI 用 chalk 着色 + `process.exit(report.exitCode)` 让 CI script 能 `if doctor; then run; fi`。`--verbose` 加诊断 detail（API key prefix / Node 完整 path / proxy URL）；`--skip-network` 离线 / air-gapped 跳过 reachability。
-- **新交互式 `ai-audit init`（无 args）**（`src/commands/init-interactive.ts` ~190 LoC）：Node 内置 `node:readline/promises` 实现 zero-dep 交互 wizard。问 5 个问题（项目目录 / 项目名 / base URL / 是否创 sample scenario / 是否跑 doctor 收尾），每个有合理 default + Enter 接受。`promptFn` 注入 seam 让单测 mock prompts 不读 stdin。`writeSampleScenario()` idempotent 写 `scenarios/homepage-smoke.yaml`（visit + assert_a11y wcag22aa + see goal）。**保留 v0.3 `ai-audit init <dir>` 非交互行为**（CI / scripted），signature 改为 `init [dir]` optional positional 实现 backward-compat。
-- **`scaffoldProject()` 抽出**为公共 helper（cli.ts 内部），交互 wizard + 非交互 `init <dir>` 共用同一 scaffolding 逻辑——避免双轨制。
-- **lint:no-console 加 src/commands/ 例外**：`src/commands/*.ts` 跟 cli.ts 同角色（用户面 UX 渲染层），允许 console.log；其他 src/ 文件仍强制用 `getLogger()`（ADR-005）。
-- **34 新单测**（`tests/doctor.test.ts` 21 测 + `tests/init-interactive.test.ts` 13 测）：覆盖每 individual check 的 ok/warn/fail/skip 状态 + aggregate exitCode + renderDoctorReport 行数组 + verbose detail + remedy 在 fail/warn 后追加 + summary tail；wizard 用 `promptFn` seam 测 defaults / 显式答案 / y/Y/yes/N/no 解析 / 相对路径 → 绝对路径 + sampleSmokeScenarioYaml shape + writeSampleScenario idempotent。**vitest 1555 → 1589 (+34) 全过**。
-- **README "Quick Start" 6 步**（旧 4 步）：1. Install / **2. Verify env (doctor)** / **3. Set up project (init interactive or scripted)** / 4. Set API key / 5. Create first audit / 6. Run。Doctor + init 显式入口在最高显示位置——首次用户 5 分钟内验通环境。
-- **Live test**: `node dist/cli.js doctor --skip-network` 输出 8 行结构化 check + 着色 + remedy + summary tail；exit 1 当 API key 缺。
-- 完整回归：tsc ✓ / build ✓ / vitest 1589/1589 ✓ / npm pack 537 KB / 306 files / 0 schemas diff / 0 bench regression。
+- **Closes risk-register R45, R46, R47 and R61.** The third Wave 3 item: the first-run entry points are complete.
+- **New `doctor` command** (`src/commands/doctor.ts`, ~250 LoC): eight health checks diagnosing first-run readiness — Node version, platform, API key, config file, scenarios directory, personas directory, network proxy, data-directory writability, and API reachability. Each returns a structured result (ok / warn / fail / skip, with message, remedy and verbose detail) and the report aggregates an exit code. `renderDoctorReport()` is a pure function returning lines, so the caller controls output; the CLI colours them and exits with the report's code so a CI script can gate on it. `--verbose` adds diagnostic detail; `--skip-network` supports offline and air-gapped use.
+- **New interactive `init`** (`src/commands/init-interactive.ts`, ~190 LoC): a zero-dependency wizard on `node:readline/promises` asking five questions (project directory, project name, base URL, whether to create a sample scenario, whether to finish with a doctor run), each with a sensible default. The `promptFn` seam lets tests drive it without stdin. `writeSampleScenario()` idempotently writes a starter scenario. **The non-interactive `init <dir>` behaviour from v0.3 is preserved** by making the positional argument optional.
+- **`scaffoldProject()` extracted** as a shared helper so the wizard and the non-interactive path use identical scaffolding logic.
+- **`lint:no-console` exempts `src/commands/`**, which plays the same user-facing rendering role as the CLI entry point; everything else in `src/` still must use the logger (ADR-005).
+- **34 new tests** (21 doctor, 13 wizard): every check's ok/warn/fail/skip states, the aggregate exit code, the rendered line array, verbose detail, remedy placement, the summary tail, wizard defaults and explicit answers, yes/no parsing, relative-to-absolute path resolution, the sample scenario shape, and idempotent writing. **1555 → 1589 tests, all passing.**
+- **README "Quick Start" grows from four steps to six**, promoting `doctor` and `init` to the top so a first-time user can verify their environment within five minutes.
+- **Live check**: `doctor --skip-network` renders eight structured checks with colour, remedies and a summary tail, exiting 1 when the API key is absent.
+- Full regression: typecheck, build, 1589/1589 tests, `npm pack` 537 KB / 306 files, zero schema diff, zero bench regressions.
 
-### Added (T20 — Wave 3 stability commitment + MIGRATION + DEPRECATION-POLICY)
+### Added (T20 — Wave 3 stability commitment, migration guide, deprecation policy)
 
-- **关闭 RISK-REGISTER R17 / R53 / R54 / R57** ✅。
-- **`MIGRATION.md`**（~150 LoC）：v0.3 → v1.0 升级指南，3 项 required action（Node 16 → 18+ / a11y 审计 violation 数会增加因 T-NEW-11 修复 / 检查 screenshot dimensions）+ 4 项 optional（CI workflows / Anthropic SDK 0.39→0.92 透明 / Stagehand v2.5.8 锁 / Zod v3 锁）+ URL 变更（anthropics → xcodethink 30 schemas $id 全更新）+ package metadata 变化（os/cpu/files）+ "What did NOT change" 段（Result Schema 1.2.0 / CLI flags / config / MCP tool surface / history.db migration auto）；before/after diff 示例 + tag-baseline-then-upgrade 推荐流程 + general upgrade tips。
-- **`docs/DEPRECATION-POLICY.md`**（~190 LoC）：scope 定义（CLI / config / Result Schema / MCP tool / library exports — 67 exports）+ 两版本 sunset 周期（announce minor → 至少两 minor 持续 warn → next major remove）+ 3 阶段流程（Phase 1 announce: CHANGELOG + runtime warning + JSDoc + MIGRATION preview / Phase 2 continued warnings / Phase 3 removal）+ 4 警告级别（inline annotation / once-per-process / once-per-call / strict-mode throw）+ 2 个完整示例（renaming a CLI flag / removing a deprecated library export）+ "what can / cannot be deprecated" 表。
-- **README.md** 加 "Stability Commitment" 段 + "Performance baseline (provisional, v1.0-rc1 calibration pending)" 段：5 个 stable surfaces 列表 + minor/patch backward compat 承诺 + 引 DEPRECATION-POLICY.md (deprecation cycle) + 引 MIGRATION.md (v0.3 → v1.0 升级)；perf baseline 表分两层（5-unit audit 整套 ~2-5 分钟 / $0.10-0.30 cost / < 1GB RAM v1.0-rc1 calibration pending；render hot-paths ops/sec 已通过 bench:check regression gate 跟踪）。
-- 完整回归: vitest 1555/1555 ✓ / npm pack 527 KB / 300 files / 0 schemas diff / 0 bench regression。
+- **Closes risk-register R17, R53, R54 and R57.**
+- **`MIGRATION.md`** (~150 LoC): the v0.3 → v1.0 upgrade guide. Three required actions (Node 16 → 18+, an expected rise in accessibility violation counts because of the axe fix, and checking screenshot dimensions) and four optional ones, plus the schema `$id` URL change across all 30 published schemas, package metadata changes, and a "what did not change" section (result schema, CLI flags, config, MCP tool surface, automatic history migration). Includes before/after diffs and a recommended tag-baseline-then-upgrade procedure.
+- **`docs/DEPRECATION-POLICY.md`** (~190 LoC): scope (CLI, config, result schema, MCP tools, and the 67 library exports), a two-version sunset cycle, a three-phase process (announce, continued warnings, removal), four warning levels, two worked examples, and a table of what can and cannot be deprecated.
+- **README gains "Stability Commitment"** and a provisional performance-baseline section: five stable surfaces, the backward-compatibility promise for minor and patch releases, and pointers to both new documents. The performance baseline is split into whole-audit figures (pending release-candidate calibration) and render hot-path throughput already tracked by the bench regression gate.
+- Full regression: 1555/1555 tests, `npm pack` 527 KB / 300 files, zero schema diff, zero bench regressions.
 
-### Added (T19 — Wave 3 治理文档: LICENSE + CONTRIBUTING + SECURITY review + 26 ADR audit)
+### Added (T19 — Wave 3 governance docs: LICENSE, CONTRIBUTING, SECURITY review, 26-ADR audit)
 
-- **关闭 RISK-REGISTER R12 / R13 / R14 review / R22 / R33** ✅。**Wave 3 第一颗子弹**。
-- **`LICENSE`**（21 行 MIT 标准文本，2026 xcodethink）：GitHub 仓库右侧从此显示 MIT 标识；`package.json files` 数组已声明 LICENSE 现在文件存在；npm pack 含 LICENSE (1.1KB)；`license: "MIT"` package.json 字段与 LICENSE 文件一致 (R33)。
-- **`CONTRIBUTING.md`**（~360 LoC）：dev setup (npm ci + build + test 命令清单 11 条) + 3 测试套区分 (vitest unit / vitest integration / Playwright Test) + ADR-017 60/54/60/60 coverage gate + Conventional Commits 规则（`feat`/`fix`/`docs`/`test`/`refactor`/`chore`/`ci`/`perf`）+ scope + Co-Authored-By trailer + 7 步 PR 流程 + 5 类必写 ADR / 5 类不写 ADR + branch protection 配置 checklist + release process 引用 + 6 提问渠道。
-- **`SECURITY.md` review**：T0.6 初稿改 GHSA only（移除 `security@<TBD>` placeholder 不阻塞 v1）；email 渠道留 v1.x 看用户需求加；保留 Known Accepted Risks 段（3 transitive moderate Stagehand vulns）+ closure plan T-NEW-1。
-- **`docs/decisions/README.md`**（~100 LoC ADR 总目录 + 一致性 audit）：26 ADR 按主题分组（Foundational / Architecture / Quality / Reporting / Engineering / Release-readiness）+ **2026-05-01 一次性 audit 结论**：所有 26 ADR Accepted 无 Superseded、主题分区干净无冲突、cross-references 一致（ADR-029 引 ADR-009 / ADR-030 建在 ADR-024 / ADR-007 被 ADR-018/019/020-024/026 消费 / ADR-027 与 ADR-018 解耦合 / ADR-008 与 ADR-026 不同存储层无冲突）+ 源码无 `// TODO: write ADR` 标记。R22 review note 入 STATUS。
-- **README.md** 加 Security 段 + 链接 [SECURITY.md](SECURITY.md) + License 段链接 [LICENSE](LICENSE) + [docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md) + Contributing 段链接 [CONTRIBUTING.md](CONTRIBUTING.md) + 引导 [docs/INSTALLATION.md](docs/INSTALLATION.md)。
-- 完整回归: vitest 1555/1555 ✓ / npm pack 525 KB / 300 files (含 LICENSE 1.1KB) / 0 schemas diff / 0 bench regression。
+- **Closes risk-register R12, R13, R14 (review), R22 and R33.** The first Wave 3 item.
+- **`LICENSE`** — 21 lines of standard MIT text. The repository now displays the MIT badge, the file the `files` array already declared exists, the tarball includes it, and the `license` field agrees with the file (R33).
+- **`CONTRIBUTING.md`** (~360 LoC): development setup (11 commands), the distinction between the three test suites, the ADR-017 coverage gate, Conventional Commits rules with scopes and trailers, a seven-step PR process, five categories that require an ADR and five that do not, a branch-protection checklist, the release process, and six places to ask questions.
+- **`SECURITY.md` reviewed**: reduced to the GitHub Security Advisories channel, removing a placeholder email address rather than letting it block v1. The known-accepted-risks section is kept, covering the three transitive Stagehand advisories and their closure plan.
+- **`docs/decisions/README.md`** (~100 LoC): an ADR index grouped by theme (foundational, architecture, quality, reporting, engineering, release readiness), plus a one-time consistency audit finding all 26 ADRs accepted with none superseded, clean thematic separation, consistent cross-references, and no `TODO: write ADR` markers left in the source.
+- **README gains Security, License and Contributing sections** with links to the corresponding files and the installation guide.
+- Full regression: 1555/1555 tests, `npm pack` 525 KB / 300 files (including the 1.1 KB LICENSE), zero schema diff, zero bench regressions.
 
-### Added (T30 — Wave 4 收尾 INSTALLATION.md: corporate proxy + air-gapped + Docker + 5 platforms)
+### Added (T30 — Wave 4 close-out, INSTALLATION.md: corporate proxy, air-gapped, Docker, five platforms)
 
-- **关闭 RISK-REGISTER R48 / R59 / R62** ✅。**Wave 4 完整收尾 5/5**。
-- `docs/INSTALLATION.md`（~430 LoC）覆盖企业 / 跨平台 / 离线场景：
-  - **System requirements** 表（Node 18+ / npm 8+ / 500MB disk / 2GB RAM / Chromium runtime libs）+ Tier-1 (CI 矩阵 12 平台) vs Tier-2 (Alpine / ARM64 / WSL2 best-effort)
-  - **5 平台 prereqs**：macOS (Intel + Apple Silicon, `xcode-select --install`) / Ubuntu/Debian (NodeSource setup_20.x + `npx playwright install-deps chromium`) / **Alpine Linux**（musl libc + `apk add python3 make g++ chromium nss freetype` + `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` + `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`）/ Windows (MSVC Build Tools + Git Bash 推荐 + PowerShell 语法 fallback) / WSL2 (Linux 同款 + 不挂 Windows 文件系统的性能 tip)
-  - **Docker** 两路：multi-stage build with `mcr.microsoft.com/playwright:v1.49.0-jammy` (官方 image，Chromium + libs 预装) + lightweight `node:20-alpine` (~150MB vs 350MB trade-off)；BuildKit secrets 防 API key 进 image
-  - **Corporate proxy**: `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` env vars + `npm config set proxy` 持久化；自签 CA 用 `NODE_EXTRA_CA_CERTS`；最后 resort `NODE_TLS_REJECT_UNAUTHORIZED=0` 警示禁用
-  - **Air-gapped install**: 4 步流程（互联网机准备 → tar 含 ~/.cache/ms-playwright → sneakernet → `npm install --offline --prefer-offline`）+ Anthropic API 在 air-gapped 网络的 3 个选项（纯 deterministic / 自托管 relay / M4-4 v1.x local LLM fallback）
-  - **11 个 install 错误排查表**：EACCES / Failed to launch chromium / node-gyp Win/Mac/Alpine / better-sqlite3 module not found 三平台 / chromium ENOENT / 自签 cert / DNS getaddrinfo / ESM require / ERESOLVE peer dep — 每条 likely cause + fix
-  - **3 步验证 install**：version check / `doctor` / 不烧 API 的 smoke (visit + assert_a11y) — 让用户 5 分钟内验通环境
-- README.md "Install" 加链接到 `docs/INSTALLATION.md`（针对 corporate / Alpine / Docker / air-gapped 场景导引）
-- **Wave 4 完整收尾 5/5**：T25 (package.json 完整化 R39-R42 + R-NEW-3) + T26 (CI 矩阵 R43) + T27 (npm audit gate, T26 已含) + T28 (license-checker CI R30) + T29 (SBOM workflow R29) + Dependabot R28 + **T30 (INSTALLATION.md R48 + R59 + R62)**
-- 完整回归: vitest 1555/1555 ✓ / npm pack 523 KB / 299 files / 0 schemas diff / 0 bench regression。
+- **Closes risk-register R48, R59 and R62.** Wave 4 complete, 5/5.
+- `docs/INSTALLATION.md` (~430 LoC) covering enterprise, cross-platform and offline scenarios:
+  - **System requirements** (Node 18+, npm 8+, 500 MB disk, 2 GB RAM, Chromium runtime libraries), split into tier 1 (the 12-configuration CI matrix) and tier 2 (Alpine, ARM64, WSL2 — best effort).
+  - **Prerequisites for five platforms**: macOS on both architectures; Ubuntu/Debian with NodeSource and Playwright's dependency installer; **Alpine Linux** with musl, the required packages, and the skip-download plus explicit-executable-path variables; Windows with MSVC build tools, Git Bash recommended and a PowerShell fallback; and WSL2 with a note about not working across the Windows filesystem.
+  - **Docker**, two routes: a multi-stage build on the official Playwright image (Chromium and libraries preinstalled) and a lighter Alpine-based image (~150 MB versus 350 MB), with BuildKit secrets keeping the API key out of the image.
+  - **Corporate proxy**: the three proxy variables, persisting them in npm config, a custom CA via `NODE_EXTRA_CA_CERTS`, and a warning against the TLS-disabling last resort.
+  - **Air-gapped install**: a four-step procedure (prepare on a connected machine including the browser cache, transfer, then install offline), plus three options for reaching the model API from an isolated network.
+  - **Eleven installation error entries**, each with likely cause and fix.
+  - **Three verification steps**: version check, `doctor`, and a smoke run that spends no tokens — so a user can confirm the environment in five minutes.
+- README's install section links to the new guide for corporate, Alpine, Docker and air-gapped cases.
+- **Wave 4 complete, 5/5**: package metadata, the CI matrix, the audit gate, the licence gate, the SBOM workflow, Dependabot, and this installation guide.
+- Full regression: 1555/1555 tests, `npm pack` 523 KB / 299 files, zero schema diff, zero bench regressions.
 
-### Added (T27 + T28 + T29 合并 — license CI gate + Dependabot 文档 + SBOM workflow)
+### Added (T27 + T28 + T29 combined — licence CI gate, Dependabot documentation, SBOM workflow)
 
-- **关闭 RISK-REGISTER R28 (Dependabot 已激活) + R29 (SBOM 生成) + 加固 R30 (license CI gate)** ✅；T27 npm audit gate 已在 T26 ci.yml 加入。
-- **`license-checker` + `@cyclonedx/cyclonedx-npm` 装入 dev deps**：替换 T0.6 的 `npx --yes` 一次性用法，CI gate 才能稳定调用。
-- **package.json scripts 加 3 个**：
-  - `license:check` — 16 SPDX allowlist（与 T0.6 一致），`--production` 只查发布树，0 GPL/AGPL 守不变
-  - `license:csv` — 重生 `docs/third-party-licenses.csv` audit trail
-  - `sbom` — `cyclonedx-npm --output-file sbom.json --omit dev --ignore-npm-errors`（647KB CycloneDX 1.6 JSON）；`--ignore-npm-errors` 必须，否则 transitive `string-width@5.1.2` extraneous 警告让 npm ls exit 1
-- **ci.yml 加 license 检查 step**（ubuntu × Node 20 only — license metadata 跨平台一致，12x 浪费）
-- **新 workflow `.github/workflows/sbom.yml`**（~50 LoC）：
-  - 触发：release tag (`v*.*.*`) push + workflow_dispatch
-  - Steps: checkout → setup-node → npm ci → npm run sbom → upload artifact (90d retention)
-  - tag push 时自动 `softprops/action-gh-release` 把 sbom.json 附在 GitHub Release 页面（与 npm package 一起下载）
-  - permissions: contents: write（attach release artifact 必需）
-- **.gitignore 加 sbom.json**：每次 release 重生，不入 git history
-- **Dependabot 已激活**（T0.6 已 commit `.github/dependabot.yml`）—— T27 验证：weekly Mon 09:00 Asia/Shanghai 扫 npm + GHA / group minor+patch / ignore Stagehand/Zod/@types/node major bumps；首次 push 后 GitHub Settings → Security & analysis 显示 "Active"。
-- 完整回归: typecheck ✓ / vitest 1555/1555 ✓ / **license:check 0 fail** / **sbom.json 647KB 生成** / 0 schemas diff / 0 bench regression / npm pack 522 KB / 299 files。
+- **Closes risk-register R28 (Dependabot active) and R29 (SBOM generation), and hardens R30 (licence CI gate).** The npm audit gate had already landed with the CI matrix.
+- **`license-checker` and `@cyclonedx/cyclonedx-npm` become dev dependencies**, replacing one-off `npx` invocations so a CI gate can call them reliably.
+- **Three new scripts**:
+  - `license:check` — a 16-entry SPDX allowlist over the production tree, holding the zero-GPL/AGPL invariant.
+  - `license:csv` — regenerates the machine-readable audit trail.
+  - `sbom` — produces a CycloneDX 1.6 JSON. `--ignore-npm-errors` is required, or an extraneous transitive package makes `npm ls` exit non-zero.
+- **CI gains a licence step**, on ubuntu × Node 20 only, since licence metadata is platform-independent and running it 12 times is waste.
+- **New `.github/workflows/sbom.yml`** (~50 LoC): triggered by a version tag or manually; checkout, setup, install, generate, upload with 90-day retention; on a tag it attaches the SBOM to the GitHub Release so it can be downloaded alongside the package. Needs `contents: write` for the attachment.
+- **`sbom.json` added to `.gitignore`** — regenerated per release, never committed.
+- **Dependabot verified active**: weekly npm and GitHub Actions scans, minor and patch grouped (cutting PR volume from roughly 20 per week to 3), major bumps ignored for Stagehand, Zod and `@types/node` because those are dedicated migration tasks, with commit-message prefixes and open-PR limits set.
+- Full regression: typecheck, 1555/1555 tests, **licence check clean**, **SBOM generated**, zero schema diff, zero bench regressions, `npm pack` 522 KB / 299 files.
 
-### Added (T26 — Wave 4 GitHub Actions CI 矩阵 (3 workflows))
+### Added (T26 — Wave 4 GitHub Actions CI matrix, three workflows)
 
-- **关闭 RISK-REGISTER R43** ✅。**项目第一次有自己的 CI 工作流**——pre-T26 `.github/workflows/` 只有一个用于下游 SaaS 的 `post-deploy-audit.yml`，1555 测试全过 + 16 playwright 全过的"green"完全靠本地 M-series Mac 验证。任何 Windows 路径分隔符 / Linux glibc / Node 18 vs 22 差异 / macOS Intel vs arm64 native binary 不匹配的回归全部静默漏过。**T26 把"测试全过"从 dev claim 升为 CI gate**。
-- **`.github/workflows/ci.yml`** (~85 LoC) — **12 配置矩阵**: ubuntu-latest + macos-13 (Intel x64) + macos-14 (Apple Silicon arm64) + windows-latest × Node 18/20/22 = 12 平行 jobs。每 job 跑：checkout → setup-node (with cache: npm) → npm ci → build → vitest → `npm run schemas` idempotence (uncommitted diff = fail loud) → `npm audit --production --audit-level=high`。`fail-fast: false` 让 12 配置都跑完不止第一个 fail。`concurrency` cancel-in-progress 避免快速 PR 更新浪费 CI 分钟数。
-- **`.github/workflows/integration.yml`** (~65 LoC) — Playwright Test 真 chromium + vitest forks pool (file-lock-race) 跑 ubuntu-latest only。`npx playwright install chromium --with-deps` 一次安装（150MB），`build` step（race test 需 dist/core/file-lock.js）+ `test:integration:playwright` (16/16) + `test:integration` (M9-3.2 file-lock 2/2)。失败时 upload Playwright report + test-results artifact (7 days retention)。**weekly Mon 08:00 UTC cron** 跟 axe-core / chromium / Stagehand 上游漂移。
-- **`.github/workflows/coverage.yml`** (~40 LoC) — coverage 60/54/60/60 gate（per ADR-017 ratchet 契约），ubuntu × Node 20 单一配置避免 12x runtime；upload coverage report artifact (14 days)。失败 distinct from 测试失败信号——开发者能区分"代码全平台对，覆盖率 gate 不达"vs"测试本身有问题"。
-- **本地完整验证 ci.yml 各 step**：npm ci ✓ / npm run build ✓ / npm test 1555/1555 ✓ / npm run schemas idempotent ✓ (no diff)。所有 step 在 macOS arm64 跑通；GHA 上等首次 push 验证 12 配置矩阵。
-- **branch protection 待 GitHub UI 配置** (R44 + 治理 README): require ci.yml + integration.yml + coverage.yml pass before merge to main + no force pushes。3 workflow 加进库后等首次 push 触发 + GitHub Settings 启用。
-- 完整回归: typecheck ✓ / build ✓ / vitest 1555/1555 ✓ / playwright 16/16 ✓ / 0 bench regression / 0 schemas diff / npm pack 521 KB / 299 files。
+- **Closes risk-register R43.** **The project's first CI of its own.** Before this, `.github/workflows/` held only a post-deploy audit for a downstream service, and "1555 tests green plus 16 Playwright green" rested entirely on one developer machine. Any Windows path-separator, Linux glibc, Node 18-versus-22, or macOS Intel-versus-arm64 native-binary regression would have passed silently. **This promotes "the tests pass" from a claim to a gate.**
+- **`.github/workflows/ci.yml`** (~85 LoC) — a **12-configuration matrix**: ubuntu-latest, macos-13 (Intel), macos-14 (Apple Silicon) and windows-latest, each on Node 18, 20 and 22. Every job runs checkout, setup with npm caching, install, build, tests, a schema idempotence check that fails loudly on an uncommitted diff, and `npm audit --production --audit-level=high`. `fail-fast: false` surfaces every platform problem rather than the first; concurrency cancellation avoids burning minutes on superseded pushes.
+- **`.github/workflows/integration.yml`** (~65 LoC) — real-chromium Playwright plus the forks-pool file-lock race test, on ubuntu-latest only. Installs Chromium with system dependencies once, builds (the race test needs compiled output), then runs both integration suites. On failure it uploads the Playwright report and test results with 7-day retention. A **weekly cron** tracks upstream drift in axe-core, Chromium and Stagehand.
+- **`.github/workflows/coverage.yml`** (~40 LoC) — the coverage floor per the ADR-017 ratchet, on a single configuration to avoid 12× runtime, uploading the report with 14-day retention. Keeping it separate makes "the code is fine everywhere but coverage slipped" distinguishable from "a test broke".
+- **Every CI step verified locally first**: install, build, 1555/1555 tests, and schema regeneration with no diff.
+- **Branch protection still to be enabled** in the repository settings: require all three workflows before merging to `main`, and forbid force pushes.
+- Full regression: typecheck, build, 1555/1555 tests, Playwright 16/16, zero bench regressions, zero schema diff, `npm pack` 521 KB / 299 files.
 
-### Changed (T25 — Wave 4 package.json 完整化 + GitHub org 占位符全替换)
+### Changed (T25 — Wave 4 package.json completeness, placeholder org references replaced)
 
-- **关闭 RISK-REGISTER R39 / R40 / R41 / R42 / R-NEW-3** ✅。npm publish-readiness 大跨步前进。
-- **package.json 加 7 个 release-critical 字段**：
-  - `engines: { node: ">=18.0.0", npm: ">=8.0.0" }` (R39) — Node 16 用户装上立即报错
-  - `os: ["darwin", "linux", "win32"]` (R40) — Windows ARM64 不支持就跳过
-  - `cpu: ["x64", "arm64"]` (R40)
-  - `repository: { type: "git", url: "git+https://github.com/xcodethink/ai-browser-auditor.git" }` (R41)
-  - `bugs: { url: "https://github.com/xcodethink/ai-browser-auditor/issues" }` (R41)
-  - `homepage: "https://github.com/xcodethink/ai-browser-auditor#readme"` (R41)
-  - `files: ["dist/", "docs/schemas/", "CHANGELOG.md", "LICENSE", "README.md", "SECURITY.md"]` (R42) — 把 tests/ docs/(非 schemas) scripts/ 等开发文件全踢出 npm 包
-  - `publishConfig: { access: "public" }` (R42)
-  - `types: "dist/index.d.ts"` — TypeScript 用户能直接 import type
-- **包体积大跌 1.2MB → 520KB (-57%) / 611 → 299 files (-50%)**：Top dirs: 264 dist + 31 docs/schemas + 4 root docs (CHANGELOG/SECURITY/README/package.json)。LICENSE 还没创（T19 任务），files 数组里已声明等 T19 加进。
-- **GitHub org 占位符全替换** (R-NEW-3 关闭)：
-  - 3 处 `anthropics` 硬编码（误）→ `xcodethink`：`src/core/ci-reporters.ts > DEFAULT_TOOL.informationUri` / `src/core/reporter-diff.ts > footer 2 处`
-  - 1 处 schema 生成器：`scripts/export-result-schemas.ts > $id` URL（影响 30 个 published JSON Schemas → npm run schemas 重生 30 schemas 全部 URL 更新）
-  - 2 处文档 `<org>` 占位：`docs/THIRD_PARTY_LICENSES.md` / `SECURITY.md`
-  - 同步重生：`docs/integration/fixture-sarif.json`（SARIF tool.driver.informationUri）+ `docs/integration/fixture-diff.md`（footer link）
-- **修 1 个被旧 URL 锁定的测试**：`tests/reporter-diff.test.ts > preserves the GitHub link in the footer` 字面字符串 pin 改为新 URL
-- **完整回归**: typecheck ✓ / build ✓ / vitest 1555/1555 ✓ / playwright 16/16 ✓ / bench:check 0 regression / schemas regen 0 diff (本次更新所有 30 schema URLs 算 surface-shape 漂移已 commit) / npm pack 520KB
+- **Closes risk-register R39, R40, R41, R42 and R-NEW-3.** A large step toward publish readiness.
+- **Seven release-critical `package.json` fields added**:
+  - `engines` (R39) — Node 16 users now fail at install time rather than at runtime.
+  - `os` and `cpu` (R40) — unsupported platform and architecture combinations are skipped.
+  - `repository`, `bugs` and `homepage` (R41).
+  - `files` (R42) — keeps tests, non-schema docs and scripts out of the published package.
+  - `publishConfig` (R42) and `types`, so TypeScript consumers can import types directly.
+- **Package size falls 1.2 MB → 520 KB (-57%), 611 → 299 files (-50%)**. What remains is the compiled output, the published schemas, and four root documents.
+- **Placeholder organisation references replaced** (closes R-NEW-3): three hard-coded values in source, one in the schema generator's `$id` URL (which regenerates all 30 published schemas), two documentation placeholders, and the regenerated SARIF and diff fixtures.
+- **One test unpinned from the old URL** in `tests/reporter-diff.test.ts`.
+- **Full regression**: typecheck, build, 1555/1555 tests, Playwright 16/16, zero bench regressions, zero schema diff after regeneration (the URL change across all 30 schemas is committed), `npm pack` 520 KB.
 
-### Added (T7 — Wave 2 4 子项 e2e: cost-guard + MCP stdio + GH PR diff + trends-perf)
+### Added (T7 — Wave 2 end-to-end coverage: cost guard, MCP stdio, PR diff, trends performance)
 
-- **关闭 RISK-REGISTER R7 / R8 / R9 / R10** ✅（4 个 P1 一次性收口）。**全 4 子项不烧 ANTHROPIC_API_KEY**——cost-guard 用极小 budget 验拦截路径；MCP stdio 用 list_capabilities pure introspection；GH diff 写 fixture + 手动 SOP；trends 是纯渲染。
-- **T7a `tests/integration/cost-guard-e2e.test.ts`** (~190 LoC, 3 tests): 真 CostGuard 实例 + 极小 budget ($0.001)。1️⃣ checkBudget 在累积过 cap 后 throw（双拦截路径：recordUsage 自身 throw + 后续 checkBudget throw）；2️⃣ 跨 CostGuard 实例 ledger 持久化（worker A $0.0028 → ledger.json → worker B 读到 day 累计 → 再加 $0.0028 trip $0.005 day cap）；3️⃣ withCostRun AsyncLocalStorage 隔离（Run A tiny + Run B busted per-run cap → A 不受影响）。**修了 3 个 API 假设错误**：(a) `recordUsage` 自身 throw 不只 checkBudget；(b) ledger.days 是 `Record<string,DayEntry>` 不是 array；(c) 字段名 `maxDailyUsd` / `maxDailyTokens` 不是 `maxDayUsd`。
-- **T7b `tests/integration/mcp-stdio-e2e.test.ts`** (~170 LoC, 4 tests): 真 spawn `dist/mcp/server.js` + MCP client SDK (`StdioClientTransport`) + JSON-RPC 握手。1️⃣ tools/list 返回 ≥ 5 个工具（含 list_capabilities / audit_url / see）+ 每工具有 name / description / inputSchema 完整；2️⃣ tools/call list_capabilities 返回 ListCapabilitiesResult 完整 envelope（server / result_schema_version=1.2.0 / tools / env / cache）+ 每 tool 含 M9-5 metadata（kind / cacheable / cost_estimate_usd / side_effects / requires）+ env 含 ANTHROPIC_API_KEY；3️⃣ unknown tool name 干净拒绝（throw OR isError=true 都接受）；4️⃣ 拒绝 missing args 后 server 仍活（next call 仍正常）。**关键决策：用 list_capabilities 不烧 LLM**，audit_url 真 URL 留 T3 cassette 阶段。
-- **T7c GitHub PR diff fixture + manual SOP**:
-  - `scripts/gen-diff-fixture.ts` (~110 LoC) 用 renderDiffMarkdown / renderDiffJson 生成 fixture diff（baseline release-v0.9 → pr-1234 显示 score +1.2 / issues 4→2 / cost +$0.06 / 6 维度全部上升）
-  - `docs/integration/fixture-diff.md` (1.1KB) — GitHub PR comment 格式 markdown
-  - `docs/integration/fixture-diff.json` (2.3KB) — 程序化 diff JSON
-  - `docs/integration/diff-pr-comment-verified.md` (~110 LoC) — 8 步手动 GHCS 上传 SOP + 10 项 UI checklist + sticky-pull-request-comment 验证 + 失败排查表（5 种 mode → cause + fix）+ 推荐生产 GHA workflow + 验证日志（screenshot 待 v1.0-rc1 reviewer）
-- **T7d `tests/integration/playwright/trends-perf.test.ts`** (~150 LoC, 2 tests): 100-row history fixture → renderTrendsHtml → 真 chromium page.goto file:// 测加载时间。1️⃣ load + paint < 1.5s（实测 405ms 远低于 budget）+ DOM 含 ≥ 5 svg + ≥ 6 cards + ≥ 10 rows + 0 console error；2️⃣ 含 fixture project name + schema_version 1.2.0。**修了 fixture 字段命名错误**（snake_case → camelCase 与 HistoryEntry interface 对齐）。
-- **新发现的 fixture bug**：`scripts/gen-history-fixture.ts` 之前生成 snake_case 字段（SQLite 列名）但 `reporter-trends.ts` 消费的是 `HistoryEntry` camelCase（`projectName` / `overallScore` / `schemaVersion`）—— renderTrendsHtml 跑生产 fixture 会 NaN/null。改 fixture 生成器 + 重生 + smoke test 同步。
-- 完整回归：tsc ✓ / build ✓ / **vitest 1548 → 1555** (+7) / **playwright 14 → 16** (+2) / 0 schemas diff / 0 bench regression / npm pack 1.2 MB / 611 files。
+- **Closes risk-register R7, R8, R9 and R10** — four P1 items in one pass. **None of the four spends API credit**: the cost guard uses a tiny budget to exercise the interception path, the MCP test uses pure introspection, the PR diff writes a fixture with a manual procedure, and the trends test is pure rendering.
+- **`tests/integration/cost-guard-e2e.test.ts`** (~190 LoC, 3 tests): a real cost guard with a $0.001 budget. It verifies that the budget check throws once accumulated spend passes the cap (via both interception paths), that the ledger persists across guard instances so a second worker sees the first's spend and trips the daily cap, and that per-run isolation holds when one run busts its cap and another does not. **Three incorrect API assumptions were corrected** in the process: `recordUsage` throws by itself, the ledger's day collection is a record rather than an array, and two option fields were misnamed.
+- **`tests/integration/mcp-stdio-e2e.test.ts`** (~170 LoC, 4 tests): spawns the real server binary and drives it over stdio with the MCP client SDK. It verifies that `tools/list` returns at least five tools each with a complete schema, that `list_capabilities` returns the full envelope with per-tool metadata and environment information, that an unknown tool name is cleanly rejected, and that the server survives a rejected call and serves the next one. **Using `list_capabilities` deliberately avoids spending on a model call.**
+- **PR diff fixture and manual procedure**: a generator script, a markdown fixture in GitHub comment format, a JSON fixture, and a ~110 LoC document with an eight-step upload procedure, a ten-item UI checklist, sticky-comment verification, a five-mode failure table, and a recommended production workflow.
+- **`tests/integration/playwright/trends-perf.test.ts`** (~150 LoC, 2 tests): renders a 100-row history fixture and loads it in real chromium. Load and paint complete in 405 ms against a 1.5 s budget, with the expected chart, card and row counts and no console errors.
+- **Newly discovered fixture bug**: the history fixture generator emitted snake_case field names (matching SQLite columns) while the trends renderer consumes camelCase, so rendering the production fixture produced null and NaN values. The generator was corrected, the fixture regenerated, and the smoke test updated.
+- Full regression: typecheck, build, **1548 → 1555 tests (+7)**, **Playwright 14 → 16 (+2)**, zero schema diff, zero bench regressions.
 
-### Fixed (T-NEW-11 — handleAssertA11y axe runOnly 漏 Level A 违规 P0)
+### Fixed (T-NEW-11 — axe `runOnly` missed Level A violations, P0)
 
-- **关闭 RISK-REGISTER R-NEW-11** ✅（T6 衍生发现的 production bug）：`handleAssertA11y` 默认 `standard: "wcag2aa"` 直接传给 axe-core 作为单元素数组，axe `runOnly` 是精确匹配，**只跑 wcag2aa 标记规则不含 Level A**。生产 audit 用户的所有 audit 都漏检 image-alt / label / button-name / link-name 等 Level A 违规。
-- **修法**（行业惯例 + axe-core 官方 docs 对齐）：新加 `expandAxeStandard()` 到 `src/core/wcag.ts`（~70 LoC）—— standard 累积展开为完整 axe tag 列表。`wcag2aa` → `["wcag2a", "wcag2aa"]`；`wcag22aa` → `["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"]`。`best-practice` 不累积保持 `["best-practice"]`。`handleAssertA11y` 现在用 `expandAxeStandard(standard)` 替代 `[standard]`。
-- **Schema 变更**：`AssertA11yStepSchema.standard` enum 加 `wcag22a`（之前漏，axe 实际有此 tag）。schema 是输入约束（容忍度 7 → 8 个值），不是输出 Result Schema 契约，**不触发 SemVer major bump**。Result Schema 1.2.0 不变。
-- **12 个新单测**（`tests/wcag.test.ts > expandAxeStandard`）：表驱动覆盖 8 enum + 未知值 fallback + 数组隔离 + Level A regression guard + WCAG 2.2 AA 完整 6 标签（pin 累积语义防 R-NEW-11 回归）。
-- **集成测试更新**（`tests/integration/playwright/wcag-axe.test.ts`）：测试 1+2 改用 `expandAxeStandard("wcag2aa")` 走生产路径，不是手写 `["wcag2a", "wcag2aa"]` 双轨制。
-- **MIGRATION 提示**：v1.0 release notes / MIGRATION.md 须明确"v1.0 修了 a11y 漏检 bug；用户对相同站点的 audit 违规数会显著增加（之前 silent miss 现在正确检出）"。
-- 完整回归：tsc ✓ / build ✓ / **vitest 1536 → 1548**（+12 expandAxeStandard）/ playwright 14/14 ✓ in 17.9s / 0 schemas diff（input schema 不在 published list）/ 0 bench regression。
-- 设计 + 6 alternatives rejected 全文：[ADR-030](docs/decisions/ADR-030-axe-standard-cumulative-expansion.md)。
+- **Closes risk-register R-NEW-11**, a production bug found while verifying the axe integration. `handleAssertA11y` passed the default standard to axe-core as a single-element array, and axe's `runOnly` matches exactly, so **only rules tagged `wcag2aa` ran and no Level A rule did**. Every audit run at the default setting silently missed `image-alt`, `label`, `button-name`, `link-name` and the rest of Level A.
+- **Fix**, aligned with axe-core's own guidance: a new `expandAxeStandard()` in `src/core/wcag.ts` (~70 LoC) expands a standard into its full cumulative tag list, and the handler uses it instead of wrapping the raw value.
+- **Schema change**: the standard enum gains `wcag22a`, which axe defines but the enum had omitted. This is an input constraint, not the output result contract, so widening it from seven to eight accepted values does not force a major bump, and the result schema is unchanged.
+- **12 new unit tests** covering all eight enum values, the unknown-value fallback, array isolation, a Level A regression guard, and the complete six-tag expansion.
+- **Integration test updated** to call the production path rather than hand-writing the tag array.
+- **Migration note**: the release notes and migration guide must state that this fixes a detection gap, so audits of an unchanged site will report materially more violations than before.
+- Full regression: typecheck, build, **1536 → 1548 tests (+12)**, Playwright 14/14, zero schema diff, zero bench regressions.
+- Design and the six rejected alternatives: [ADR-030](docs/decisions/ADR-030-axe-standard-cumulative-expansion.md).
 
-### Added (T6 — Wave 2 真 axe + SARIF GitHub Code Scanning 验证)
+### Added (T6 — Wave 2 real axe and SARIF code-scanning verification)
 
-- **关闭 RISK-REGISTER R6** ✅：真 axe-core 在 fixture 上跑过；SARIF 输出形状 + ruleIds + W3C help URLs 都通过 integration 测试验证；GHCS 手动上传 SOP 文档化（screenshot 待 v1.0-rc1 reviewer 上传）。
+- **Closes risk-register R6**: real axe-core runs against a fixture, the SARIF output shape, rule IDs and W3C help URLs are all covered by integration tests, and the manual code-scanning upload procedure is documented.
 - `tests/integration/playwright/wcag-axe.test.ts` (~330 LoC, 5 tests):
-  - **真 axe-core scan**：launch chromium → load `a11y-broken-page.html` → addScriptTag(axe.min.js) → page.evaluate(axe.run) → 验 violations 含 `image-alt` / `label` / `color-contrast` / `button-name` + 每条 violation 含 wcag tag
-  - **parseAxeTags 验 WcagAttribution shape**：每个 violation 的 tags 经 parseAxeTags → `attr.criterion` 是 WcagSuccessCriterion 对象（id 点分 / level A|AA|AAA / principle perceivable|operable|understandable|robust）
-  - **renderSarif emits wcag/X-Y-Z ruleIds**：6 issues / 5 unique WCAG SC → 5 rules 含 `wcag/1-1-1` / `wcag/4-1-2` / `wcag/1-4-3` / `wcag/2-4-4` / `wcag/1-3-1` + 每个 rule 含 W3C Understanding URL
-  - **writeSarifReport** persists 有效 SARIF JSON 到 `<runDir>/audit.sarif` ≥ 1KB + version 2.1.0
-  - **SARIF fixture byte-identical** 验证 `docs/integration/fixture-sarif.json` 跟 renderSarif 输出 byte-for-byte 一致 → 任何 SARIF 输出 shape 漂移立即在 CI fail
-- **SARIF 增强（src/core/ci-reporters.ts）**：rule 加 `helpUri` + `help.markdown` 字段（SARIF 2.1.0 § 3.49.12-13）。GHCS UI 用它们渲染顶部"View documentation"链接 + 展开 markdown 帮助段。WCAG rules 的 helpUri 自动填 W3C Understanding URL。
-- **`scripts/gen-sarif-fixture.ts`** (~85 LoC)：生成器 → `docs/integration/fixture-sarif.json` (10KB) → 任何 renderSarif 改动 → diff PR review 立即看到 SARIF shape 变化。
-- **`docs/integration/sarif-upload-verified.md`** (~110 LoC)：完整手动 GHCS 上传 SOP，含：8 步流程 + 5 项 UI 验证 checklist + 失败排查表（6 种 failure mode → likely cause + fix）+ 验证日志表（screenshots 待 v1.0-rc1）+ 见 also 链接 4 个相关文档。
-- **🆕 衍生发现 R-NEW-11**（P0）：跑 fixture 时发现 `handleAssertA11y` 默认 `runOnly: ["wcag2aa"]` 是 axe 精确匹配只跑 AA 标记规则 → **漏 A 级 WCAG 违规**（image-alt / label / button-name 都是 A 级，单 wcag2aa run 完全找不到）。生产 audit 结果可能严重低估 a11y 违规数。RISK-REGISTER-V2 入册 R-NEW-11，单独 T-NEW-11 任务（~30 分钟修：改 handler + 加单测 + 加 integration 验证）。
-- 完整回归：tsc ✓ / build ✓ / vitest 1536/1536 ✓ / playwright 14/14 ✓ in 18s / 0 schemas diff / 0 bench regression / npm pack 1.2 MB / 603 files。
+  - **Real axe scan**: launch chromium, load the deliberately broken fixture, inject axe, run it, and assert the expected violations each carry WCAG tags.
+  - **Tag parsing**: every violation's tags resolve to a proper success-criterion object with a dotted id, a conformance level and a principle.
+  - **SARIF rule IDs**: six issues across five unique success criteria produce five rules, each with its W3C Understanding URL.
+  - **Report persistence**: a valid SARIF 2.1.0 document of at least 1 KB is written to the run directory.
+  - **Byte-identical fixture**: the committed SARIF fixture matches the renderer's output exactly, so any output-shape drift fails CI immediately.
+- **SARIF enrichment**: rules gain `helpUri` and `help.markdown` (SARIF 2.1.0 §3.49.12–13), which the code-scanning UI renders as a documentation link and an expandable help section. For WCAG rules the help URL is filled automatically.
+- **A fixture generator script** (~85 LoC) makes any change to SARIF output visible as a reviewable diff.
+- **An upload procedure document** (~110 LoC): eight steps, a five-item UI checklist, a six-mode failure table, a verification log, and links to four related documents.
+- **Derived discovery**: running the fixture is what exposed the Level A detection gap described above, which was filed as its own P0 task.
+- Full regression: typecheck, build, 1536/1536 tests, Playwright 14/14 in 18s, zero schema diff, zero bench regressions.
 
-### Added (T4 — Wave 2 recorder browser-only + reporter-pdf real chromium)
+### Added (T4 — Wave 2 browser-only recorder paths and real-chromium PDF export)
 
-- **关闭 RISK-REGISTER R3** ✅：recorder.ts 的 `page.evaluate` 内部 lazy-load + docHeight callback / reporter-pdf.ts 真 chromium PDF export 从此在 CI 跑 (待 T26 wired)。
+- **Closes risk-register R3**: the recorder's in-page lazy-load and document-height callbacks, and the PDF exporter's real chromium path, now run in CI.
 - `tests/integration/playwright/recorder.test.ts` (~280 LoC, 3 tests):
-  - **lazy-load fixture**：真 chromium 加载 + Recorder.screenshotSegments → 验 full PNG sidecar SHA + thumbnail buffer (sharp success path 或 fallback 都 OK) + 1-5 segments 全 PNG + 文件命名 `01-{label}-segNN.png`
-  - **dense-scroll fixture**：docHeight ≥ 20000 验 5-segment cap 准确 (stride=576, natural ≈ 41 → cap 5) + 5 segments hash 至少 4 个 distinct (不同 scroll position)
-  - **reporter-pdf**：真 writePdfReport(audit, runDir) → 验返回 string filepath = `<runDir>/audit.pdf` + PDF magic bytes `%PDF-` + 文件 ≥ 5KB
-- **page.evaluate inner browser-only callback 现在真在 chromium 跑过**：之前 recorder.ts func cov 61.9%（lazy-scroll await new Promise(setInterval) + docHeight 读取算未覆盖），现在 e2e 路径覆盖。
-- 完整回归：tsc ✓ / build ✓ / vitest 1536/1536 ✓ / playwright 9/9 ✓ in 18s / 0 bench regression / npm pack 1.2 MB / 598 files (T25 待修)。
+  - **Lazy-load fixture**: real chromium plus segment capture, verifying the full-page sidecar hash, the thumbnail buffer on either the fast or fallback path, that every segment is a valid PNG, and the file naming convention.
+  - **Dense-scroll fixture**: a document over 20000px verifies the five-segment cap arithmetic and that at least four of the five segments hash differently, proving they captured distinct scroll positions.
+  - **PDF export**: real generation returns the expected path, the file begins with the PDF magic bytes, and it is at least 5 KB.
+- **The in-page callbacks now genuinely execute in chromium.** Recorder function coverage had been 61.9% because the lazy-scroll interval and document-height read counted as uncovered.
+- Full regression: typecheck, build, 1536/1536 tests, Playwright 9/9 in 18s, zero bench regressions.
 
-### Added (T2 — Wave 1 M6-5 Integration tests scaffold)
+### Added (T2 — Wave 1 integration test scaffold)
 
-- **Playwright Test 装入**：`@playwright/test@^1.59.1` dev dep；chromium binary 已在系统缓存（playwright runtime 1.55 + Test runner 1.59 共享 binary）。
-- **`playwright.config.ts`** (~70 LoC)：testDir tests/integration/playwright + 30s timeout + 2 retries + 2 workers + headless + trace-on-first-retry + screenshot/video on failure + 1280×720 viewport（与 reporter-pdf 生产对齐）+ list+html reporter（local）/ list+github（CI）+ Desktop Chrome project（M4-* 时再加 firefox/webkit）。
-- **5 个 fixture**：`tests/fixtures/lazy-load-page.html`（IntersectionObserver lazy load，T4 用）+ `dense-scroll-page.html`（20 sections × 1200px ≥ 24000px 验 5-segment cap，T4 用）+ `a11y-broken-page.html`（多 WCAG 违规含 1.1.1 / 1.4.3 / 2.4.4 / 2.4.7 / 2.5.5 / 3.3.2 / 4.1.2 / 1.3.1，T6 用）+ `form-page.html`（login form 含 email/password/select/textarea + submit→result，T5 用）+ `history-100-runs.json`（100 行确定性 fixture，74KB，T7d 用）。
-- **`scripts/gen-history-fixture.ts`** (~110 LoC)：seeded mulberry32 PRNG 生成确定性 100-runs history，重生 byte-for-byte 一致；upgrade HistoryEntry shape 时重跑。
-- **`tests/integration/playwright/smoke.test.ts`** (~140 LoC, 6 tests)：chromium launch + 4 fixture 加载 + 100-runs JSON shape 验证。**6/6 跑通 1.6s**。
-- **`tests/integration/playwright/README.md`** (~85 LoC)：何时加测 / 何时不加 / 运行命令 / fixture 表 / 与 vitest 边界 / 加新测流程 / CI 集成 placeholder。
-- **vitest.config.ts** exclude `tests/integration/playwright/**`（vitest glob 默认抓 *.test.ts，会和 @playwright/test 的 import 冲突）。
-- **package.json** scripts 加 `test:integration:playwright`；`.gitignore` 加 `test-results/` + `playwright-report/`。
-- **完整回归**：tsc ✓ / build ✓ / vitest 1536/1536 ✓ / playwright smoke 6/6 ✓ / bench:check 0 regression / npm pack 1.2 MB / 597 files（待 T25 加 files 字段精修）。
+- **Playwright Test added** as a dev dependency, sharing the already-cached chromium binary.
+- **`playwright.config.ts`** (~70 LoC): the integration test directory, a 30s timeout, two retries, two workers, headless, trace on first retry, screenshot and video on failure, a 1280×720 viewport matching the PDF reporter, list plus HTML reporting locally and GitHub reporting in CI, and a Desktop Chrome project.
+- **Five fixtures**: a lazy-load page, a dense-scroll page over 24000px, a deliberately accessibility-broken page covering eight success criteria, a login form, and a deterministic 100-run history file.
+- **A seeded fixture generator** (~110 LoC) using a deterministic PRNG so regeneration is byte-for-byte reproducible.
+- **A smoke suite** (~140 LoC, 6 tests) launching chromium, loading all four page fixtures, and validating the history fixture shape — 6/6 in 1.6s.
+- **A README for the integration directory** (~85 LoC): when to add a test here, when not to, how to run them, the fixture table, the boundary against the unit suite, and the procedure for adding one.
+- **`vitest.config.ts` excludes the Playwright directory**, since vitest's default glob would otherwise collide with the Playwright imports.
+- **Scripts and ignores updated** for the new runner's output directories.
+- **Full regression**: typecheck, build, 1536/1536 tests, smoke 6/6, zero bench regressions.
 
-### Fixed (T1 — Wave 1 M9-3.2 file-lock cross-process race flake)
+### Fixed (T1 — Wave 1 cross-process file-lock race flake)
 
-- **6 个月老债关掉了**：`tests/file-lock.test.ts` 的跨进程 race 段落自 M9-3 ship 起在并行 vitest 跑下 ~10-15% 失败率（单跑 20/20 过）。STATUS 18 处任务收尾标"与本次无关"。**T1 现根治**。
-- 根因：vitest 默认 `pool: "threads"` 下 sibling worker threads 共享 OS-level 调度原语，sibling test 也在 spawn 子进程时（agent-loop-e2e / signals-e2e），race test 的 lock acquire 偶发失败。
-- 修法（行业最佳实践 vitest 4 官方 + better-sqlite3 自家测试模式）：精准切分——单进程 + sync 测留默认套；跨进程 race 移到 `tests/integration/file-lock-race.test.ts` + 专属 `vitest.integration.config.ts`（pool=forks + isolate=true + singleFork=true + fileParallelism=false）+ npm script `test:integration`。
-- **验证**：20 次连续 `npm run test:integration` 全 20/20 过 0 flake；默认 `npm test` 1536/1536 测全过（少了 race 2 个，移到 integration 套）。
-- 设计 + alternatives rejected 全文：[ADR-029](docs/decisions/ADR-029-file-lock-race-isolation.md)。
+- **Six months of accumulated debt closed.** The cross-process race section of `tests/file-lock.test.ts` had failed roughly 10–15% of the time under the parallel suite since it shipped, while passing 20/20 in isolation, and had been marked "unrelated to this task" 18 times.
+- Root cause: under vitest's default threads pool, sibling worker threads share OS-level scheduling primitives, so when another test spawns child processes concurrently the race test's lock acquisition intermittently fails.
+- Fix, following vitest's own guidance and better-sqlite3's testing pattern: split precisely. The single-process and sync tests stay in the default suite; the cross-process race moves to `tests/integration/file-lock-race.test.ts` under a dedicated config using the forks pool with isolation, a single fork and no file parallelism, exposed as `test:integration`.
+- **Verification**: 20 consecutive runs, 20/20, zero flakes; the default suite stays fully green.
+- Design and rejected alternatives: [ADR-029](docs/decisions/ADR-029-file-lock-race-isolation.md).
 
-### Security & Compliance (T0.6 — Wave 0 license audit + Dependabot + SECURITY.md)
+### Security & Compliance (T0.6 — Wave 0 licence audit, Dependabot, SECURITY.md)
 
-- **License audit**：`license-checker --production` 全树 288 包审计 → **0 GPL / 0 AGPL / 0 SSPL contamination**。213 MIT / 34 Apache-2.0 / 19 BSD-3-Clause / 13 ISC / 3 BSD-2-Clause / 1 MPL-2.0（axe-core，weak copyleft 不感染）/ 1 LGPL-3.0-or-later（sharp 拉的 libvips bundled binary，动态链接豁免，文档化）/ 4 其他兼容（Apache* / Unlicense / MIT-or-WTFPL / AFL-2.1-or-BSD-3-Clause / BSD-2-or-MIT-or-Apache-2.0）。完整商用兼容。
-- **`docs/THIRD_PARTY_LICENSES.md`**：完整 disclosure 含 libvips LGPL 豁免说明（动态链接 + 用户单独 npm install 拉 binary）+ Chromium 混合 license 说明（Playwright 自家 postinstall 拉，我们不分发）+ axe-core MPL 说明（weak copyleft 不感染我们 MIT）+ allowlist 政策含 v1.0 已审过的 16 个 SPDX。
-- **`docs/third-party-licenses.csv`**：289 行机器可读 license 清单（每包含 module / version / license / repository）—— release 每次 regen，作为 audit trail。
-- **`.github/dependabot.yml`**：weekly Mon 09:00 Asia/Shanghai 扫 npm + GitHub Actions；group minor+patch（cut PR count from ~20/week → ~3/week）；ignore Stagehand / Zod / @types/node major bumps（这些是 dedicated migration tasks T-NEW-1 / T-NEW-2）；commit-message prefix `chore(deps)` / `chore(actions)`；open-PR limit 5 npm / 3 GHA。
-- **`SECURITY.md`** 初稿：supported versions 表 + private report channel（GitHub Security Advisories preferred + email fallback）+ coordinated-disclosure timelines（72h ack / 7d initial / 30d critical fix / 90d moderate）+ Known Accepted Risks 段含 3 个 transitive vulns（Vercel ai SDK 文件类型 bypass / jsondiffpatch HtmlFormatter XSS / 1 low）full waiver rationale 含 closure plan T-NEW-1 + scope 范围（包括 / 不包括）。
-- 预备 T26+T27 + T28 + T29 的 CI gate（npm audit / license-checker / SBOM）—— config 已 ready，wire actual CI 是后续任务。
-- 全套回归：tsc ✓ / build ✓ / 1538/1538 测 ✓ / 0 schemas diff / 0 bench regression。
+- **Licence audit**: all 288 production packages audited — **no GPL, AGPL or SSPL contamination**. 213 MIT, 34 Apache-2.0, 19 BSD-3-Clause, 13 ISC, 3 BSD-2-Clause, 1 MPL-2.0 (axe-core, weak copyleft, non-infectious), 1 LGPL-3.0-or-later (the libvips binary pulled in by sharp, dynamically linked and documented), and 4 other compatible licences. Fully compatible with commercial use.
+- **`docs/THIRD_PARTY_LICENSES.md`**: full disclosure including the libvips LGPL rationale (dynamic linking, and the binary is fetched by the user's own install), the Chromium mixed-licence note (fetched by Playwright's postinstall, not redistributed here), the axe-core MPL note, and the allowlist policy covering the 16 SPDX identifiers reviewed for v1.0.
+- **`docs/third-party-licenses.csv`**: a 289-row machine-readable inventory regenerated each release as an audit trail.
+- **`.github/dependabot.yml`**: weekly npm and GitHub Actions scans, minor and patch grouped to cut PR volume from roughly 20 per week to 3, major bumps ignored for the dependencies that have dedicated migration tasks, prefixed commit messages, and open-PR limits.
+- **`SECURITY.md`** first draft: a supported-versions table, the private reporting channel, coordinated-disclosure timelines, a known-accepted-risks section covering the three transitive advisories with their full waiver rationale and closure plan, and an explicit scope statement.
+- CI gates for audit, licence checking and SBOM generation are configured here and wired up in later tasks.
+- Full regression: typecheck, build, 1538/1538 tests, zero schema diff, zero bench regressions.
 
-### Security & Dependencies (T0.5 — Wave 0 紧急止血)
+### Security & Dependencies (T0.5 — Wave 0 urgent remediation)
 
-- **Anthropic SDK 0.39.0 → 0.92.0**（跨 53 minor 版本升级；CHANGELOG 跨整段无 ⚠ BREAKING CHANGES section；零代码改动跑通 1538/1538 测试）
-- **npm audit critical 修复**：protobufjs RCE (GHSA-xq3m-2v4x-88gg) + hono JSX SSR XSS (GHSA-458j-xx4x-4375) 两个 critical/moderate 通过 `npm audit fix` patch；剩 3 transitive vulns 来自 Stagehand v2.5.8 间接依赖（ai SDK + jsondiffpatch），在我们 use case 不可利用，记录到 `SECURITY.md` waiver。完整清需 Stagehand v3 升级（T-NEW-1，v1.1 任务）。
-- **Minor 升级**：commander 12 → 14、dotenv 16.4 → 16.6（保 Stagehand v2.5 peer 兼容）、p-limit 6 → 7、typescript 5.7 → 5.9、@types/node 22.0 → 22.19、odiff-bin 4.3.2 → 4.3.8、ora 8 → 9、axe-core 4.11.2 → 4.11.4、better-sqlite3 12.8 → 12.9
-- **Zod 锁定 v3**：v4 跨大版本影响 100+ 调用点 + zod-to-json-schema 兼容性 + 30 published JSON Schemas + Result Schema SemVer 决策；v1.0 ship Zod v3.25.76，v4 升级延后 v1.1 评估。决策入 [ADR-027](docs/decisions/ADR-027-zod-3-lock-in.md)。
-- **Stagehand 锁定 v2.5.8**：v3 大破坏（act/observe 签名变 + BYO Playwright + wrapper 重写 ~150 LoC）配合 M6-5 T5 真 e2e smoke 才能验证，独立任务 T-NEW-1 v1.1 早期。决策入 [ADR-028](docs/decisions/ADR-028-stagehand-v3-deferred.md)。
-- 全套回归：tsc ✓ / build ✓ / 1538/1538 测试 ✓ / `npm run schemas` 重生 0 diff / `npm run bench:check` 0 regression。
+- **Anthropic SDK 0.39.0 → 0.92.0** — 53 minor versions, with no breaking-change section anywhere in the intervening changelog; no code changes were needed and all 1538 tests passed.
+- **Critical advisories fixed**: a protobufjs RCE (GHSA-xq3m-2v4x-88gg) and a hono JSX SSR XSS (GHSA-458j-xx4x-4375), both patched via `npm audit fix`. Three transitive advisories remain, reached through Stagehand's dependencies, none exploitable in this usage; they are recorded as waivers in `SECURITY.md` and clear with the Stagehand v3 upgrade.
+- **Minor upgrades**: commander 12 → 14, dotenv 16.4 → 16.6 (keeping Stagehand's peer requirement satisfied), p-limit 6 → 7, typescript 5.7 → 5.9, `@types/node` 22.0 → 22.19, odiff-bin 4.3.2 → 4.3.8, ora 8 → 9, axe-core 4.11.2 → 4.11.4, better-sqlite3 12.8 → 12.9.
+- **Zod pinned to v3**: the major affects 100+ call sites, the JSON Schema generator's compatibility, all 30 published schemas, and a result-schema SemVer decision. v1.0 ships Zod 3.25.76 and the upgrade is deferred. See [ADR-027](docs/decisions/ADR-027-zod-3-lock-in.md).
+- **Stagehand pinned to v2.5.8**: the v3 breaking changes need a wrapper rewrite validated against a real end-to-end smoke test, so it becomes its own task early in v1.1. See [ADR-028](docs/decisions/ADR-028-stagehand-v3-deferred.md).
+- Full regression: typecheck, build, 1538/1538 tests, schema regeneration with no diff, zero bench regressions.
 
 ### Added (M1-2 Phase 3 — recorder.ts unit coverage)
 
@@ -1411,9 +1395,9 @@ generate a fresh template, or hand-add `id: <unique-name>` to each step.
 - New CLI flag `--locale <code>` on `run` / `trends` / `diff` subcommands. `ai-audit run` reads `default_locale` from `config.yaml` if `--locale` is unset; CLI overrides per-invocation.
 - New `ProjectConfig.default_locale` enum field in `ProjectConfigSchema` (additive, defaults to `"en"`, existing config.yaml files keep working without touching it).
 - All four stakeholder reports now emit native-language content:
-  - **PDF** (`reporter-pdf.ts`): cover meta labels, summary card rows, top-findings section, scenario-results, methodology + disclaimer, status badges (using full-form a11y label e.g. "Passed" / "通過了" / "Bestanden"), severity tags translated per locale.
+  - **PDF** (`reporter-pdf.ts`): cover meta labels, summary card rows, top-findings section, scenario-results, methodology + disclaimer, status badges using the full-form accessibility label in each locale, and severity tags translated per locale.
   - **Trends** (`reporter-trends.ts`): page title, h1, 6 summary cards, all 5 chart titles + hint paragraphs, stacked-bars legend, runs-table headers, locale-aware singular vs plural for "{n} runs" (English / Spanish / German pluralise; Chinese / Japanese have no plural form).
-  - **Diff Markdown** (`reporter-diff.ts`): title, baseline/this-run pills, headline metrics + per-dimension table headers, severity tags `[critical]` / `[严重]` / `[致命的]`, "🆕 New issues" / "✅ Resolved issues" section titles, no-changes message, cross-project warning.
+  - **Diff Markdown** (`reporter-diff.ts`): title, baseline/this-run pills, headline metrics + per-dimension table headers, locale-specific severity tags, "🆕 New issues" / "✅ Resolved issues" section titles, no-changes message, cross-project warning.
   - **Diff HTML**: same as Markdown, plus `<title>` and footer.
 - What's NOT translated: the auditor's own findings (LLM-generated issue descriptions / recommendations come from Claude in whatever language the user asked for); numeric values / dates / run IDs / scenario IDs (data, not UI).
 - Translation drift caught at CI: `lintTranslations(locale)` test asserts `[]` missing keys for every locale, so adding a key only to en silently falls back is impossible without `npm test` failing.
@@ -1702,7 +1686,7 @@ Coverage threshold ratcheted per ADR-017 contract: statements 58→59, branches 
 - New ADR-008 documenting hook-at-call-site, persistent ledger, symmetric pre-check / post-record enforcement.
 - New `tests/cost-guard.test.ts` with 18 tests: `recordUsage` math, atomic ledger persistence, cross-instance ledger sharing, day rollover, all four tripwire kinds, error message env hint, `resetRun` semantics, snapshot reporting, disabled mode (constructor flag + env var), 30-day pruning, malformed-file recovery, singleton lifecycle. Total: 363/363 tests pass.
 
-### Added (M9-2 Result schema 稳定承诺)
+### Added (M9-2 — result schema stability commitment)
 
 - `RESULT_SCHEMA_VERSION = "1.0.0"` — single source-of-truth SemVer string for every result the auditor emits to AI agents and external consumers.
 - `src/core/result-schema.ts` — Zod schemas for the 19 public result types (`AuditRun`, `ScenarioRunResult`, `StepResult`, `Issue`, `DimensionScore`, `ConsoleError`, `CriticResult`, `GateResult`, `CalibrationReport`, `BenchmarkReport`, `BenchmarkTaskResult`, `MutationResult`, MCP tool envelopes, `HistoryEntry`, `PersonaSummary`).
