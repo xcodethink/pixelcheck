@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: M2-2 — WCAG 条款分组
+- **Task**: M2-2 — WCAG clause grouping
 - **Builds on**: ADR-019 (CI / SARIF emission), ADR-020 (PDF stakeholder report), ADR-023 (report localisation — WCAG section is i18n-aware)
 
 ## Context
@@ -53,7 +53,7 @@ The catalog is the source of truth for: parsing axe tags into structured attribu
 
 Skipped entirely on runs that don't include an `assert_a11y` step.
 
-**i18n (`src/core/i18n.ts`)**: 14 new translation keys for the WCAG section. Translated into all 5 supported locales (en / zh-CN / ja / es / de). Compliance teams reading reports in their native language see "WCAG 合规摘要 / 按一致性级别 / 可感知" etc.
+**i18n (`src/core/i18n.ts`)**: 14 new translation keys for the WCAG section. Translated into all 5 supported locales (en / zh-CN / ja / es / de). Compliance teams reading reports in their native language see the section headings — the WCAG summary title, the by-conformance-level grouping, and the four principle names — in that language.
 
 ## Alternatives rejected
 
@@ -61,7 +61,7 @@ Skipped entirely on runs that don't include an `assert_a11y` step.
 2. **Pull WCAG metadata from axe-core's own JSON catalog at runtime** — would couple our reports to whatever subset axe ships and miss SCs that axe doesn't have rules for (e.g. 1.2.x audio captioning — axe can't auto-detect, but a manual audit might still surface them). Hand-curated catalog is pinned to W3C TR/WCAG22 and stable across axe versions.
 3. **One ruleId per axe rule (e.g. `axe/color-contrast`) instead of per-WCAG-SC** — engineering-friendly but compliance-hostile. Multiple axe rules can map to the same SC (e.g. `color-contrast` + `color-contrast-enhanced` both on 1.4.3). Compliance teams want SC-level reporting; engineers can drill into the `description` field for the specific axe rule.
 4. **Separate top-level "Accessibility report" PDF instead of a section inside the main PDF** — duplicates content and forces stakeholders to know which document to open. The main PDF is the single artefact for stakeholder distribution; embedding a WCAG section keeps the contract simple.
-5. **Translate the W3C SC names themselves (e.g. "1.4.3 Contrast (Minimum)" → "1.4.3 對比度（最低）")** — rejected. WCAG SC names are formal references; translating them risks ambiguity in compliance documentation. Keep the canonical English name; translate only the section headings around them.
+5. **Translate the W3C success-criterion names themselves** — rejected. WCAG SC names are formal references; translating them risks ambiguity in compliance documentation. Keep the canonical English name; translate only the section headings around them.
 6. **Show all 50+ criteria in the PDF, not just the top 8** — would balloon the section by 5+ pages. Compliance teams want the worst offenders surfaced; the long tail goes to `audit.json` for engineers and to the SARIF feed for tooling.
 7. **Track historical WCAG conformance trend over time as a separate trends-dashboard chart** — sounds nice (M2-3.1 follow-up). Defer until we see real signal in the trend data; today most users will run a few audits before that's interesting.
 8. **Auto-fail the audit on any AA violation (`--fail-on-wcag aa`)** — over-reach. The existing `--min-score` quality gate already blocks bad runs. Hardcoding "any AA = fail" is a policy decision per project; users who want it can set `--min-score 9` or build a SARIF post-processor. Add as an opt-in flag if real users ask.

@@ -1,6 +1,6 @@
 # Release Records
 
-Per the global release-logging rule (`~/.claude/CLAUDE.md` 发布记录铁律),
+Per the project's release-logging rule,
 every production deployment writes a dated record here documenting:
 
 - **Deployment IDs** — concrete SHAs / npm version / GitHub release tag

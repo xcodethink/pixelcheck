@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: M2-4 — 报告 i18n 5 主流语言
+- **Task**: M2-4 — report i18n across five major languages
 - **Builds on**: ADR-019 / ADR-020 / ADR-021 / ADR-022 (the four reporters this consolidates around)
 
 ## Context

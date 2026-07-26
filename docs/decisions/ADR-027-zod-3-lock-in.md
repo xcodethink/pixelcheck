@@ -1,71 +1,88 @@
-# ADR-027 — Lock to Zod v3 for v1.0（推迟 Zod v4 升级）
+# ADR-027 — Lock to Zod v3 for v1.0 (defer the Zod v4 upgrade)
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: T0.5（Wave 0 dep upgrade）
+- **Task**: T0.5 (Wave 0 dependency upgrade)
 
 ## Context
 
-`npm outdated` 显示 Zod 当前 3.25.76，latest 4.4.1。Zod v4（2025 年 5 月发布）是大版本升级。
+`npm outdated` reports Zod at 3.25.76 with 4.4.1 available. Zod v4 is a major
+release.
 
-Zod 在我们项目的使用面**非常广**：
-- 30 个 published JSON Schemas 都从 Zod schemas 生成（`zod-to-json-schema`）
-- `RESULT_SCHEMA_VERSION = "1.2.0"` 公开承诺（ADR-007）
-- 全部 `safeParse` / `parse` 调用点（runner / handlers / MCP tools / reporters / config / personas / scenarios）—— grep 出 100+ 调用
-- `tests/public-api-contract.test.ts` 锁了 Ajv ↔ Zod 等价性
-- 67 个 public API exports 含 Schema 类型（`AuditRunSchema`, `IssueSchema`, etc）
+Zod's surface inside this project is unusually wide:
 
-## Zod v4 Breaking Changes（调研）
+- All 30 published JSON Schemas are generated from Zod schemas via
+  `zod-to-json-schema`.
+- `RESULT_SCHEMA_VERSION = "1.2.0"` is a public commitment (ADR-007).
+- Every `safeParse` / `parse` call site — runner, handlers, MCP tools,
+  reporters, config, personas, scenarios — over 100 by grep.
+- `tests/public-api-contract.test.ts` locks Ajv ↔ Zod equivalence.
+- 67 public API exports include schema types (`AuditRunSchema`, `IssueSchema`,
+  and so on).
 
-主要破坏点：
-1. `.parse()` 错误对象 shape 变（`ZodError.issues` 字段重组）
-2. `z.record()` 签名变
-3. `z.string().email()` 等 validator API 部分签名调整
-4. `transform` / `refine` 链式行为细节微调
-5. `zod-to-json-schema` 第三方包**不一定立即兼容 v4**
-6. TypeScript 类型推导算法重写，部分边界 case 类型推导结果变
+## Zod v4 breaking changes (survey)
 
-升级 Zod v4 需要：
-- 全仓库 grep 100+ 调用点 review
-- `zod-to-json-schema` 兼容性验证（可能需换 npm 包）
-- 30 个 published JSON Schemas 重新生成 + 跑 contract test 确认 Ajv ↔ Zod 等价性
-- ResultSchema 的 SemVer 决策：是否触发 1.2 → 2.0 major bump？
+1. `.parse()` error object shape changes (`ZodError.issues` is restructured).
+2. `z.record()` signature changes.
+3. Some validator APIs, such as `z.string().email()`, change signature.
+4. Chained `transform` / `refine` behaviour shifts in detail.
+5. `zod-to-json-schema`, a third-party package, is not guaranteed to be
+   v4-compatible immediately.
+6. Type inference is rewritten, so some edge-case inferred types differ.
 
-预估工时：~8-12h（不止 T0.5 的 4h）。
+Upgrading would require reviewing 100+ call sites, verifying or replacing
+`zod-to-json-schema`, regenerating all 30 published JSON Schemas and
+re-confirming Ajv ↔ Zod equivalence, and making a SemVer call on whether the
+result schema goes 1.2 → 2.0. Estimated 8–12 hours, against the 4 hours budgeted
+for T0.5.
 
 ## Decision
 
-**v1.0 锁 Zod v3.25.x latest minor。Zod v4 升级延后到 v1.1.x 评估。**
+**v1.0 locks to the latest Zod 3.25.x minor. The v4 upgrade is deferred to a
+v1.1.x evaluation.**
 
-具体：
-- `package.json`: `zod: "^3.25.76"`（保持当前 caret semver，自动收 3.x.y patch）
-- v4 升级作为独立 task **T-NEW-2** 入 RISK-REGISTER-V2
-- 触发条件：(a) Zod v3 进入 maintenance-only / 出 critical CVE；(b) 我们自己有强需求用 v4 新功能；(c) `zod-to-json-schema` 公开 v4 stable 兼容版本
-- 在 `docs/release-notes/v1.0.0.md` + `MIGRATION.md` 明确"v1.0 ships with Zod v3"
+- `package.json` keeps `"zod": "^3.25.76"`, so 3.x patches are still picked up
+  automatically.
+- The v4 upgrade is tracked as its own task in the risk register.
+- Re-evaluate when any of these hold: (a) Zod v3 goes maintenance-only or gets a
+  critical CVE; (b) there is a concrete need for a v4-only feature; (c)
+  `zod-to-json-schema` ships a stable v4-compatible release.
+- The release notes and migration guide state plainly that v1.0 ships with Zod
+  v3.
 
 ## Alternatives rejected
 
-1. **现在升 Zod v4** —— T0.5 范围爆炸（4h → 12h+）；阻塞 v1 critical vuln 修复；引入未充分测试的大破坏
-2. **锁 Zod 到精确版本**（`zod: "3.25.76"` no caret）—— 失去自动收 3.x patch（safety-relevant patches 也收不到）；过度保守
-3. **fork Zod**（pin 一个 known-good fork） —— 维护负担巨大，v1 单维护者不可能
-4. **换 ajv-only 不用 Zod runtime** —— 重写量更大；Zod 给 TypeScript inference 不可替代
+1. **Upgrade to Zod v4 now** — blows up the T0.5 scope from 4 to 12+ hours,
+   blocks the critical vulnerability fixes v1 needs, and introduces a large
+   under-tested change.
+2. **Pin an exact version** (`"zod": "3.25.76"`, no caret) — loses automatic 3.x
+   patches, including security-relevant ones. Over-conservative.
+3. **Fork Zod and pin a known-good fork** — an unsustainable maintenance burden
+   for a single-maintainer project.
+4. **Drop the Zod runtime and use Ajv only** — a larger rewrite, and it gives up
+   TypeScript inference that has no equivalent.
 
 ## Consequences
 
-- v1.0 ship 时所有 Zod schemas 走 v3 行为（runtime + types）
-- 用户用 `import { AuditRunSchema, type AuditRun } from "ai-browser-auditor"` 拿到的是 Zod v3 类型；v1.x 内不变
-- Result Schema 1.2.0 的 SemVer 承诺不受影响（SemVer 锚的是 published JSON Schemas + 我们的字段语义，与 Zod 库版本无关）
-- v1.1 评估升 Zod v4 时，必须做 SemVer 决策：v4 升级如果不破坏现有用户的 `parse(input)` 行为 → v1.x minor；如果破坏 → v2.0 major
+- Every Zod schema in v1.0 has v3 runtime and type behaviour.
+- Consumers importing `{ AuditRunSchema, type AuditRun }` get Zod v3 types, and
+  that stays true across v1.x.
+- The Result Schema 1.2.0 SemVer commitment is unaffected: it is anchored to the
+  published JSON Schemas and field semantics, not to the Zod library version.
+- When the v4 upgrade is evaluated in v1.1, it carries its own SemVer decision:
+  if `parse(input)` behaviour is unchanged for existing consumers it is a v1.x
+  minor; if it breaks, it forces v2.0.
 
-## 触发 v4 升级 review 的 signal
+## Signals that should trigger a re-review
 
-- Zod v4 stable + zod-to-json-schema v4 兼容包 release 双条件满足
-- Zod v3 出 CVE 且 v3 不再发 patch
-- 用户 demand v4-only feature（如新的 metaprogramming API）
-- v1.x 累计积累足够其他改动一起升
+- Zod v4 stable *and* a v4-compatible `zod-to-json-schema` release, together.
+- A CVE in Zod v3 with no v3 patch forthcoming.
+- Demand for a v4-only feature, such as the new metaprogramming API.
+- Enough other accumulated v1.x changes to justify doing the upgrade alongside
+  them.
 
 ## Files changed
 
-- `package.json`: `"zod": "^3.25.76"`（保持现状）
-- `docs/decisions/ADR-027-zod-3-lock-in.md`（this file）
-- RISK-REGISTER-V2 加 T-NEW-2（Zod v4 升级评估）
+- `package.json` — `"zod": "^3.25.76"` (unchanged)
+- `docs/decisions/ADR-027-zod-3-lock-in.md` (this file)
+- Risk register — added the Zod v4 upgrade evaluation task

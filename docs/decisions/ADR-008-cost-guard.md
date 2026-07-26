@@ -13,7 +13,7 @@ The v0.3 runner already had a `budget_usd` setting that stops the unit scheduler
 
 2. **Audit-only**. The MCP server exposes six tools (and v1 will add primitives `see` / `act` / `extract` / `compare`); none of them go through the runner's scheduler. A Claude Code session that calls `audit_url` six times in a row is six independent audits — each capped, but with no across-call protection. Forgotten loops in calibration runs or copy-paste mistakes have already cost real money.
 
-The redefined M5-6 in v3.0 (`本地 cost guard：单次 / 单日 token + USD 上限，超限自动停`) explicitly asks for both layers — a single-run cap *and* a persistent daily cap that survives process restarts.
+The redefined M5-6 task — a local cost guard with per-run and per-day token and USD ceilings that stops automatically when exceeded — asks for both layers — a single-run cap *and* a persistent daily cap that survives process restarts.
 
 There were three design axes to settle:
 

@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-04-27
-- **Task**: M9-2 (Result schema 稳定承诺)
+- **Task**: M9-2 (stability commitment for the result schema)
 - **Builds on**: ADR-005 (structured logging), ADR-006 (secrets redaction)
 
 ## Context
@@ -13,7 +13,7 @@ The v3.0 plan makes the auditor an AI-first tool — primitives exposed via MCP,
 - Internal refactors that look harmless (rename a field, move a sub-object) break consumers without anyone noticing until a bug report drifts in days later.
 - The 19 result types currently in the codebase have zero version metadata; nothing tells a consumer whether the JSON it just parsed is "the shape it expected".
 
-The 7.1 engineering discipline list explicitly requires "Public API SemVer (result schema 字段不能 breaking)" and the M9-2 task description requires "Zod / JSON Schema 定义所有 result 结构 + schema_version 字段 + breaking change 走 SemVer".
+The engineering discipline list requires public-API SemVer, meaning result schema fields cannot break compatibility, and the M9-2 task requires that every result structure be defined in Zod / JSON Schema, carry a `schema_version` field, and route breaking changes through SemVer.
 
 There were two design axes to settle:
 
@@ -48,7 +48,7 @@ One SemVer string in one file (`src/core/result-schema.ts`) is stamped onto ever
 
 Reasons:
 
-- The user asked for "不要边变更新边破坏". Flipping every output to `.parse()` on day one would mean: any minor field-shape divergence between the existing 11 result interfaces and the new Zod schemas (which were transcribed by hand) immediately throws inside production runs.
+- The requirement was to add the contract without breaking things on the way in. Flipping every output to `.parse()` on day one would mean: any minor field-shape divergence between the existing 11 result interfaces and the new Zod schemas (which were transcribed by hand) immediately throws inside production runs.
 - Observe-then-enforce is the path Stripe / Anthropic / OpenAPI ecosystems take: ship the contract, watch for drift in real workloads, then escalate.
 - A later patch release can tighten selected call sites to `.parse()` once the warn-line backlog is clean. Doing so doesn't itself require a major bump because conformant producers are already passing.
 
