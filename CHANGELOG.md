@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-26 — scroll-reveal & tall-page vision fixes, content-readiness gate, dependency security
+
+> No public-API breaking changes. `sharp` moves to a new major (0.34 → 0.35)
+> as a bundled dependency; it is a transitive upgrade for consumers, not an
+> API change in `pixelcheck` itself.
+
 ### Security
+- `sharp` `^0.34.5` → `^0.35.3` (HIGH: bundled libvips advisories
+  CVE-2026-33327 / 33328 / 35590 / 35591). sharp 0.35 switched its type
+  export to `export = sharp`, so `src/core/image.ts` now resolves and types
+  the interop value as a callable factory.
+- Override `@hono/node-server` to `^2.0.9` (MODERATE), patched within the 2.x
+  line so the `@modelcontextprotocol/sdk` dependency tree stays intact —
+  deliberately avoiding `npm audit fix --force`, which downgrades the MCP SDK.
+- `form-data` (HIGH), `protobufjs`, `fast-uri`, `body-parser` resolved via
+  non-breaking `npm audit fix`.
 - Override `hono` to `^4.12.21` (resolves transitively to 4.12.25), clearing
   four moderate advisories pulled in via `@modelcontextprotocol/sdk` /
   `@hono/node-server` (GHSA-xrhx-7g5j-rcj5 IPv6 deny-rule bypass,
@@ -37,6 +52,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rejected, skipping visual scoring entirely (`overall_score: null`).
   `compressForVision` now enforces the 8000px hard edge limit before the
   byte-size bypass, so no oversized image ever reaches the API.
+- Client-fetched pages are no longer falsely reported as "perpetual loading" /
+  "broken". The 3-phase stability gate measures *interactivity* readiness, not
+  *data* readiness: a settled loading skeleton and settled real content are
+  both static hydrated DOM, `networkidle` fires in the gap before the client
+  fetch starts, and a CSS-pulse skeleton never trips the MutationObserver — so
+  the snapshot captured placeholders. A new phase 4 (content readiness) waits
+  for known loading indicators to clear before capture, bounded by
+  `contentReadyTimeout` (8s default, independent of the interactivity timeout),
+  never throwing, opt-out via `skipContentReady`. It is zero-cost on pages with
+  no loading indicators.
+- A lone loading spinner no longer slips past the content-readiness gate. The
+  weak class-signal tier originally required a cluster (≥3
+  `animate-pulse` / `skeleton` / `shimmer` / `placeholder` elements) to avoid
+  waiting on decorative pulses, which missed a single card fetching its own
+  data. Spinning rings (`animate-spin` / `*spinner*`) are now their own tier
+  where even one counts; the pulse/skeleton tier keeps the ≥3 threshold.
+- `ObserverServer` `/api/*` routes now match on the parsed pathname instead of
+  the raw `req.url`, so `/api/state?token=…`, `/api/events?token=…` and
+  `/api/timeline?token=…` resolve instead of 404ing. Query-string token auth
+  works again (previously only the `Authorization` header did).
 
 ### Added
 - `compressForVisionMulti` — slices a tall full-page screenshot into a macro
@@ -56,6 +91,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single image. `compare` (A/B framing) and `see`'s visual-state detector
   (3×3 grid) intentionally stay single-image — slicing would break their
   semantics — and rely on the new 8000px floor in `compressForVision`.
+- `server.json` (the MCP registry entry) is back in sync with the package
+  version. It had drifted to 1.2.1 — neither the 1.2.1 nor the 1.3.0 release
+  updated it — so `registry.modelcontextprotocol.io` still advertised 1.2.0.
 
 ## [1.3.0] - 2026-06-02 — security hardening, MCP test coverage, Node 20
 
@@ -1938,6 +1976,8 @@ before merge). Fully additive — no breaking changes from v0.2.0.
 - **Stripe safety**: refuses to start if `pk_live_` keys detected in env
 - **Documentation**: architecture guide, scenario authoring guide, persona design guide, CI integration guide
 
+[1.4.0]: https://github.com/xcodethink/pixelcheck/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/xcodethink/pixelcheck/compare/v1.2.1...v1.3.0
 [1.2.0]: https://github.com/xcodethink/pixelcheck/compare/v1.1.5...v1.2.0
 [1.1.5]: https://github.com/xcodethink/pixelcheck/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/xcodethink/pixelcheck/compare/v1.1.3...v1.1.4
