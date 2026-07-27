@@ -103,6 +103,47 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
+/**
+ * Remove a lockfile we have judged reclaimable, but only if it is still the
+ * same one we judged.
+ *
+ * Re-reading immediately before the unlink narrows the window in which the
+ * original holder released and a *new* holder created its own lockfile at the
+ * same path. Without this check the reclaim deletes the new holder's lock and
+ * lets two processes into the critical section at once.
+ *
+ * The window cannot be closed entirely with unlink alone — POSIX has no
+ * "remove this file only if it is still this inode" — but the dominant race,
+ * where the file is simply gone, is handled by the callers and never reaches
+ * here.
+ */
+export function _reclaimIfUnchangedForTests(
+  lockPath: string,
+  expected: LockHolder | null,
+): void {
+  reclaimIfUnchanged(lockPath, expected);
+}
+
+function reclaimIfUnchanged(lockPath: string, expected: LockHolder | null): void {
+  const current = readHolder(lockPath);
+  if (expected === null) {
+    // Reclaiming an unparseable lockfile. If it parses now, a healthy holder
+    // owns it — leave it alone.
+    if (current !== null) return;
+  } else if (
+    current === null ||
+    current.pid !== expected.pid ||
+    current.acquiredAt !== expected.acquiredAt
+  ) {
+    return;
+  }
+  try {
+    fs.unlinkSync(lockPath);
+  } catch {
+    // Someone else cleared it first; the retry loop sorts it out.
+  }
+}
+
 function isStale(holder: LockHolder | null, staleAfterMs: number): boolean {
   if (!holder) return true;
   const ts = Date.parse(holder.acquiredAt);
@@ -170,13 +211,25 @@ export async function withFileLock<T>(
 
     lastHolder = readHolder(lockPath);
 
-    // Try once to break a stale lock.
-    if (isStale(lastHolder, staleAfterMs)) {
-      try {
-        fs.unlinkSync(lockPath);
-      } catch {
-        // Someone else cleared it first. Loop and retry tryAcquire.
+    if (lastHolder === null) {
+      // No holder could be read. Two very different situations look identical
+      // here, and treating them the same is what corrupted the lock:
+      //
+      //   - The lockfile is GONE: the holder released it between our failed
+      //     acquire and this read. That is ordinary contention, not staleness.
+      //     Deleting "the lockfile" now would delete whichever holder acquired
+      //     it in the meantime, putting two processes inside the critical
+      //     section. Fall through to the normal wait and retry — tryAcquire is
+      //     atomic and settles it.
+      //   - The lockfile EXISTS but does not parse: nobody can ever prove it
+      //     stale, so every waiter would block until the staleness timeout.
+      //     Reclaim it, checking identity first.
+      if (fs.existsSync(lockPath)) {
+        reclaimIfUnchanged(lockPath, null);
+        continue;
       }
+    } else if (isStale(lastHolder, staleAfterMs)) {
+      reclaimIfUnchanged(lockPath, lastHolder);
       continue;
     }
 
@@ -218,12 +271,15 @@ export function withFileLockSync<T>(
   while (true) {
     if (tryAcquire(lockPath)) break;
     const holder = readHolder(lockPath);
-    if (isStale(holder, staleAfterMs)) {
-      try {
-        fs.unlinkSync(lockPath);
-      } catch {
-        // ignore
+    if (holder === null) {
+      // See withFileLock above: a missing lockfile is contention, not
+      // staleness. Only an existing-but-unparseable lockfile is reclaimed.
+      if (fs.existsSync(lockPath)) {
+        reclaimIfUnchanged(lockPath, null);
+        continue;
       }
+    } else if (isStale(holder, staleAfterMs)) {
+      reclaimIfUnchanged(lockPath, holder);
       continue;
     }
     if (now() - start >= timeoutMs) {
