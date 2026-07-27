@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/dimension-score.schema.json",
+  "title": "DimensionScore",
+  "description": "Score for one scoring dimension on a 0..10 scale with a justification string.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/DimensionScore",
+  "definitions": {
+    "DimensionScore": {
+      "type": "object",
+      "properties": {
+        "dimension": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "justification": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimension",
+        "score",
+        "justification"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

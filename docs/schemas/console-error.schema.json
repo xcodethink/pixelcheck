@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/console-error.schema.json",
+  "title": "ConsoleError",
+  "description": "A captured browser console error / pageerror / failed request.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/ConsoleError",
+  "definitions": {
+    "ConsoleError": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "console",
+            "pageerror",
+            "requestfailed"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text",
+        "timestamp"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

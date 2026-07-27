@@ -1,0 +1,68 @@
+name: Translation review
+description: Submit a native-speaker review of one of the 5 supported locales (en / zh-CN / ja / es / de).
+title: "[i18n] Translation review for <locale>"
+labels: ["i18n", "translation-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for offering a translation review. The full template is at
+        [docs/translation-review-template.md](https://github.com/xcodethink/pixelcheck/blob/main/docs/translation-review-template.md)
+        — please copy it locally, fill it in, and submit a PR.
+
+        This issue is for **announcing** that you'll review a locale (so we
+        don't end up with two reviewers doing the same locale in parallel)
+        and for **discussion** if you have questions before submitting the PR.
+
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Locale
+      description: Which non-English locale are you reviewing?
+      options:
+        - "zh-CN (Simplified Chinese)"
+        - "ja (Japanese)"
+        - "es (Spanish)"
+        - "de (German)"
+    validations:
+      required: true
+
+  - type: input
+    id: reviewer-profile
+    attributes:
+      label: Reviewer profile
+      description: Native speaker? Professional translator? Any QA / audit / browser-testing domain experience?
+      placeholder: "e.g. Native zh-CN speaker, 5y professional translation experience, QA background"
+    validations:
+      required: true
+
+  - type: input
+    id: target-date
+    attributes:
+      label: Target submission date
+      description: When do you expect to submit the PR?
+      placeholder: "YYYY-MM-DD"
+    validations:
+      required: false
+
+  - type: textarea
+    id: questions
+    attributes:
+      label: Questions before starting
+      description: Anything unclear about the report context, key meanings, or style register?
+      placeholder: "e.g. Is `audit_report_title` shown as a page heading or document title? Affects how I'll handle capitalisation."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgement
+      description: Please confirm the following before submitting.
+      options:
+        - label: "I have read [docs/translation-review-template.md](https://github.com/xcodethink/pixelcheck/blob/main/docs/translation-review-template.md) and understand the review format."
+          required: true
+        - label: "I will submit a PR with the filled template + corresponding edits to `src/core/i18n.ts`."
+          required: true
+        - label: "I am willing to be credited publicly as a reviewer in the README."
+          required: true

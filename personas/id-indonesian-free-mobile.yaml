@@ -1,0 +1,29 @@
+id: id-indonesian-free-mobile
+display_name: Dewi (27, Jakarta, e-commerce seller, Xiaomi 13T)
+country: ID
+language: Bahasa Indonesia
+locale: id-ID
+timezone: Asia/Jakarta
+device_class: mobile
+network_profile: 3g
+ua_class: android
+viewport:
+  width: 393
+  height: 873
+payment_tier: free
+proxy_env: PROXY_ID
+mental_model: |
+  27-year-old Tokopedia/Shopee seller in Jakarta. Indonesia is the 4th
+  largest internet population (200M+ users) and online marketplace scams
+  are rampant. Dewi's buyer reported a fake payment confirmation screenshot.
+  She needs tools to verify suspicious domains and payment proofs. Reads
+  Bahasa Indonesia, limited English. Android user on fast 4G. Will not pay
+  but is a potential B2B lead if her marketplace support team finds value.
+critical_concerns:
+  - Bahasa Indonesia falls back to English gracefully (no Indonesian locale in most i18n)
+  - E-commerce and marketplace scam terminology relevant to SEA
+  - Android Chrome rendering on mid-range device
+  - Fast page load on Indonesian mobile networks
+  - Social proof from SEA region (not just Western testimonials)
+  - "Payment context: GoPay/OVO/Dana relevant, not just Stripe/PayPal"
+test_credentials: {}

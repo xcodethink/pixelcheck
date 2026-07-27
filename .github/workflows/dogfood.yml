@@ -1,0 +1,157 @@
+# Tarball dogfood — install the packed npm tarball into a fresh dir
+# and exercise the binaries.
+#
+# Why this exists (T31.5 follow-up; closes the gap that let R-NEW-V1-SHIP-1
+# slip through — package.json had a `file:` dep that worked locally but
+# broke fresh installs):
+#
+# `npm test` and `npm run build` both run inside the dev tree where
+# every dep is resolvable through workspace symlinks. They cannot catch
+# packaging bugs (missing files in `files: [...]`, broken `file:` deps,
+# unpublished private packages, postinstall scripts that fail in a
+# clean directory).
+#
+# This workflow runs on every PR + push to main:
+#   1. `npm pack` to produce the tarball
+#   2. Create a fresh tmp directory + `npm init -y`
+#   3. `npm install <tarball>` (the exact path a user takes)
+#   4. Verify the binaries (`pixelcheck --help`, `doctor --skip-network`,
+#      `init`) all exit cleanly
+#   5. Verify package size is under the 1 MB budget (current 570 KB,
+#      headroom for org / persona pack expansion)
+#
+# Cost: ~1 min on ubuntu-latest per run. Light enough to run every PR.
+#
+# Promotion to required status check: enable in branch protection
+# settings after 5 successful runs (same observation pattern as bench.yml).
+
+name: Tarball dogfood
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dogfood:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Pack tarball
+        id: pack
+        run: |
+          npm pack
+          TARBALL=$(ls *.tgz | head -1)
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          SIZE=$(stat -c %s "$TARBALL")
+          echo "size_bytes=$SIZE" >> "$GITHUB_OUTPUT"
+          echo "Tarball: $TARBALL ($SIZE bytes)"
+
+      # Hard gate: tarball must stay under 1 MB. If you need to break this
+      # cap, raise it deliberately (and explain in CHANGELOG) — don't let
+      # it creep silently as docs / fixtures / dist bloat.
+      - name: Enforce package size budget (≤ 1 MB)
+        run: |
+          SIZE=${{ steps.pack.outputs.size_bytes }}
+          BUDGET=1048576
+          if [ "$SIZE" -gt "$BUDGET" ]; then
+            echo "::error::tarball is $SIZE bytes; exceeds $BUDGET byte (1 MB) budget"
+            exit 1
+          fi
+          echo "Tarball size $SIZE bytes within $BUDGET byte budget ✓"
+
+      - name: Install tarball into a fresh directory
+        id: install
+        run: |
+          DOGFOOD_DIR="$(mktemp -d)"
+          cd "$DOGFOOD_DIR"
+          npm init -y > /dev/null
+          npm install "${{ github.workspace }}/${{ steps.pack.outputs.tarball }}"
+          echo "dogfood_dir=$DOGFOOD_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Verify pixelcheck --help
+        working-directory: ${{ steps.install.outputs.dogfood_dir }}
+        run: |
+          OUTPUT=$(npx pixelcheck --help 2>&1)
+          echo "$OUTPUT"
+          # Ensure command list rendered (doctor / init / run / etc)
+          echo "$OUTPUT" | grep -q "doctor" || (echo "::error::pixelcheck --help missing 'doctor' command" && exit 1)
+          echo "$OUTPUT" | grep -q "init" || (echo "::error::pixelcheck --help missing 'init' command" && exit 1)
+
+      - name: Verify pixelcheck doctor --skip-network
+        working-directory: ${{ steps.install.outputs.dogfood_dir }}
+        run: |
+          # doctor exits 1 because ANTHROPIC_API_KEY is missing in CI;
+          # that's fine — we just want to verify the binary runs end-to-end
+          # without ERR_MODULE_NOT_FOUND or similar packaging bugs.
+          OUTPUT=$(npx pixelcheck doctor --skip-network --verbose 2>&1) || true
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "Node.js version" || (echo "::error::doctor did not run cleanly" && exit 1)
+          echo "$OUTPUT" | grep -q "ANTHROPIC_API_KEY" || (echo "::error::doctor did not check API key" && exit 1)
+
+      - name: Verify pixelcheck init scaffold
+        working-directory: ${{ steps.install.outputs.dogfood_dir }}
+        run: |
+          mkdir -p test-project
+          OUTPUT=$(npx pixelcheck init test-project 2>&1)
+          echo "$OUTPUT"
+          test -f test-project/config.yaml || (echo "::error::init did not create config.yaml" && exit 1)
+          test -d test-project/scenarios || (echo "::error::init did not create scenarios/" && exit 1)
+          test -f test-project/scenarios/00-smoke.yaml || (echo "::error::init did not create starter scenario" && exit 1)
+
+      # End-to-end test added in v1.0.1 (P1 fix). v1.0.0 did not ship
+      # personas/ in the tarball, so a fresh-install user would hit
+      # `[FATAL] Personas directory not found` on the very first
+      # `pixelcheck run`. This step would have caught that. Use
+      # ANTHROPIC_API_KEY=sk-ant-fake plus AUDIT_AUTO_CONSENT to bypass
+      # the api-key gate without burning real credits — the test only
+      # verifies that personas + scenarios load (a structural check).
+      - name: Verify pixelcheck run --dry-run loads bundled personas
+        working-directory: ${{ steps.install.outputs.dogfood_dir }}/test-project
+        env:
+          ANTHROPIC_API_KEY: sk-ant-fake-not-a-real-key-just-for-cli-gate
+          AUDIT_AUTO_CONSENT: "1"
+          PIXELCHECK_HOME: /tmp/pixelcheck-dogfood-home
+        run: |
+          OUTPUT=$(npx pixelcheck run --dry-run 2>&1) || EXIT=$?
+          echo "$OUTPUT"
+          # The fatal we want to NEVER see again (B1 in v1.0.0)
+          if echo "$OUTPUT" | grep -q "Personas directory not found"; then
+            echo "::error::REGRESSION: bundled personas not loading (B1 in v1.0.0)"
+            exit 1
+          fi
+          # dry-run should print the persona × scenario matrix it would run
+          if ! echo "$OUTPUT" | grep -qiE "persona|scenario|matrix"; then
+            echo "::error::dry-run did not print persona / scenario matrix"
+            exit 1
+          fi
+
+      - name: Print success summary
+        if: always()
+        run: |
+          echo "Dogfood verification complete."
+          echo "  Tarball: ${{ steps.pack.outputs.tarball }}"
+          echo "  Size:    ${{ steps.pack.outputs.size_bytes }} bytes"
+          echo ""
+          echo "If this fails on a future PR, the package shape regressed."
+          echo "Common causes: dep added to package.json without sync, file:"
+          echo "deps re-introduced, files: [] excludes something dist needs,"
+          echo "postinstall script fails on clean dir."

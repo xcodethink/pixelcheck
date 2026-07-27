@@ -1,0 +1,28 @@
+id: cn-chinese-free-mobile
+display_name: 王伟 (28, 深圳, 程序员, Galaxy S24)
+country: CN
+language: 简体中文
+locale: zh-CN
+timezone: Asia/Shanghai
+device_class: mobile
+network_profile: 4g
+ua_class: android
+viewport:
+  width: 360
+  height: 780
+payment_tier: free
+proxy_env: PROXY_CN
+mental_model: |
+  28岁深圳软件工程师。精通技术。在朋友推荐下访问产品，想看看是否值得
+  推荐给不太懂技术的家人。对中文支付方式没有期待（理解海外产品多用
+  Stripe），但对中文界面体验有较高要求。测试免费套餐的能力边界，不会
+  立即付费。网络可能稍慢（公共 WiFi）。
+critical_concerns:
+  - 全部中文，专业术语需准确（不能机翻味）
+  - 不能出现繁体字或台湾地区表述（"网址"非"網址"）
+  - 移动端Android Chrome渲染必须正确
+  - 加载速度敏感（公共WiFi）
+  - 免费套餐边界清晰，不要让用户填了一堆才发现要付费
+test_credentials:
+  google_account: ${TEST_GOOGLE_CN}
+  google_password: ${TEST_GOOGLE_CN_PASSWORD}

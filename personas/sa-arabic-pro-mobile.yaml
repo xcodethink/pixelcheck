@@ -1,0 +1,28 @@
+id: sa-arabic-pro-mobile
+display_name: Ahmed (38, Riyadh, business owner, iPhone 15)
+country: SA
+language: العربية
+locale: ar-SA
+timezone: Asia/Riyadh
+device_class: mobile
+network_profile: 4g
+ua_class: iphone
+viewport:
+  width: 393
+  height: 852
+payment_tier: pro
+proxy_env: PROXY_SA
+mental_model: |
+  38-year-old small business owner in Riyadh. Reads Arabic primarily,
+  English secondarily. Encountered a sophisticated phishing attack against
+  his business and is evaluating fraud-prevention tools. Pro tier, willing
+  to pay if value is clear. Will judge a product harshly if RTL layout
+  is broken — Arabic users are very sensitive to bidirectional text bugs.
+critical_concerns:
+  - Full RTL (right-to-left) layout must work flawlessly
+  - Arabic text must not be reversed or have broken ligatures
+  - Mixed Arabic/English (e.g. URLs, hashes) must render correctly
+  - Numbers and currency must respect Arabic conventions where applicable
+  - Icons and CTAs must mirror correctly for RTL
+  - No left-to-right leakage in flex layouts
+test_credentials: {}

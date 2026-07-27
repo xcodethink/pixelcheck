@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/history-entry.schema.json",
+  "title": "HistoryEntry",
+  "description": "Compact summary of a historical audit run as returned by get_last_report.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/HistoryEntry",
+  "definitions": {
+    "HistoryEntry": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "id": {
+          "type": "string"
+        },
+        "tag": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectName": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "totalCostUsd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "totalUnits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "passCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warnCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalIssues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "criticalIssues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "overallScore": {
+          "type": "number"
+        },
+        "dimensionAverages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tag",
+        "projectName",
+        "startedAt",
+        "durationMs",
+        "totalCostUsd",
+        "totalUnits",
+        "passCount",
+        "warnCount",
+        "failCount",
+        "totalIssues",
+        "criticalIssues",
+        "overallScore",
+        "dimensionAverages"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

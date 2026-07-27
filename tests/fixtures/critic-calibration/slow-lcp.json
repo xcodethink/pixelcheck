@@ -1,0 +1,23 @@
+{
+  "id": "slow-lcp",
+  "description": "Slow-LCP page captured after hero element rendered — visually fine, just slow to arrive",
+  "screenshot": "slow-lcp.png",
+  "persona_id": "us-desktop",
+  "scenario_goal": "Assess the slow-LCP fixture page",
+  "instruction": "Evaluate visual polish and time-to-value based on what is shown.",
+  "labels": [
+    {
+      "dimension": "visual_polish",
+      "min_score": 0,
+      "max_score": 3,
+      "rationale": "Calibrated 2026-04-17: near-blank hero page scored 1 on Sonnet 4.6."
+    },
+    {
+      "dimension": "time_to_value",
+      "min_score": 0,
+      "max_score": 3,
+      "rationale": "Calibrated 2026-04-17: Sonnet sees minimal content as delivering no value (0 observed)."
+    }
+  ],
+  "tags": ["performance", "lcp"]
+}

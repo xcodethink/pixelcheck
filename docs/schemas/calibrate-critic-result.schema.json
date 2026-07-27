@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/calibrate-critic-result.schema.json",
+  "title": "CalibrateCriticResult",
+  "description": "MCP tool envelope returned by calibrate_critic.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/CalibrateCriticResult",
+  "definitions": {
+    "CalibrateCriticResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mean_agreement": {
+          "type": "number"
+        },
+        "mean_max_distance": {
+          "type": "number"
+        },
+        "fully_aligned_rate": {
+          "type": "number"
+        },
+        "total_cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "report_dir": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "passed",
+        "violations",
+        "mean_agreement",
+        "mean_max_distance",
+        "fully_aligned_rate",
+        "total_cost_usd",
+        "report_dir"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

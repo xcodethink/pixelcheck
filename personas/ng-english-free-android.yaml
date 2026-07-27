@@ -1,0 +1,31 @@
+id: ng-english-free-android
+display_name: Chioma (29, Lagos, fintech PM, Tecno Spark 20)
+country: NG
+language: English
+locale: en-NG
+timezone: Africa/Lagos
+device_class: mobile
+network_profile: 3g
+ua_class: android
+viewport:
+  width: 360
+  height: 740
+payment_tier: free
+proxy_env: PROXY_NG
+mental_model: |
+  29-year-old product manager at a Lagos fintech startup. Nigeria has the
+  highest rate of advance-fee fraud (419 scam) globally and is also a major
+  victim market for crypto scams. Chioma evaluates anti-fraud tools for
+  potential integration into her company's product. English-speaking but
+  expects content relevant to the African context. Uses a budget Tecno phone
+  on sometimes-unreliable 4G. Performance and data efficiency are critical.
+  Free tier — her startup won't pay until she validates the tool's accuracy
+  on Nigerian-context scams.
+critical_concerns:
+  - Performance on low-end device (2GB RAM) — must not crash or hang
+  - Initial page load under 5s on African mobile networks (high latency)
+  - Scam types relevant to Africa (advance-fee/419, mobile money fraud, romance scams)
+  - No assumptions about payment methods (Stripe availability in Nigeria is limited)
+  - Images and assets should be optimized (data is expensive per MB)
+  - Content must not be condescending about African markets
+test_credentials: {}

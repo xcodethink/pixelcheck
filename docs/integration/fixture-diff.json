@@ -1,0 +1,86 @@
+{
+  "kind": "audit_diff",
+  "rendered_at": "2026-05-01T12:20:09.859Z",
+  "diff": {
+    "runA": {
+      "id": "run-baseline-2026-04-15",
+      "tag": "release-v0.9",
+      "projectName": "demo-shop",
+      "startedAt": "2026-04-15T10:00:00.000Z",
+      "durationMs": 180000,
+      "totalCostUsd": 0.25,
+      "totalUnits": 8,
+      "passCount": 6,
+      "warnCount": 1,
+      "failCount": 1,
+      "totalIssues": 4,
+      "criticalIssues": 0,
+      "overallScore": 7.2,
+      "dimensionAverages": {
+        "task_completion": 7.5,
+        "ux_friction": 6.8,
+        "visual_polish": 7.4,
+        "accessibility": 6.9,
+        "performance": 7,
+        "data_integrity": 7.6
+      },
+      "schemaVersion": "1.2.0"
+    },
+    "runB": {
+      "id": "run-pr-1234-2026-05-01",
+      "tag": "pr-1234",
+      "projectName": "demo-shop",
+      "startedAt": "2026-05-01T10:00:00.000Z",
+      "durationMs": 195000,
+      "totalCostUsd": 0.31,
+      "totalUnits": 8,
+      "passCount": 7,
+      "warnCount": 1,
+      "failCount": 0,
+      "totalIssues": 2,
+      "criticalIssues": 0,
+      "overallScore": 8.4,
+      "dimensionAverages": {
+        "task_completion": 8.6,
+        "ux_friction": 7.9,
+        "visual_polish": 8.5,
+        "accessibility": 8.2,
+        "performance": 7.8,
+        "data_integrity": 8.7
+      },
+      "schemaVersion": "1.2.0"
+    },
+    "scoreDelta": 1.2000000000000002,
+    "costDelta": 0.06,
+    "durationDelta": 15000,
+    "issuesDelta": -2,
+    "dimensionDeltas": {
+      "task_completion": 1.0999999999999996,
+      "ux_friction": 1.1000000000000005,
+      "visual_polish": 1.0999999999999996,
+      "accessibility": 1.299999999999999,
+      "performance": 0.7999999999999998,
+      "data_integrity": 1.0999999999999996
+    },
+    "newIssues": [
+      {
+        "severity": "low",
+        "description": "Footer copyright year drifted 2025 → 2026"
+      }
+    ],
+    "resolvedIssues": [
+      {
+        "severity": "high",
+        "description": "Login CTA hidden below the fold on mobile"
+      },
+      {
+        "severity": "medium",
+        "description": "Cart 'apply coupon' label fails contrast (1.4.3 AA)"
+      },
+      {
+        "severity": "low",
+        "description": "Search input lacks aria-label"
+      }
+    ]
+  }
+}

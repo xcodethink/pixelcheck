@@ -1,0 +1,200 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/calibration-report.schema.json",
+  "title": "CalibrationReport",
+  "description": "Full calibration run report with per-sample agreement details.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/CalibrationReport",
+  "definitions": {
+    "CalibrationReport": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "finished_at": {
+          "type": "string"
+        },
+        "total_samples": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fully_aligned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dimensions_aligned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mean_agreement": {
+          "type": "number"
+        },
+        "mean_max_distance": {
+          "type": "number"
+        },
+        "per_dimension_stats": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "in_range": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "in_range_rate": {
+                "type": "number"
+              },
+              "avg_distance": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "count",
+              "in_range",
+              "in_range_rate",
+              "avg_distance"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "samples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sample_id": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "per_dimension": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "dimension": {
+                      "type": "string"
+                    },
+                    "critic_score": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "expected_min": {
+                      "type": "number"
+                    },
+                    "expected_max": {
+                      "type": "number"
+                    },
+                    "in_range": {
+                      "type": "boolean"
+                    },
+                    "distance": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "dimension",
+                    "critic_score",
+                    "expected_min",
+                    "expected_max",
+                    "in_range",
+                    "distance"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "agreement_rate": {
+                "type": "number"
+              },
+              "max_distance": {
+                "type": "number"
+              },
+              "issue_check": {
+                "type": "object",
+                "properties": {
+                  "passed": {
+                    "type": "boolean"
+                  },
+                  "detail": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "passed",
+                  "detail"
+                ],
+                "additionalProperties": false
+              },
+              "cost_usd": {
+                "type": "number",
+                "minimum": 0
+              },
+              "duration_ms": {
+                "type": "number",
+                "minimum": 0
+              },
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sample_id",
+              "description",
+              "tags",
+              "per_dimension",
+              "agreement_rate",
+              "max_distance",
+              "issue_check",
+              "cost_usd",
+              "duration_ms"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "total_cost_usd": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "tag",
+        "model",
+        "started_at",
+        "finished_at",
+        "total_samples",
+        "fully_aligned",
+        "dimensions_aligned",
+        "mean_agreement",
+        "mean_max_distance",
+        "per_dimension_stats",
+        "samples",
+        "total_cost_usd"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

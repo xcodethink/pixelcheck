@@ -1,0 +1,81 @@
+# Integration tests — Playwright Test (real chromium) + vitest forks pool
+# (file-lock cross-process race tests).
+#
+# Why a separate workflow (T26 follows T2 + T1):
+# - Playwright Test needs `npx playwright install chromium` ~150 MB binary
+#   download; doing this on every ci.yml matrix config (12 platforms)
+#   would 12x the install time. Instead we run it ONCE on Ubuntu (where
+#   chromium is most reliable in CI) on every PR.
+# - vitest.integration.config.ts (M9-3.2) uses pool=forks for the
+#   cross-process file-lock race test; this needs `npm run build`
+#   first (the test's child Node processes require dist/core/file-lock.js).
+# - Weekly cron picks up axe-core / chromium upstream changes that
+#   sync into our SARIF / WCAG fixtures.
+#
+# Branch protection: required to pass before merging to main.
+
+name: Integration
+
+on:
+  pull_request:
+    # No `branches:` filter — stacked PRs (e.g. ADR-034's 5-PR chain)
+    # need real chromium + cross-process integration coverage too,
+    # not just the dogfood smoke test.
+  schedule:
+    # Weekly: Monday 08:00 UTC = 16:00 Asia/Shanghai. Catches upstream
+    # axe-core / chromium / Stagehand drift that no commit-triggered
+    # run would detect.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: Playwright integration (real chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Install Chromium (with deps)
+        # `--with-deps` installs the Linux libraries Chromium needs
+        # (libgbm, libxshmfence, etc) — ubuntu-latest does NOT have
+        # them by default. Without this Playwright Test fails on
+        # `chromium.launch()` with cryptic "browserType.launch:
+        # Failed to launch chromium ..." errors.
+        run: npx playwright install chromium --with-deps
+
+      - name: Build (race test needs dist/core/file-lock.js)
+        run: npm run build
+
+      - name: Playwright integration tests
+        run: npm run test:integration:playwright
+
+      - name: vitest forks-pool integration (file-lock-race)
+        # M9-3.2 cross-process race tests — pool=forks + isolate=true +
+        # singleFork=true via vitest.integration.config.ts. 20-iteration
+        # local soak test; ubuntu-latest historically passes 100/100.
+        run: npm run test:integration
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

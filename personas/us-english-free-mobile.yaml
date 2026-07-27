@@ -1,0 +1,29 @@
+id: us-english-free-mobile
+display_name: Sarah (32, NYC, paralegal, iPhone 15 Pro)
+country: US
+language: English
+locale: en-US
+timezone: America/New_York
+device_class: mobile
+network_profile: 4g
+ua_class: iphone
+viewport:
+  width: 393
+  height: 852
+payment_tier: free
+proxy_env: PROXY_US
+mental_model: |
+  32-year-old paralegal in NYC. Tech-comfortable but not technical. Discovers
+  the product via a Google search for a problem she's trying to solve. Wants
+  a clear answer with a confidence indicator, no jargon. Will not pay before
+  seeing value. Mobile-first user — primary device is iPhone, almost never
+  opens a laptop outside of work hours.
+critical_concerns:
+  - Mobile layout must be flawless (no horizontal scroll, no tiny tap targets)
+  - Trust signals visible above the fold (review count, badges, press mentions)
+  - Free tier value must be obvious before any upsell
+  - No dark patterns in upgrade prompts
+  - Time to first useful answer must be under 30 seconds
+test_credentials:
+  google_account: ${TEST_GOOGLE_US}
+  google_password: ${TEST_GOOGLE_US_PASSWORD}

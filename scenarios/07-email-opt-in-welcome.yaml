@@ -1,0 +1,60 @@
+id: 07-email-opt-in-welcome
+name: Newsletter Opt-In + Welcome Email Verification
+priority: P1
+goal: |
+  Subscribe to the newsletter using a temporary mail.tm inbox. Verify the
+  welcome email arrives, is in the persona's language, has a working
+  unsubscribe link, and complies with GDPR/LGPD.
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+    - de-german-power-tablet
+    - cn-chinese-free-mobile
+
+scoring_dimensions:
+  - completion
+  - localization
+  - email_design
+  - compliance
+
+steps:
+  - id: open-home
+    type: visit
+    url: https://your-app.example.com/${persona.url_locale}
+    wait_until: networkidle
+
+  - id: find-newsletter
+    type: observe
+    instruction: |
+      Find the newsletter subscription form or "subscribe to updates"
+      input on the page. It is usually in the footer or hero area.
+    store_as: newsletter_input
+
+  - id: type-email
+    type: act
+    instruction: |
+      Type the email address ${store.temp_inbox_address} into the newsletter
+      subscription input field.
+
+  - id: submit-newsletter
+    type: act
+    instruction: Click the subscribe / submit / "get report" button
+    fallback: computer_use
+
+  - id: assert-confirmation
+    type: assert_visual
+    instruction: |
+      Verify a confirmation message is shown after submission.
+      Check the message is in ${persona.language}.
+
+  - id: check-welcome-email
+    type: check_email
+    wait_seconds: 90
+    # Replace with a substring expected in your welcome email subject line.
+    expected_subject_contains: Welcome
+
+  - id: screenshot-final
+    type: screenshot
+    label: post-subscribe

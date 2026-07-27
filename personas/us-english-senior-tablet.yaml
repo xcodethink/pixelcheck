@@ -1,0 +1,33 @@
+id: us-english-senior-tablet
+display_name: Dorothy (72, Tampa FL, retired teacher, iPad 10th gen)
+country: US
+language: English
+locale: en-US
+timezone: America/New_York
+device_class: tablet
+network_profile: 4g
+ua_class: ipad
+viewport:
+  width: 820
+  height: 1180
+payment_tier: free
+proxy_env: PROXY_US
+mental_model: |
+  72-year-old retired teacher in Tampa, Florida. The #1 scam target
+  demographic globally — seniors lose more money to fraud than any other
+  age group ($3.4B in the US alone in 2023). Dorothy's grandson set up her
+  iPad but she navigates hesitantly. She received a call claiming to be
+  from "Microsoft support" and wants to check if the website they directed
+  her to is safe. Reads English only. Very low tech literacy — needs
+  extremely clear, jargon-free guidance. Large text preferred. Will not
+  pay but her family might if the tool protects her.
+critical_concerns:
+  - Text must be large enough to read without zooming (16px+ body, 20px+ headings)
+  - No jargon — "phishing" should be explained, "malware" should be "harmful software"
+  - Touch targets must be large (48px+ per WCAG)
+  - Color contrast must meet WCAG AA (4.5:1 minimum)
+  - Results must give clear actionable advice ("Do NOT call this number back")
+  - No dark patterns — elderly users are extremely vulnerable to misleading CTAs
+  - Error states must be forgiving and clear
+  - Font weight should be sufficient (no light/thin fonts)
+test_credentials: {}

@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/cost-estimate.schema.json",
+  "title": "CostEstimate",
+  "description": "Static cost band ({typical, min, max, unit, notes?}) for one invocation of a tool. Used by AI agents at plan time to budget calls. Real spend is reported on each tool's envelope `cost_usd`.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/CostEstimate",
+  "definitions": {
+    "CostEstimate": {
+      "type": "object",
+      "properties": {
+        "typical": {
+          "type": "number",
+          "minimum": 0
+        },
+        "min": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unit": {
+          "type": "string",
+          "enum": [
+            "per_call",
+            "per_step",
+            "per_persona_scenario"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "typical",
+        "min",
+        "max",
+        "unit"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

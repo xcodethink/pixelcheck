@@ -1,0 +1,65 @@
+id: 00-infra-smoke
+name: Infrastructure Smoke Test (no LLM)
+priority: P0
+goal: |
+  Exercise every non-LLM part of the auditor against a real deployment:
+  browser launch, stealth fingerprint, persona locale, video/HAR/console
+  recording, screenshots with SHA-256, visual diff baseline. This scenario
+  uses ZERO LLM calls and costs $0. Used for first-run verification before
+  configuring an Anthropic API key.
+
+applies_to:
+  personas:
+    - jp-japanese-pro-desktop
+
+scoring_dimensions:
+  - completion
+
+steps:
+  - id: open-home
+    type: visit
+    url: https://your-app.example.com/${persona.url_locale}
+    wait_until: domcontentloaded
+
+  - id: wait-settle
+    type: wait_for
+    ms: 3000
+
+  - id: screenshot-home
+    type: screenshot
+    label: home
+    full_page: true
+
+  - id: assert-html-lang
+    type: assert_dom
+    selector: html
+    expected:
+      visible: true
+
+  - id: open-pricing
+    type: visit
+    url: https://your-app.example.com/${persona.url_locale}/pricing
+    wait_until: domcontentloaded
+
+  - id: wait-pricing
+    type: wait_for
+    ms: 2000
+
+  - id: screenshot-pricing
+    type: screenshot
+    label: pricing
+    full_page: true
+
+  - id: open-about
+    type: visit
+    url: https://your-app.example.com/${persona.url_locale}/about
+    wait_until: domcontentloaded
+
+  - id: wait-about
+    type: wait_for
+    ms: 2000
+
+  - id: screenshot-about
+    type: screenshot
+    label: about
+    full_page: true

@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/gate-result.schema.json",
+  "title": "GateResult",
+  "description": "Calibration gate verdict (passed + violations + computed metrics).",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/GateResult",
+  "definitions": {
+    "GateResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "computed": {
+          "type": "object",
+          "properties": {
+            "mean_agreement": {
+              "type": "number"
+            },
+            "mean_max_distance": {
+              "type": "number"
+            },
+            "fully_aligned_rate": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "mean_agreement",
+            "mean_max_distance",
+            "fully_aligned_rate"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "passed",
+        "violations",
+        "computed"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

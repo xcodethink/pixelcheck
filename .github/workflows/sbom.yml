@@ -1,0 +1,64 @@
+# SBOM (Software Bill of Materials) generation — CycloneDX 1.6.
+#
+# Why a separate workflow:
+# - SBOM is the auditable "ingredients list" of every dependency
+#   (transitive included) at a specific release. Enterprise customers
+#   increasingly require it for procurement / supply-chain security.
+# - It's slow to generate (~30s for our tree) and the output is
+#   ~600KB JSON — running on every PR is wasteful. We generate on
+#   release tag + manual trigger only.
+# - The artifact is uploaded to the GitHub Release page so users can
+#   download alongside the npm package.
+#
+# Format: CycloneDX 1.6 JSON (industry-standard supply-chain format,
+# ingestible by Dependency-Track / Snyk / GitHub Dependency Graph /
+# Sonatype Lifecycle).
+#
+# Triggers:
+# - On release tag push (v*.*.* pattern)
+# - Manual dispatch (verify before tagging)
+
+name: SBOM (CycloneDX)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+jobs:
+  generate:
+    name: Generate CycloneDX SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # to upload to release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Generate SBOM
+        run: npm run sbom
+
+      - name: Upload SBOM as workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-cyclonedx-${{ github.sha }}
+          path: sbom.json
+          retention-days: 90
+
+      - name: Attach SBOM to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: sbom.json
+          fail_on_unmatched_files: true

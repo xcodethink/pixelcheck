@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/explore-url-result.schema.json",
+  "title": "ExploreUrlResult",
+  "description": "MCP tool envelope returned by explore_url.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/ExploreUrlResult",
+  "definitions": {
+    "ExploreUrlResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "pass_with_issues",
+            "fail"
+          ]
+        },
+        "convergence": {
+          "type": "string",
+          "enum": [
+            "goal_met",
+            "budget_exceeded",
+            "max_actions",
+            "max_replans",
+            "no_progress",
+            "error"
+          ]
+        },
+        "criteria_met": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "criteria_missed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "total_actions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "cost_usd"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

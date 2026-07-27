@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/critic-result.schema.json",
+  "title": "CriticResult",
+  "description": "Output of the vision critic (runCritic).",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/CriticResult",
+  "definitions": {
+    "CriticResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "verdict": {
+          "type": "object",
+          "properties": {
+            "scores": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "dimension": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  "justification": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "dimension",
+                  "score",
+                  "justification"
+                ],
+                "additionalProperties": false
+              },
+              "default": []
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low"
+                    ]
+                  },
+                  "dimension": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "recommendation": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "severity",
+                  "description",
+                  "recommendation"
+                ],
+                "additionalProperties": false
+              },
+              "default": []
+            },
+            "passed": {
+              "type": "boolean"
+            },
+            "violations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "scores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "dimension": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "justification": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "dimension",
+              "score",
+              "justification"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              "step_id": {
+                "type": "string"
+              },
+              "dimension": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "screenshot": {
+                "type": "string"
+              },
+              "recommendation": {
+                "type": "string"
+              },
+              "wcag_level": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "AA",
+                  "AAA"
+                ]
+              },
+              "wcag_criterion": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "severity",
+              "description",
+              "recommendation"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "costUsd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "raw": {}
+      },
+      "required": [
+        "verdict",
+        "scores",
+        "issues",
+        "costUsd"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

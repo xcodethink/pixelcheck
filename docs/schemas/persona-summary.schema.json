@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/persona-summary.schema.json",
+  "title": "PersonaSummary",
+  "description": "Short persona descriptor used inside ListPersonasResult.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/PersonaSummary",
+  "definitions": {
+    "PersonaSummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "device": {
+          "type": "string",
+          "enum": [
+            "desktop",
+            "tablet",
+            "mobile"
+          ]
+        },
+        "payment_tier": {
+          "type": "string",
+          "enum": [
+            "free",
+            "pro",
+            "max",
+            "power"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "display_name",
+        "country",
+        "language",
+        "device",
+        "payment_tier"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

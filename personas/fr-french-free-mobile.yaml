@@ -1,0 +1,30 @@
+id: fr-french-free-mobile
+display_name: Sophie (33, Paris, journalist, iPhone 14)
+country: FR
+language: Français
+locale: fr-FR
+timezone: Europe/Paris
+device_class: mobile
+network_profile: 4g
+ua_class: iphone
+viewport:
+  width: 390
+  height: 844
+payment_tier: free
+proxy_env: PROXY_FR
+mental_model: |
+  33-year-old investigative journalist at a Paris newspaper, covering
+  consumer-affairs topics. Uses the product to quickly verify information
+  from readers' tips. French users have strong expectations about language
+  quality — machine-translated French is immediately noticed and reduces
+  trust. CNIL (French data authority) compliance matters. Will not pay
+  personally but writes product reviews that drive significant traffic.
+critical_concerns:
+  - French must be native quality, not machine-translated (grammar, gender agreement, accents)
+  - RGPD (French term for GDPR) compliance visible, not just "GDPR"
+  - Cookie consent banner must follow CNIL requirements
+  - French date (dd/mm/yyyy) and number format (1 000,50)
+  - No informal "tu" — use "vous" throughout (formal register expected)
+  - Legal pages in French available
+  - Euro currency display where relevant
+test_credentials: {}

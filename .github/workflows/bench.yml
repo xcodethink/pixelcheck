@@ -1,0 +1,94 @@
+# Performance benchmark — observation mode.
+#
+# Why this exists:
+#
+# The local `npm run bench:check` regression gate (M6-7) is calibrated on
+# the maintainer's M-series Mac. Before we promote it to a hard CI gate
+# we need 5+ runs of telemetry from GitHub-hosted ubuntu runners to know
+# what the actual run-to-run variance looks like — bench numbers on
+# shared CI hardware can fluctuate ±20% from baseline noise alone, so
+# turning on `--tolerance 0.30` would either fail constantly (too tight)
+# or rubber-stamp real regressions (too loose).
+#
+# This workflow runs `npm run bench` + `npm run bench:check` in
+# **observation mode** (continue-on-error) on a fixed runner profile,
+# uploads `docs/perf-current.json` as a build artifact, and never blocks
+# a PR. After 5+ successful weekly cron runs we'll have enough data to:
+#   1. set a calibrated tolerance,
+#   2. promote bench:check to a required CI status check,
+#   3. document the decision in an ADR.
+#
+# Until then, treat the artifact JSON as monitoring telemetry. Don't act
+# on a single bad number — wait for a trend.
+
+name: Performance benchmark (observation)
+
+on:
+  # Weekly cron — Sundays 03:17 UTC. Avoids the top-of-hour CI spike.
+  schedule:
+    - cron: "17 3 * * 0"
+  # Manual trigger so maintainers can collect a data point on demand.
+  workflow_dispatch:
+  # Run on PR only when the PR explicitly opts in via label, since the
+  # 8-10 min bench cost isn't worth burning on every doc-only PR.
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.label.name == 'bench'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Run the vitest bench suite — emits docs/perf-current.json.
+      - name: Run benchmarks
+        run: npm run bench
+        env:
+          # Prevent flaky external services from polluting bench runs.
+          AUDIT_OFFLINE: "1"
+
+      # Compare against the committed baseline. continue-on-error means
+      # this NEVER fails the workflow; we're collecting data, not gating.
+      - name: Check regression vs baseline (observation)
+        id: bench-check
+        continue-on-error: true
+        run: npm run bench:check
+
+      # Upload the current run's bench JSON for trend analysis. The
+      # artifact lives 90 days (GitHub default for public repos).
+      - name: Upload perf-current.json
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-current-${{ github.run_id }}
+          path: docs/perf-current.json
+          retention-days: 90
+
+      - name: Print check outcome
+        if: always()
+        run: |
+          echo "bench:check exit code: ${{ steps.bench-check.outcome }}"
+          echo ""
+          echo "This workflow runs in observation mode — it does not"
+          echo "block PRs. After 5+ runs we'll calibrate a tolerance and"
+          echo "promote bench:check to a required status."

@@ -1,0 +1,30 @@
+id: th-thai-free-mobile
+display_name: Nong (24, Bangkok, university student, iPhone SE 3)
+country: TH
+language: ไทย
+locale: th-TH
+timezone: Asia/Bangkok
+device_class: mobile
+network_profile: 3g
+ua_class: iphone
+viewport:
+  width: 375
+  height: 667
+payment_tier: free
+proxy_env: PROXY_TH
+mental_model: |
+  24-year-old university student in Bangkok. Thailand is a major hub for
+  online scam operations (Myanmar border scam compounds employ thousands).
+  Nong saw a TikTok about checking if dating app profiles link to scam
+  sites. Uses an older iPhone SE with a small screen. Reads Thai primarily,
+  can handle basic English for tech terms. Active on LINE and TikTok.
+  Will never pay but has high social media influence in her age group.
+critical_concerns:
+  - Thai script rendering (complex combining characters, tone marks)
+  - Fallback to English is acceptable but Thai UI labels strongly preferred
+  - Small screen (375px) layout must not break
+  - Romance scam and dating app fraud context relevant
+  - LINE share integration awareness
+  - Thai Buddhist calendar year display awareness (BE 2569 = CE 2026)
+  - Fast load on Thai 4G networks
+test_credentials: {}

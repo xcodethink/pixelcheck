@@ -1,0 +1,29 @@
+id: mx-spanish-free-mobile
+display_name: Carlos (45, Mexico City, small business owner, Samsung A54)
+country: MX
+language: Español
+locale: es-MX
+timezone: America/Mexico_City
+device_class: mobile
+network_profile: 3g
+ua_class: android
+viewport:
+  width: 360
+  height: 780
+payment_tier: free
+proxy_env: PROXY_MX
+mental_model: |
+  45-year-old small business owner in Mexico City running a retail shop.
+  Received a phishing SMS pretending to be from his bank (BBVA Mexico).
+  Wants to check if URLs in messages are safe before clicking. Limited
+  technical knowledge. Reads Mexican Spanish only. Mid-range Samsung
+  phone. Will not pay but will recommend to other business owners in his
+  WhatsApp groups if the tool is easy to use.
+critical_concerns:
+  - Latin American Spanish (es-MX), not Castilian Spanish (es-ES)
+  - Simple, non-technical language for explanations
+  - Scam types relevant to LATAM (bank phishing, WhatsApp fraud, fake OXXO payments)
+  - WhatsApp share integration
+  - No assumptions about credit card availability (many users are unbanked)
+  - Time to value under 30s — must get a clear answer fast
+test_credentials: {}

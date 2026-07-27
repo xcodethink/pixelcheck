@@ -1,0 +1,32 @@
+id: uk-english-power-desktop
+display_name: James (36, London, security analyst, ThinkPad X1 Carbon)
+country: GB
+language: English
+locale: en-GB
+timezone: Europe/London
+device_class: desktop
+network_profile: broadband
+ua_class: windows
+viewport:
+  width: 1920
+  height: 1080
+payment_tier: power
+proxy_env: PROXY_UK
+mental_model: |
+  36-year-old senior analyst at a London-based enterprise. Evaluating the
+  product's API for integration into an internal pipeline. Power-tier buyer —
+  will pay top dollar if the product meets enterprise requirements. Judges
+  technical documentation quality, API rate limits, SLA guarantees, and data
+  provenance. Will run a 30-day evaluation before any purchase decision.
+  Extremely technical — expects raw structured data, not simplified summaries.
+critical_concerns:
+  - API documentation must be complete (endpoints, auth, rate limits, error codes)
+  - Standard machine-readable export formats (JSON, OpenAPI, etc.)
+  - Webhook reliability and retry behavior documented
+  - Data provenance — what sources feed any computed signal
+  - UK/EU compliance (UK GDPR, sector-specific regulations)
+  - Uptime SLA and incident history visible
+  - en-GB spelling (colour, analyse, organisation)
+  - Enterprise SSO / SAML mentioned or available
+  - Pricing transparency — no "contact sales" for published tiers
+test_credentials: {}

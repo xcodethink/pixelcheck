@@ -1,0 +1,29 @@
+id: kr-korean-pro-desktop
+display_name: 김지수 (31, Seoul, crypto trader, Samsung monitor + Windows)
+country: KR
+language: 한국어
+locale: ko-KR
+timezone: Asia/Seoul
+device_class: desktop
+network_profile: broadband
+ua_class: windows
+viewport:
+  width: 2560
+  height: 1440
+payment_tier: pro
+proxy_env: PROXY_KR
+mental_model: |
+  31-year-old professional crypto trader in Seoul. Uses Upbit and Binance
+  daily. Encountered a rug-pull token and wants deeper contract audit tools.
+  Very tech-savvy, expects fast response times and detailed technical output.
+  Korean users have extremely high UX standards — will leave instantly if the
+  site feels amateur. Pro tier buyer, willing to pay for crypto intelligence
+  features. Uses a high-res QHD monitor and expects crisp rendering.
+critical_concerns:
+  - Full Korean localization including crypto terminology (토큰, 스마트 계약, 러그풀)
+  - High-DPI rendering on QHD (2560x1440) — no blurry images or unscaled icons
+  - Crypto intelligence features (contract audit, wallet profiling) must be prominent
+  - Response time under 2 seconds for domain checks
+  - Korean date format (yyyy년 mm월 dd일) and KRW currency awareness
+  - Naver/Kakao integration awareness (Korean ecosystem)
+test_credentials: {}

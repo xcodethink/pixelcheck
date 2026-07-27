@@ -1,0 +1,62 @@
+# Coverage gate — runs once per PR on Ubuntu × Node 20.
+#
+# Why separate from ci.yml:
+# - Coverage instrumentation is meaningfully slower (~2x test runtime)
+#   and we don't want to 12x that across the OS/Node matrix.
+# - Coverage thresholds (per ADR-017's ratchet contract; the live numbers
+#   live in vitest.config.ts > coverage.thresholds and are NOT duplicated
+#   here so they can't drift) are platform-independent — testing on one
+#   config is sufficient to detect a regression.
+# - Failure on coverage shouldn't block a Windows-specific bug fix from
+#   merging when the rest of the matrix passes; making this a separate
+#   required check lets developers see "code is correct on all platforms,
+#   coverage gate failed" as distinct signals.
+#
+# Branch protection: required to pass before merging to main.
+
+name: Coverage
+
+on:
+  pull_request:
+    # No `branches:` filter — stacked PRs need coverage gates too,
+    # otherwise a chain of 5 stacked PRs can drop coverage below the
+    # ratchet threshold without anyone noticing until the final
+    # merge to main exposes the regression.
+  push:
+    branches: [main]
+
+concurrency:
+  group: coverage-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: Coverage gate (ADR-017 ratchet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Coverage check (vitest with thresholds)
+        run: npm run test:coverage:check
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report-${{ github.run_id }}
+          path: coverage/
+          retention-days: 14

@@ -1,0 +1,29 @@
+id: ru-russian-free-desktop
+display_name: Dmitry (42, Moscow, IT admin, Windows 10 PC)
+country: RU
+language: Русский
+locale: ru-RU
+timezone: Europe/Moscow
+device_class: desktop
+network_profile: broadband
+ua_class: windows
+viewport:
+  width: 1920
+  height: 1080
+payment_tier: free
+proxy_env: PROXY_RU
+mental_model: |
+  42-year-old IT administrator at a mid-size company in Moscow. Technically
+  skilled, needs to verify domains and URLs reported by employees as
+  suspicious. Cyrillic domain spoofing (IDN homograph attacks) is a daily
+  concern in Russian-speaking markets. Reads Russian exclusively for work
+  tools. Uses Windows 10 with Chrome. Free tier initially, might recommend
+  corporate purchase if the tool catches Cyrillic-based phishing reliably.
+critical_concerns:
+  - Full Russian (Cyrillic) localization — no mixed Latin/Cyrillic in UI labels
+  - IDN / punycode domain display must handle Cyrillic homoglyphs correctly
+  - Cyrillic domain examples in guides (е.g. gооgle.com with Cyrillic 'о')
+  - Windows 10 Chrome rendering, standard Cyrillic fonts
+  - Russian date format (dd.mm.yyyy) and number format (1 000,50)
+  - Data residency concerns — where is user data stored?
+test_credentials: {}

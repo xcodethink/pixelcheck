@@ -1,0 +1,95 @@
+# Critic calibration — weekly regression check.
+#
+# Why this exists:
+# The critic LLM is the heart of every audit's `scores` array, but its
+# output is only as good as the prompt + model combo we ship. Whenever
+# Anthropic upgrades a model, or we tweak `src/core/critic.ts`, scores
+# can drift in ways unit tests can't catch — there's no ground truth for
+# "this UI screenshot deserves an 8 for visual_polish".
+#
+# This workflow runs `pixelcheck calibrate` against the labeled fixtures
+# under `tests/fixtures/critic-calibration/` (5 hand-scored screenshots)
+# and gates on three thresholds (DEFAULT_GATE in src/calibration/runner.ts):
+#   - mean_agreement       >= 0.85
+#   - mean_max_distance    <= 1.5
+#   - fully_aligned_rate   >= 0.70
+#
+# Baseline (v1.0, 2026-05-02 — see docs/calibration-baseline.json):
+#   mean_agreement = 0.90, mean_max_distance = 0.20, fully_aligned = 0.80
+# A drift below the gate fires this workflow as a failure and someone
+# investigates the critic prompt / fixture labels / model upgrade.
+#
+# Cost: ~$0.08 per run. Weekly schedule + manual dispatch only — never
+# on PRs (would be wasteful and would push critic responsibility onto
+# every contributor's PR cycle).
+
+name: Critic calibration (weekly)
+
+on:
+  # Weekly cron — Mondays 04:23 UTC, off-peak.
+  schedule:
+    - cron: "23 4 * * 1"
+  # Manual trigger so maintainers can re-baseline after critic changes.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Run label (used in report filenames)"
+        required: false
+        default: "manual"
+
+permissions:
+  contents: read
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Skip cleanly when no API key is configured (e.g. fork PRs that
+      # accidentally trigger this; or a maintainer running it before
+      # the secret is set up). Better to no-op than to fail confusingly.
+      - name: Check for ANTHROPIC_API_KEY
+        id: keycheck
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY}" ]; then
+            echo "ANTHROPIC_API_KEY not configured — skipping calibration."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run calibration
+        if: steps.keycheck.outputs.skip == 'false'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npx tsx src/cli.ts calibrate \
+            --tag "${{ github.event.inputs.tag || 'weekly' }}" \
+            --out reports/calibration
+
+      # Always upload — even on failure — so a maintainer can inspect
+      # the per-sample detail without re-running.
+      - name: Upload calibration artefacts
+        if: always() && steps.keycheck.outputs.skip == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: calibration-${{ github.run_id }}
+          path: reports/calibration/
+          retention-days: 90

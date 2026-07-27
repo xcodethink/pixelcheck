@@ -1,0 +1,194 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI Browser Auditor — result schemas index",
+  "x-result-schema-version": "1.3.0",
+  "description": "Index of every public result schema. Generated from src/core/result-schema.ts; do not edit by hand. See docs/contracts/RESULT_SCHEMA.md for the SemVer policy.",
+  "schemas": [
+    {
+      "slug": "audit-run",
+      "title": "AuditRun",
+      "description": "The top-level result of a `runAudit` invocation. Written to audit.json and returned by the audit_url MCP tool's `report_json` artefact.",
+      "file": "audit-run.schema.json"
+    },
+    {
+      "slug": "scenario-run-result",
+      "title": "ScenarioRunResult",
+      "description": "Per-(scenario, persona) execution result — nested under AuditRun.results[].",
+      "file": "scenario-run-result.schema.json"
+    },
+    {
+      "slug": "step-result",
+      "title": "StepResult",
+      "description": "Per-step execution record. Includes status, retries, execution_method, and optional signals.",
+      "file": "step-result.schema.json"
+    },
+    {
+      "slug": "issue",
+      "title": "Issue",
+      "description": "A single audit issue (severity + description + recommendation).",
+      "file": "issue.schema.json"
+    },
+    {
+      "slug": "dimension-score",
+      "title": "DimensionScore",
+      "description": "Score for one scoring dimension on a 0..10 scale with a justification string.",
+      "file": "dimension-score.schema.json"
+    },
+    {
+      "slug": "console-error",
+      "title": "ConsoleError",
+      "description": "A captured browser console error / pageerror / failed request.",
+      "file": "console-error.schema.json"
+    },
+    {
+      "slug": "critic-result",
+      "title": "CriticResult",
+      "description": "Output of the vision critic (runCritic).",
+      "file": "critic-result.schema.json"
+    },
+    {
+      "slug": "gate-result",
+      "title": "GateResult",
+      "description": "Calibration gate verdict (passed + violations + computed metrics).",
+      "file": "gate-result.schema.json"
+    },
+    {
+      "slug": "calibration-report",
+      "title": "CalibrationReport",
+      "description": "Full calibration run report with per-sample agreement details.",
+      "file": "calibration-report.schema.json"
+    },
+    {
+      "slug": "benchmark-report",
+      "title": "BenchmarkReport",
+      "description": "Aggregate benchmark report (pass@1, by_difficulty, by_tag, durations).",
+      "file": "benchmark-report.schema.json"
+    },
+    {
+      "slug": "benchmark-task-result",
+      "title": "BenchmarkTaskResult",
+      "description": "Per-task benchmark result.",
+      "file": "benchmark-task-result.schema.json"
+    },
+    {
+      "slug": "mutation-result",
+      "title": "MutationResult",
+      "description": "Single instruction-mutation variant (rephrase | decompose | specific).",
+      "file": "mutation-result.schema.json"
+    },
+    {
+      "slug": "audit-url-result",
+      "title": "AuditUrlResult",
+      "description": "MCP tool envelope returned by audit_url.",
+      "file": "audit-url-result.schema.json"
+    },
+    {
+      "slug": "explore-url-result",
+      "title": "ExploreUrlResult",
+      "description": "MCP tool envelope returned by explore_url.",
+      "file": "explore-url-result.schema.json"
+    },
+    {
+      "slug": "calibrate-critic-result",
+      "title": "CalibrateCriticResult",
+      "description": "MCP tool envelope returned by calibrate_critic.",
+      "file": "calibrate-critic-result.schema.json"
+    },
+    {
+      "slug": "see-result",
+      "title": "SeeResult",
+      "description": "MCP tool envelope returned by `see` (N-1 primitive). One-shot navigation snapshot: DOM summary, console errors, screenshot, and an optional vision note.",
+      "file": "see-result.schema.json"
+    },
+    {
+      "slug": "act-result",
+      "title": "ActResult",
+      "description": "MCP tool envelope returned by `act` (N-2 primitive). Per-step outcome of an action sequence (goto / click / fill / press / wait / wait_for / scroll / screenshot / act / note) plus a final DOM summary, console errors, and screenshot.",
+      "file": "act-result.schema.json"
+    },
+    {
+      "slug": "extract-result",
+      "title": "ExtractResult",
+      "description": "MCP tool envelope returned by `extract` (N-4 primitive). Schema-bound structured extraction: caller passes a JSON Schema describing the desired shape, the primitive runs Stagehand's extract() and returns matching `data` plus DOM summary, console errors, and screenshot.",
+      "file": "extract-result.schema.json"
+    },
+    {
+      "slug": "judge-result",
+      "title": "JudgeResult",
+      "description": "MCP tool envelope returned by `judge` (N-8 primitive). Single-page rubric-driven critic — captures a screenshot+DOM and runs one vision call against the chosen rubric(s) (aesthetic, dark_pattern, custom), returning per-criterion verdicts (0..10 score + rationale + evidence) and severity-graded findings.",
+      "file": "judge-result.schema.json"
+    },
+    {
+      "slug": "compare-result",
+      "title": "CompareResult",
+      "description": "MCP tool envelope returned by `compare` (N-3 primitive). A/B comparison primitive. Default mode is `double_blind`: judges each side independently with the same rubric, then runs a synthesis vision call that sees both screenshots and emits per-criterion winners. `fast` mode collapses to a single side-by-side call (cheaper but susceptible to anchoring bias).",
+      "file": "compare-result.schema.json"
+    },
+    {
+      "slug": "diagnose-result",
+      "title": "DiagnoseResult",
+      "description": "MCP tool envelope returned by `diagnose` (PR-E preset / ADR-034). Holistic page-health diagnosis. Captures the URL with eager visual scoring, reads every diagnostics dimension (performance / network / popups / cookies / storage / visual), and returns a commercial-grade structured report: per-finding severity + dimension + confidence + evidence_refs + standards_mapping (Core Web Vitals / WCAG / OWASP / GDPR), a 0-100 overall_health_score, per-dimension drill-down scores, and a CTO-readable executive_summary.",
+      "file": "diagnose-result.schema.json"
+    },
+    {
+      "slug": "list-personas-result",
+      "title": "ListPersonasResult",
+      "description": "MCP tool envelope returned by list_personas (array of PersonaSummary).",
+      "file": "list-personas-result.schema.json"
+    },
+    {
+      "slug": "list-scenarios-result",
+      "title": "ListScenariosResult",
+      "description": "MCP tool envelope returned by list_scenarios (array of YAML file names).",
+      "file": "list-scenarios-result.schema.json"
+    },
+    {
+      "slug": "history-entry",
+      "title": "HistoryEntry",
+      "description": "Compact summary of a historical audit run as returned by get_last_report.",
+      "file": "history-entry.schema.json"
+    },
+    {
+      "slug": "persona-summary",
+      "title": "PersonaSummary",
+      "description": "Short persona descriptor used inside ListPersonasResult.",
+      "file": "persona-summary.schema.json"
+    },
+    {
+      "slug": "result-cache-meta",
+      "title": "ResultCacheMeta",
+      "description": "Annotation attached by the result cache (M9-4) to primitive result envelopes (see / act / extract / judge / compare). Distinguishes cache hit / miss / not-applicable. On hit the original cost moves to `cost_saved_usd` and the envelope's `cost_usd` is zeroed.",
+      "file": "result-cache-meta.schema.json"
+    },
+    {
+      "slug": "list-capabilities-result",
+      "title": "ListCapabilitiesResult",
+      "description": "MCP tool envelope returned by `list_capabilities` (M9-5). Self-describes the server: every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and M9-4 cache state. Static introspection — no LLM, no browser, no runtime probe of secrets.",
+      "file": "list-capabilities-result.schema.json"
+    },
+    {
+      "slug": "tool-capability",
+      "title": "ToolCapability",
+      "description": "Per-tool descriptor inside ListCapabilitiesResult.tools[]. Mirrors the MCP `tools/list` shape (name / description / kind / input_schema / result_schema) and adds the richer fields that are deliberately not in the spec-level catalog: cacheable, cost_estimate_usd, side_effects, requires.",
+      "file": "tool-capability.schema.json"
+    },
+    {
+      "slug": "env-var-doc",
+      "title": "EnvVarDoc",
+      "description": "Documentation for one environment variable that influences server behaviour, returned inside ListCapabilitiesResult.env[]. Names secrets but never values; `required: true` is a static dependency declaration, not a presence probe.",
+      "file": "env-var-doc.schema.json"
+    },
+    {
+      "slug": "cost-estimate",
+      "title": "CostEstimate",
+      "description": "Static cost band ({typical, min, max, unit, notes?}) for one invocation of a tool. Used by AI agents at plan time to budget calls. Real spend is reported on each tool's envelope `cost_usd`.",
+      "file": "cost-estimate.schema.json"
+    },
+    {
+      "slug": "cache-info",
+      "title": "CacheInfo",
+      "description": "Live state of the M9-4 result cache (enabled / ttl_ms_default / path) inside ListCapabilitiesResult.cache. Path is exposed for diagnostics (paths are not secrets); the cache file's contents stay opaque.",
+      "file": "cache-info.schema.json"
+    }
+  ]
+}

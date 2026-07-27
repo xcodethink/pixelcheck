@@ -1,0 +1,27 @@
+id: br-portuguese-free-desktop
+display_name: Maria (40, São Paulo, contadora, Windows 11 PC)
+country: BR
+language: Português
+locale: pt-BR  # browser locale stays pt-BR for accept-language fidelity
+timezone: America/Sao_Paulo
+device_class: desktop
+network_profile: broadband
+ua_class: windows
+viewport:
+  width: 1920
+  height: 1040
+payment_tier: free
+proxy_env: PROXY_BR
+mental_model: |
+  40-year-old accountant in São Paulo. Recently saw news about Pix-related
+  fraud surging. Wants to check suspicious links her clients forward to her.
+  Limited English. Expects Brazilian Portuguese (not European Portuguese).
+  Uses an older Windows PC with Chrome. Free tier, will not pay personally
+  but might recommend to her firm if it works well.
+critical_concerns:
+  - Brazilian Portuguese localization (not pt-PT)
+  - Currency in BRL where applicable, or clearly convertible from USD
+  - LGPD compliance signaling (Brazilian GDPR equivalent)
+  - Wide desktop layout must use the screen well, not look stretched
+  - Pix scam guides should be present (regional relevance)
+test_credentials: {}

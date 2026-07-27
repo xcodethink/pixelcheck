@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/mutation-result.schema.json",
+  "title": "MutationResult",
+  "description": "Single instruction-mutation variant (rephrase | decompose | specific).",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/MutationResult",
+  "definitions": {
+    "MutationResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "rephrase",
+            "decompose",
+            "specific"
+          ]
+        },
+        "instructions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "instructions"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

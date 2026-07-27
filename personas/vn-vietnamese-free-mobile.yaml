@@ -1,0 +1,28 @@
+id: vn-vietnamese-free-mobile
+display_name: Minh (34, HCMC, office worker, OPPO Reno 11)
+country: VN
+language: Tiếng Việt
+locale: vi-VN
+timezone: Asia/Ho_Chi_Minh
+device_class: mobile
+network_profile: 3g
+ua_class: android
+viewport:
+  width: 393
+  height: 873
+payment_tier: free
+proxy_env: PROXY_VN
+mental_model: |
+  34-year-old office worker in Ho Chi Minh City. Found the product through a
+  Zalo group recommendation. Reads Vietnamese primarily. Uses Zalo and Facebook
+  as primary communication. Mid-range Android phone. Will not pay (Vietnamese
+  users strongly prefer free tools) but will actively share if the product
+  works well. Very sensitive to page load speed on mobile data.
+critical_concerns:
+  - Vietnamese diacritics (ắ, ổ, ừ, etc.) must render perfectly in all fonts
+  - No Chinese characters mixed into Vietnamese content (common machine translation error)
+  - Page load under 3s on Vietnamese mobile networks
+  - Local context relevance (examples / scenarios should make sense for VN users)
+  - Share via Zalo / Facebook messenger should be easy
+  - Vietnamese dong (VND) or clear USD pricing with conversion context
+test_credentials: {}

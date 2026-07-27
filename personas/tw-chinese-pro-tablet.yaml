@@ -1,0 +1,29 @@
+id: tw-chinese-pro-tablet
+display_name: 林雅婷 (39, Taipei, compliance manager, iPad Air M2)
+country: TW
+language: 繁體中文
+locale: zh-TW
+timezone: Asia/Taipei
+device_class: tablet
+network_profile: 4g
+ua_class: ipad
+viewport:
+  width: 820
+  height: 1180
+payment_tier: pro
+proxy_env: PROXY_TW
+mental_model: |
+  39-year-old compliance manager at a Taipei company. Taiwan uses Traditional
+  Chinese — mixing in Simplified Chinese is a major faux pas and signals low
+  quality. Evaluating the product for corporate use. Pro-tier buyer. iPad
+  user who switches between portrait and landscape. Very detail-oriented
+  about language quality.
+critical_concerns:
+  - Must use Traditional Chinese (繁體), never Simplified (简体) — this is a dealbreaker
+  - Taiwan-specific terminology (網址 not 网址, 詐騙 not 诈骗)
+  - No PRC-specific references (WeChat, Alipay) in Taiwan context
+  - iPad layout must handle both portrait and landscape
+  - TWD currency or clear USD conversion
+  - Taiwan's PDPA compliance awareness
+  - Professional tone suitable for corporate evaluation
+test_credentials: {}

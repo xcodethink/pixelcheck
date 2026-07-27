@@ -1,0 +1,123 @@
+# Example GitHub Actions workflow: run PixelCheck after a successful
+# production deployment.
+#
+# How to use this template:
+#   1. Copy this file to `.github/workflows/post-deploy-audit.yml` in your
+#      app's repository (NOT in the pixelcheck repository itself).
+#   2. Replace YOUR-DEPLOY-WORKFLOW with the name of your deployment workflow.
+#   3. Add the required secrets in repo Settings → Secrets and variables.
+#   4. Commit + push. The workflow will trigger after each successful deploy.
+#
+# Required secrets:
+#   ANTHROPIC_API_KEY                - LLM access (Stagehand + critic)
+#   TEST_GOOGLE_<LOCALE>             - per-locale OAuth test accounts
+#   TEST_GOOGLE_<LOCALE>_PASSWORD    - per-locale OAuth passwords
+# Optional:
+#   AUDIT_SLACK_WEBHOOK              - Slack notifications
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID - Telegram notifications
+
+name: Post-Deploy AI Audit
+
+on:
+  workflow_run:
+    workflows: ["YOUR-DEPLOY-WORKFLOW"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      scenarios:
+        description: "Comma-separated scenario IDs (empty = all)"
+        required: false
+        default: ""
+      personas:
+        description: "Comma-separated persona IDs (empty = all)"
+        required: false
+        default: ""
+      budget:
+        description: "Max USD budget for this run"
+        required: false
+        default: "3.0"
+
+jobs:
+  audit:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install pixelcheck
+        run: npm install -g pixelcheck
+
+      - name: Install browser (system libs + the revision pixelcheck launches)
+        # install-deps adds Linux shared libraries (libnss3, libgbm1, ...);
+        # `pixelcheck install` fetches the exact Chrome Headless Shell revision
+        # pixelcheck runs (a bare `npx playwright install` can pull a mismatch).
+        run: npx playwright install-deps chromium && npx pixelcheck install
+
+      - name: Run audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TEST_GOOGLE_US: ${{ secrets.TEST_GOOGLE_US }}
+          TEST_GOOGLE_US_PASSWORD: ${{ secrets.TEST_GOOGLE_US_PASSWORD }}
+          TEST_GOOGLE_JP: ${{ secrets.TEST_GOOGLE_JP }}
+          TEST_GOOGLE_JP_PASSWORD: ${{ secrets.TEST_GOOGLE_JP_PASSWORD }}
+          SLACK_WEBHOOK: ${{ secrets.AUDIT_SLACK_WEBHOOK }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          ARGS="--project ./pixelcheck-config --tag ci-${{ github.run_id }} --budget ${{ inputs.budget || '3.0' }}"
+          if [ -n "${{ inputs.scenarios }}" ]; then
+            for s in $(echo "${{ inputs.scenarios }}" | tr ',' ' '); do
+              ARGS="$ARGS --scenario $s"
+            done
+          fi
+          if [ -n "${{ inputs.personas }}" ]; then
+            for p in $(echo "${{ inputs.personas }}" | tr ',' ' '); do
+              ARGS="$ARGS --persona $p"
+            done
+          fi
+          pixelcheck run $ARGS
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: audit-report-${{ github.run_id }}
+          path: reports/
+          retention-days: 30
+
+      - name: Upload baselines (only on main)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-baselines
+          path: baselines/
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          LATEST=$(ls -td reports/*/ 2>/dev/null | head -1)
+          if [ -n "$LATEST" ] && [ -f "${LATEST}audit.json" ]; then
+            node -e "
+              const r = JSON.parse(require('fs').readFileSync('${LATEST}audit.json','utf8'));
+              const s = r.summary;
+              console.log('## PixelCheck Audit');
+              console.log('');
+              console.log('| Metric | Value |');
+              console.log('|---|---|');
+              console.log('| Pass | ' + s.pass + ' |');
+              console.log('| Warn | ' + s.pass_with_issues + ' |');
+              console.log('| Fail | ' + s.fail + ' |');
+              console.log('| Critical | ' + s.critical_issues + ' |');
+              console.log('| Cost | \$' + s.total_cost_usd.toFixed(3) + ' |');
+            " >> $GITHUB_STEP_SUMMARY
+          fi

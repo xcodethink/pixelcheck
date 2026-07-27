@@ -1,0 +1,170 @@
+# Continuous Integration — runs on every PR + push to main.
+#
+# Matrix: 4 platforms × 3 Node versions = 12 configurations.
+# Steps: clean install → build → unit tests → schemas idempotence
+#        → npm audit (production, level=high).
+#
+# Why this exists:
+# Pre-T26 the project had ZERO CI workflows running its own tests —
+# `npm test` was only ever validated locally on the maintainer's
+# M-series Mac. Any cross-platform regression (Windows path separator,
+# Linux glibc version, Node 20 vs 22 difference, native binary mismatch
+# on macOS Intel vs arm64) would slip through until a user reported it.
+# This workflow makes "full suite green" a CI gate, not a dev claim.
+#
+# Branch protection (configured in repo Settings → Branches):
+#   - Require this workflow to pass before merging to main
+#   - Require integration.yml to pass (Playwright + file-lock-race)
+#   - Require coverage.yml to pass (test:coverage:check)
+#   - No force pushes to main
+#
+# Cost: ~12 min × 8 configs (4 OS × Node 20/22) = ~1.6h CI minutes per
+# PR. Within free GitHub Actions tier for OSS repos (2000 min/month).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # No `branches:` filter — every PR (including stacked PRs whose base
+    # is another feature branch) gets a CI matrix run. The earlier
+    # `branches: [main]` filter caused stacked-PR chains (e.g. ADR-034's
+    # 5-PR Phase 0 sequence) to ship with only the dogfood smoke test
+    # passing, masking platform-specific regressions until the chain
+    # eventually rebased onto main.
+
+# Cancel in-flight runs on the same ref to avoid wasting compute when
+# a PR is rapidly updated.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }} · Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    # Windows: most known platform-specific issues fixed in fix/ci-baseline-recovery
+    # (line-ending CRLF: addressed via .gitattributes; logger.test.ts ENOTEMPTY:
+    # addressed by tracking + closing pino destinations in _resetLoggerForTests).
+    # Remaining flaky cross-process tests (mcp-stdio-e2e, mcp-concurrency-e2e)
+    # surface as warnings rather than gates while the underlying child-process
+    # initialization races are investigated. package.json `os` still lists
+    # win32 as supported.
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    strategy:
+      # Don't fail the entire matrix when one config fails — surface ALL
+      # platform issues, not just the first.
+      fail-fast: false
+      matrix:
+        # macos-14 = Apple Silicon arm64.
+        #
+        # macos-13 (Intel x64) was dropped 2026-07-26: GitHub had stopped
+        # scheduling Intel macOS runners for this repo, so both macos-13 jobs
+        # sat in `queued` forever — #60, #62 and #63 all merged with two
+        # permanently pending checks, which trains everyone to ignore a
+        # non-green check list. Removing them makes the real state visible.
+        #
+        # Known gap, deliberately accepted: darwin-x64 now has no CI
+        # coverage, and better-sqlite3 + sharp ship distinct prebuilt
+        # binaries per arch. Nothing was actually lost — those jobs never
+        # ran — but darwin-x64 regressions will surface from users, not CI.
+        # Revisit if GitHub offers a working Intel macOS image again.
+        os: [ubuntu-latest, macos-14, windows-latest]
+        # Node 18 dropped from CI: vitest 4 (via rolldown) imports
+        # `util.styleText` which is Node 20+. Node 18 hit EOL 2025-04.
+        # `package.json` engines now declares `>=20` to match (F4-F7 audit
+        # follow-up): claiming `>=18` was false since the toolchain never
+        # ran there. npm treats engines as a warning by default, so this
+        # corrects the claim without hard-breaking any install.
+        node: [20, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint (eslint)
+        # ESLint was configured but never enforced in CI (Audit 2026-06-02 G2).
+        # Run once on Ubuntu x Node 20 — lint results are platform-independent.
+        # Fails on errors; the no-console policy allows the CLI output layer.
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        run: npm run lint
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+      - name: Schemas idempotence
+        # `npm run schemas` regenerates docs/schemas/*.json from the
+        # Zod source. If running it produces uncommitted changes,
+        # someone forgot to commit a regeneration after editing a
+        # schema source — fail loudly instead of silently shipping
+        # diff between source code and published JSON Schemas.
+        shell: bash
+        run: |
+          npm run schemas
+          if ! git diff --quiet docs/schemas/; then
+            echo "::error::npm run schemas produced uncommitted changes."
+            echo "::error::Run \`npm run schemas\` locally and commit the regenerated docs/schemas/*.json"
+            git diff docs/schemas/
+            exit 1
+          fi
+
+      - name: npm audit (production, moderate+)
+        # ADR-029 (Stagehand v3 migration) closed the 3 v1.0 transitive
+        # moderate waivers. Stagehand v3.3.0 introduced 5 new transitive
+        # moderate findings (langsmith / uuid family); we resolve them
+        # via `package.json#overrides` (`langsmith ^0.6.0`, `uuid
+        # ^14.0.0`) — verified by T5 Stagehand smoke at runtime. Result:
+        # `npm audit --production` reports 0 MODERATE-or-higher findings, so
+        # this gate runs at `--audit-level=moderate` (not `high`).
+        #
+        # NOTE: there ARE 17 LOW advisories in the production tree (all one
+        # root cause: @ai-sdk/provider-utils "Uncontrolled Resource
+        # Consumption", fanned out across the @ai-sdk/* + `ai` packages).
+        # They are below this gate by design and tracked in SECURITY.md
+        # ("Known Advisories"). The dev tree additionally has 1 moderate
+        # (brace-expansion) that is NOT in --production and not shipped.
+        run: npm audit --production --audit-level=moderate
+
+      - name: License compliance (allowlist)
+        # Run only on Ubuntu × Node 20 — license metadata is the same
+        # across platforms; running on every matrix config is wasteful.
+        # Allowlist + rationale lives in
+        # docs/THIRD_PARTY_LICENSES.md.
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        run: npm run license:check
+
+      - name: Vendor integrity check (stealth-core)
+        # Enforceable on EVERY runner: recomputes the SHA-256 of each
+        # vendored stealth-core file and compares against the committed
+        # manifest (src/vendor/stealth-core/integrity.json). Needs no
+        # upstream source, so unlike the drift check below it is never a
+        # no-op — it catches in-place edits, corruption, or added/removed
+        # vendored files. See ADR-032 + src/vendor/stealth-core/PROVENANCE.md (F4).
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        run: npm run check:vendor-integrity
+
+      - name: Vendor drift check (stealth-core)
+        # GitHub-hosted runners don't have an upstream stealth-core source
+        # tree available, so AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1 turns
+        # the check into a no-op when the canonical tree is absent. The
+        # check still catches drift in any environment where the canonical
+        # IS present (maintainer machines, dedicated runners, etc.).
+        # Integrity (above) is the enforceable runner gate; this is the
+        # canonical-equivalence gate for environments that have upstream.
+        # See ADR-032 for the vendor model and intended drift workflow.
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        env:
+          AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING: "1"
+        run: npm run check:vendor-drift

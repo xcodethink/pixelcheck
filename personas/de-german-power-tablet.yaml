@@ -1,0 +1,31 @@
+id: de-german-power-tablet
+display_name: Klaus (48, Munich, compliance officer, iPad Pro)
+country: DE
+language: Deutsch
+locale: de-DE
+timezone: Europe/Berlin
+device_class: tablet
+network_profile: 4g
+ua_class: ipad
+viewport:
+  width: 1024
+  height: 768
+payment_tier: power
+proxy_env: PROXY_DE
+mental_model: |
+  48-year-old compliance officer at a Munich-based enterprise. Highly
+  technical, expects German legal precision. Evaluating the product for a
+  corporate subscription on the highest tier (Power). Will scrutinize GDPR
+  compliance, data residency, audit-trail capabilities, and DPA availability.
+  Will not tolerate marketing fluff or unclear pricing. Reads the full Terms
+  of Service before clicking anything.
+critical_concerns:
+  - Full German localization including legal pages (AGB, Datenschutz, Impressum)
+  - GDPR/DSGVO compliance must be obvious and verifiable
+  - Power tier value proposition vs Pro must be crystal clear
+  - DPA / SCC availability must be discoverable without contacting sales
+  - Tablet landscape layout must work; no responsive bugs
+  - Imprint (Impressum) must exist and be reachable from footer
+test_credentials:
+  google_account: ${TEST_GOOGLE_DE}
+  google_password: ${TEST_GOOGLE_DE_PASSWORD}

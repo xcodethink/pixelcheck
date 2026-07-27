@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/audit-url-result.schema.json",
+  "title": "AuditUrlResult",
+  "description": "MCP tool envelope returned by audit_url.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/AuditUrlResult",
+  "definitions": {
+    "AuditUrlResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "pass_with_issues",
+            "fail"
+          ]
+        },
+        "overall_score": {
+          "type": "number"
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "issues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "critical_issues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "report_json": {
+          "type": "string"
+        },
+        "report_html": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "cost_usd",
+        "issues",
+        "critical_issues",
+        "report_json",
+        "report_html"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

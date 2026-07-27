@@ -1,0 +1,228 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/list-capabilities-result.schema.json",
+  "title": "ListCapabilitiesResult",
+  "description": "MCP tool envelope returned by `list_capabilities` (M9-5). Self-describes the server: every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and M9-4 cache state. Static introspection — no LLM, no browser, no runtime probe of secrets.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/ListCapabilitiesResult",
+  "definitions": {
+    "ListCapabilitiesResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "server": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "result_schema_version": {
+          "type": "string"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "preset",
+                  "primitive",
+                  "meta"
+                ]
+              },
+              "input_schema": {
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "result_schema": {
+                "type": "string"
+              },
+              "cacheable": {
+                "type": "boolean"
+              },
+              "cost_estimate_usd": {
+                "type": "object",
+                "properties": {
+                  "typical": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "min": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "max": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "per_call",
+                      "per_step",
+                      "per_persona_scenario"
+                    ]
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "typical",
+                  "min",
+                  "max",
+                  "unit"
+                ],
+                "additionalProperties": false
+              },
+              "side_effects": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "navigation",
+                    "state_changing",
+                    "fs_writes_artifacts",
+                    "fs_writes_history",
+                    "fs_reads",
+                    "network_egress"
+                  ]
+                }
+              },
+              "requires": {
+                "type": "object",
+                "properties": {
+                  "api_keys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "browser": {
+                    "type": "boolean"
+                  },
+                  "personas_dir": {
+                    "type": "boolean"
+                  },
+                  "scenarios_dir": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "api_keys",
+                  "browser"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "name",
+              "description",
+              "kind",
+              "input_schema",
+              "cacheable",
+              "cost_estimate_usd",
+              "side_effects",
+              "requires"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "auth",
+                  "cache",
+                  "cost_guard",
+                  "artifacts",
+                  "logging",
+                  "memory",
+                  "reports"
+                ]
+              },
+              "default": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "description",
+              "scope",
+              "default",
+              "required"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "cache": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "ttl_ms_default": {
+              "type": "number",
+              "minimum": 0
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "enabled",
+            "ttl_ms_default",
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "server",
+        "result_schema_version",
+        "tools",
+        "env",
+        "cache"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

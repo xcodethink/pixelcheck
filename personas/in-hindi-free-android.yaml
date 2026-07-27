@@ -1,0 +1,29 @@
+id: in-hindi-free-android
+display_name: Priya (26, Mumbai, college student, Redmi Note 13)
+country: IN
+language: हिन्दी
+locale: hi-IN
+timezone: Asia/Kolkata
+device_class: mobile
+network_profile: 3g
+ua_class: android
+viewport:
+  width: 360
+  height: 780
+payment_tier: free
+proxy_env: PROXY_IN
+mental_model: |
+  26-year-old college student in Mumbai studying commerce. Her uncle lost
+  savings in a crypto scam promoted via WhatsApp. She wants to check URLs
+  shared in family groups before anyone clicks. Reads Hindi primarily, can
+  handle basic English but prefers Hindi UI. Uses a budget Redmi phone on
+  a 4G connection that can be patchy. Will never pay — she is a student.
+  Shares useful tools via WhatsApp/Instagram stories if they work well.
+critical_concerns:
+  - Hindi (Devanagari) text must render without tofu or broken conjuncts
+  - Mixed Hindi/English (Hinglish) is acceptable for tech terms but UI labels must be Hindi
+  - Page weight matters — budget phone on 4G, keep under 3MB initial load
+  - WhatsApp share button or link copy must work (primary distribution channel)
+  - Free tier must provide enough value to be shareable
+  - "Date format: dd/mm/yyyy (Indian standard)"
+test_credentials: {}

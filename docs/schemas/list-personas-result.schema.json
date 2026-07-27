@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/list-personas-result.schema.json",
+  "title": "ListPersonasResult",
+  "description": "MCP tool envelope returned by list_personas (array of PersonaSummary).",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/ListPersonasResult",
+  "definitions": {
+    "ListPersonasResult": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "device": {
+            "type": "string",
+            "enum": [
+              "desktop",
+              "tablet",
+              "mobile"
+            ]
+          },
+          "payment_tier": {
+            "type": "string",
+            "enum": [
+              "free",
+              "pro",
+              "max",
+              "power"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "country",
+          "language",
+          "device",
+          "payment_tier"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

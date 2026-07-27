@@ -1,0 +1,74 @@
+id: 01-google-oauth-signup
+name: Google OAuth Signup End-to-End
+priority: P0
+goal: |
+  Register a brand new account using Google OAuth, verify the dashboard
+  loads correctly, and confirm a localized welcome email arrives. This is
+  the OAuth-protection-rule scenario — runs after every deployment.
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+    - jp-japanese-pro-desktop
+    - de-german-power-tablet
+    - cn-chinese-free-mobile
+
+scoring_dimensions:
+  - completion
+  - localization
+  - visual_polish
+  - trust_signals
+  - time_to_value
+
+steps:
+  - id: open-home
+    type: visit
+    url: https://your-app.example.com/${persona.url_locale}
+    wait_until: networkidle
+
+  - id: assert-language
+    type: assert_visual
+    critical: true
+    instruction: |
+      Check that all visible header navigation, hero text, and primary
+      CTAs are in ${persona.language}. The audited site's own brand and
+      trademarks are exempt. List any non-${persona.language} text found.
+
+  - id: click-signin
+    type: act
+    instruction: Click the sign in or login button in the page header
+    retry: 2
+    fallback: computer_use
+
+  - id: choose-google
+    type: act
+    instruction: Click "Continue with Google" or "Sign in with Google"
+    retry: 2
+    fallback: computer_use
+
+  - id: wait-for-dashboard
+    type: wait_for
+    text: Dashboard
+    timeout: 30000
+
+  - id: rate-dashboard
+    type: assert_visual
+    critical_review: true
+    dimensions:
+      - completion
+      - localization
+      - visual_polish
+      - trust_signals
+      - time_to_value
+    instruction: |
+      The user has just signed in. Rate the dashboard / onboarding screen
+      on the 5 dimensions. Specifically:
+      - Does it greet the user by name?
+      - Is everything in ${persona.language}?
+      - Does it match the polish of Stripe/Linear dashboards?
+      - Is the next action obvious?
+
+  - id: screenshot-final
+    type: screenshot
+    label: dashboard-final
+    full_page: true

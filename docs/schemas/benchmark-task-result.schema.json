@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/benchmark-task-result.schema.json",
+  "title": "BenchmarkTaskResult",
+  "description": "Per-task benchmark result.",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/BenchmarkTaskResult",
+  "definitions": {
+    "BenchmarkTaskResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": [
+            "easy",
+            "medium",
+            "hard"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "number"
+        },
+        "eval_detail": {
+          "type": "object",
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "per_check": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "passed": {
+                    "type": "boolean"
+                  },
+                  "detail": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "passed"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "score": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "passed",
+            "per_check",
+            "score"
+          ],
+          "additionalProperties": false
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "final_url": {
+          "type": "string"
+        },
+        "convergence_reason": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "intent",
+        "tags",
+        "passed",
+        "score",
+        "eval_detail",
+        "cost_usd",
+        "duration_ms",
+        "final_url",
+        "convergence_reason"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

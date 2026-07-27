@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/issue.schema.json",
+  "title": "Issue",
+  "description": "A single audit issue (severity + description + recommendation).",
+  "x-result-schema-version": "1.3.0",
+  "$ref": "#/definitions/Issue",
+  "definitions": {
+    "Issue": {
+      "type": "object",
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "step_id": {
+          "type": "string"
+        },
+        "dimension": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "screenshot": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        },
+        "wcag_level": {
+          "type": "string",
+          "enum": [
+            "A",
+            "AA",
+            "AAA"
+          ]
+        },
+        "wcag_criterion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "severity",
+        "description",
+        "recommendation"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

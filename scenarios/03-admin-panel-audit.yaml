@@ -1,0 +1,90 @@
+id: 03-admin-panel-audit
+name: Admin Panel Full Tab Audit
+priority: P0
+goal: |
+  Walk through every admin panel tab using a privileged session cookie.
+  Capture console errors, screenshot each tab, and rate against
+  commercial-grade admin standards (Stripe / Linear / Vercel admin).
+
+applies_to:
+  personas:
+    - us-english-free-mobile
+
+scoring_dimensions:
+  - completion
+  - error_density
+  - ui_consistency
+  - data_integrity
+  - visual_polish
+
+steps:
+  - id: visit-admin
+    type: visit
+    url: https://your-app.example.com/admin
+    wait_until: networkidle
+
+  - id: rate-dashboard
+    type: assert_visual
+    critical_review: true
+    dimensions:
+      - visual_polish
+      - ui_consistency
+      - data_integrity
+    instruction: |
+      Rate the admin dashboard against the standard set by Stripe / Linear
+      / Vercel admin. Check for empty states, broken charts, untranslated
+      strings, and signs of "feature stacking" without IA discipline.
+
+  - id: open-users-tab
+    type: act
+    instruction: Click the Users tab in the admin sidebar
+    fallback: computer_use
+
+  - id: rate-users
+    type: assert_visual
+    instruction: |
+      Rate the Users tab. Verify table renders with data, pagination works,
+      filters are obvious, and bulk actions are reachable. List any console
+      errors you suspect from rendering glitches.
+
+  - id: open-reports-tab
+    type: act
+    instruction: Click the Reports tab in the admin sidebar
+    fallback: computer_use
+
+  - id: rate-reports
+    type: assert_visual
+    instruction: Rate the Reports tab UX and data density.
+
+  - id: open-slo-tab
+    type: act
+    instruction: Click the SLO tab in the admin sidebar
+    fallback: computer_use
+
+  - id: rate-slo
+    type: assert_visual
+    critical_review: true
+    instruction: |
+      Rate the SLO tab. This is a recently-added tab. Look for placeholder
+      content, broken charts, or untested empty states.
+
+  - id: open-credits-tab
+    type: act
+    instruction: Click the Credits tab in the admin sidebar
+    fallback: computer_use
+
+  - id: rate-credits
+    type: assert_visual
+    instruction: Rate the Credits tab UX.
+
+  - id: open-incidents-tab
+    type: act
+    instruction: Click the Incidents tab in the admin sidebar
+    fallback: computer_use
+
+  - id: rate-incidents
+    type: assert_visual
+    critical_review: true
+    instruction: |
+      Rate the Incidents tab. Check for proper empty state, action buttons,
+      severity indicators, and timeline rendering.
