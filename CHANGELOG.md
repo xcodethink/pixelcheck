@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `withFileLock` and `withFileLockSync` could let two processes into the
+  critical section at once, losing writes. The reclaim path treated "no holder
+  could be read" as "this lock is stale" and unlinked whatever lockfile sat at
+  the path. But a null holder usually means the file is simply *gone* — the
+  previous holder released it between the failed acquire and the read — so the
+  unlink deleted the lockfile of whichever process had acquired it in the
+  meantime.
+
+  A missing lockfile is now treated as contention and retried, never reclaimed.
+  Only an existing-but-unparseable lockfile is reclaimed, and every reclaim
+  re-checks that the lockfile still matches the holder it judged before
+  removing it.
+
+  This matters beyond the tests: the lock guards the daily cost ledger, the
+  result cache and the history database, so a lost update meant under-counting
+  spend or dropping a recorded run.
+
 ### Changed
 - The published package is 33% smaller — 817 KB compressed to 550 KB, 421 files
   to 302 — with no loss of functionality or documentation.
