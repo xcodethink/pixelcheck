@@ -57,20 +57,26 @@ jobs:
       # platform issues, not just the first.
       fail-fast: false
       matrix:
-        # macos-14 = Apple Silicon arm64.
+        # macos-14      = Apple Silicon arm64
+        # macos-15-intel = Intel x64
         #
-        # macos-13 (Intel x64) was dropped 2026-07-26: GitHub had stopped
-        # scheduling Intel macOS runners for this repo, so both macos-13 jobs
-        # sat in `queued` forever — #60, #62 and #63 all merged with two
-        # permanently pending checks, which trains everyone to ignore a
-        # non-green check list. Removing them makes the real state visible.
+        # Both architectures matter here because better-sqlite3 and sharp ship
+        # distinct prebuilt binaries per arch, so an arm64-only matrix cannot
+        # catch a native-module regression on Intel.
         #
-        # Known gap, deliberately accepted: darwin-x64 now has no CI
-        # coverage, and better-sqlite3 + sharp ship distinct prebuilt
-        # binaries per arch. Nothing was actually lost — those jobs never
-        # ran — but darwin-x64 regressions will surface from users, not CI.
-        # Revisit if GitHub offers a working Intel macOS image again.
-        os: [ubuntu-latest, macos-14, windows-latest]
+        # History: the matrix used macos-13 for Intel until 2026-07-26, when it
+        # was removed because those jobs sat in `queued` indefinitely and three
+        # PRs merged with two permanently pending checks — which trains people
+        # to ignore a non-green check list. The cause turned out to be that
+        # GitHub retired the macos-13 image on 2025-12-04, not anything about
+        # this repository. macos-15-intel is the supported replacement and is
+        # free on public repositories.
+        #
+        # Deadline worth knowing: macos-15-intel is the last x86_64 image
+        # GitHub will offer, and it goes away in August 2027. After that,
+        # darwin-x64 has no CI coverage anywhere and this matrix entry must be
+        # removed again — deliberately, not by surprise.
+        os: [ubuntu-latest, macos-15-intel, macos-14, windows-latest]
         # Node 18 dropped from CI: vitest 4 (via rolldown) imports
         # `util.styleText` which is Node 20+. Node 18 hit EOL 2025-04.
         # `package.json` engines now declares `>=20` to match (F4-F7 audit
