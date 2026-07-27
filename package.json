@@ -27,6 +27,7 @@
     "dist/",
     "!dist/**/*.map",
     "scripts/postinstall.mjs",
+    "scripts/chmod-bins.mjs",
     "docs/schemas/",
     "personas/",
     "scenarios/",
@@ -47,7 +48,7 @@
   },
   "homepage": "https://github.com/xcodethink/pixelcheck#readme",
   "scripts": {
-    "build": "tsc --removeComments --declaration false && tsc --emitDeclarationOnly",
+    "build": "tsc --removeComments --declaration false && tsc --emitDeclarationOnly && node scripts/chmod-bins.mjs",
     "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "npm run build && npm test",
     "typecheck": "tsc --noEmit",

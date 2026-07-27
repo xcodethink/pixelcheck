@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `npm run build` now restores the executable bit on the compiled bin entry
+  points. `tsc` emits plain 0644 files, and the shebang in `src/cli.ts` does
+  nothing without that bit. npm sets it when installing or linking, so
+  consumers from the registry were never affected — but in a linked development
+  checkout, any `npm run clean && npm run build` left the `pixelcheck` command
+  failing with "permission denied" until someone re-linked. `scripts/chmod-bins.mjs`
+  reads the `bin` map so a new entry is covered automatically, and fails the
+  build if a declared bin was not produced at all, which would otherwise ship a
+  broken symlink.
+
 ## [1.4.3] - 2026-07-27 — concurrency correctness, and a third smaller package
 
 > Contains a correctness fix worth taking: under contention the file lock could
