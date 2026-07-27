@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The published package is 33% smaller — 817 KB compressed to 550 KB, 421 files
+  to 302 — with no loss of functionality or documentation.
+  - **Source maps are no longer published.** All 119 of them pointed at
+    `../../src/*.ts`, which `files` has never shipped, and `sourcesContent` was
+    empty, so every map a consumer downloaded was unresolvable. They were 843 KB,
+    17.8% of the unpacked package. They are still produced locally for
+    development. Verified that the remaining `sourceMappingURL` comment is
+    harmless: a fresh install runs cleanly under `node --enable-source-maps`.
+  - **`dist/*.js` no longer carries implementation comments**, cutting the
+    emitted JavaScript by 27%. `build` now runs two passes: one with
+    `--removeComments` for the JavaScript, one `--emitDeclarationOnly` for the
+    declarations. A single `removeComments: true` would have stripped JSDoc from
+    the `.d.ts` files as well, removing IDE hover documentation for all 67
+    public exports — measured, not assumed. The two-pass split keeps every byte
+    of `.d.ts` documentation while shipping no implementation comments.
+
+    This is defence in depth, not the primary control. Of the twelve identifier
+    leaks that reached the 1.4.1 tarball, six were file-header JSDoc that TypeScript
+    copies into `.d.ts` regardless. `lint:no-internal-refs` remains the real gate;
+    this narrows the surface behind it.
+
 ## [1.4.2] - 2026-07-27 — no internal identifiers or personal references in the published package
 
 > Mostly a packaging release: `dist/` differs from 1.4.1 almost entirely in
