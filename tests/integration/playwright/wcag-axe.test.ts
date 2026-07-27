@@ -1,6 +1,5 @@
 /**
  * Real axe-core + SARIF GitHub Code Scanning integration test
- * (T6 — closes RISK-REGISTER-V2 R6).
  *
  * What the unit tests can't cover:
  *   - Real axe-core scanning a real DOM may emit different `tags` shapes
@@ -93,7 +92,7 @@ test.describe("real axe-core scan of a11y-broken fixture", () => {
 
     // Use the SAME expansion the production handler uses
     // (handlers/index.ts handleAssertA11y) to guarantee we're testing
-    // the actual code path users hit. T-NEW-11 fixed a bug where
+    // the actual code path users hit. A past bug meant
     // [standard] alone (no expansion) silently missed Level A rules.
     const tags = expandAxeStandard("wcag2aa");
     expect(tags).toContain("wcag2a"); // pin the cumulative semantic
@@ -114,7 +113,7 @@ test.describe("real axe-core scan of a11y-broken fixture", () => {
     // rule names in a major bump, this assertion will fail loudly instead
     // of silently drifting.
     //
-    // image-alt + label are Level A rules — pre-T-NEW-11 they would NOT
+    // image-alt + label are Level A rules — before the expansion fix they would NOT
     // appear here because the production handler passed only ["wcag2aa"]
     // to axe runOnly. Now that handler uses expandAxeStandard, both A
     // and AA rules surface as expected.

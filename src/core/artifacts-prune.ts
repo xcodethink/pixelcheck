@@ -1,7 +1,7 @@
 /**
  * Disk-quota / retention prune for MCP primitive artifact directories.
  *
- * Why this exists (T9 — closes RISK-REGISTER R50):
+ * Why this exists:
  *
  * Each call to `see` / `act` / `extract` / `judge` / `compare` writes a
  * timestamped subdirectory under `~/.pixelcheck/<kind>/` (~50 KB

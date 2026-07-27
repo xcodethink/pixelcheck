@@ -1,7 +1,7 @@
 /**
  * First-run consent for sending page content to Anthropic API.
  *
- * Why this exists (T22 — closes RISK-REGISTER R34 + R38):
+ * Why this exists:
  * PixelCheck sends screenshots + DOM to Claude API to evaluate pages.
  * That's the entire point of an MCP server giving AI agents eyes on the
  * web — but it's user data leaving the machine and the operator must

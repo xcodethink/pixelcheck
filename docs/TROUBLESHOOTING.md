@@ -371,4 +371,4 @@ Chromium + Stagehand + multiple parallel units can spike. Mitigations:
 
 ---
 
-**Last updated**: 2026-05-02 (T24 — Wave 3 close)
+**Last updated**: 2026-05-02

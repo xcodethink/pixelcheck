@@ -1,7 +1,7 @@
 /**
  * `pixelcheck doctor` — diagnose the local environment before audit run.
  *
- * Why this exists (T23 closes RISK-REGISTER R45 + R47 + R61):
+ * Why this exists:
  * Pre-T23 a user with a missing ANTHROPIC_API_KEY / wrong Node version
  * / unreachable api.anthropic.com saw a stack trace at first audit
  * attempt. `doctor` runs all health checks UP FRONT so the user sees

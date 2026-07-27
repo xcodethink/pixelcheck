@@ -378,7 +378,7 @@ describe("isWcagIssue", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// expandAxeStandard (T-NEW-11 — closes RISK-REGISTER R-NEW-11)
+// expandAxeStandard
 // ─────────────────────────────────────────────────────────────
 
 describe("expandAxeStandard", () => {
@@ -421,7 +421,7 @@ describe("expandAxeStandard", () => {
     expect(expandAxeStandard("custom-tag" as never)).toEqual(["custom-tag"]);
   });
 
-  it("includes Level A in every AA expansion (T-NEW-11 regression guard)", () => {
+  it("includes Level A in every AA expansion (regression guard)", () => {
     // The R-NEW-11 bug was that wcag2aa expanded to ["wcag2aa"] only,
     // missing Level A rules like image-alt / label / button-name.
     // This test pins the cumulative semantic so the bug can't regress.

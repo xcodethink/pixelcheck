@@ -1,5 +1,5 @@
 /**
- * T3 — LLM cassette tests (closes RISK-REGISTER R1).
+ * LLM cassette tests.
  *
  * 12 cases covering the central `callVision` contract surface across
  * the request shapes our primitives actually use:

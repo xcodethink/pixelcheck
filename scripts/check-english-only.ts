@@ -5,8 +5,8 @@
  * Why this exists: this repository is public and published to npm, but it grew
  * out of a working notebook. Documentation, ADRs and changelog entries were
  * written in Chinese and shipped that way — roughly 12,000 CJK characters
- * across 46 tracked files, including internal task IDs, risk-register
- * bookkeeping, a real name and references to private local paths. That was
+ * across 46 tracked files, including internal tracking identifiers, a real
+ * name and references to private local paths. That was
  * cleaned up on 2026-07-26; this check keeps it clean, because relying on
  * remembering the rule is exactly what failed the first time.
  *

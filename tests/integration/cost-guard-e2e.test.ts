@@ -1,5 +1,5 @@
 /**
- * Cost-guard end-to-end integration test (T7a — closes RISK-REGISTER R7).
+ * Cost-guard end-to-end integration test.
  *
  * What unit tests already cover (tests/cost-guard*.test.ts):
  *   - checkBudget / recordUsage / threshold logic per-method

@@ -1,4 +1,4 @@
-# Critic calibration — weekly regression check (T8 closes RISK-REGISTER R3).
+# Critic calibration — weekly regression check.
 #
 # Why this exists:
 # The critic LLM is the heart of every audit's `scores` array, but its

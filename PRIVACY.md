@@ -302,4 +302,4 @@ For privacy-sensitive issues (e.g., found a leak, want to discuss DPA):
 
 ---
 
-**Last updated**: 2026-05-02 (T22 — Wave 3 PRIVACY + consent + PII redaction)
+**Last updated**: 2026-05-02

@@ -1,5 +1,5 @@
 /**
- * MCP stdio end-to-end integration test (T7b — closes RISK-REGISTER R8).
+ * MCP stdio end-to-end integration test.
  *
  * What unit tests already cover (tests/mcp-server.test.ts +
  * tests/mcp-registry.test.ts):

@@ -912,7 +912,7 @@ only need to bump `package.json#version` — no source-string chasing.
   pollution / streaming-redaction bypass) + 2 in `uuid` (buffer bounds
   check). Resolved via `package.json#overrides` (`langsmith ^0.6.0`,
   `uuid ^14.0.0`); validated against Stagehand v3.3.0 runtime by the
-  T5 Stagehand smoke test (act / extract / observe round-trip clean).
+  The Stagehand smoke test passes (act / extract / observe round-trip clean).
   Result: `npm audit --production` reports **0 vulnerabilities**. CI
   audit gate tightened from `--audit-level=high` to
   `--audit-level=moderate`. See `SECURITY.md` for the full GHSA table.
@@ -931,7 +931,7 @@ only need to bump `package.json#version` — no source-string chasing.
   browser over CDP. Public API unchanged — handlers / instruction-mutator
   / primitives still call `wrapper.stagehand.act({ action })` /
   `extract({ instruction, schema })` / `observe({ instruction })`; the
-  wrapper adapter translates internally to v3's positional API. T5
+  wrapper adapter translates internally to v3's positional API. The
   Stagehand smoke (real chromium + Anthropic API) verifies the bridge
   end-to-end at \$0.02 / run.
   - **`overrides.@browserbasehq/stagehand` block removed** —
@@ -943,7 +943,7 @@ only need to bump `package.json#version` — no source-string chasing.
 - **`dotenv` ^16.6.1 → ^17.4.2** and **`zod` ^3.23.0 → ^3.25.76**.
   Originally pinned by Stagehand v2.5.8's overly-conservative peer
   ranges; PR #12 unblocked them via `overrides`; ADR-035's Stagehand
-  v3 migration makes the upgrades direct (no override). T5 Stagehand
+  v3 migration makes the upgrades direct (no override). The Stagehand
   smoke verifies runtime compatibility.
 - **`src/cli.ts`** — both `dotenv.config()` callsites now pass
   `{ quiet: true }`. dotenv 17 flipped its default to `quiet=false`,
@@ -963,14 +963,14 @@ only need to bump `package.json#version` — no source-string chasing.
 
 ## [1.0.1] - 2026-05-02 — Critical Hotfix
 
-> **Recommended for ALL v1.0.0 users.** Fixes a P0 ship-blocker that
+> **Recommended for ALL v1.0.0 users.** Fixes a release blocker that
 > made `pixelcheck run` impossible after a fresh `npm install pixelcheck`
 > + `pixelcheck init`. Numerical accuracy fixes across user-facing docs.
 > No API changes; pure bug fix per SemVer.
 
 ### Fixed
 
-- **B1 (P0 ship-blocker)** — `personas/` and `scenarios/` directories were
+- **B1 (release blocker)** — `personas/` and `scenarios/` directories were
   not shipped in the npm tarball (`package.json files: [...]` omitted them),
   so any fresh-install user hit `[FATAL] Personas directory not found:
   …/personas` on their first `pixelcheck run`. v1.0.1 ships the 18 bundled
@@ -1051,14 +1051,13 @@ generate a fresh template, or hand-add `id: <unique-name>` to each step.
 
 > First commercially-supported release. PixelCheck v1.0 ships an MCP server giving AI agents real eyes and hands on the web. Aggregates Phase 1 (AI core) + Phase 2 (commercial-grade quality) + ship-prep waves + W1 brand alignment.
 
-### Tested (T3 / T5 / T8 — API-key-gated commercial-grade verification, 2026-05-02)
+### Tested (API-key-gated commercial-grade verification, 2026-05-02)
 
-- **T5 — Stagehand smoke e2e (closes R2)** ✅: `tests/integration/playwright/stagehand-smoke.test.ts` runs real chromium + real Stagehand 2.5.8 + real Anthropic API against the local `form-page.html` fixture. 3 sub-tests (act + extract + observe round-trip / artifacts on disk / cost-budget docstring). 3/3 pass in 14.9s @ ~$0.02 per run, $0.10 hard budget. Caught real wire-up bug on first run: Stagehand 2.x `extract()` requires Zod schema (reads `.shape`), not JSON Schema — fixed in test, but more importantly, this is exactly the breakage profile vi.mock'd unit tests would have shipped silently. Test self-skips when `ANTHROPIC_API_KEY` is unset so contributors without keys pass `npm test`.
-- **T3 — LLM cassette infrastructure (closes R1, plan B per user)** ✅: Built record/replay-mode cassette test rig (`tests/integration/cassette-helper.ts` + `tests/integration/llm-cassettes.test.ts`). 12 cassettes covering 3 shape families: 4 single-image / 4 multi-image / 4 edge-cases (system-prompt / max-tokens / structured output / explicit language). Recorded once against Sonnet 4.6 against the 1280×800 PNG fixture (~$0.50 record cost; the 1×1 transparent PNG that worked for SDK construction triggered "Could not process image" 400s). Replay runs $0 — `nock` intercepts POST /v1/messages and returns the cassette body. Hygiene tests verify cassettes contain no `sk-ant-` keys and case names are unique. Run via `npm run test:e2e:replay` (default CI mode) / `test:e2e:record` (re-record after model upgrade). Baseline of 12 cases (plan B vs the spec'd 50) per user decision: ship infra now, scale via v1.0-rc1 reviewer.
-- **T8 — Critic calibration baseline + CI workflow (closes R3)** ✅: Ran `pixelcheck calibrate` end-to-end against the 5 labeled fixtures in `tests/fixtures/critic-calibration/`. **Baseline metrics (2026-05-02)**: mean_agreement = **0.90**, mean_max_distance = **0.20**, fully_aligned_rate = **0.80**, total cost = **$0.083**. Gate (DEFAULT_GATE: 0.85 / 1.5 / 0.70) **passes**. Persisted to `docs/calibration-baseline.json` as a frozen reference for drift investigation after model upgrades. Added `.github/workflows/calibration.yml` — weekly Monday cron + manual `workflow_dispatch`, gated on `secrets.ANTHROPIC_API_KEY` (no-ops cleanly on forks / unconfigured repos), uploads `reports/calibration/` as a 90-day artifact. The one sub-100% sample (`cls-layout-shift` agreement = 50%, max_dist = 1) is the next critic-prompt iteration target — within tolerance, documented in baseline notes.
+- **Stagehand smoke end-to-end** ✅: `tests/integration/playwright/stagehand-smoke.test.ts` runs real chromium + real Stagehand 2.5.8 + real Anthropic API against the local `form-page.html` fixture. 3 sub-tests (act + extract + observe round-trip / artifacts on disk / cost-budget docstring). 3/3 pass in 14.9s @ ~$0.02 per run, $0.10 hard budget. Caught real wire-up bug on first run: Stagehand 2.x `extract()` requires Zod schema (reads `.shape`), not JSON Schema — fixed in test, but more importantly, this is exactly the breakage profile vi.mock'd unit tests would have shipped silently. Test self-skips when `ANTHROPIC_API_KEY` is unset so contributors without keys pass `npm test`.
+- **LLM cassette infrastructure** ✅: Built record/replay-mode cassette test rig (`tests/integration/cassette-helper.ts` + `tests/integration/llm-cassettes.test.ts`). 12 cassettes covering 3 shape families: 4 single-image / 4 multi-image / 4 edge-cases (system-prompt / max-tokens / structured output / explicit language). Recorded once against Sonnet 4.6 against the 1280×800 PNG fixture (~$0.50 record cost; the 1×1 transparent PNG that worked for SDK construction triggered "Could not process image" 400s). Replay runs $0 — `nock` intercepts POST /v1/messages and returns the cassette body. Hygiene tests verify cassettes contain no `sk-ant-` keys and case names are unique. Run via `npm run test:e2e:replay` (default CI mode) / `test:e2e:record` (re-record after model upgrade). Baseline of 12 cases (plan B vs the spec'd 50) per user decision: ship infra now, scale via v1.0-rc1 reviewer.
+- **Critic calibration baseline + CI workflow** ✅: Ran `pixelcheck calibrate` end-to-end against the 5 labeled fixtures in `tests/fixtures/critic-calibration/`. **Baseline metrics (2026-05-02)**: mean_agreement = **0.90**, mean_max_distance = **0.20**, fully_aligned_rate = **0.80**, total cost = **$0.083**. Gate (DEFAULT_GATE: 0.85 / 1.5 / 0.70) **passes**. Persisted to `docs/calibration-baseline.json` as a frozen reference for drift investigation after model upgrades. Added `.github/workflows/calibration.yml` — weekly Monday cron + manual `workflow_dispatch`, gated on `secrets.ANTHROPIC_API_KEY` (no-ops cleanly on forks / unconfigured repos), uploads `reports/calibration/` as a 90-day artifact. The one sub-100% sample (`cls-layout-shift` agreement = 50%, max_dist = 1) is the next critic-prompt iteration target — within tolerance, documented in baseline notes.
 - **Test count**: 1843 → 1864 unit tests (+8 home-dir / +13 doctor edges) with the cassette suite as 1 self-skipping line in default `npm test`. Replay-mode adds 14 (12 cassettes + 2 hygiene) under `npm run test:e2e:replay`.
 - **Dependencies**: added `nock@^14.0.14` (devDependencies only — never ships in tarball).
-- **Risk register status**: R1 / R2 / R3 all flip from ⏳ to ✅. R5 / R55 / R58 remain (`reviewer dogfood` + `npm publish` + `homebrew tap`) — those gate on T33 publish. **0 ship-blockers remain** that aren't tied to the publish step itself.
 
 ### BREAKING — Renamed to PixelCheck + Repositioned as AI-first MCP infrastructure (W1 ADR-033, 2026-05-01)
 
@@ -1082,14 +1081,14 @@ generate a fresh template, or hand-add `id: <unique-name>` to each step.
 - **Migration for v0.x users**: see [MIGRATION.md](./MIGRATION.md). Net effect: replace `ai-audit` with `pixelcheck` in commands; `~/.ai-browser-auditor/` is auto-migrated on first run with backup; no data loss.
 - **Why now**: v1.0 ship is the brand-defining moment. Aligning npm package + README + launch materials + ADR-001 strategic positioning before publish avoids irreversible npm-name divergence and uses the 2026-Q2 MCP / vendor-agnostic narrative window.
 
-### Added / Tested (Wave 7-pre — pre-ship self-verification, test hardening, automated regression guards)
+### Added / Tested (pre-ship self-verification, test hardening, automated regression guards)
 
-- **Risk register cleared to the ship gate**: R3, R4, R6, R7–R10, R12–R51 (except R26/R27/R44, partial), R57–R61 and R-NEW-V1-SHIP-1 all closed. The remainder are blocked on an API key (R1/R2/R5), on the publish step itself (R55/R58), or deferred to v1.x per ADR-027/028 (R26/R27).
+- **Release checklist cleared to the ship gate.** The only items left are blocked on an API key, on the publish step itself, or deferred to v1.x per ADR-027 and ADR-028.
 - **Tests 1833 → 1853 (+20)**; coverage 81 / 69.41 / 81.04 / 82.48 with the vendored tree excluded per ADR-032, against a 66/60/66/66 floor.
 - **New `.github/workflows/dogfood.yml`**: every PR and push runs `npm pack`, installs the tarball into a fresh temp directory, and verifies all three binaries (`--help`, `doctor`, `init`), plus a **hard 1 MB tarball size gate** that exits non-zero if exceeded. This automates detection of the packaging class of bug that R-NEW-V1-SHIP-1 turned out to be.
 - **New `scripts/sync-vendor.sh`**: syncs the canonical stealth-core sources into `src/vendor/stealth-core/`, reporting added / updated / unchanged files and flagging vendored files that no longer exist upstream.
 - **New `scripts/check-vendor-drift.ts`** and the `check:vendor-drift` script: detects drift between vendored and canonical sources with three exit states (match / drift / canonical-missing), plus `AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING=1` for CI and `AUDIT_VENDOR_DRIFT_OK=1` for an intentional vendor lock. This is the ADR-032 follow-up actually landing.
-- **`bench:check`: zero regressions, four improvements** — `renderTrendsHtml` +89.6%, `renderJunitXml` +85.8%, `renderDiffMarkdown` +66.3%, `renderHistoryTrendsHtml` +37.1% — the cumulative effect of vitest 4, Node 24 and the Wave 1–6 optimisations.
+- **`bench:check`: zero regressions, four improvements** — `renderTrendsHtml` +89.6%, `renderJunitXml` +85.8%, `renderDiffMarkdown` +66.3%, `renderHistoryTrendsHtml` +37.1% — the cumulative effect of vitest 4, Node 24 and the accumulated optimisations.
 - **`license:check` exits 0**; all 289 production dependencies carry approved licences (MIT / Apache / ISC / BSD / 0BSD / Unlicense and similar). The CI step is in place.
 - **SBOM verified**: a 564 KB CycloneDX 1.6 JSON generates cleanly, and `sbom.yml` uploads it as a release artifact on a version tag.
 - **typedoc reports 89 documented exports** (43 functions, 25 types, 20 interfaces, 1 class). Per ADR-032 the output is neither committed nor shipped in the npm tarball; `npm run docs:api` generates it locally.
@@ -1104,7 +1103,7 @@ Full regression: typecheck, build, **1853/1853 tests**, **coverage check passing
 
 **Ship gate**: no P0 blockers; every checklist item accounted for.
 
-### Fixed (T31.5 — v1.0 ship blocker R-NEW-V1-SHIP-1: vendoring stealth-core)
+### Fixed (release blocker: vendoring stealth-core)
 
 - **R-NEW-V1-SHIP-1 closed** (v1.0 ship blocker; option B was chosen).
 - **Vendored stealth-core into `src/vendor/stealth-core/`**: six source files (browser, fingerprints, index, launch-options, retry, stealth-script) copied from the sibling repository into this source tree. They compile in the same `tsc` pass, output to `dist/vendor/stealth-core/`, and ship in the npm tarball through the existing `files` entry.
@@ -1116,9 +1115,9 @@ Full regression: typecheck, build, **1853/1853 tests**, **coverage check passing
 - Full regression: typecheck, build, **1833/1833 tests** (the vendored build behaves identically to the previously npm-resolved package), zero schema diff.
 - **The v1.0 ship blocker is cleared**, and the "fresh install works" checklist item flips to done.
 
-### Added (Wave 6 + T31/T32 — Phase 3 coverage for five modules, release-candidate dogfood, checklist walkthrough)
+### Added (Phase 3 coverage for five modules, release-candidate dogfood, checklist walkthrough)
 
-- **Risk-register R11 closed**: all five orchestration-core modules that sat between 0% and 2.4% coverage are now at 77% or above. Wave 6 completed 5/5.
+- All five orchestration-core modules that sat between 0% and 2.4% coverage are now at 77% or above.
 - **`reporter.ts`** (528 LoC, 0% → **99.11%** statements): 41 tests across the three exports (`writeJsonReport`, `writeMarkdownSummary`, `writeHtmlReport`) and five internal helpers, covering redaction applied versus the skip fast path, trend-section gating at two or more history entries, SVG sparkline composition (grid lines, dots, polyline, fill), all four convergence-reason colours, and HTML escaping.
 - **`computer-use.ts`** (449 LoC, 2.4% → **92.07%**): 40 tests across all 14 actions (screenshot, left/right/middle/double/triple click, drag, mouse move, type, key, hold key, four scroll directions, wait, mouse down/up, zoom), viewport scaling at 1280×800 (no scale) versus 3200×1800 (scale ≈ 0.447), coordinate scaling round-trips, three modifier keys, the unsupported-action throw, the `tool_use`-without-id edge case, and the max-iterations exit.
 - **`runner.ts`** (567 LoC, 0.7% → **86.92%**): 26 tests covering the happy path, run-directory mode 0700, fingerprint identity, redaction patterns, tagging, all three status outcomes, critical-step interruption, crash-to-critical-issue, missing-persona skip, automatic-mode delegation, visual regression issues, the multi-unit matrix, score aggregation across critics, schema-version stamping, and the empty matrix. Seven module mocks.
@@ -1130,22 +1129,22 @@ Full regression: typecheck, build, **1853/1853 tests**, **coverage check passing
 - **Release readiness checklist walked, all 80 items**: 49 done / 12 warning / 19 outstanding, ticked in place with notes. Summary: one P0 blocker, four items waiting on an API key, seven publish tasks, and 12 release-candidate review items that do not block shipping.
 - Full regression: typecheck, build, **1664 → 1833 tests (+169)**, `lint:no-console`, zero schema diff, `npm pack` 565.5 → 555 KB, coverage check passing at 65/59/65/65.
 
-### Added (Wave 5 — five P1 closures: T11, T10, T9, T17, T18)
+### Added (translation review template, CI bench observation, artifact retention, cache disk quota, SPA i18n)
 
-- **Closes risk-register R11, R49, R50, R51, R52, R53 and R65 (partial)** — seven risks. Wave 5 ran five small, non-conflicting tasks in parallel: translation review template, CI bench observation, artifact retention, result-cache LRU disk quota, and SPA core i18n.
+- Five small, non-conflicting tasks landed in parallel: translation review template, CI bench observation, artifact retention, result-cache LRU disk quota, and SPA core i18n.
 
-#### T11 — Native translation review template, GitHub issue template, README placeholder
+#### Native translation review template, GitHub issue template, README placeholder
 
 - **`docs/translation-review-template.md`** (~150 LoC): a reviewer metadata block, a line-by-line table for 90 keys (the first 30 inline, with a command to generate the remaining 60), five cross-cutting feedback sections (style and register, cultural fit, number/unit/date conventions, missing keys), a sign-off checklist, and the submission process. Each reviewer files `docs/translation-review-<locale>-<reviewer>.md` so the work is publicly traceable.
 - **`.github/ISSUE_TEMPLATE/translation-review.yml`**: an announcement channel so two reviewers do not collide on the same locale, with profile, target date and question fields, plus three acknowledgement checkboxes (template read, PR will be raised, consent to public credit).
 - **README "Localised reports" gains a reviewer table**: five rows (English source, zh-CN, ja, es, de), with four pending placeholders awaiting v1.x reviewer feedback.
 
-#### T10 — CI bench observation workflow (five-run calibration window)
+#### CI bench observation workflow (five-run calibration window)
 
 - **New `.github/workflows/bench.yml`**: a weekly Sunday cron, `workflow_dispatch`, and opt-in on a PR via the `bench` label; a fixed ubuntu-latest / Node 20 runner profile; `bench` and `bench:check` run with `continue-on-error`; `docs/perf-current.json` is uploaded with 90-day retention.
 - **New `docs/decisions/ADR-031-ci-bench-observation-mode.md`** (~110 LoC): the promotion criteria after five or more observations (empirical p95 deviation × 1.5 becomes the calibrated tolerance, `bench:check` becomes a required check, and it joins branch protection), plus the reasoning for not gating from day one, not skipping benchmarks entirely, not running a 12-config matrix, and not running on every PR.
 
-#### T9 — Artifact retention pruning (CLI `prune` plus lazy MCP-server pruning)
+#### Artifact retention pruning (CLI `prune` plus lazy MCP-server pruning)
 
 - **New `src/core/artifacts-prune.ts`** (~250 LoC): five primitive kinds (sees, acts, extracts, judges, compares), each with independent retention (30 days by default) and an independent directory override. Files older than the cutoff are removed recursively. Three API layers — `pruneOneKind`, `pruneAllArtifacts`, `pruneIfStale` — where `pruneIfStale` uses a stamp file (mode 0600) to run at most once per 24 hours. `renderPruneReport` is a pure function returning a multi-line summary, and `formatBytes` renders B/KB/MB/GB.
 - **CLI `prune`**: explicit user-triggered pruning; exits 1 if any kind reported errors; `skipStamp: true` makes two consecutive runs both do real work.
@@ -1154,7 +1153,7 @@ Full regression: typecheck, build, **1853/1853 tests**, **coverage check passing
 - **README gains an "Artifact retention" section**: the CLI command, a table of the five variables, the lazy-prune behaviour, and a note that bulk deletion is a plain recursive directory delete.
 - **28 new tests** (`tests/artifacts-prune.test.ts`): default retention, environment overrides, `0` meaning infinite, directory overrides, all five kinds, stamp file mode 0600, `skipStamp`, the 24-hour window in all four states (fresh, stale, malformed, missing), plus `renderPruneReport`, `formatBytes` and the kind-array shape.
 
-#### T17 — Result-cache LRU disk quota (max rows / max disk MB)
+#### Result-cache LRU disk quota (max rows / max disk MB)
 
 - **`src/core/result-cache.ts` migration v2** adds `last_used_at INTEGER NOT NULL DEFAULT 0`, backfills it from `created_at`, and adds an index. The migration runner applies it idempotently.
 - **New `enforceLruCaps()`**, called inside `pruneCache`: first the row-count cap (delete the oldest `last_used_at` beyond the overshoot), then the disk-size cap (stat the database, then iterate up to six rounds until it is under the cap or the returns diminish below 1%). TTL pruning runs first; LRU handles the remainder.
@@ -1164,7 +1163,7 @@ Full regression: typecheck, build, **1853/1853 tests**, **coverage check passing
 - **README "Result Cache" gains two rows** for the new variables.
 - **5 new tests** (`tests/result-cache.test.ts`): a touched entry surviving LRU, the row-count cap removing the oldest, `0` disabling, environment-variable control, and the combined TTL-then-LRU ordering.
 
-#### T18 — Audit-explorer SPA core i18n (27 keys × 5 locales, query-string detection)
+#### Audit-explorer SPA core i18n (27 keys × 5 locales, query-string detection)
 
 - **New `src/core/reporter-spa-i18n.ts`** (~200 LoC): 27 SPA UI keys across five locales (en, zh-CN, ja, es, de). Provides the `SPA_I18N` dictionary, `normaliseSpaLocale` with family fallback, `spaInterpolate` for `{n}` placeholders, `spaT` with English fallback, and `lintSpaTranslations` enforcing 100% key coverage.
 - **`src/core/reporter-spa.ts` HTML and JS updated**: every static label carries a `data-i18n` attribute, applied once at boot; a second inline JSON script tag carries all five locale dictionaries (with angle brackets escaped against XSS); the boot script resolves locale in priority order (`?lang=`, `?locale=`, `navigator.language` family fallback, then English) and syncs `document.documentElement.lang`; all render functions go through `t(key, vars)`; timestamps format per locale.
@@ -1173,9 +1172,9 @@ Full regression: typecheck, build, **1853/1853 tests**, **coverage check passing
 
 Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-console`, zero schema diff, `npm pack` 565.5 KB / 315 files.
 
-### Added (T24 — Wave 3 close-out: FAQ, troubleshooting guide, typedoc API reference)
+### Added (FAQ, troubleshooting guide, typedoc API reference)
 
-- **Closes risk-register R18, R19, R20 and R21.** The fifth and final Wave 3 item: user documentation is complete and a public API reference can be generated.
+- User documentation is complete and a public API reference can be generated.
 - **`FAQ.md`** (~250 LoC, five categories, ~20 questions): API key and cost (where to get a key, per-audit cost range, handling budget errors, other LLMs, running without spending tokens); scenarios and personas (the difference, writing the first scenario, custom personas, filtering to one unit); reports and output (where they are written, CI integration, PDF customisation, trends); privacy and data (what leaves the machine, the consent prompt, deleting data, whether passwords leak, the GDPR/CCPA position); and native binaries and cross-platform concerns (Alpine, chromium launch failures, which Windows shell, slow installs, ARM64). Every answer points at its source of truth.
 - **`docs/TROUBLESHOOTING.md`** (~290 LoC, six categories, 24 errors): API and auth (4), audit run (5), browser and Playwright (4), reports and output (4), CI integration (4), and performance and cost (3). Each entry gives symptom, cause, fix and an optional verbose flag. The split against the installation guide is deliberate: installation covers "it will not install", troubleshooting covers "it installed but will not run".
 - **Public API reference**: adds `typedoc` as a dev dependency with configuration, an `npm run docs:api` script, `docs/api/` in `.gitignore`, and cleanup in `npm run clean`. Running it produces 2.3 MB of static HTML covering all 67 public exports. **It is not committed, not shipped in the npm tarball, and generated on demand** — avoiding a 50 MB documentation payload in the package.
@@ -1183,9 +1182,9 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **README gains a "Help & Reference" section** with five entry points covering the "how do I use it / it will not run / it will not install / I am integrating the API / I want the decisions" cases.
 - Full regression: typecheck, build, **1608/1608 tests**, `lint:no-console`, `npm pack` 549.9 KB / 309 files (the new docs stay out of the tarball thanks to the `files` field), zero schema diff, zero bench regressions.
 
-### Added (T22 — Wave 3 privacy policy, first-run consent, PII redaction)
+### Added (privacy policy, first-run consent, PII redaction)
 
-- **Closes risk-register R15, R34, R35, R36, R37, R38 and R60** — seven risks. The fourth Wave 3 item: a GDPR/CCPA baseline plus the user-data protections themselves.
+- A GDPR/CCPA baseline plus the user-data protections themselves.
 - **`PRIVACY.md`** (~290 LoC): what data exists, where it is stored, what leaves the machine, data-minimisation controls, retention and deletion (GDPR Article 17), zero telemetry, the GDPR/CCPA position that the user is the controller and this tool is not in the data path, the consent model, and the reporting channel.
 - **New `src/core/consent.ts`** (~200 LoC): first-run consent resolved in five priority steps (an existing valid record, an environment variable, a CLI flag, an implicit non-TTY path, then an interactive prompt), a versioned consent record written mode-restricted, zero dependencies via `node:readline/promises`, an injectable `promptFn` test seam, and `ConsentDeclinedError`. **Bumping the consent version re-prompts existing users**, which is the path for a material privacy-policy change.
 - **CLI gains `--auto-consent` and `--no-redact-inputs`**: consent gates ahead of the dry-run check; a missing API key is caught with a friendly message; a declined consent exits cleanly without a stack trace.
@@ -1195,9 +1194,9 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **README gains a "Privacy & Data Handling" section** ahead of Security: zero telemetry, a single external destination, privacy-first defaults, and a pointer to `PRIVACY.md`.
 - Full regression: typecheck, build, **1589 → 1608 tests (+19)**, **Playwright 16 → 21 (+5) in 25s**, zero schema diff, zero bench regressions, `npm pack` 547 KB / 309 files.
 
-### Added (T23 — Wave 3 doctor command, interactive init wizard, first-run UX)
+### Added (doctor command, interactive init wizard, first-run UX)
 
-- **Closes risk-register R45, R46, R47 and R61.** The third Wave 3 item: the first-run entry points are complete.
+- The first-run entry points are complete.
 - **New `doctor` command** (`src/commands/doctor.ts`, ~250 LoC): eight health checks diagnosing first-run readiness — Node version, platform, API key, config file, scenarios directory, personas directory, network proxy, data-directory writability, and API reachability. Each returns a structured result (ok / warn / fail / skip, with message, remedy and verbose detail) and the report aggregates an exit code. `renderDoctorReport()` is a pure function returning lines, so the caller controls output; the CLI colours them and exits with the report's code so a CI script can gate on it. `--verbose` adds diagnostic detail; `--skip-network` supports offline and air-gapped use.
 - **New interactive `init`** (`src/commands/init-interactive.ts`, ~190 LoC): a zero-dependency wizard on `node:readline/promises` asking five questions (project directory, project name, base URL, whether to create a sample scenario, whether to finish with a doctor run), each with a sensible default. The `promptFn` seam lets tests drive it without stdin. `writeSampleScenario()` idempotently writes a starter scenario. **The non-interactive `init <dir>` behaviour from v0.3 is preserved** by making the positional argument optional.
 - **`scaffoldProject()` extracted** as a shared helper so the wizard and the non-interactive path use identical scaffolding logic.
@@ -1207,17 +1206,15 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **Live check**: `doctor --skip-network` renders eight structured checks with colour, remedies and a summary tail, exiting 1 when the API key is absent.
 - Full regression: typecheck, build, 1589/1589 tests, `npm pack` 537 KB / 306 files, zero schema diff, zero bench regressions.
 
-### Added (T20 — Wave 3 stability commitment, migration guide, deprecation policy)
+### Added (stability commitment, migration guide, deprecation policy)
 
-- **Closes risk-register R17, R53, R54 and R57.**
 - **`MIGRATION.md`** (~150 LoC): the v0.3 → v1.0 upgrade guide. Three required actions (Node 16 → 18+, an expected rise in accessibility violation counts because of the axe fix, and checking screenshot dimensions) and four optional ones, plus the schema `$id` URL change across all 30 published schemas, package metadata changes, and a "what did not change" section (result schema, CLI flags, config, MCP tool surface, automatic history migration). Includes before/after diffs and a recommended tag-baseline-then-upgrade procedure.
 - **`docs/DEPRECATION-POLICY.md`** (~190 LoC): scope (CLI, config, result schema, MCP tools, and the 67 library exports), a two-version sunset cycle, a three-phase process (announce, continued warnings, removal), four warning levels, two worked examples, and a table of what can and cannot be deprecated.
 - **README gains "Stability Commitment"** and a provisional performance-baseline section: five stable surfaces, the backward-compatibility promise for minor and patch releases, and pointers to both new documents. The performance baseline is split into whole-audit figures (pending release-candidate calibration) and render hot-path throughput already tracked by the bench regression gate.
 - Full regression: 1555/1555 tests, `npm pack` 527 KB / 300 files, zero schema diff, zero bench regressions.
 
-### Added (T19 — Wave 3 governance docs: LICENSE, CONTRIBUTING, SECURITY review, 26-ADR audit)
+### Added (governance docs: LICENSE, CONTRIBUTING, SECURITY review, 26-ADR audit)
 
-- **Closes risk-register R12, R13, R14 (review), R22 and R33.** The first Wave 3 item.
 - **`LICENSE`** — 21 lines of standard MIT text. The repository now displays the MIT badge, the file the `files` array already declared exists, the tarball includes it, and the `license` field agrees with the file (R33).
 - **`CONTRIBUTING.md`** (~360 LoC): development setup (11 commands), the distinction between the three test suites, the ADR-017 coverage gate, Conventional Commits rules with scopes and trailers, a seven-step PR process, five categories that require an ADR and five that do not, a branch-protection checklist, the release process, and six places to ask questions.
 - **`SECURITY.md` reviewed**: reduced to the GitHub Security Advisories channel, removing a placeholder email address rather than letting it block v1. The known-accepted-risks section is kept, covering the three transitive Stagehand advisories and their closure plan.
@@ -1225,9 +1222,8 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **README gains Security, License and Contributing sections** with links to the corresponding files and the installation guide.
 - Full regression: 1555/1555 tests, `npm pack` 525 KB / 300 files (including the 1.1 KB LICENSE), zero schema diff, zero bench regressions.
 
-### Added (T30 — Wave 4 close-out, INSTALLATION.md: corporate proxy, air-gapped, Docker, five platforms)
+### Added (INSTALLATION.md: corporate proxy, air-gapped, Docker, five platforms)
 
-- **Closes risk-register R48, R59 and R62.** Wave 4 complete, 5/5.
 - `docs/INSTALLATION.md` (~430 LoC) covering enterprise, cross-platform and offline scenarios:
   - **System requirements** (Node 18+, npm 8+, 500 MB disk, 2 GB RAM, Chromium runtime libraries), split into tier 1 (the 12-configuration CI matrix) and tier 2 (Alpine, ARM64, WSL2 — best effort).
   - **Prerequisites for five platforms**: macOS on both architectures; Ubuntu/Debian with NodeSource and Playwright's dependency installer; **Alpine Linux** with musl, the required packages, and the skip-download plus explicit-executable-path variables; Windows with MSVC build tools, Git Bash recommended and a PowerShell fallback; and WSL2 with a note about not working across the Windows filesystem.
@@ -1237,12 +1233,11 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
   - **Eleven installation error entries**, each with likely cause and fix.
   - **Three verification steps**: version check, `doctor`, and a smoke run that spends no tokens — so a user can confirm the environment in five minutes.
 - README's install section links to the new guide for corporate, Alpine, Docker and air-gapped cases.
-- **Wave 4 complete, 5/5**: package metadata, the CI matrix, the audit gate, the licence gate, the SBOM workflow, Dependabot, and this installation guide.
 - Full regression: 1555/1555 tests, `npm pack` 523 KB / 299 files, zero schema diff, zero bench regressions.
 
-### Added (T27 + T28 + T29 combined — licence CI gate, Dependabot documentation, SBOM workflow)
+### Added (licence CI gate, Dependabot documentation, SBOM workflow)
 
-- **Closes risk-register R28 (Dependabot active) and R29 (SBOM generation), and hardens R30 (licence CI gate).** The npm audit gate had already landed with the CI matrix.
+- Dependabot is active, SBOM generation is wired up, and the licence CI gate is hardened. The npm audit gate had already landed with the CI matrix.
 - **`license-checker` and `@cyclonedx/cyclonedx-npm` become dev dependencies**, replacing one-off `npx` invocations so a CI gate can call them reliably.
 - **Three new scripts**:
   - `license:check` — a 16-entry SPDX allowlist over the production tree, holding the zero-GPL/AGPL invariant.
@@ -1254,9 +1249,9 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **Dependabot verified active**: weekly npm and GitHub Actions scans, minor and patch grouped (cutting PR volume from roughly 20 per week to 3), major bumps ignored for Stagehand, Zod and `@types/node` because those are dedicated migration tasks, with commit-message prefixes and open-PR limits set.
 - Full regression: typecheck, 1555/1555 tests, **licence check clean**, **SBOM generated**, zero schema diff, zero bench regressions, `npm pack` 522 KB / 299 files.
 
-### Added (T26 — Wave 4 GitHub Actions CI matrix, three workflows)
+### Added (GitHub Actions CI matrix, three workflows)
 
-- **Closes risk-register R43.** **The project's first CI of its own.** Before this, `.github/workflows/` held only a post-deploy audit for a downstream service, and "1555 tests green plus 16 Playwright green" rested entirely on one developer machine. Any Windows path-separator, Linux glibc, Node 18-versus-22, or macOS Intel-versus-arm64 native-binary regression would have passed silently. **This promotes "the tests pass" from a claim to a gate.**
+- **The project's first CI of its own.** Before this, `.github/workflows/` held only a post-deploy audit for a downstream service, and "1555 tests green plus 16 Playwright green" rested entirely on one developer machine. Any Windows path-separator, Linux glibc, Node 18-versus-22, or macOS Intel-versus-arm64 native-binary regression would have passed silently. **This promotes "the tests pass" from a claim to a gate.**
 - **`.github/workflows/ci.yml`** (~85 LoC) — a **12-configuration matrix**: ubuntu-latest, macos-13 (Intel), macos-14 (Apple Silicon) and windows-latest, each on Node 18, 20 and 22. Every job runs checkout, setup with npm caching, install, build, tests, a schema idempotence check that fails loudly on an uncommitted diff, and `npm audit --production --audit-level=high`. `fail-fast: false` surfaces every platform problem rather than the first; concurrency cancellation avoids burning minutes on superseded pushes.
 - **`.github/workflows/integration.yml`** (~65 LoC) — real-chromium Playwright plus the forks-pool file-lock race test, on ubuntu-latest only. Installs Chromium with system dependencies once, builds (the race test needs compiled output), then runs both integration suites. On failure it uploads the Playwright report and test results with 7-day retention. A **weekly cron** tracks upstream drift in axe-core, Chromium and Stagehand.
 - **`.github/workflows/coverage.yml`** (~40 LoC) — the coverage floor per the ADR-017 ratchet, on a single configuration to avoid 12× runtime, uploading the report with 14-day retention. Keeping it separate makes "the code is fine everywhere but coverage slipped" distinguishable from "a test broke".
@@ -1264,9 +1259,9 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **Branch protection still to be enabled** in the repository settings: require all three workflows before merging to `main`, and forbid force pushes.
 - Full regression: typecheck, build, 1555/1555 tests, Playwright 16/16, zero bench regressions, zero schema diff, `npm pack` 521 KB / 299 files.
 
-### Changed (T25 — Wave 4 package.json completeness, placeholder org references replaced)
+### Changed (package.json completeness, placeholder org references replaced)
 
-- **Closes risk-register R39, R40, R41, R42 and R-NEW-3.** A large step toward publish readiness.
+- A large step toward publish readiness.
 - **Seven release-critical `package.json` fields added**:
   - `engines` (R39) — Node 16 users now fail at install time rather than at runtime.
   - `os` and `cpu` (R40) — unsupported platform and architecture combinations are skipped.
@@ -1278,9 +1273,9 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **One test unpinned from the old URL** in `tests/reporter-diff.test.ts`.
 - **Full regression**: typecheck, build, 1555/1555 tests, Playwright 16/16, zero bench regressions, zero schema diff after regeneration (the URL change across all 30 schemas is committed), `npm pack` 520 KB.
 
-### Added (T7 — Wave 2 end-to-end coverage: cost guard, MCP stdio, PR diff, trends performance)
+### Added (end-to-end coverage: cost guard, MCP stdio, PR diff, trends performance)
 
-- **Closes risk-register R7, R8, R9 and R10** — four P1 items in one pass. **None of the four spends API credit**: the cost guard uses a tiny budget to exercise the interception path, the MCP test uses pure introspection, the PR diff writes a fixture with a manual procedure, and the trends test is pure rendering.
+- Four end-to-end gaps closed in one pass. **None of the four spends API credit**: the cost guard uses a tiny budget to exercise the interception path, the MCP test uses pure introspection, the PR diff writes a fixture with a manual procedure, and the trends test is pure rendering.
 - **`tests/integration/cost-guard-e2e.test.ts`** (~190 LoC, 3 tests): a real cost guard with a $0.001 budget. It verifies that the budget check throws once accumulated spend passes the cap (via both interception paths), that the ledger persists across guard instances so a second worker sees the first's spend and trips the daily cap, and that per-run isolation holds when one run busts its cap and another does not. **Three incorrect API assumptions were corrected** in the process: `recordUsage` throws by itself, the ledger's day collection is a record rather than an array, and two option fields were misnamed.
 - **`tests/integration/mcp-stdio-e2e.test.ts`** (~170 LoC, 4 tests): spawns the real server binary and drives it over stdio with the MCP client SDK. It verifies that `tools/list` returns at least five tools each with a complete schema, that `list_capabilities` returns the full envelope with per-tool metadata and environment information, that an unknown tool name is cleanly rejected, and that the server survives a rejected call and serves the next one. **Using `list_capabilities` deliberately avoids spending on a model call.**
 - **PR diff fixture and manual procedure**: a generator script, a markdown fixture in GitHub comment format, a JSON fixture, and a ~110 LoC document with an eight-step upload procedure, a ten-item UI checklist, sticky-comment verification, a five-mode failure table, and a recommended production workflow.
@@ -1288,9 +1283,9 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **Newly discovered fixture bug**: the history fixture generator emitted snake_case field names (matching SQLite columns) while the trends renderer consumes camelCase, so rendering the production fixture produced null and NaN values. The generator was corrected, the fixture regenerated, and the smoke test updated.
 - Full regression: typecheck, build, **1548 → 1555 tests (+7)**, **Playwright 14 → 16 (+2)**, zero schema diff, zero bench regressions.
 
-### Fixed (T-NEW-11 — axe `runOnly` missed Level A violations, P0)
+### Fixed (axe `runOnly` missed Level A violations)
 
-- **Closes risk-register R-NEW-11**, a production bug found while verifying the axe integration. `handleAssertA11y` passed the default standard to axe-core as a single-element array, and axe's `runOnly` matches exactly, so **only rules tagged `wcag2aa` ran and no Level A rule did**. Every audit run at the default setting silently missed `image-alt`, `label`, `button-name`, `link-name` and the rest of Level A.
+- A production bug found while verifying the axe integration. `handleAssertA11y` passed the default standard to axe-core as a single-element array, and axe's `runOnly` matches exactly, so **only rules tagged `wcag2aa` ran and no Level A rule did**. Every audit run at the default setting silently missed `image-alt`, `label`, `button-name`, `link-name` and the rest of Level A.
 - **Fix**, aligned with axe-core's own guidance: a new `expandAxeStandard()` in `src/core/wcag.ts` (~70 LoC) expands a standard into its full cumulative tag list, and the handler uses it instead of wrapping the raw value.
 - **Schema change**: the standard enum gains `wcag22a`, which axe defines but the enum had omitted. This is an input constraint, not the output result contract, so widening it from seven to eight accepted values does not force a major bump, and the result schema is unchanged.
 - **12 new unit tests** covering all eight enum values, the unknown-value fallback, array isolation, a Level A regression guard, and the complete six-tag expansion.
@@ -1299,9 +1294,9 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - Full regression: typecheck, build, **1536 → 1548 tests (+12)**, Playwright 14/14, zero schema diff, zero bench regressions.
 - Design and the six rejected alternatives: [ADR-030](docs/decisions/ADR-030-axe-standard-cumulative-expansion.md).
 
-### Added (T6 — Wave 2 real axe and SARIF code-scanning verification)
+### Added (real axe and SARIF code-scanning verification)
 
-- **Closes risk-register R6**: real axe-core runs against a fixture, the SARIF output shape, rule IDs and W3C help URLs are all covered by integration tests, and the manual code-scanning upload procedure is documented.
+- Real axe-core runs against a fixture, the SARIF output shape, rule IDs and W3C help URLs are all covered by integration tests, and the manual code-scanning upload procedure is documented.
 - `tests/integration/playwright/wcag-axe.test.ts` (~330 LoC, 5 tests):
   - **Real axe scan**: launch chromium, load the deliberately broken fixture, inject axe, run it, and assert the expected violations each carry WCAG tags.
   - **Tag parsing**: every violation's tags resolve to a proper success-criterion object with a dotted id, a conformance level and a principle.
@@ -1314,9 +1309,9 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **Derived discovery**: running the fixture is what exposed the Level A detection gap described above, which was filed as its own P0 task.
 - Full regression: typecheck, build, 1536/1536 tests, Playwright 14/14 in 18s, zero schema diff, zero bench regressions.
 
-### Added (T4 — Wave 2 browser-only recorder paths and real-chromium PDF export)
+### Added (browser-only recorder paths and real-chromium PDF export)
 
-- **Closes risk-register R3**: the recorder's in-page lazy-load and document-height callbacks, and the PDF exporter's real chromium path, now run in CI.
+- The recorder's in-page lazy-load and document-height callbacks, and the PDF exporter's real chromium path, now run in CI.
 - `tests/integration/playwright/recorder.test.ts` (~280 LoC, 3 tests):
   - **Lazy-load fixture**: real chromium plus segment capture, verifying the full-page sidecar hash, the thumbnail buffer on either the fast or fallback path, that every segment is a valid PNG, and the file naming convention.
   - **Dense-scroll fixture**: a document over 20000px verifies the five-segment cap arithmetic and that at least four of the five segments hash differently, proving they captured distinct scroll positions.
@@ -1324,7 +1319,7 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **The in-page callbacks now genuinely execute in chromium.** Recorder function coverage had been 61.9% because the lazy-scroll interval and document-height read counted as uncovered.
 - Full regression: typecheck, build, 1536/1536 tests, Playwright 9/9 in 18s, zero bench regressions.
 
-### Added (T2 — Wave 1 integration test scaffold)
+### Added (integration test scaffold)
 
 - **Playwright Test added** as a dev dependency, sharing the already-cached chromium binary.
 - **`playwright.config.ts`** (~70 LoC): the integration test directory, a 30s timeout, two retries, two workers, headless, trace on first retry, screenshot and video on failure, a 1280×720 viewport matching the PDF reporter, list plus HTML reporting locally and GitHub reporting in CI, and a Desktop Chrome project.
@@ -1336,7 +1331,7 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **Scripts and ignores updated** for the new runner's output directories.
 - **Full regression**: typecheck, build, 1536/1536 tests, smoke 6/6, zero bench regressions.
 
-### Fixed (T1 — Wave 1 cross-process file-lock race flake)
+### Fixed (cross-process file-lock race flake)
 
 - **Six months of accumulated debt closed.** The cross-process race section of `tests/file-lock.test.ts` had failed roughly 10–15% of the time under the parallel suite since it shipped, while passing 20/20 in isolation, and had been marked "unrelated to this task" 18 times.
 - Root cause: under vitest's default threads pool, sibling worker threads share OS-level scheduling primitives, so when another test spawns child processes concurrently the race test's lock acquisition intermittently fails.
@@ -1344,7 +1339,7 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - **Verification**: 20 consecutive runs, 20/20, zero flakes; the default suite stays fully green.
 - Design and rejected alternatives: [ADR-029](docs/decisions/ADR-029-file-lock-race-isolation.md).
 
-### Security & Compliance (T0.6 — Wave 0 licence audit, Dependabot, SECURITY.md)
+### Security & Compliance (licence audit, Dependabot, SECURITY.md)
 
 - **Licence audit**: all 288 production packages audited — **no GPL, AGPL or SSPL contamination**. 213 MIT, 34 Apache-2.0, 19 BSD-3-Clause, 13 ISC, 3 BSD-2-Clause, 1 MPL-2.0 (axe-core, weak copyleft, non-infectious), 1 LGPL-3.0-or-later (the libvips binary pulled in by sharp, dynamically linked and documented), and 4 other compatible licences. Fully compatible with commercial use.
 - **`docs/THIRD_PARTY_LICENSES.md`**: full disclosure including the libvips LGPL rationale (dynamic linking, and the binary is fetched by the user's own install), the Chromium mixed-licence note (fetched by Playwright's postinstall, not redistributed here), the axe-core MPL note, and the allowlist policy covering the 16 SPDX identifiers reviewed for v1.0.
@@ -1354,7 +1349,7 @@ Full regression: typecheck, build, **1608 → 1664 tests (+56)**, `lint:no-conso
 - CI gates for audit, licence checking and SBOM generation are configured here and wired up in later tasks.
 - Full regression: typecheck, build, 1538/1538 tests, zero schema diff, zero bench regressions.
 
-### Security & Dependencies (T0.5 — Wave 0 urgent remediation)
+### Security & Dependencies (urgent remediation)
 
 - **Anthropic SDK 0.39.0 → 0.92.0** — 53 minor versions, with no breaking-change section anywhere in the intervening changelog; no code changes were needed and all 1538 tests passed.
 - **Critical advisories fixed**: a protobufjs RCE (GHSA-xq3m-2v4x-88gg) and a hono JSX SSR XSS (GHSA-458j-xx4x-4375), both patched via `npm audit fix`. Three transitive advisories remain, reached through Stagehand's dependencies, none exploitable in this usage; they are recorded as waivers in `SECURITY.md` and clear with the Stagehand v3 upgrade.

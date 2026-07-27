@@ -1,5 +1,5 @@
 /**
- * T5 — Stagehand smoke e2e (closes RISK-REGISTER R2).
+ * Stagehand smoke end-to-end test.
  *
  * Real chromium + real Stagehand + real Anthropic API. This is the only
  * test in the suite that calls the LLM with a real key, so:

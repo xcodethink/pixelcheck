@@ -457,4 +457,4 @@ full AI-driven audit. See the [Quick Start in README](../README.md#quick-start).
 
 ---
 
-**Last updated**: 2026-05-01 (T30 — Wave 4 close)
+**Last updated**: 2026-05-01

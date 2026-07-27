@@ -2,7 +2,6 @@
 
 - **Status**: Superseded by [ADR-035](ADR-035-stagehand-v3-migration.md) (2026-05-03; originally filed as ADR-029, renumbered 2026-05-05)
 - **Date**: 2026-05-01
-- **Task**: T0.5 (Wave 0 dependency upgrade)
 
 > **Update 2026-05-03**: the migration ran earlier than the "early v1.1" plan
 > below — see ADR-035 for the actual record. The transitive vulnerability
@@ -63,8 +62,7 @@ versions — but that upgrade is its own task.
 
 ## Decision
 
-**v1.0 ships Stagehand v2.5.8. The v3 upgrade becomes a standalone task in the
-risk register.**
+**v1.0 ships Stagehand v2.5.8. The v3 upgrade becomes a standalone task.**
 
 - `package.json` keeps `"@browserbasehq/stagehand": "^2.0.0"`, pinned to the v2
   major.
@@ -91,7 +89,7 @@ risk register.**
 
 ## Consequences
 
-- The v3 upgrade enters the risk register as P0 for v1.1.
+- The v3 upgrade is scheduled as a P0 task for v1.1.
 - v1.0's `SECURITY.md` documents the three transitive advisories with the
   non-exploitability rationale.
 - The `--audit-level=high` gate does not block on those three moderates.
@@ -114,5 +112,4 @@ the v1.1 release:
 
 - `package.json` — `"@browserbasehq/stagehand": "^2.0.0"` (unchanged; compatible with the `dotenv@^16` peer dependency)
 - `docs/decisions/ADR-028-stagehand-v3-deferred.md` (this file)
-- Risk register — added the Stagehand v3 upgrade as P0 for v1.1
 - `SECURITY.md` — the three transitive advisory waivers

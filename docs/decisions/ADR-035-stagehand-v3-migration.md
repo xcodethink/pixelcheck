@@ -2,7 +2,7 @@
 
 > **Numbering note**: Originally filed as ADR-029 alongside the stagehand v3 PR
 > (#15) on 2026-05-03. Renumbered to ADR-035 on 2026-05-05 because
-> ADR-029-file-lock-race-isolation (the M9-3.2 file-lock fix, Wave 1) had
+> ADR-029-file-lock-race-isolation (the file-lock fix) had
 > already taken the 029 slot two days earlier (commit `91b2805`, 2026-05-01).
 > First-to-commit wins; this ADR moves to the next available slot after
 > ADR-034. All references in CHANGELOG / SECURITY.md / docs/releases /
@@ -10,7 +10,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-03
-- **Task**: T-NEW-1 (originally deferred per [ADR-028](ADR-028-stagehand-v3-deferred.md))
+- **Context**: originally deferred per [ADR-028](ADR-028-stagehand-v3-deferred.md))
 - **Supersedes**: ADR-028's deferral decision
 
 ## Context

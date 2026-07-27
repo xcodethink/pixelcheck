@@ -537,7 +537,7 @@ async function handleAssertA11y(
     // Run axe analysis.
     //
     // axe `runOnly: ["wcag2aa"]` is EXACT match — only rules tagged
-    // wcag2aa run, NOT A-level rules. Pre-T-NEW-11 the handler passed
+    // wcag2aa run, NOT A-level rules. The handler previously passed
     // `[standard]` which silently missed Level A violations
     // (image-alt / label / button-name etc). Now we expand via
     // expandAxeStandard so e.g. wcag2aa → ["wcag2a", "wcag2aa"] and

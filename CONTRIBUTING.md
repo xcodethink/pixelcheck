@@ -208,7 +208,7 @@ Optional `(scope)` after type — usually a module name:
 
 ```
 feat(reporter-pdf): add WCAG compliance section
-fix(handlers): handleAssertA11y axe expansion (T-NEW-11)
+fix(handlers): handleAssertA11y axe expansion
 chore(deps): bump Anthropic SDK 0.39 → 0.92
 ```
 
@@ -217,7 +217,7 @@ chore(deps): bump Anthropic SDK 0.39 → 0.92
 - Subject ≤ 80 chars, present tense ("add", not "added")
 - Body wraps at ~80 chars, explains **why** not what
 - Reference task IDs (`T19`, `M5-7`) and risk IDs (`R23`, `R-NEW-11`)
-  when relevant — links to RISK-REGISTER-V2 / EXECUTION-PLAN
+  when relevant — links to the issue or ADR it addresses
 
 ### Co-author trailer (when AI-assisted)
 
@@ -240,7 +240,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 6. **Update `docs/decisions/ADR-XXX.md`** for non-trivial design decisions
    (more than ~50 LoC of new behaviour, or anything that ties downstream
    code to your choice)
-7. **Close any RISK-REGISTER-V2 entries** your PR resolves — mark them
+7. **Close any issues** your PR resolves — mark them
    ✅ in the same PR
 
 ### What gets merged fast
@@ -268,7 +268,6 @@ Significant design decisions are recorded as ADRs in
 
 - Status: Proposed / Accepted / Superseded
 - Date: YYYY-MM-DD
-- Task: M1-2 / T-NEW-11 / etc.
 
 ## Context
 What problem are we solving? What are the constraints?
@@ -352,4 +351,4 @@ in the planning repo.
 
 ---
 
-**Last updated**: 2026-05-01 (T19 — Wave 3 governance docs)
+**Last updated**: 2026-05-01

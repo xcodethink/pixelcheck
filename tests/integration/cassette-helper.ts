@@ -1,5 +1,5 @@
 /**
- * Cassette helper for LLM e2e tests (T3 — closes RISK-REGISTER R1).
+ * Cassette helper for LLM end-to-end tests.
  *
  * Why this exists:
  * Pre-T3 the project had ZERO real-LLM-end-to-end tests. Every Anthropic

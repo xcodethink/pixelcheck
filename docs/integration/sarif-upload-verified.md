@@ -3,7 +3,7 @@
 **Status**: SOP documented; **manual GHCS UI screenshot pending v1.0-rc1**
 (needs a real GitHub repo with Code Scanning enabled).
 
-This doc is the **manual half** of T6 (closes RISK-REGISTER-V2 R6). The
+This doc is the **manual half** of the SARIF verification. The
 automated half — verifying our SARIF output is structurally valid and
 contains the expected `wcag/X-Y-Z` ruleIds + W3C help URLs — runs in CI
 via `tests/integration/playwright/wcag-axe.test.ts`.
@@ -152,7 +152,7 @@ GHCS UI redesign).
 
 | Failure | Likely cause | Fix |
 |---|---|---|
-| Alert count != 6 | `renderSarif` deduplicating differently OR fixture changed | Run `npx tsx scripts/gen-sarif-fixture.ts` to regenerate. If diff seems intentional, update this doc + RISK-REGISTER-V2. |
+| Alert count != 6 | `renderSarif` deduplicating differently OR fixture changed | Run `npx tsx scripts/gen-sarif-fixture.ts` to regenerate. If the diff is intentional, update this doc. |
 | "View documentation" link missing | `helpUri` not set on rule (regression in `buildRule`) | Check `src/core/ci-reporters.ts buildRule` — WCAG branch must set `helpUri = wcagHelpUrl(sc)` |
 | Help section shows raw markdown text | GHCS started rendering `help.text` instead of `help.markdown` | Update `buildRule` to put the same content in both fields |
 | Wrong WCAG SC name in shortDescription | `WCAG_CATALOG` (in `src/core/wcag.ts`) wrong | Check W3C TR/WCAG22 official table; update catalog |

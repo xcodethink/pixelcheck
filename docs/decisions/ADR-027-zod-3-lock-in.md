@@ -2,7 +2,6 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: T0.5 (Wave 0 dependency upgrade)
 
 ## Context
 
@@ -43,7 +42,7 @@ v1.1.x evaluation.**
 
 - `package.json` keeps `"zod": "^3.25.76"`, so 3.x patches are still picked up
   automatically.
-- The v4 upgrade is tracked as its own task in the risk register.
+- The v4 upgrade is tracked as its own task.
 - Re-evaluate when any of these hold: (a) Zod v3 goes maintenance-only or gets a
   critical CVE; (b) there is a concrete need for a v4-only feature; (c)
   `zod-to-json-schema` ships a stable v4-compatible release.
@@ -85,4 +84,3 @@ v1.1.x evaluation.**
 
 - `package.json` — `"zod": "^3.25.76"` (unchanged)
 - `docs/decisions/ADR-027-zod-3-lock-in.md` (this file)
-- Risk register — added the Zod v4 upgrade evaluation task

@@ -70,13 +70,13 @@ v1.x work.
 | 029 | File-lock cross-process race tests in dedicated forks-pool | M9-3.2 (T1) |
 | 031 | CI bench in observation mode (5-run calibration window) | T10 |
 
-### v1.0 release-readiness (T-NEW-11 / Wave 0)
+### v1.0 release-readiness
 
 | # | Title | Task |
 |---|---|---|
 | 027 | Lock Zod v3 (defer Zod v4 to v1.x) | T0.5 |
 | 028 | Defer Stagehand v3 upgrade to v1.1 | T0.5 (superseded by 035) |
-| 030 | axe-core standard cumulative expansion | T-NEW-11 |
+| 030 | axe-core standard cumulative expansion | — |
 | 032 | Vendor stealth-core into src/vendor/ for tarball-installable v1.0 | T31.5 |
 
 ### v1.x rebrand + dependency wave (post-v1.0)
@@ -85,7 +85,7 @@ v1.x work.
 |---|---|---|
 | 033 | Rename ai-browser-auditor → PixelCheck + AI-first MCP repositioning | v1.0 brand |
 | 034 | Multi-dimensional result envelope (`diagnostics` field) — Phase 0 | Phase 0 |
-| 035 | Stagehand v3.3.0 migration with Playwright + CDP bridge (originally filed as ADR-029) | T-NEW-1 |
+| 035 | Stagehand v3.3.0 migration with Playwright + CDP bridge (originally filed as ADR-029) | — |
 
 ---
 
