@@ -7,11 +7,25 @@
 # checkout, refuses to publish if the tag doesn't match package.json, and
 # publishes with npm provenance.
 #
-# One-time setup (repo owner):
-#   - Add an automation `NPM_TOKEN` (npmjs.com → Access Tokens → Granular,
-#     publish scope for the `pixelcheck` package) to repo Actions secrets.
-#   - That's it — `id-token: write` below lets npm attach a provenance
-#     attestation linking the tarball to this workflow run + commit.
+# Authentication is moving from a stored token to npm trusted publishing
+# (OIDC), because a stored token is a credential that can leak and that expires
+# — the current one expires around 2026-08-31. With trusted publishing there is
+# no secret at all: npm verifies the OIDC token GitHub mints for this workflow.
+#
+# One-time setup (repo owner, web UI only — it cannot be scripted):
+#   npmjs.com → the pixelcheck package → Settings → Trusted publisher
+#     Organization or user: xcodethink
+#     Repository:           pixelcheck
+#     Workflow filename:    release.yml     (filename, not a path)
+#     Environment:          (leave empty)
+#   npm does not validate these on save, so a typo only shows up as a failed
+#   publish. The names above must match this file exactly.
+#
+# Until that is configured, NODE_AUTH_TOKEN below keeps the pipeline working:
+# the npm CLI prefers OIDC when it is available and falls back to the token
+# otherwise. Once a release has published via OIDC, the token and its secret
+# can be deleted — tracked as a follow-up rather than done blind here, because
+# removing the fallback before OIDC is proven would break the next release.
 #
 # Cutting a release:
 #   npm version <patch|minor|major>   # bumps package.json + creates the tag
@@ -45,9 +59,19 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          # Trusted publishing needs Node >= 22.14. This is the publishing
+          # runtime only — `engines.node` still declares >= 20 and CI still
+          # tests 20 and 22, so this does not narrow what consumers can run.
+          node-version: 22
           cache: npm
           registry-url: "https://registry.npmjs.org"
+
+      - name: Upgrade npm for trusted publishing
+        # Node 22 bundles npm 10.9.x; OIDC publishing needs >= 11.5.1, so the
+        # bundled version is not enough and pinning the floor is not optional.
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
 
       - name: npm ci
         run: npm ci
@@ -83,8 +107,13 @@ jobs:
           fi
 
       - name: Publish (with provenance)
-        # publishConfig.access is already "public"; --provenance attaches the
-        # build attestation. prepublishOnly re-runs build+test as a final guard.
+        # publishConfig.access is already "public". Provenance is generated
+        # automatically under trusted publishing; --provenance stays so the
+        # attestation is still produced on the token fallback path.
+        #
+        # NODE_AUTH_TOKEN is the fallback described at the top of this file.
+        # Remove it, and the repository secret, once a release has published
+        # via OIDC.
         run: npm publish --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
