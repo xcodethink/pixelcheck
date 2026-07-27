@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-07-27 — concurrency correctness, and a third smaller package
+
+> Contains a correctness fix worth taking: under contention the file lock could
+> admit two processes to the critical section at once and lose a write. That
+> lock guards the daily cost ledger, the result cache and the history database.
+
 ### Fixed
 - `withFileLock` and `withFileLockSync` could let two processes into the
   critical section at once, losing writes. The reclaim path treated "no holder
@@ -2080,6 +2086,7 @@ before merge). Fully additive — no breaking changes from v0.2.0.
 - **Stripe safety**: refuses to start if `pk_live_` keys detected in env
 - **Documentation**: architecture guide, scenario authoring guide, persona design guide, CI integration guide
 
+[1.4.3]: https://github.com/xcodethink/pixelcheck/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/xcodethink/pixelcheck/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/xcodethink/pixelcheck/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/xcodethink/pixelcheck/compare/v1.3.0...v1.4.0
