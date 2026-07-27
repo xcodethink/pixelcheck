@@ -14,7 +14,7 @@
  *   - dom-summary, takeSnapshot, executeStep, runCritic, waitForPageStable
  *
  * Coverage target: ≥ 70% stmt for src/agent/agent-loop.ts.
- * Lower bar than other Wave 6 modules because the loop has many edge
+ * Lower bar than the other orchestration modules because the loop has many edge
  * paths (cache success-count tracking, micro-replan kinds, stuck/loop
  * branches) that need many orchestration tests; we cover the major
  * convergence reasons and the catch path.

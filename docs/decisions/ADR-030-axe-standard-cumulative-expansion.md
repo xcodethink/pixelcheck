@@ -2,8 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: T-NEW-11 (derived from the T6 axe + SARIF verification)
-- **Closes**: risk-register entry R-NEW-11
+- **Context**: derived from the axe + SARIF verification work
 
 ## Context
 

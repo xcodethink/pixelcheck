@@ -85,7 +85,7 @@ export default defineConfig({
         //   M1-2 Phase 3 recorder:            67 / 59 / 71 / 68 → floor 60/54/60/60
         //     (recorder.ts 0% → 82.82% stmt; +1.40 project gain)
         //   M1-2 Phase 3 reporter (T12):      70 / 61 / 74 / 71 → floor 61/55/61/61
-        //     (reporter.ts 0% → 99.11% stmt; +2.82 project gain; +1pt per Wave 6 phase)
+        //     (reporter.ts 0% → 99.11% stmt; +2.82 project gain)
         //   M1-2 Phase 3 computer-use (T16): 72 / 63 / 75 / 73 → floor 62/56/62/62
         //     (computer-use.ts 2.4% → 92.07% stmt; +2.34 project gain; +1pt)
         //   M1-2 Phase 3 runner (T13):       74 / 64 / 77 / 75 → floor 63/57/63/63
@@ -94,7 +94,7 @@ export default defineConfig({
         //     (handlers/index.ts 0.4% → 90.04% stmt; +3.43 project gain; +1pt)
         //   M1-2 Phase 3 agent-loop (T14):   81 / 69 / 81 / 82 → floor 65/59/65/65
         //     (agent-loop.ts 0.4% → 77.35% stmt; +2.86 project gain; CROSSED 80%
-        //      on stmt/funcs/lines; Wave 6 close: floor 60/54/60/60 → 65/59/65/65)
+        //      on stmt/funcs/lines; floor raised 60/54/60/60 → 65/59/65/65)
         //   T14 follow-up + vendor exclude:  81 / 69 / 81 / 82 → floor 66/60/66/66
         //     (agent-loop +8 tests for criterion verification dispatcher /
         //      screenshot catch / micro-replan escalate; agent-loop 77.35→88.46%;

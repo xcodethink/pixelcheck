@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Measure peak RSS memory across the heaviest in-process workloads
- * (closes RISK-REGISTER R52 — "audit memory peak baseline").
+ * Establishes an audit memory peak baseline.
  *
  * Why a separate script (not a bench):
  * vitest `bench` measures throughput (ops/sec); peak memory is a

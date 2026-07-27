@@ -93,7 +93,7 @@ Restart your client. Your agent has eyes.
 
 **Local-first.** PixelCheck runs entirely on your machine. The only outbound network destination is the LLM provider your agent already uses. Screenshots, DOMs, business flows, OAuth tokens, customer URLs — they stay yours. Zero telemetry. Zero remote storage. Zero SaaS sign-up. The audit data hits Anthropic only when the vision critic actively scores a screenshot, and you opt in once on first run.
 
-**Vendor-agnostic.** Works with Claude today; multi-provider abstraction (OpenAI, Gemini, Ollama-local) is on the v1.x Wave 2 roadmap and your agent will switch with one config flag. The reason is simple: AI tools that lock you to a single LLM provider die in 2026. PixelCheck is the antidote.
+**Vendor-agnostic.** Works with Claude today; multi-provider abstraction (OpenAI, Gemini, Ollama-local) is on the v1.x roadmap and your agent will switch with one config flag. The reason is simple: AI tools that lock you to a single LLM provider die in 2026. PixelCheck is the antidote.
 
 **Yours to own.** MIT license. Source-available. No paid tier. No "Pro" upgrade path. No commercial fork waiting in the wings. The 1858-test, 29-ADR, 30-published-schema product in this repo *is* the entire product. There's no premium edition behind a sign-up wall — never was, never will be.
 

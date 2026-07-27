@@ -1,5 +1,5 @@
 /**
- * Recorder browser-only integration test (T4 — closes RISK-REGISTER R3).
+ * Recorder browser-only integration test.
  *
  * Validates the things tests/recorder.test.ts (vitest mock Page) cannot:
  *   1. recorder.triggerLazyLoad() inner page.evaluate() runs in a real

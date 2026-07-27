@@ -4,7 +4,7 @@
 # Steps: clean install → build → unit tests → schemas idempotence
 #        → npm audit (production, level=high).
 #
-# Why this exists (T26 closes RISK-REGISTER R43):
+# Why this exists:
 # Pre-T26 the project had ZERO CI workflows running its own tests —
 # `npm test` was only ever validated locally on the maintainer's
 # M-series Mac. Any cross-platform regression (Windows path separator,

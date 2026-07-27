@@ -355,7 +355,7 @@ export function isWcagIssue(issue: Issue): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────
-// axe-core standard → tag expansion (T-NEW-11 — closes RISK-REGISTER R-NEW-11)
+// axe-core standard → tag expansion
 // ─────────────────────────────────────────────────────────────
 
 /**
@@ -371,7 +371,7 @@ export function isWcagIssue(issue: Issue): boolean {
  *   expandAxeStandard("wcag2aa")  → ["wcag2a", "wcag2aa"]
  *   expandAxeStandard("wcag22aa") → ["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22a","wcag22aa"]
  *
- * Pre-T-NEW-11 the production handler passed `[standard]` directly, which
+ * The production handler previously passed `[standard]` directly, which
  * meant a `standard: "wcag2aa"` audit silently missed Level A violations
  * (image-alt / label / button-name etc). The integration test in
  * tests/integration/playwright/wcag-axe.test.ts caught this.

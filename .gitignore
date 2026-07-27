@@ -43,7 +43,7 @@ docs/assets/og-*
 # Internal Claude Code session work, planning, governance + thinking process.
 # NONE of this belongs in a public repo. 2026-07-25: reversed the earlier
 # "public governance records" exception — session progress, plans, retros,
-# risk registers, release-readiness + handoff protocols are all internal and
+# internal planning and handoff notes are not public and
 # were stripped from the whole GitHub history via git filter-repo.
 progress/
 

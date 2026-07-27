@@ -337,4 +337,4 @@ We follow [Keep a Changelog](https://keepachangelog.com/) format.
 
 ---
 
-**Last updated**: 2026-05-01 (T20 — Wave 3 stability commitment)
+**Last updated**: 2026-05-01

@@ -1,6 +1,6 @@
 # Performance benchmark — observation mode.
 #
-# Why this exists (T10 closes RISK-REGISTER R51 / R52 / R53):
+# Why this exists:
 #
 # The local `npm run bench:check` regression gate (M6-7) is calibrated on
 # the maintainer's M-series Mac. Before we promote it to a hard CI gate

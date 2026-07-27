@@ -2,8 +2,6 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-01
-- **Task**: T1 (Wave 1 baseline)
-- **Closes**: risk-register entry R4
 
 ## Context
 

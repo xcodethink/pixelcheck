@@ -296,4 +296,4 @@ links / CI:
 
 ---
 
-**Last updated**: 2026-05-02 (T24 — Wave 3 close)
+**Last updated**: 2026-05-02

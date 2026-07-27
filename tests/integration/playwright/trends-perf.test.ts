@@ -1,5 +1,5 @@
 /**
- * Trends dashboard 100-run performance e2e (T7d — closes RISK-REGISTER R10).
+ * Trends dashboard 100-run performance end-to-end test.
  *
  * What unit tests can't catch:
  *   - reporter-trends.ts SVG renders 5 inline charts; with 100 history

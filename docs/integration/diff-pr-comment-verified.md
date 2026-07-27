@@ -3,7 +3,7 @@
 **Status**: SOP documented; **manual GitHub UI screenshot pending v1.0-rc1**
 (needs a real GitHub repo with PR write access).
 
-This doc is the **manual half** of T7c (closes RISK-REGISTER-V2 R9). The
+This doc is the **manual half** of the PR-diff verification. The
 automated half — verifying our `renderDiffMarkdown()` produces correct
 GFM markdown with delta arrows + emojis + tables — runs in vitest unit
 tests (`tests/reporter-diff.test.ts`).

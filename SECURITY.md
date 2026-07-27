@@ -45,7 +45,7 @@ ships and downstream users have time to upgrade.
 
 ## Known Accepted Risks (v1.0.0)
 
-> **Update 2026-05-03**: T-NEW-1 (Stagehand v3 upgrade) executed earlier
+> **Update 2026-05-03**: the Stagehand v3 upgrade was executed earlier
 > than planned — see [ADR-035](docs/decisions/ADR-035-stagehand-v3-migration.md)
 > (originally filed as ADR-029, renumbered 2026-05-05 to resolve a slot
 > conflict with the M9-3.2 file-lock-race ADR).

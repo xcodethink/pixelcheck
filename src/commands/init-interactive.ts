@@ -2,7 +2,7 @@
 /**
  * `pixelcheck init` (no args) — interactive wizard for first-run setup.
  *
- * Why this exists (T23 closes RISK-REGISTER R46):
+ * Why this exists:
  * The legacy `pixelcheck init <dir>` is non-interactive (CI-friendly).
  * For a human running `pixelcheck init` cold, an interactive wizard
  * prompting for project name / base URL / API key / first scenario is

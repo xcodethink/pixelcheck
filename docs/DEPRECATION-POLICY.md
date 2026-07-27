@@ -107,7 +107,7 @@ In v2.0:
 
 ## What is NOT eligible (no advance deprecation; ship in major directly)
 
-✗ **Critical security fix** — fix in patch / minor with a CHANGELOG `### Security` entry; document trade-off (e.g., T-NEW-11 a11y
+✗ **Critical security fix** — fix in patch / minor with a CHANGELOG `### Security` entry; document the trade-off (for example the a11y
 fix in v1.0 changed audit results — pre-v1.0 deprecation cycle was impossible)
 ✗ **Result Schema major version bump** (v1.2 → v2.0) — coordinated with
 the next major release; users see explicit `schema_version` change
@@ -215,4 +215,4 @@ v2.0.0:
 
 ---
 
-**Last updated**: 2026-05-01 (T20 — Wave 3 stability commitment)
+**Last updated**: 2026-05-01

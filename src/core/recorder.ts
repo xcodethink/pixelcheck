@@ -417,7 +417,7 @@ export class Recorder {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Sensitive input redaction (T22 — closes RISK-REGISTER R37)
+// Sensitive input redaction
 // ─────────────────────────────────────────────────────────────
 
 /**
