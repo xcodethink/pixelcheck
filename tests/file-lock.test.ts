@@ -18,6 +18,7 @@ import {
   withFileLockSync,
   FileLockTimeout,
   _setClockForTests,
+  _reclaimIfUnchangedForTests,
 } from "../src/core/file-lock.js";
 
 function tmpDir(): string {
@@ -167,6 +168,60 @@ describe("withFileLockSync", () => {
   it("acquires + releases in synchronous flow", () => {
     const got = withFileLockSync(lockPath, () => 7);
     expect(got).toBe(7);
+    expect(fs.existsSync(lockPath)).toBe(false);
+  });
+
+  it("reclaim refuses to delete a lockfile that no longer matches", () => {
+    // This is the mechanism the fix adds, tested directly because the race it
+    // prevents cannot be reproduced from outside the function: the judgement
+    // and the unlink happen inside one call, with no seam to interpose on.
+    //
+    // The bug it prevents: the reclaim path unlinked whatever sat at the lock
+    // path, without re-checking it was still the lockfile it had judged
+    // reclaimable. Under churn that deletes a live holder's lock and admits a
+    // second process to the critical section.
+    const lockPath = path.join(dir, "identity.lock");
+    const original = { pid: 999_999, acquiredAt: new Date(0).toISOString() };
+    const replacement = { pid: process.pid, acquiredAt: new Date().toISOString() };
+
+    // A different holder now owns the path — reclaiming must be refused.
+    fs.writeFileSync(lockPath, JSON.stringify(replacement));
+    _reclaimIfUnchangedForTests(lockPath, original);
+    expect(fs.existsSync(lockPath)).toBe(true);
+    expect(JSON.parse(fs.readFileSync(lockPath, "utf-8")).pid).toBe(
+      replacement.pid,
+    );
+
+    // The same holder still owns it — reclaiming proceeds.
+    fs.writeFileSync(lockPath, JSON.stringify(original));
+    _reclaimIfUnchangedForTests(lockPath, original);
+    expect(fs.existsSync(lockPath)).toBe(false);
+  });
+
+  it("reclaim of an unparseable lockfile backs off if it becomes valid", () => {
+    // The other branch: an unparseable lockfile is reclaimable because nobody
+    // can prove it stale. But if it parses by the time we look again, a
+    // healthy holder owns it and it must be left alone.
+    const lockPath = path.join(dir, "identity-corrupt.lock");
+
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() }));
+    _reclaimIfUnchangedForTests(lockPath, null);
+    expect(fs.existsSync(lockPath)).toBe(true);
+
+    fs.writeFileSync(lockPath, "{ not json");
+    _reclaimIfUnchangedForTests(lockPath, null);
+    expect(fs.existsSync(lockPath)).toBe(false);
+  });
+
+  it("still reclaims a lockfile that is unparseable rather than deadlocking", () => {
+    // The other half of the same change. A lockfile that exists but cannot be
+    // parsed has no holder to prove stale, so every waiter would block until
+    // the staleness timeout. It must still be reclaimed.
+    const lockPath = path.join(dir, "corrupt-sync.lock");
+    fs.writeFileSync(lockPath, "{ this is not json");
+
+    const result = withFileLockSync(lockPath, () => "ran", { timeoutMs: 1000 });
+    expect(result).toBe("ran");
     expect(fs.existsSync(lockPath)).toBe(false);
   });
 
