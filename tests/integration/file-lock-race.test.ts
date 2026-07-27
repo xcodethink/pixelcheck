@@ -147,3 +147,66 @@ process.exit(0);
     expect(final).toBe(ITERATIONS * 3);
   }, 90_000);
 });
+
+describe("withFileLockSync — high-churn contention smoke", () => {
+  it(
+    "serialises correctly when the lock is acquired and released constantly",
+    async () => {
+      // Shape matters: many processes, many iterations, and a critical section
+      // short enough that the lockfile is created and destroyed constantly.
+      // The 3x20 test above holds the lock long enough that the contended
+      // paths barely execute.
+      //
+      // This is a smoke test, not a regression guard. It exercises the churn
+      // that exposed a real lost-update bug in the reclaim path, but the race
+      // window is small enough that it does not reliably fail even against the
+      // broken implementation — verified by reverting the fix and running it
+      // five times, all green. The guarantee comes from the deterministic
+      // identity-check tests in tests/file-lock.test.ts; this one only proves
+      // the lock survives heavy contention at all.
+      const PROCS = 12;
+      const ITERATIONS = 60;
+
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lock-churn-"));
+      const counterPath = path.join(dir, "counter.json");
+      const lockPath = `${counterPath}.lock`;
+      fs.writeFileSync(counterPath, JSON.stringify({ n: 0 }));
+
+      const child = `
+const fs = require("node:fs");
+const { withFileLockSync } = require(${JSON.stringify(
+        path.join(process.cwd(), "dist/core/file-lock.js"),
+      )});
+for (let i = 0; i < ${ITERATIONS}; i++) {
+  withFileLockSync(${JSON.stringify(lockPath)}, () => {
+    const d = JSON.parse(fs.readFileSync(${JSON.stringify(counterPath)}, "utf-8"));
+    d.n += 1;
+    fs.writeFileSync(${JSON.stringify(counterPath)}, JSON.stringify(d));
+  }, { timeoutMs: 60000 });
+}
+process.exit(0);
+`;
+
+      const { spawn } = await import("node:child_process");
+      const codes = await Promise.all(
+        Array.from(
+          { length: PROCS },
+          () =>
+            new Promise<number>((resolve, reject) => {
+              const p = spawn(process.execPath, ["-e", child], {
+                cwd: process.cwd(),
+              });
+              p.on("exit", (code) => resolve(code ?? -1));
+              p.on("error", reject);
+            }),
+        ),
+      );
+
+      expect(codes.every((c) => c === 0)).toBe(true);
+      const final = JSON.parse(fs.readFileSync(counterPath, "utf-8")).n as number;
+      expect(final).toBe(PROCS * ITERATIONS);
+      fs.rmSync(dir, { recursive: true, force: true });
+    },
+    120_000,
+  );
+});
