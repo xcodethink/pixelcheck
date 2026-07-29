@@ -7,25 +7,27 @@
 # checkout, refuses to publish if the tag doesn't match package.json, and
 # publishes with npm provenance.
 #
-# Authentication is moving from a stored token to npm trusted publishing
-# (OIDC), because a stored token is a credential that can leak and that expires
-# — the current one expires around 2026-08-31. With trusted publishing there is
-# no secret at all: npm verifies the OIDC token GitHub mints for this workflow.
+# Authentication is npm trusted publishing (OIDC). There is no stored
+# credential: npm verifies the OIDC token GitHub mints for this workflow.
 #
-# One-time setup (repo owner, web UI only — it cannot be scripted):
-#   npmjs.com → the pixelcheck package → Settings → Trusted publisher
-#     Organization or user: xcodethink
-#     Repository:           pixelcheck
-#     Workflow filename:    release.yml     (filename, not a path)
-#     Environment:          (leave empty)
-#   npm does not validate these on save, so a typo only shows up as a failed
-#   publish. The names above must match this file exactly.
+# Confirmed working as of v1.4.4 — the first release published this way. The
+# proof is in the registry metadata rather than any workflow log:
 #
-# Until that is configured, NODE_AUTH_TOKEN below keeps the pipeline working:
-# the npm CLI prefers OIDC when it is available and falls back to the token
-# otherwise. Once a release has published via OIDC, the token and its secret
-# can be deleted — tracked as a follow-up rather than done blind here, because
-# removing the fallback before OIDC is proven would break the next release.
+#   curl -s https://registry.npmjs.org/pixelcheck | jq '.versions["1.4.4"]._npmUser'
+#   { "name": "GitHub Actions",
+#     "email": "npm-oidc-no-reply@github.com",
+#     "trustedPublisher": { "id": "github", "oidcConfigId": "oidc:…" } }
+#
+# Earlier versions show a personal account there, which is what a token publish
+# looks like. Note that `npm view … _npmUser` collapses this to a string and
+# hides the trustedPublisher field — query the registry directly.
+#
+# The npmjs.com side is configured under the package's Settings → Trusted
+# publisher, and must keep matching this file: organisation xcodethink,
+# repository pixelcheck, workflow filename release.yml (filename, not a path),
+# no environment. **Renaming this file breaks publishing**, and npm does not
+# validate the configuration when it is saved, so the failure would only appear
+# during a release.
 #
 # Cutting a release:
 #   npm version <patch|minor|major>   # bumps package.json + creates the tag
@@ -108,12 +110,10 @@ jobs:
 
       - name: Publish (with provenance)
         # publishConfig.access is already "public". Provenance is generated
-        # automatically under trusted publishing; --provenance stays so the
-        # attestation is still produced on the token fallback path.
+        # automatically under trusted publishing; --provenance is kept explicit
+        # so the intent survives if the publish path ever changes again.
         #
-        # NODE_AUTH_TOKEN is the fallback described at the top of this file.
-        # Remove it, and the repository secret, once a release has published
-        # via OIDC.
+        # No NODE_AUTH_TOKEN: authentication is OIDC. If this step fails with an
+        # authentication error, the trusted publisher configuration on npmjs.com
+        # no longer matches this file — check the workflow filename first.
         run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
