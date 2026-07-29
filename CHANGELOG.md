@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-07-28 — first release authenticated by trusted publishing
+
+> Nothing changes for consumers of the package. This release exists to exercise
+> the publish path: npm trusted publishing (OIDC) is now configured, and the
+> only way to confirm it works is to publish with it. The stored token is still
+> present as a fallback, so this is a test with a safety net rather than a leap.
+>
+> Check `npm view pixelcheck --json` afterwards: `_npmUser` naming
+> `GitHub Actions` with a `trustedPublisher` field means OIDC carried the
+> publish; the personal account means it fell back to the token.
+
 ### Fixed
 - `npm run build` now restores the executable bit on the compiled bin entry
   points. `tsc` emits plain 0644 files, and the shebang in `src/cli.ts` does
@@ -2097,6 +2108,7 @@ before merge). Fully additive — no breaking changes from v0.2.0.
 - **Stripe safety**: refuses to start if `pk_live_` keys detected in env
 - **Documentation**: architecture guide, scenario authoring guide, persona design guide, CI integration guide
 
+[1.4.4]: https://github.com/xcodethink/pixelcheck/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/xcodethink/pixelcheck/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/xcodethink/pixelcheck/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/xcodethink/pixelcheck/compare/v1.4.0...v1.4.1
