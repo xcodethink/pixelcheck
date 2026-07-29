@@ -350,4 +350,34 @@ audit and the privacy disclosure; see the corresponding workflows in
 
 ---
 
+## Required checks
+
+Branch protection on `main` requires nine checks. The set is chosen so the gate
+matches what `package.json` claims to support (`os: darwin, linux, win32` and
+`cpu: x64, arm64`), rather than gating only the cheapest platform:
+
+| Check | Why it gates |
+|---|---|
+| `Test (ubuntu-latest · Node 20 / 22)` | linux-x64, the primary platform |
+| `Test (macos-14 · Node 20 / 22)` | darwin-arm64 |
+| `Test (macos-15-intel · Node 20 / 22)` | darwin-x64 |
+| `Playwright integration (real chromium)` | the browser paths unit tests cannot reach |
+| `Coverage gate (ADR-017 ratchet)` | the coverage floor |
+| `dogfood` | packaging: fresh install from a packed tarball, all bin entries, tarball size |
+
+Both macOS architectures are gated because `better-sqlite3` and `sharp` ship
+distinct prebuilt binaries per architecture — an arm64-only gate cannot catch an
+Intel native-module regression.
+
+**Windows is deliberately not required.** Its matrix entries run with
+`continue-on-error`, because of cross-process test races that have not been
+fixed yet, so they always report success. Requiring a check that cannot fail
+would look like coverage without being coverage. The honest fix is to resolve
+those races and drop the flag — until then the gap is documented rather than
+disguised.
+
+**Note on `macos-15-intel`**: it is the last x86_64 image GitHub will offer and
+is removed in August 2027. When that happens, the two Intel checks must come out
+of both this matrix and the required-checks list.
+
 **Last updated**: 2026-05-01
