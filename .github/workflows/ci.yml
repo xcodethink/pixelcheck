@@ -1,8 +1,8 @@
 # Continuous Integration — runs on every PR + push to main.
 #
-# Matrix: 4 platforms × 3 Node versions = 12 configurations.
+# Matrix: 4 platforms × 2 Node versions = 8 configurations.
 # Steps: clean install → build → unit tests → schemas idempotence
-#        → npm audit (production, level=high).
+#        → npm audit (production, level=moderate).
 #
 # Why this exists:
 # Pre-T26 the project had ZERO CI workflows running its own tests —
@@ -12,14 +12,15 @@
 # on macOS Intel vs arm64) would slip through until a user reported it.
 # This workflow makes "full suite green" a CI gate, not a dev claim.
 #
-# Branch protection (configured in repo Settings → Branches):
-#   - Require this workflow to pass before merging to main
-#   - Require integration.yml to pass (Playwright + file-lock-race)
-#   - Require coverage.yml to pass (test:coverage:check)
-#   - No force pushes to main
+# Branch protection requires nine checks: both Node versions on
+# ubuntu-latest, macos-14 and macos-15-intel, plus the Playwright
+# integration run, the coverage gate and dogfood. That set is chosen to
+# match what package.json claims to support rather than gating only the
+# cheapest platform — see CONTRIBUTING.md "Required checks" for why
+# Windows is deliberately excluded.
 #
-# Cost: ~12 min × 8 configs (4 OS × Node 20/22) = ~1.6h CI minutes per
-# PR. Within free GitHub Actions tier for OSS repos (2000 min/month).
+# Cost: within the free GitHub Actions tier, which is unmetered for public
+# repositories.
 
 name: CI
 
@@ -51,6 +52,12 @@ jobs:
     # surface as warnings rather than gates while the underlying child-process
     # initialization races are investigated. package.json `os` still lists
     # win32 as supported.
+    #
+    # Consequence worth stating: because these jobs always report success, they
+    # cannot be branch-protection required checks — requiring one would be
+    # theatre. Every other configuration in this matrix IS required, so the
+    # gate matches `package.json`'s os/cpu claims except for win32. Fixing the
+    # underlying races and dropping this flag is what would close that gap.
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
     strategy:
       # Don't fail the entire matrix when one config fails — surface ALL
