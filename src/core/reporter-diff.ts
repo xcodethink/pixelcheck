@@ -485,7 +485,7 @@ function diffStylesheet(): string {
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .delta.up { color: #15803d; font-weight: 600; }
     .delta.down { color: #b91c1c; font-weight: 600; }
-    .delta.flat { color: #888; }
+    .delta.flat { color: #666; }
     ul.issues { padding-left: 0; list-style: none; margin: 0; }
     .issue { padding: 8px 12px; border-left: 3px solid #ccc; background: #f8fafc; border-radius: 0 4px 4px 0; margin-bottom: 6px; font-size: 13px; }
     .issue.critical, .issue.high { border-left-color: #b91c1c; background: #fef2f2; }
@@ -497,11 +497,11 @@ function diffStylesheet(): string {
       text-transform: uppercase; padding: 1px 6px; border-radius: 3px;
       background: #e5e7eb; color: #374151; margin-right: 6px; letter-spacing: 0.5px;
     }
-    .more { font-style: italic; color: #888; padding: 4px 12px; }
-    .muted { color: #888; }
+    .more { font-style: italic; color: #666; padding: 4px 12px; }
+    .muted { color: #666; }
     footer {
       margin-top: 18px; padding-top: 8px; border-top: 1px solid #e5e7eb;
-      font-size: 11px; color: #888; text-align: center;
+      font-size: 11px; color: #666; text-align: center;
     }
     code { background: #f1f5f9; padding: 1px 4px; border-radius: 2px; font-size: 12px; }
   `;
