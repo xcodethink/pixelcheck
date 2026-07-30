@@ -181,7 +181,7 @@ export function lineChartSvg(
   const color = opts.color ?? "#1e3a8a";
 
   if (points.length === 0) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><text x="${w / 2}" y="${h / 2}" text-anchor="middle" fill="#888" font-size="12">No data</text></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><text x="${w / 2}" y="${h / 2}" text-anchor="middle" fill="#666" font-size="12">No data</text></svg>`;
   }
 
   const xs = points.map((p) => p.x);
@@ -205,7 +205,7 @@ export function lineChartSvg(
     .map(
       (t) =>
         `<line x1="${padL}" y1="${sy(t).toFixed(1)}" x2="${w - padR}" y2="${sy(t).toFixed(1)}" stroke="#eee" stroke-width="1"/>` +
-        `<text x="${padL - 6}" y="${(sy(t) + 4).toFixed(1)}" text-anchor="end" fill="#888" font-size="10">${formatTick(t)}</text>`,
+        `<text x="${padL - 6}" y="${(sy(t) + 4).toFixed(1)}" text-anchor="end" fill="#666" font-size="10">${formatTick(t)}</text>`,
     )
     .join("\n");
 
@@ -255,7 +255,7 @@ export function stackedBarsSvg(
   const padT = 12;
   const padB = 22;
   if (bars.length === 0) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><text x="${w / 2}" y="${h / 2}" text-anchor="middle" fill="#888" font-size="12">No data</text></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><text x="${w / 2}" y="${h / 2}" text-anchor="middle" fill="#666" font-size="12">No data</text></svg>`;
   }
 
   const totals = bars.map((b) =>
@@ -273,7 +273,7 @@ export function stackedBarsSvg(
       const y = padT + (1 - t / yMax) * innerH;
       return (
         `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="#eee" stroke-width="1"/>` +
-        `<text x="${padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end" fill="#888" font-size="10">${formatTick(t)}</text>`
+        `<text x="${padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end" fill="#666" font-size="10">${formatTick(t)}</text>`
       );
     })
     .join("\n");
@@ -318,7 +318,7 @@ export function multiLineChartSvg(
 
   const allPoints = series.flatMap((s) => s.points);
   if (allPoints.length === 0) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><text x="${w / 2}" y="${h / 2}" text-anchor="middle" fill="#888" font-size="12">No data</text></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><text x="${w / 2}" y="${h / 2}" text-anchor="middle" fill="#666" font-size="12">No data</text></svg>`;
   }
 
   const xs = allPoints.map((p) => p.x);
@@ -338,7 +338,7 @@ export function multiLineChartSvg(
     .map(
       (t) =>
         `<line x1="${padL}" y1="${sy(t).toFixed(1)}" x2="${w - padR}" y2="${sy(t).toFixed(1)}" stroke="#eee" stroke-width="1"/>` +
-        `<text x="${padL - 6}" y="${(sy(t) + 4).toFixed(1)}" text-anchor="end" fill="#888" font-size="10">${formatTick(t)}</text>`,
+        `<text x="${padL - 6}" y="${(sy(t) + 4).toFixed(1)}" text-anchor="end" fill="#666" font-size="10">${formatTick(t)}</text>`,
     )
     .join("\n");
 
@@ -436,7 +436,7 @@ function stylesheet(): string {
     .card .delta { margin-left: 6px; font-size: 12px; font-weight: 600; }
     .delta.up { color: #15803d; }
     .delta.down { color: #b91c1c; }
-    .delta.flat { color: #888; }
+    .delta.flat { color: #666; }
     .charts { display: grid; gap: 18px; }
     .chart-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px 18px; }
     .chart-card h2 { font-size: 14px; margin: 0 0 8px; color: #111; }

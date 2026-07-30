@@ -12,6 +12,7 @@ import { getAnthropicClient, estimateCost, extractJson } from "../core/llm.js";
 import { getCostGuard } from "../core/cost-guard.js";
 import type { Persona, Hint, Step } from "../core/types.js";
 import type { PlannedStep } from "./planner.js";
+import { fenceUntrusted, UNTRUSTED_CONTENT_RULES } from "./untrusted-content.js";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -54,7 +55,8 @@ OUTPUT FORMAT:
   "reasoning": "The signup button is visible in the navigation bar",
   "confidence": 0.9,
   "needs_replan": false
-}`;
+}
+${UNTRUSTED_CONTENT_RULES}`;
 
 /**
  * Decide the concrete action for a planned step given current page state.
@@ -75,7 +77,7 @@ export async function navigatorDecide(
 
   parts.push(`\n## Current Page`);
   parts.push(`URL: ${input.page_url}`);
-  parts.push(`\n## DOM Summary\n${input.dom_summary.slice(0, 2500)}`);
+  parts.push(fenceUntrusted("DOM Summary", input.dom_summary.slice(0, 2500)).block);
 
   if (input.hints.length > 0) {
     parts.push(`\n## Hints`);
