@@ -1,5 +1,5 @@
 /**
- * Tests for src/handlers/index.ts (T15 — closes R11 partial).
+ * Tests for src/handlers/index.ts.
  *
  * The 804-LoC dispatcher exposes `executeStep` and routes 12 step types
  * to per-handler functions. Coverage strategy:

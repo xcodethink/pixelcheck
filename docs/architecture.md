@@ -220,7 +220,7 @@ All report formats pass through the redaction layer (`secrets.redactDeep`) befor
 
 `src/mcp/` exposes the auditor as a Model Context Protocol server over stdio. Any MCP-aware client (Claude Code, Cursor, Cline, Continue, Zed agent) can drive audits without leaving its workflow.
 
-**Module layout** (M3-6 + M9-1, see [ADR-010](decisions/ADR-010-mcp-tool-registry.md)):
+**Module layout** (see [ADR-010](decisions/ADR-010-mcp-tool-registry.md)):
 
 | File | Responsibility |
 |---|---|
@@ -234,7 +234,7 @@ All report formats pass through the redaction layer (`secrets.redactDeep`) befor
 
 - **preset** — composed pipelines. Today: `audit_url` (full audit) and `explore_url` (autonomous goal-driven run).
 - **primitive** — single-capability building blocks. Today: `see` (N-1 — see [ADR-011](decisions/ADR-011-see-primitive.md)), `act` (N-2 — see [ADR-012](decisions/ADR-012-act-primitive.md)), `extract` (N-4 — see [ADR-013](decisions/ADR-013-extract-primitive.md)), `judge` + `compare` (N-8 + N-3 — see [ADR-014](decisions/ADR-014-judge-and-compare-primitives.md)).
-- **meta** — introspection / discovery. Today: `list_personas`, `list_scenarios`, `list_capabilities` (M9-5 — see [ADR-016](decisions/ADR-016-mcp-self-describe.md)), `get_last_report`, `calibrate_critic`.
+- **meta** — introspection / discovery. Today: `list_personas`, `list_scenarios`, `list_capabilities` (see [ADR-016](decisions/ADR-016-mcp-self-describe.md)), `get_last_report`, `calibrate_critic`.
 
 **Adding a new tool**:
 
@@ -243,7 +243,7 @@ All report formats pass through the redaction layer (`secrets.redactDeep`) befor
 
 That's it — `tools/list` and the dispatcher both pick it up automatically. No switch-case edit, no inline JSON Schema in `server.ts`.
 
-The `ListTools` response only emits the spec-compliant `{ name, description, inputSchema }` subset; `kind`, `resultSchema`, `cacheable`, `costEstimateUsd`, `sideEffects` and `requires` stay on the registry. The `list_capabilities` meta tool is the proper exit for those richer fields (see [ADR-016](decisions/ADR-016-mcp-self-describe.md)). `tests/mcp-registry.test.ts` enforces that every declared `resultSchema` matches a JSON Schema in [docs/schemas/](schemas/), `network_egress ⇔ apiKeys non-empty`, `browser ⇒ navigation`, the M9-4 cacheable matrix is preserved, and the cost band is well-formed (`min ≤ typical ≤ max ≥ 0`, unit ∈ {`per_call`, `per_step`, `per_persona_scenario`}). A tool can never ship without consistent metadata.
+The `ListTools` response only emits the spec-compliant `{ name, description, inputSchema }` subset; `kind`, `resultSchema`, `cacheable`, `costEstimateUsd`, `sideEffects` and `requires` stay on the registry. The `list_capabilities` meta tool is the proper exit for those richer fields (see [ADR-016](decisions/ADR-016-mcp-self-describe.md)). `tests/mcp-registry.test.ts` enforces that every declared `resultSchema` matches a JSON Schema in [docs/schemas/](schemas/), `network_egress ⇔ apiKeys non-empty`, `browser ⇒ navigation`, the cacheable matrix is preserved, and the cost band is well-formed (`min ≤ typical ≤ max ≥ 0`, unit ∈ {`per_call`, `per_step`, `per_persona_scenario`}). A tool can never ship without consistent metadata.
 
 Per-tool dynamic imports keep the cold-start path lean: heavy modules (`runner`, `reporter-spa`, `calibration/runner`, `history`) are only loaded when their tool is invoked. `list_personas` / `list_scenarios` cost a couple of milliseconds.
 
@@ -257,11 +257,11 @@ The shipped primitives are:
 - **`act` (N-2)** — execute a sequence of actions. Step kinds split into deterministic (`goto` / `click` / `fill` / `press` / `wait` / `wait_for` / `scroll` / `screenshot`) and AI-driven (`act` for natural-language Stagehand calls, `note` for one vision call). The engine auto-selects per call: pure-deterministic step lists run on raw Playwright (~1 s cold start, no LLM key needed), Stagehand only spins up if any step is `act`. See [ADR-012](decisions/ADR-012-act-primitive.md) for rationale (mixed-kind contract, auto engine, stop-on-error semantics, why no inline retry stack).
 - **`extract` (N-4)** — schema-bound structured extraction. Caller passes a JSON Schema (subset whitelist: object/array/string/number/integer/boolean/null + properties/required/items/enum/description/nullable; `oneOf`/`$ref`/`const` rejected with a precise path-locator error). The primitive converts to Zod internally, runs Stagehand's `page.extract()`, and returns matching `data` plus the same envelope as see/act. Single-engine: Stagehand only — there is no deterministic alternative for arbitrarily-shaped schema-bound extraction. Stagehand metrics are read post-call to compute USD cost via `estimateCost(model, deltaIn, deltaOut)` and feed `getCostGuard().recordUsage()` (closes the cost-tracking gap that `act`'s `act` step left open). See [ADR-013](decisions/ADR-013-extract-primitive.md) for rationale.
 - **`judge` (N-8)** — single-page rubric-driven critic. Captures (or accepts) a page snapshot, then runs ONE vision call against the chosen rubric(s) and returns per-criterion verdicts (0..10 score + rationale + evidence) plus severity-graded findings with on-screen locations. Rubrics are reified data in `src/core/critics/{aesthetic.ts,dark-pattern.ts}` — 8 aesthetic criteria + 12 dark-pattern criteria, plus caller-supplied `customCriteria`. Score direction is uniform (higher = better, even for dark-pattern criteria where 10 = no DP detected) so `overall_score` stays monotonic across mixed rubrics. Decoupled from `runCritic` (which is persona × scenario × dimension scoring) so it works without project setup. See [ADR-014](decisions/ADR-014-judge-and-compare-primitives.md) for rationale.
-- **`compare` (N-3)** — A/B comparison primitive built on top of `judge`. Default mode `double_blind` judges each side independently in parallel with the same rubric, then runs ONE synthesis vision call that sees both screenshots side-by-side with the prior judgements as context — 3 vision calls total (wall-clock ≈ 2 calls), free of anchoring bias (commercial UX-review practice from Nielsen Norman / Baymard). `fast` mode collapses to 1 vision call seeing both sides — cheaper but anchored. Embedded JudgeResult per side in double_blind mode enables future M9-4 result-cache reuse (judge once, compare many times). See [ADR-014](decisions/ADR-014-judge-and-compare-primitives.md).
+- **`compare` (N-3)** — A/B comparison primitive built on top of `judge`. Default mode `double_blind` judges each side independently in parallel with the same rubric, then runs ONE synthesis vision call that sees both screenshots side-by-side with the prior judgements as context — 3 vision calls total (wall-clock ≈ 2 calls), free of anchoring bias (commercial UX-review practice from Nielsen Norman / Baymard). `fast` mode collapses to 1 vision call seeing both sides — cheaper but anchored. Embedded JudgeResult per side in double_blind mode enables future result-cache reuse (judge once, compare many times). See [ADR-014](decisions/ADR-014-judge-and-compare-primitives.md).
 
 Adding a new primitive is a four-commit recipe: schema entry in `result-schema.ts` (+ `npm run schemas`), primitive module under `src/core/primitives/`, MCP tool wrapper under `src/mcp/tools/` with `kind: "primitive"`, ADR + CHANGELOG.
 
-### Self-describe (`list_capabilities`, M9-5)
+### Self-describe (`list_capabilities`)
 
 `list_capabilities` is a `meta` tool that returns a structured snapshot of every shipped tool's capabilities plus the public env-var table and live cache state. AI agents call it once on first connect to plan the rest of the session — they get cost band, side-effect set, dependency declarations, and result-schema title for every tool, all without trial-and-error.
 
@@ -351,7 +351,7 @@ Three primitives — `judge`, `extract`, `see` (when `goal` is set) — are wrap
 
 **Key derivation.** `cacheKeyFor(primitive, inputs) = sha256(canonical-JSON({ primitive, inputs }))`. `canonicalJsonStringify` recursively sorts object keys before stringify (arrays preserve order). Each primitive defines `cacheKeyInputs(opts)` listing the fields that affect output (URL, schema, rubrics, persona / viewport / locale, model). Performance-only options (timeout, headless, artifactsRoot) are excluded so the same logical call hits cache regardless of how it was scheduled.
 
-**Storage.** SQLite at `~/.pixelcheck/result-cache.db` (override `AUDIT_RESULT_CACHE_PATH`). One table `result_cache(key PK, primitive, value_json, schema_version, created_at)` with indexes on `created_at` (TTL prune) and `primitive` (diagnostics). WAL transition is file-locked per the M9-3 follow-up pattern.
+**Storage.** SQLite at `~/.pixelcheck/result-cache.db` (override `AUDIT_RESULT_CACHE_PATH`). One table `result_cache(key PK, primitive, value_json, schema_version, created_at)` with indexes on `created_at` (TTL prune) and `primitive` (diagnostics). WAL transition is file-locked per the follow-up pattern.
 
 **TTL & invalidation.** Default 24h via `AUDIT_RESULT_CACHE_TTL_MS`. Entries written under a different `RESULT_SCHEMA_VERSION` are misses and pruned on read. Opportunistic prune at most once per opened DB per hour.
 
@@ -371,6 +371,6 @@ Unit tests run with `vitest`; coverage is provided by `@vitest/coverage-v8` and 
 
 **What's counted.** `src/**/*.ts` minus entry-points (`cli.ts` / `index.ts` / `mcp/server.ts`) and pure-type contracts (`core/types.ts` / `core/result-schema.ts`). The exclusions are tested through consumer paths (CLI subcommand smoke + MCP `tools/list` handshake + schema round-trip tests); counting them again would dilute the signal without telling us anything about logic correctness.
 
-**Threshold ratchet.** Floors sit at or below the current global baseline. Each M1-2 phase commit (see [ADR-017](decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md)) raises the floor by at least the gain it just produced, so the gate actively protects the gain rather than auto-deflating to whatever the latest test set produces.
+**Threshold ratchet.** Floors sit at or below the current global baseline. Each phase commit (see [ADR-017](decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md)) raises the floor by at least the gain it just produced, so the gate actively protects the gain rather than auto-deflating to whatever the latest test set produces.
 
-**M1-2 phase scope.** Phase 1 covered all small/utility modules — `scenario` / `config` / `throttle` / `url-preflight` / `image` / `persona` / `secrets` / `page-stability` / `visual-diff` / `notify` / `email` / `stagehand-wrapper` — to ≥ 80% on the testable surface. Phase 2 covers the LLM-heavy modules (`critic` / `llm` / `instruction-mutator`) via mocked Anthropic SDK. Phase 3 covers the orchestration layer (`runner` / `computer-use` / `reporter` / `agent-loop`) — these need substantial Playwright + Stagehand + history-DB mocking.
+**Coverage phase scope.** Phase 1 covered all small/utility modules — `scenario` / `config` / `throttle` / `url-preflight` / `image` / `persona` / `secrets` / `page-stability` / `visual-diff` / `notify` / `email` / `stagehand-wrapper` — to ≥ 80% on the testable surface. Phase 2 covers the LLM-heavy modules (`critic` / `llm` / `instruction-mutator`) via mocked Anthropic SDK. Phase 3 covers the orchestration layer (`runner` / `computer-use` / `reporter` / `agent-loop`) — these need substantial Playwright + Stagehand + history-DB mocking.

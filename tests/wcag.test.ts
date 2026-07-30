@@ -422,7 +422,7 @@ describe("expandAxeStandard", () => {
   });
 
   it("includes Level A in every AA expansion (regression guard)", () => {
-    // The R-NEW-11 bug was that wcag2aa expanded to ["wcag2aa"] only,
+    // The bug was that wcag2aa expanded to ["wcag2aa"] only,
     // missing Level A rules like image-alt / label / button-name.
     // This test pins the cumulative semantic so the bug can't regress.
     for (const aa of ["wcag2aa", "wcag21aa", "wcag22aa"]) {

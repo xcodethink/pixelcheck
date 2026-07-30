@@ -1,5 +1,5 @@
 /**
- * Output verbosity modes for the PixelCheck CLI (M7-6).
+ * Output verbosity modes for the PixelCheck CLI.
  *
  * Three levels:
  *   - quiet   — errors only; suppresses all non-error output so only final

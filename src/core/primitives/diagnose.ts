@@ -97,7 +97,7 @@ export interface DiagnoseOptions {
   /** Vision model used for visual scoring. Default same as `model`. */
   visualModel?: string;
 
-  /** Result cache (M9-4). Default on. */
+  /** Result cache. Default on. */
   cache?: boolean;
   cacheBust?: boolean;
   cacheTtlMs?: number;

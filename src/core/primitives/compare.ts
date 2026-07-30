@@ -19,7 +19,7 @@
  * rationale and the rejected alternatives.
  *
  * Cost-guard: every vision call goes through `callVision`, which already
- * wires the daily ledger + AsyncLocalStorage per-run scope (M5-6 + M9-3).
+ * wires the daily ledger + AsyncLocalStorage per-run scope.
  *
  * Test seams: `_judge` (replace per-side judge), `_callVision` (stub the
  * synthesis call). Production callers never set these.

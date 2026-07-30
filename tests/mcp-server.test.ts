@@ -108,7 +108,7 @@ describe("installProcessGuards (D2-L2)", () => {
   });
 });
 
-describe("stampedTextResult (M9-2 C3)", () => {
+describe("stampedTextResult", () => {
   it("stamps schema_version onto an object payload at the top of the JSON", () => {
     const r = stampedTextResult("AuditUrlResult", AuditUrlResultSchema, {
       status: "pass" as const,

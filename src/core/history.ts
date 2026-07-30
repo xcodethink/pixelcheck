@@ -75,11 +75,11 @@ const MIGRATIONS: Migration[] = [
   },
   {
     version: 2,
-    // M9-2: record the result schema version each row was written under.
+    // record the result schema version each row was written under.
     // Backfilled to '1.0.0' for legacy rows; producers stamp current
     // RESULT_SCHEMA_VERSION on new inserts. Default lets ad-hoc INSERTs skip
     // the column without errors.
-    description: "M9-2 add audit_runs.schema_version",
+    description: "add audit_runs.schema_version",
     up: `ALTER TABLE audit_runs ADD COLUMN schema_version TEXT NOT NULL DEFAULT '1.0.0';`,
   },
 ];
@@ -203,7 +203,7 @@ export interface HistoryEntry {
   overallScore: number;
   /** Average score per dimension across all units in this run */
   dimensionAverages: Record<string, number>;
-  /** Result schema version this row was written under (M9-2). */
+  /** Result schema version this row was written under. */
   schemaVersion?: string;
 }
 

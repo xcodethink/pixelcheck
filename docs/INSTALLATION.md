@@ -30,8 +30,8 @@ For **troubleshooting**, jump to the [Common errors](#common-install-errors--fix
 
 | Resource | Minimum | Recommended | Why |
 |---|---|---|---|
-| **Node.js** | 20.0.0 (Active LTS) | 20.x or 22.x | declared in `package.json > engines.node` (npm warns on older; the toolchain requires 20+ and 18 is untested) |
-| **npm** | 9.0.0 | latest bundled with Node 20+ | `package.json > engines.npm` |
+| **Node.js** | 20.0.0 | **22.x or 24.x** | declared in `package.json > engines.node`. Node 20 reached end-of-life on 2026-04-30 and is still accepted, but it no longer receives security patches and some dependencies have begun dropping their prebuilt binaries for it — prefer an Active LTS release |
+| **npm** | 9.0.0 | latest bundled with Node 22+ | `package.json > engines.npm` |
 | **OS** | macOS 13 / Ubuntu 20.04 / Windows 10 / Alpine 3.18 | latest stable | Chromium prebuilt binaries available |
 | **CPU** | x64 or arm64 | — | `package.json > cpu: ["x64", "arm64"]` |
 | **Disk space** | ~500 MB | 1 GB | node_modules (~280 MB) + Chromium runtime (~200 MB) |
@@ -41,7 +41,7 @@ For **troubleshooting**, jump to the [Common errors](#common-install-errors--fix
 **Tier-1 platforms** (CI-tested every PR via the 8-config matrix):
 
 - ubuntu-latest × Node 20 / 22
-- macos-13 (Intel x64) × Node 20 / 22
+- macos-15-intel (Intel x64) × Node 20 / 22
 - macos-14 (Apple Silicon arm64) × Node 20 / 22
 - windows-latest × Node 20 / 22 — **non-blocking** (`continue-on-error`):
   the Windows configs run every PR and results are visible, but a Windows
@@ -78,8 +78,7 @@ npm install -g pixelcheck
 pixelcheck run
 ```
 
-After install, run `npx pixelcheck doctor` (T23 task — coming
-in v1.0) to verify your environment.
+After install, run `npx pixelcheck doctor` to verify your environment.
 
 ---
 
@@ -89,7 +88,7 @@ in v1.0) to verify your environment.
 
 Out of the box on macOS 13+:
 
-- **Node.js 20+**: install via [Node.js LTS installer](https://nodejs.org/) or [Homebrew](https://brew.sh/) (`brew install node`)
+- **Node.js 22+** (20 still works but is past end-of-life): install via the [Node.js LTS installer](https://nodejs.org/) or [Homebrew](https://brew.sh/) (`brew install node`)
 - **Xcode Command Line Tools**: required by `node-gyp` for native deps
   ```bash
   xcode-select --install
@@ -104,8 +103,8 @@ versions, run `npm rebuild` to refresh native bindings.
 ### Linux (Ubuntu / Debian)
 
 ```bash
-# Node.js 20.x via NodeSource (recommended)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Node.js 22.x via NodeSource (recommended — 20.x is past end-of-life)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 # Build tools for native deps (better-sqlite3 fallback)
@@ -157,11 +156,11 @@ version may lag Playwright's bundled version.
 ### Windows (PowerShell or Git Bash)
 
 ```powershell
-# Recommended: install Node 20 LTS via the official MSI installer
+# Recommended: install the current Node LTS via the official MSI installer
 # https://nodejs.org/
 
 # Verify
-node --version    # v20.x.x
+node --version    # v22.x.x or newer
 npm --version     # 10.x.x
 ```
 
@@ -320,7 +319,7 @@ curl -I https://cdn.playwright.dev/
 npm ping
 ```
 
-If `doctor` is available (T23, v1.0+):
+Then ask `doctor` for a full environment report:
 
 ```bash
 npx pixelcheck doctor --verbose
@@ -391,7 +390,8 @@ won't work. Options:
 2. **Self-hosted relay**: route Anthropic API calls through a corporate
    relay that has selective Internet access (single egress point for
    audit + observability)
-3. **Wait for v1.x local LLM fallback** (M4-4 task; not in v1.0)
+3. **Wait for a local LLM fallback** — not implemented; there is no
+   offline inference path today
 
 Document which option you chose in your runbook so future maintainers
 know the constraint.
@@ -425,7 +425,7 @@ After install, run these three commands. All should succeed:
 npx pixelcheck --version
 # Expected: v1.x.x
 
-# 2. Doctor (T23, v1.0+ — checks API key / config / network / Chromium)
+# 2. Doctor — checks API key / config / network / Chromium
 npx pixelcheck doctor
 
 # 3. Smoke run against a known-good URL (does NOT require API key for non-LLM steps)

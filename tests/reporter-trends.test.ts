@@ -504,7 +504,7 @@ describe("renderTrendsHtml — populated history", () => {
 // writeTrendsDashboard — disk write integration
 // ─────────────────────────────────────────────────────────────
 
-describe("renderTrendsHtml — i18n integration (M2-4)", () => {
+describe("renderTrendsHtml — i18n integration", () => {
   function buildHistory(): HistoryEntry[] {
     return [
       makeEntry({

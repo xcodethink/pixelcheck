@@ -20,7 +20,7 @@
  * `explore_url` instead.
  *
  * Cost-guard: vision calls go through `callVision`, which already wires the
- * cost ledger and the per-run AsyncLocalStorage scope (M5-6 + M9-3). So an
+ * cost ledger and the per-run AsyncLocalStorage scope. So an
  * MCP `see` invocation under the standard dispatcher already inherits its
  * own per-run snapshot.
  */
@@ -120,7 +120,7 @@ export interface SeeOptions {
   visualModel?: string;
 
   /**
-   * Result cache (M9-4). Only applied when `goal` is set, because
+   * Result cache. Only applied when `goal` is set, because
    * without a goal `see` makes no LLM call and a cached snapshot
    * could mislead the caller with stale page state. Defaults: cache
    * enabled, no bust, TTL from env.
@@ -175,7 +175,7 @@ export interface SeeResult {
   artifacts_dir: string;
   cost_usd: number;
   duration_ms: number;
-  /** Result-cache annotation (M9-4). Absent when caching not applicable. */
+  /** Result-cache annotation. Absent when caching not applicable. */
   cache?: ResultCacheMeta;
   /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). Populated
    *  by the WhiteboxCollector when one is attached via defaultOpen.

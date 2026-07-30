@@ -134,7 +134,7 @@ iterating scenario YAML quickly.
 
 ### `BudgetExceededError: run-usd $X.XX exceeds limit $Y.YY`
 
-Cost guard (M5-6 / [ADR-008](decisions/ADR-008-cost-guard.md)) intentionally stopped further LLM calls. Already-completed
+Cost guard ([ADR-008](decisions/ADR-008-cost-guard.md)) intentionally stopped further LLM calls. Already-completed
 units are saved. To continue:
 
 ```bash
@@ -209,9 +209,9 @@ Page took a screenshot before render finished. Two fixes:
 
 Or use `assert_a11y` / `see` which include built-in stability gates ([ADR-009](decisions/ADR-009-concurrency-safety.md)).
 
-### `M9-3.2: file-lock cross-process race` flake
+### `file-lock cross-process race` flake
 
-Pre-T1 known flake. **Fixed in v1.0** via `vitest.integration.config.ts`
+A known flake in early versions. **Fixed in v1.0** via `vitest.integration.config.ts`
 (forks pool). If you see this in v1.0 output, file an issue with the
 full `--trace` output.
 

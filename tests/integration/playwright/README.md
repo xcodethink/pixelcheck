@@ -42,11 +42,11 @@ don't reach for `fetch()` on remote URLs.
 
 | File | Purpose | Used by |
 |---|---|---|
-| `tests/fixtures/lazy-load-page.html` | IntersectionObserver lazy load | T4 (recorder browser-only) |
-| `tests/fixtures/dense-scroll-page.html` | docHeight ≥ 20000 (segment-cap) | T4 |
-| `tests/fixtures/a11y-broken-page.html` | Multi-WCAG violations | T6 (real axe + SARIF) |
-| `tests/fixtures/form-page.html` | Login form for act+extract | T5 (Stagehand smoke) |
-| `tests/fixtures/history-100-runs.json` | 100 fake AuditRun history | T7d (trends perf) |
+| `tests/fixtures/lazy-load-page.html` | IntersectionObserver lazy load | recorder browser-only |
+| `tests/fixtures/dense-scroll-page.html` | docHeight ≥ 20000 (segment-cap) | recorder browser-only |
+| `tests/fixtures/a11y-broken-page.html` | Multi-WCAG violations | real axe + SARIF |
+| `tests/fixtures/form-page.html` | Login form for act+extract | Stagehand smoke |
+| `tests/fixtures/history-100-runs.json` | 100 fake AuditRun history | trends perf |
 
 To regenerate `history-100-runs.json`: `npx tsx scripts/gen-history-fixture.ts`
 (deterministic seed, byte-for-byte reproducible).
@@ -81,4 +81,4 @@ lifecycle, parallelism, screenshots, traces, and retries.
 Playwright Test runs on `ubuntu-latest` only (chromium pre-installed via
 `actions/setup-node`). The default `npm test` does NOT include this suite —
 it's `npm run test:integration:playwright` for explicit invocation. CI gate
-configured in `.github/workflows/integration.yml` (T26 task).
+configured in `.github/workflows/integration.yml`.

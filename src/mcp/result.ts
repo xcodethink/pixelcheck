@@ -6,7 +6,7 @@
  * full server lifecycle.
  *
  * The `stampedTextResult` path is the canonical exit for any tool whose
- * payload has a stable result schema (M9-2): it stamps `schema_version`
+ * payload has a stable result schema: it stamps `schema_version`
  * and runs the payload through `validateResult` (warn-not-throw).
  */
 
@@ -28,7 +28,7 @@ export function errorResult(text: string): ToolResult {
 
 /**
  * Build a ToolResult whose JSON body carries `schema_version` and has been
- * passed through `validateResult` (M9-2 C3).
+ * passed through `validateResult`.
  *
  * - Objects: schema_version is stamped at the top via `attachSchemaVersion`.
  * - Arrays / scalars: returned unchanged (no envelope wrapping).

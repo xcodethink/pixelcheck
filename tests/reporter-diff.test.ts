@@ -540,7 +540,7 @@ describe("writeDiffReport", () => {
 // escapeHtml
 // ─────────────────────────────────────────────────────────────
 
-describe("renderDiff — i18n integration (M2-4)", () => {
+describe("renderDiff — i18n integration", () => {
   it("renders Markdown diff in zh-CN", () => {
     const md = renderDiffMarkdown(regressionDiff(), { locale: "zh-CN" });
     expect(md).toContain("## AI 浏览器审计差异");

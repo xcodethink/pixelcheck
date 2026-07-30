@@ -1,5 +1,5 @@
 /**
- * M6-1 — Checkpoint support for resuming multi-step audits.
+ * Checkpoint support for resuming multi-step audits.
  *
  * When a scripted scenario fails midway, the runner can persist a checkpoint
  * containing all completed step results. On re-run the caller can load the

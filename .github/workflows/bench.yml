@@ -2,7 +2,7 @@
 #
 # Why this exists:
 #
-# The local `npm run bench:check` regression gate (M6-7) is calibrated on
+# The local `npm run bench:check` regression gate is calibrated on
 # the maintainer's M-series Mac. Before we promote it to a hard CI gate
 # we need 5+ runs of telemetry from GitHub-hosted ubuntu runners to know
 # what the actual run-to-run variance looks like — bench numbers on

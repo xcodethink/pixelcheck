@@ -13,7 +13,7 @@
  * Mocks @anthropic-ai/sdk and ./cost-guard.js the same way llm.test.ts
  * does. Page.evaluate is mocked to return a deterministic DOM-summary
  * string — the inner DOM-walking callback runs in browser context only
- * (per ADR-017 §"M1-2 Phase 2/3 deferred / page-side evaluate(cb)").
+ * (per ADR-017 §"Phase 2/3 deferred / page-side evaluate(cb)").
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";

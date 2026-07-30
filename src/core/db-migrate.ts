@@ -1,5 +1,5 @@
 /**
- * Unified SQLite migration runner (M5-7).
+ * Unified SQLite migration runner.
  *
  * Replaces four hand-rolled copies of the same boilerplate that had grown
  * across the codebase: `history.ts`, `agent/memory.ts`, `agent/plan-cache.ts`,
@@ -13,7 +13,7 @@
  * Centralises:
  *   - directory creation for the db path's parent
  *   - busy_timeout pragma (so concurrent readers wait rather than fail)
- *   - WAL transition under cross-process file-lock (M9-3 follow-up pattern)
+ *   - WAL transition under cross-process file-lock (follow-up pattern)
  *   - user_version-driven migration walk (atomic per-migration transaction)
  *   - downgrade rejection (an older binary opening a db written by a newer one)
  *
@@ -165,7 +165,7 @@ export function openManagedDatabase(
   const db = new Database(opts.dbPath);
   db.pragma(`busy_timeout = ${opts.busyTimeoutMs ?? 5000}`);
   if (opts.wal !== false) {
-    // M9-3 follow-up: WAL transition uses an EXCLUSIVE lock that does NOT
+    // follow-up: WAL transition uses an EXCLUSIVE lock that does NOT
     // honor busy_timeout (SQLite fast-fails journal-mode changes). Serialise
     // the one-time WAL switch across processes via an init lockfile; once
     // WAL is set on the file it persists, so subsequent opens read-and-skip.

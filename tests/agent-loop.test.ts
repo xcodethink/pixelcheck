@@ -1,5 +1,5 @@
 /**
- * Tests for src/agent/agent-loop.ts (T14 — closes R11 partial).
+ * Tests for src/agent/agent-loop.ts.
  *
  * The 776-LoC autonomous agent loop drives Plan + Navigator + Convergence.
  * To exercise it without real Anthropic / Playwright we mock at module

@@ -157,13 +157,13 @@
     {
       "slug": "result-cache-meta",
       "title": "ResultCacheMeta",
-      "description": "Annotation attached by the result cache (M9-4) to primitive result envelopes (see / act / extract / judge / compare). Distinguishes cache hit / miss / not-applicable. On hit the original cost moves to `cost_saved_usd` and the envelope's `cost_usd` is zeroed.",
+      "description": "Annotation attached by the result cache to primitive result envelopes (see / act / extract / judge / compare). Distinguishes cache hit / miss / not-applicable. On hit the original cost moves to `cost_saved_usd` and the envelope's `cost_usd` is zeroed.",
       "file": "result-cache-meta.schema.json"
     },
     {
       "slug": "list-capabilities-result",
       "title": "ListCapabilitiesResult",
-      "description": "MCP tool envelope returned by `list_capabilities` (M9-5). Self-describes the server: every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and M9-4 cache state. Static introspection — no LLM, no browser, no runtime probe of secrets.",
+      "description": "MCP tool envelope returned by `list_capabilities`. Self-describes the server: every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and cache state. Static introspection — no LLM, no browser, no runtime probe of secrets.",
       "file": "list-capabilities-result.schema.json"
     },
     {
@@ -187,7 +187,7 @@
     {
       "slug": "cache-info",
       "title": "CacheInfo",
-      "description": "Live state of the M9-4 result cache (enabled / ttl_ms_default / path) inside ListCapabilitiesResult.cache. Path is exposed for diagnostics (paths are not secrets); the cache file's contents stay opaque.",
+      "description": "Live state of the result cache (enabled / ttl_ms_default / path) inside ListCapabilitiesResult.cache. Path is exposed for diagnostics (paths are not secrets); the cache file's contents stay opaque.",
       "file": "cache-info.schema.json"
     }
   ]

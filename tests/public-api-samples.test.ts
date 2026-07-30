@@ -1,5 +1,5 @@
 /**
- * M1-5 — Sample-driven Ajv validation + public surface snapshot.
+ * Sample-driven Ajv validation + public surface snapshot.
  *
  * The Draft-7 validity tests in `tests/public-api-contract.test.ts` only
  * verify that each shipped schema *compiles* under Ajv. This file goes a

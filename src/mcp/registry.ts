@@ -1,5 +1,5 @@
 /**
- * MCP tool registry (M3-6 + M9-1).
+ * MCP tool registry.
  *
  * Each tool surfaces itself as a `ToolDefinition` from `src/mcp/tools/*.ts`
  * and is registered here. The server's `ListToolsRequestSchema` handler
@@ -11,7 +11,7 @@
  * Why a registry instead of a flat array of handlers:
  *   - Single source of truth: input schema, description, kind, result
  *     schema name, and handler all live in one record per tool.
- *   - M9-5 self-describe (`list_capabilities`) just iterates the registry.
+ *   - self-describe (`list_capabilities`) just iterates the registry.
  *   - Kind discrimination (`preset` vs `primitive`) lets clients show
  *     audit_url etc. as composed presets and the new N-1~N-4 primitives
  *     as building blocks.
@@ -96,7 +96,7 @@ export interface ToolDefinition {
    */
   resultSchema?: string;
   /**
-   * Whether the M9-4 result cache will key on this tool's inputs.
+   * Whether the result cache will key on this tool's inputs.
    * `false` for state-changing tools (act), heavyweight presets
    * (audit_url / explore_url), and tools whose value comes from
    * sub-call hits (compare's judge sub-calls cache transparently).

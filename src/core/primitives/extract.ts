@@ -156,7 +156,7 @@ export interface ExtractOptions {
   _callVision?: typeof import("../llm.js").callVision;
 
   /**
-   * Result cache (M9-4). Caching is on by default. The cache key
+   * Result cache. Caching is on by default. The cache key
    * covers url, schema, instruction, selector, persona/viewport, and
    * model — anything that would change the extracted data.
    */
@@ -206,7 +206,7 @@ export interface ExtractResult {
   artifacts_dir: string;
   cost_usd: number;
   duration_ms: number;
-  /** Result-cache annotation (M9-4). Absent when caching not applicable. */
+  /** Result-cache annotation. Absent when caching not applicable. */
   cache?: ResultCacheMeta;
   /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). Populated
    *  by WhiteboxCollector when default open path is used. */

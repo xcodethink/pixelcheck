@@ -15,18 +15,33 @@
  * code does. A comment's value is the explanation, not the ticket number.
  *
  * What is banned:
- *   - risk-register entry references
- *   - internal task identifiers (T-NEW-N)
- *   - iteration labels ("Wave N")
+ *   - risk-register entry references, and bare risk ids
+ *   - internal task identifiers
+ *   - milestone / iteration labels
  *   - "ship-blocker" as internal triage vocabulary
  *   - references to internal status documents
+ *
+ * On the shape of those identifiers, because the first version of this file got
+ * it wrong: it banned only the hyphenated forms, which is what CONTRIBUTING.md
+ * used to give as the example. The identifiers actually in use looked nothing
+ * like that, so the gate reported clean while the real ones went straight past
+ * it and into a published tarball. Patterns here match the forms the repository
+ * uses, and CONTRIBUTING.md no longer tells anyone to write them.
  *
  * What is NOT banned, deliberately:
  *   - ADR numbers — public decision records, meant to be cited
  *   - CVE / GHSA identifiers, version numbers, coverage figures
  *   - "worktree" — a real git feature that ADR-004 is about
- *   - docs/releases/ — a historical record; editing it after the fact to look
- *     tidier would defeat the point of having it
+ *   - ISO timestamps, whose date/time separator would otherwise read as a task
+ *     id (the `2026-07-29T04:43:43Z` in every release record)
+ *
+ * Exempt paths are historical records. Editing them after the fact to look
+ * tidier is what makes a log untrustworthy, and the point of keeping one is
+ * that it says what was true at the time:
+ *   - docs/releases/ and CHANGELOG.md — the published release log
+ *   - docs/decisions/ — architecture decision records, which are written once
+ *     and superseded rather than revised, and legitimately describe the
+ *     context a decision was taken in
  *
  * Exits 0 (clean) / 1 (offenders found).
  */
@@ -39,17 +54,41 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(__filename), "..");
 
-/** Each pattern is paired with what a reader should write instead. */
-const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> = [
+/**
+ * Each pattern is paired with what a reader should write instead.
+ *
+ * Exported so the patterns can be exercised directly. Testing them through
+ * `findInternalRefs()` cannot work: that scans every tracked file, so its
+ * result says whether the repository is clean, not whether a given string
+ * matches — which is how the first version's blind spot survived review.
+ */
+export const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> = [
   {
     label: "risk-register reference",
     pattern: /RISK[- ]REGISTER|risk-register/i,
     instead: "describe the risk itself, or link an issue",
   },
   {
+    // `R36`, `R-NEW-11`. The lookbehind keeps this off anything where the
+    // letter is part of a longer token, so identifiers like `ADR-036` and
+    // words ending in R are untouched.
+    label: "risk id",
+    pattern: /(?<![\w-])R(?:-NEW-\d+|\d{1,3})(?![\w:.-])/,
+    instead: "describe the risk itself, or link an issue",
+  },
+  {
+    // `T22`, `T0.6`, `T-NEW`, `T-NEW-4`. The trailing exclusion of `:` is what
+    // keeps ISO timestamps out — `2026-07-29T04:43:43Z` would otherwise read
+    // as task `T04`, and the leading exclusion catches it as well.
     label: "internal task id",
-    pattern: /\bT-NEW-\d+/,
+    pattern: /(?<![\w-])T(?:-NEW(?:-\d+)?|\d{1,3}(?:\.\d+)?)(?![\w:.-])/,
     instead: "describe the change, or link an issue / ADR",
+  },
+  {
+    // `M9-4`, `M9-3.2` — the milestone numbering the work was planned under.
+    label: "milestone label",
+    pattern: /(?<![\w-])M\d{1,2}-\d{1,2}(?:\.\d+)?(?![\w])/,
+    instead: "name the capability, not the milestone it landed in",
   },
   {
     label: "iteration label",
@@ -69,13 +108,18 @@ const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> = [
 ];
 
 /**
- * Release records are a historical log. They may legitimately quote what the
- * state was at the time, and rewriting them later would make them untrustworthy.
+ * Historical records. They may legitimately quote what the state was at the
+ * time, and rewriting them later would make them untrustworthy. ADRs belong
+ * here for the same reason a release record does: an ADR is superseded by a
+ * later ADR, never edited to say something it did not say.
  */
-const EXEMPT_PREFIXES = ["docs/releases/"];
+const EXEMPT_PREFIXES = ["docs/releases/", "docs/decisions/"];
 
 /** This file necessarily contains the patterns it bans. */
-const EXEMPT_EXACT = new Set(["scripts/check-no-internal-refs.ts"]);
+const EXEMPT_EXACT = new Set([
+  "scripts/check-no-internal-refs.ts",
+  "CHANGELOG.md",
+]);
 
 export function isExempt(relPath: string): boolean {
   const norm = relPath.split(path.sep).join("/");

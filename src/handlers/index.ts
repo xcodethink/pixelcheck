@@ -599,7 +599,7 @@ async function handleAssertA11y(
   // Convert to our Issue format. Each violation gets WCAG attribution
   // (level + dotted criterion id) extracted from its axe tags so
   // downstream reporters can group by WCAG level / principle / SC for
-  // ADA / EAA compliance reporting (M2-2 / ADR-024).
+  // ADA / EAA compliance reporting (ADR-024).
   const issues = violations.map((v) => {
     const severity: "critical" | "high" | "medium" | "low" =
       v.impact === "critical"

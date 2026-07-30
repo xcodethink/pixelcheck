@@ -488,7 +488,7 @@ describe("RESULT_SCHEMA_VERSION sanity", () => {
   });
 });
 
-describe("LRU disk-quota prune (T17 — closes R49)", () => {
+describe("LRU disk-quota prune", () => {
   it("bumps last_used_at on a hit so re-touched entries survive eviction", () => {
     const dbPath = tmpDb();
     try {

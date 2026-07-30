@@ -120,7 +120,7 @@ export class AgentMemory {
    *
    * Implemented as a single INSERT ... ON CONFLICT(fact_hash) DO UPDATE so
    * two concurrent processes recording the same fact never race between
-   * SELECT and INSERT (M9-3): the conflict resolution and the increment are
+   * SELECT and INSERT: the conflict resolution and the increment are
    * one atomic SQLite statement. The confidence bump is capped at 0.99 via
    * SQLite's scalar min().
    */

@@ -235,7 +235,7 @@ program
       await runCommand(opts);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // Friendly catch for ANTHROPIC_API_KEY missing (R47): rather
+      // Friendly catch for ANTHROPIC_API_KEY missing: rather
       // than dump a stack trace, point the user to console.anthropic.com
       // and the doctor command.
       if (
@@ -255,7 +255,7 @@ program
         );
         process.exit(1);
       }
-      // Friendly catch for ConsentDeclinedError (T22 R34): user
+      // Friendly catch for ConsentDeclinedError: user
       // explicitly said "no" to the consent prompt — exit cleanly.
       if (err instanceof Error && err.name === "ConsentDeclinedError") {
         safeError(chalk.yellow("\n[pixelcheck] " + msg));
@@ -477,7 +477,7 @@ program
 /**
  * Scaffold a project audit directory with config.yaml + a starter scenario.
  * Used by both the non-interactive `pixelcheck init <dir>` (CI / scripted)
- * and the interactive wizard `pixelcheck init` (no args, T23 R46).
+ * and the interactive wizard `pixelcheck init` (no args).
  */
 function scaffoldProject(args: {
   projectDir: string;
@@ -578,7 +578,7 @@ program
         return;
       }
 
-      // Interactive path (T23 R46) — readline wizard prompts user, then
+      // Interactive path — readline wizard prompts user, then
       // calls scaffoldProject with the answers.
       const answers = await runInitInteractive({ startDir: process.cwd() });
       scaffoldProject({
@@ -1236,10 +1236,10 @@ interface RunOpts {
   ciFormat?: string;
   pdf: boolean;
   locale?: string;
-  /** T22 — bypass first-run consent prompt (also AUDIT_AUTO_CONSENT=1 env). */
+  /** bypass first-run consent prompt (also AUDIT_AUTO_CONSENT=1 env). */
   autoConsent: boolean;
   /**
-   * T22 — Commander's `--no-redact-inputs` flag becomes opts.redactInputs=false;
+   * Commander's `--no-redact-inputs` flag becomes opts.redactInputs=false;
    * default (when flag not passed) is redactInputs=true (intentional).
    */
   redactInputs: boolean;

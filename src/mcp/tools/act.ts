@@ -3,7 +3,7 @@
  *
  * MCP-side wrapper for `src/core/primitives/act.ts`. Translates the
  * incoming JSON arguments into ActOptions, runs the primitive, and
- * returns a stamped JSON ToolResult (M9-2 envelope).
+ * returns a stamped JSON ToolResult (envelope).
  *
  * Persona resolution: identical to the `see` MCP wrapper. If `persona`
  * is provided AND ./personas/<id>.yaml exists, we pull viewport / locale

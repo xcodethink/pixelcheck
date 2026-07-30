@@ -14,7 +14,7 @@ catalogue, so it stays first-party and vendored).
 |---|---|
 | Library | `stealth-core` |
 | Origin | `@xcodethink/stealth-core` — private, first-party (same owner as this repo) |
-| Vendored on | 2026-05-02 (per ADR-032 / task T31.5) |
+| Vendored on | 2026-05-02 (per ADR-032) |
 | License | MIT — same owner as `pixelcheck`; see [LICENSE](./LICENSE) |
 | Files | `browser.ts`, `fingerprints.ts`, `index.ts`, `launch-options.ts`, `retry.ts`, `stealth-script.ts` |
 

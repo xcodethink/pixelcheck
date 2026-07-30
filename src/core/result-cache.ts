@@ -1,5 +1,5 @@
 /**
- * Result cache (M9-4) — local persistent cache for primitive results.
+ * Result cache — local persistent cache for primitive results.
  *
  * Why: AI agents repeatedly hit the same URL with the same options
  * during reasoning loops. Without a cache every reasoning step burns
@@ -25,7 +25,7 @@
  *
  * Storage: SQLite at `~/.pixelcheck/result-cache.db` (override
  * via `AUDIT_RESULT_CACHE_PATH`). One table; one row per cache entry.
- * WAL transition is wrapped in a file-lock per the M9-3 follow-up
+ * WAL transition is wrapped in a file-lock per the follow-up
  * pattern (see history.ts / agent/memory.ts).
  *
  * Key derivation: sha256 of canonical-JSON({ primitive, ...inputs }).
@@ -236,7 +236,7 @@ const MIGRATIONS: Migration[] = [
   {
     version: 2,
     description:
-      "add last_used_at for LRU disk-quota prune (T17). Backfills with created_at.",
+      "add last_used_at for LRU disk-quota prune. Backfills with created_at.",
     up: `
       ALTER TABLE result_cache ADD COLUMN last_used_at INTEGER NOT NULL DEFAULT 0;
       UPDATE result_cache SET last_used_at = created_at WHERE last_used_at = 0;
@@ -482,7 +482,7 @@ export function lookupCache<T = unknown>(args: {
     return { hit: false };
   }
 
-  // Bump last_used_at for LRU eviction (T17). Best-effort — never fail
+  // Bump last_used_at for LRU eviction. Best-effort — never fail
   // a hit on a write failure (the row data we already have is still
   // valid even if the touch fails).
   try {

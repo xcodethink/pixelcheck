@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * `npm run bench:check` / `npm run bench:update` entry point (M6-7).
+ * `npm run bench:check` / `npm run bench:update` entry point.
  *
  * Usage:
  *   tsx scripts/check-perf.ts                   — compare current vs baseline, exit 1 on regression
