@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `doctor`'s Chromium check now honours `PLAYWRIGHT_BROWSERS_PATH`. Playwright
+  resolves and caches `chromium.executablePath()` at first use, so a value set
+  later in the process was ignored — and relocating the browser cache is
+  Playwright's documented mechanism, which this project's own air-gapped
+  install guide tells people to use. The check therefore reported on a
+  directory the audit would never launch from, and disagreed with the
+  headless-shell check beside it, which already resolved through the same root.
+
+### Changed
+- `better-sqlite3` is pinned to `~12.9.0`. From 12.10.0 the project stopped
+  publishing prebuilt binaries for Node 20 (ABI 115) on every platform, so
+  installs on the oldest Node this package supports fall back to compiling from
+  source — which succeeds where a toolchain exists and fails outright on
+  Windows, where there is no MSVC by default. `engines.node` says `>=20` and
+  `os` lists `win32`; honouring both means staying on the last release that
+  ships those binaries.
+- Dependency refresh within the existing SemVer ranges. Notably Stagehand
+  3.3.0 → 3.7.1, Playwright 1.59.1 → 1.62.0 and axe-core 4.11.4 → 4.12.1. Both browser-driving suites pass against the
+  new versions, which is what matters here: axe-core governs every
+  accessibility finding this tool reports, and a rule-set change would show up
+  as different violations on the deliberately broken fixture page.
+
+  Note for contributors: the Playwright bump needs
+  `npx playwright install chromium chromium-headless-shell`. The pinned browser
+  revision changed, and without it every browser test fails with "Executable
+  doesn't exist" — an environment error that reads like a code regression.
+
+  The 17 low advisories in the production tree are unchanged and remain
+  disclosed in `SECURITY.md`. They all trace to `@ai-sdk/provider-utils`, which
+  Stagehand pulls transitively. The fix exists only in that package's 4.x and
+  5.x lines while the whole `@ai-sdk` family depends on `^3`, so clearing it
+  would mean forcing a major version onto a transitive dependency that nothing
+  in that ecosystem has tested — a larger risk than a low-severity resource
+  exhaustion in a provider path this project does not call.
+
 ## [1.4.4] - 2026-07-28 — first release authenticated by trusted publishing
 
 > Nothing changes for consumers of the package. This release exists to exercise
