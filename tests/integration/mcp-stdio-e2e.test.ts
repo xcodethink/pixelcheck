@@ -21,7 +21,7 @@
  *     introspection — reads ToolRegistry + env-var docs + cache info)
  *   - It exercises the same MCP transport code path used by every
  *     other tool (audit_url / explore_url / see / etc.)
- *   - audit_url + LLM-using tools are deferred to T3 (LLM cassette task)
+ *   - audit_url + LLM-using tools are covered by the LLM cassette tests
  *     because they need real Anthropic API to validate the response
  *     shape end-to-end
  *
@@ -127,7 +127,7 @@ describe("MCP stdio e2e — pure-introspection roundtrip (no LLM)", () => {
     // The text body is JSON-stringified ListCapabilitiesResult
     const envelope = JSON.parse(content[0]!.text!);
 
-    // Envelope shape (M9-5): { server, result_schema_version, tools, env, cache }
+    // Envelope shape: { server, result_schema_version, tools, env, cache }
     expect(envelope).toHaveProperty("server");
     expect(envelope).toHaveProperty("result_schema_version");
     expect(envelope).toHaveProperty("tools");
@@ -140,7 +140,7 @@ describe("MCP stdio e2e — pure-introspection roundtrip (no LLM)", () => {
     expect(Array.isArray(envelope.tools)).toBe(true);
     expect(envelope.tools.length).toBeGreaterThanOrEqual(5);
 
-    // Each tool has the M9-5 metadata shape
+    // Each tool has the metadata shape
     for (const tool of envelope.tools) {
       expect(typeof tool.name).toBe("string");
       expect(["preset", "primitive", "meta"]).toContain(tool.kind);

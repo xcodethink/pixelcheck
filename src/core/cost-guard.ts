@@ -1,6 +1,6 @@
 /**
  * Cost guard — process-wide token / USD spending caps with a persistent
- * daily ledger (M5-6).
+ * daily ledger.
  *
  * Two layers of protection:
  *
@@ -27,7 +27,7 @@
  * Disabling: set AUDIT_COST_GUARD_DISABLED=1 to make every method a no-op
  * (used by `npm test` so unit tests never touch the real ledger).
  *
- * Ledger schema (versioned via M9-2 conventions):
+ * Ledger schema (versioned via conventions):
  *
  *     {
  *       "schema_version": "1.0.0",

@@ -4,7 +4,7 @@
  * Cross-process race tests (which spawn child Node processes) live in
  * tests/integration/file-lock-race.test.ts. They run under a stricter
  * vitest config (pool: forks + singleFork) because they were ~10-15%
- * flaky under the default threads pool — see ADR-029 for the M9-3.2
+ * flaky under the default threads pool — see ADR-029 for the
  * resolution.
  */
 
@@ -243,4 +243,4 @@ describe("withFileLockSync", () => {
 });
 
 // Cross-process race tests moved to tests/integration/file-lock-race.test.ts
-// (M9-3.2 — see ADR-029).
+// (see ADR-029).

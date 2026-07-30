@@ -8,7 +8,7 @@
  *      with eager visual scoring, serialises every diagnostics dimension
  *      into a vision-call prompt, parses + validates the structured
  *      output, and computes the overall health score).
- *   4. Stamps a JSON ToolResult (M9-2 envelope) for the dispatcher.
+ *   4. Stamps a JSON ToolResult (envelope) for the dispatcher.
  *
  * Cost band: ~$0.02-0.04 per call (1 visual-scoring vision call inside
  * see + 1 diagnose vision call). Cacheable so repeated calls on the
@@ -16,7 +16,7 @@
  *
  * Cost-guard: both vision calls go through `callVision`, which records
  * usage in the daily ledger. The MCP dispatcher already wraps every
- * tool call in `withCostRun` (M9-3), so per-run counters stay correct.
+ * tool call in `withCostRun`, so per-run counters stay correct.
  */
 
 import * as fs from "node:fs";
@@ -92,7 +92,7 @@ const inputSchema = {
     cache: {
       type: "boolean",
       description:
-        "Result cache (M9-4). Default true. Set false to bypass for one call.",
+        "Result cache. Default true. Set false to bypass for one call.",
     },
     cache_bust: {
       type: "boolean",
@@ -217,7 +217,7 @@ export const diagnoseTool: ToolDefinition = {
     max: 0.08,
     unit: "per_call",
     notes:
-      "2 vision calls per invocation: 1 for upstream visualScoring='eager' (~$0.005-0.02), 1 for the diagnosis itself (~$0.01-0.06). M9-4 result cache always engaged (key includes url + persona + visual rubrics + model).",
+      "2 vision calls per invocation: 1 for upstream visualScoring='eager' (~$0.005-0.02), 1 for the diagnosis itself (~$0.01-0.06). result cache always engaged (key includes url + persona + visual rubrics + model).",
   },
   sideEffects: ["navigation", "network_egress", "fs_writes_artifacts"],
   requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },

@@ -1076,12 +1076,12 @@ describe("result-schema — CompareResultSchema (N-3)", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// M9-4 — ResultCacheMetaSchema + cache field on primitive envelopes
+// ResultCacheMetaSchema + cache field on primitive envelopes
 // ─────────────────────────────────────────────────────────────
 
 import { ResultCacheMetaSchema } from "../src/core/result-schema.js";
 
-describe("result-schema — ResultCacheMetaSchema (M9-4)", () => {
+describe("result-schema — ResultCacheMetaSchema", () => {
   const validKey = "a".repeat(64);
 
   it("accepts a minimal hit:false miss", () => {
@@ -1259,7 +1259,7 @@ describe("result-schema — primitive envelopes accept optional cache", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// M9-5 — list_capabilities envelope schemas
+// list_capabilities envelope schemas
 // ─────────────────────────────────────────────────────────────
 
 import {
@@ -1272,7 +1272,7 @@ import {
   ListCapabilitiesResultSchema,
 } from "../src/core/result-schema.js";
 
-describe("result-schema — CostEstimateSchema (M9-5)", () => {
+describe("result-schema — CostEstimateSchema", () => {
   it("accepts a typical estimate with all fields", () => {
     expect(() =>
       CostEstimateSchema.parse({
@@ -1309,7 +1309,7 @@ describe("result-schema — CostEstimateSchema (M9-5)", () => {
   });
 });
 
-describe("result-schema — ToolSideEffectSchema (M9-5)", () => {
+describe("result-schema — ToolSideEffectSchema", () => {
   it.each([
     "navigation",
     "state_changing",
@@ -1326,7 +1326,7 @@ describe("result-schema — ToolSideEffectSchema (M9-5)", () => {
   });
 });
 
-describe("result-schema — ToolRequirementsSchema (M9-5)", () => {
+describe("result-schema — ToolRequirementsSchema", () => {
   it("accepts a minimal requirement (api_keys + browser only)", () => {
     expect(() =>
       ToolRequirementsSchema.parse({ api_keys: [], browser: false }),
@@ -1351,7 +1351,7 @@ describe("result-schema — ToolRequirementsSchema (M9-5)", () => {
   });
 });
 
-describe("result-schema — ToolCapabilitySchema (M9-5)", () => {
+describe("result-schema — ToolCapabilitySchema", () => {
   const minimalCap = {
     name: "see",
     description: "look at a URL",
@@ -1389,7 +1389,7 @@ describe("result-schema — ToolCapabilitySchema (M9-5)", () => {
   });
 });
 
-describe("result-schema — EnvVarDocSchema (M9-5)", () => {
+describe("result-schema — EnvVarDocSchema", () => {
   const minimalDoc = {
     name: "ANTHROPIC_API_KEY",
     description: "Anthropic API key",
@@ -1414,7 +1414,7 @@ describe("result-schema — EnvVarDocSchema (M9-5)", () => {
   });
 });
 
-describe("result-schema — CacheInfoSchema (M9-5)", () => {
+describe("result-schema — CacheInfoSchema", () => {
   it("accepts a populated entry", () => {
     expect(() =>
       CacheInfoSchema.parse({
@@ -1432,7 +1432,7 @@ describe("result-schema — CacheInfoSchema (M9-5)", () => {
   });
 });
 
-describe("result-schema — ListCapabilitiesResultSchema (M9-5)", () => {
+describe("result-schema — ListCapabilitiesResultSchema", () => {
   const minimalCap = {
     name: "list_personas",
     description: "...",

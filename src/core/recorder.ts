@@ -16,7 +16,7 @@ export class Recorder {
     private readonly artifactsDir: string,
   ) {
     // mode 0o700 — artifacts contain screenshots that may include sensitive
-    // content from the audited page. T22 (R36).
+    // content from the audited page. T22.
     fs.mkdirSync(artifactsDir, { recursive: true, mode: 0o700 });
     this.attachListeners();
   }
@@ -148,7 +148,7 @@ export class Recorder {
     await this.settleAnimations();
 
     // ─── 1.5. Redact sensitive inputs before any screenshot ──────────
-    // T22 (R37): replace password / secret / token / api-key field
+    // T22: replace password / secret / token / api-key field
     // contents with **** so they don't leak via screenshot → Claude API.
     // Off only if caller explicitly opts out (e.g., a fixture page where
     // redaction would interfere with the audit) OR env AUDIT_REDACT_INPUTS=0.
@@ -459,7 +459,7 @@ function shouldRedactInputs(callerOpt: boolean | undefined): boolean {
  *        (aws|access)[_-]?key / private[_-]?key / passphrase /
  *        ssn|social[_-]?security / cardnumber|cc[_-]?number / cvv|cvc
  *
- * Notes vs prior versions (closes R-NEW-58 v1.0 documented gap):
+ * Notes vs prior versions (closes v1.0 documented gap):
  * - Recovery / backup codes are now redacted (recovery_code, backup_code
  *   account-recovery flows are common post-2FA setup).
  * - AWS access keys (aws_access_key_id, AKIA-...) and private keys.

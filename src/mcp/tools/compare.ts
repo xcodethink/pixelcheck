@@ -3,7 +3,7 @@
  *
  * MCP-side wrapper for `src/core/primitives/compare.ts`. Translates the
  * incoming JSON arguments into CompareOptions, runs the primitive, and
- * returns a stamped JSON ToolResult (M9-2 envelope).
+ * returns a stamped JSON ToolResult (envelope).
  *
  * Mode: default `double_blind` (3 vision calls — 2 parallel judges then
  * 1 synthesis call; free of anchoring bias). `fast` collapses to a
@@ -11,7 +11,7 @@
  *
  * Cost-guard: every vision call is recorded into the daily ledger by
  * callVision. The MCP dispatcher already wraps each tool call in
- * withCostRun (M9-3), so two parallel `compare` invocations on this
+ * withCostRun, so two parallel `compare` invocations on this
  * server process see independent per-run counters.
  */
 

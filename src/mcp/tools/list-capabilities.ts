@@ -1,11 +1,11 @@
 /**
- * `list_capabilities` — M9-5 self-describe tool.
+ * `list_capabilities` — self-describe tool.
  *
  * Returns a richer, structured catalog than the spec-level
  * `tools/list` MCP request: every shipped tool with its kind, input
  * schema, result schema title, cacheability, static cost-estimate
  * band, side-effects, and dependency declarations; plus the public
- * env-var table and live state of the M9-4 result cache.
+ * env-var table and live state of the result cache.
  *
  * Pure introspection. No LLM. No browser. No runtime probe of
  * secrets — secret env vars are NAMED but never valued. Cache file
@@ -13,10 +13,10 @@
  * diagnostic / cleanup scripts.
  *
  * Plumbing-wise the tool is a registry projection — every field on
- * the output rows is already on `ToolDefinition` (M9-5 C2). The only
+ * the output rows is already on `ToolDefinition`. The only
  * derived data are:
  *   - cache.{enabled, ttl_ms_default, path} — pulled from the
- *     M9-4 result-cache module so the report reflects whatever the
+ *     result-cache module so the report reflects whatever the
  *     calling process is actually configured for, not a stale
  *     snapshot.
  *   - env table — hand-curated to mirror the env knobs documented in
@@ -90,11 +90,11 @@ function envTable(): Array<{
       default: "",
       required: true,
     },
-    // ── cache (M9-4) ─────────────────────────────────────────────
+    // ── cache ─────────────────────────────────────────────
     {
       name: "AUDIT_RESULT_CACHE_PATH",
       description:
-        "SQLite file backing the M9-4 result cache. Override to isolate cache between environments.",
+        "SQLite file backing the result cache. Override to isolate cache between environments.",
       scope: "cache",
       default: "~/.pixelcheck/result-cache.db",
       required: false,
@@ -115,7 +115,7 @@ function envTable(): Array<{
       default: "",
       required: false,
     },
-    // ── cost guard (M5-6) ────────────────────────────────────────
+    // ── cost guard ────────────────────────────────────────
     {
       name: "AUDIT_COST_LEDGER_PATH",
       description:
@@ -220,7 +220,7 @@ function envTable(): Array<{
       default: "",
       required: false,
     },
-    // ── logging (M1-3) ───────────────────────────────────────────
+    // ── logging ───────────────────────────────────────────
     {
       name: "LOG_LEVEL",
       description: "pino log level: trace | debug | info | warn | error | fatal. Default info.",
@@ -258,7 +258,7 @@ function readEnvNumber(name: string, fallback: number): number {
 }
 
 /**
- * Snapshot the M9-4 cache config visible to the calling process. We
+ * Snapshot the cache config visible to the calling process. We
  * intentionally read process.env directly (rather than calling a
  * cache helper) so we don't pay the cost of opening the SQLite file
  * just to describe it. `path` reflects whatever the resolution order
@@ -344,7 +344,7 @@ async function handler(_args: Record<string, unknown>): Promise<ToolResult> {
 export const listCapabilitiesTool: ToolDefinition = {
   name: "list_capabilities",
   description:
-    "Self-describe the MCP server. Returns every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and live state of the M9-4 result cache. Pure introspection — no LLM, no browser, no probe of secret presence. Call this first to plan which tools to use and budget for them.",
+    "Self-describe the MCP server. Returns every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and live state of the result cache. Pure introspection — no LLM, no browser, no probe of secret presence. Call this first to plan which tools to use and budget for them.",
   kind: "meta",
   resultSchema: "ListCapabilitiesResult",
   cacheable: false,

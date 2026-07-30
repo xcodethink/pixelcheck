@@ -1,5 +1,5 @@
 /**
- * Tests for src/core/runner.ts (T13 — closes R11 partial).
+ * Tests for src/core/runner.ts.
  *
  * runner.ts is the orchestration core: matrix iteration, per-unit
  * Stagehand setup, scripted vs autonomous branch, status determination,

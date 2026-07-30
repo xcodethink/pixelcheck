@@ -1,5 +1,5 @@
 /**
- * Unit tests for the SPA i18n module (T18 — closes R65 partial).
+ * Unit tests for the SPA i18n module.
  *
  * These cover the TypeScript helpers; the in-browser equivalent logic
  * (which lives as JS string in reporter-spa.ts) has its own structural

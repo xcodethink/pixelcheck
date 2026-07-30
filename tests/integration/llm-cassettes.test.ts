@@ -182,7 +182,7 @@ afterEach(() => {
   cassetteCleanup();
 });
 
-describe("T3 — LLM cassette tests (12 cases)", () => {
+describe("LLM cassette tests (12 cases)", () => {
   // The whole suite is skipped without explicit mode opt-in.
   if (!SHOULD_RUN) {
     it.skip("LLM cassette suite skipped (set AUDIT_E2E_REPLAY=1 or AUDIT_E2E_RECORD=1)", () => {

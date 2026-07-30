@@ -1,5 +1,5 @@
 /**
- * Tests for src/core/reporter.ts (T12 — closes R11 partial).
+ * Tests for src/core/reporter.ts.
  *
  * The 528-LoC reporter exposes 3 entry points (writeJsonReport /
  * writeMarkdownSummary / writeHtmlReport) and a thicket of internal

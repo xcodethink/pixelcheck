@@ -48,7 +48,7 @@ const SMOKE_BUDGET_USD = 0.10;
 
 const SHOULD_RUN = Boolean(process.env.ANTHROPIC_API_KEY);
 
-test.describe("T5 — Stagehand smoke e2e (real API, real chromium)", () => {
+test.describe("Stagehand smoke e2e (real API, real chromium)", () => {
   // The whole suite is skipped without a key — explains itself in the
   // skip message so a contributor running locally without a key sees
   // the full test name and the "why".

@@ -12,7 +12,7 @@
  *
  * Run when:
  *   - First creation
- *   - HistoryEntry / AuditRun shape changes (e.g. M9-2 schema_version added)
+ *   - HistoryEntry / AuditRun shape changes (e.g. schema_version added)
  */
 
 import * as fs from "node:fs";

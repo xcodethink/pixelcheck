@@ -1,6 +1,6 @@
 /**
  * Generate docs/integration/fixture-sarif.json — committed SARIF fixture
- * for T6 (real axe + GitHub Code Scanning UI verification).
+ * for the real-axe + GitHub Code Scanning UI verification test.
  *
  * Why committed:
  *   - Manual GHCS upload step needs a stable file

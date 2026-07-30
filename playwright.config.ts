@@ -9,14 +9,14 @@
  * The two runners are complementary and never overlap:
  *   - tests/*.test.ts                   → vitest (default suite)
  *   - tests/integration/*.test.ts       → vitest (integration, except race)
- *   - tests/integration/file-lock-race.test.ts → vitest (forks pool, M9-3.2)
+ *   - tests/integration/file-lock-race.test.ts → vitest (forks pool)
  *   - tests/integration/playwright/**.test.ts  → Playwright Test (this config)
  *
  * Tests under this config exercise things that mocked Page can't:
- *   - recorder.ts page.evaluate inner browser-only callbacks (T4)
- *   - Stagehand init() + act() / extract() against real DOM (T5)
- *   - real axe-core scanning a real a11y-broken page (T6)
- *   - reporter-pdf.ts real chromium PDF export (T4)
+ *   - recorder.ts page.evaluate inner browser-only callbacks
+ *   - Stagehand init() + act() / extract() against real DOM
+ *   - real axe-core scanning a real a11y-broken page
+ *   - reporter-pdf.ts real chromium PDF export
  *   - audit_url full pipeline against fixture URL (T7b MCP stdio e2e)
  *   - reporter-trends.ts SVG render of 100-row history loaded in real
  *     browser (T7d 100-run perf)

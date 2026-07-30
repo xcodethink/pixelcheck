@@ -127,7 +127,7 @@ describe("notifyTelegram", () => {
   });
 
   it("tags [FAIL] for fail>0 and [PASS] for clean run", async () => {
-    process.env.TELEGRAM_BOT_TOKEN = "T2";
+    process.env.TELEGRAM_BOT_TOKEN = "test-bot-token";
     process.env.TELEGRAM_CHAT_ID = "1";
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
     fetchMock.mockResolvedValue({});

@@ -1,5 +1,5 @@
 /**
- * Coverage for the M9-5 `list_capabilities` MCP self-describe tool.
+ * Coverage for the `list_capabilities` MCP self-describe tool.
  *
  * Layers:
  *   1. `buildCapabilities` projection — registry → snake_case JSON,
@@ -9,7 +9,7 @@
  *      ListCapabilitiesResultSchema and contains exactly the shipped
  *      tools.
  *   3. envelope completeness — every shipped tool appears with the
- *      M9-4 cacheable matrix preserved; the env table covers every
+ *      cacheable matrix preserved; the env table covers every
  *      env var the codebase actually reads at runtime; no secret
  *      VALUE leaks anywhere in the output (only names).
  *   4. live cache reflection — toggling AUDIT_RESULT_CACHE_DISABLED

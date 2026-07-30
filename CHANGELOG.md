@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Internal project-tracking identifiers no longer ship in the published
+  package, and the gate that was supposed to prevent that now matches the
+  identifiers this repository actually uses.
+
+  The 1.4.4 tarball carried them in three places: two in a `.d.ts` file, one
+  inside a string literal, and several in `SECURITY.md`, which is published.
+  The declaration comments survive on purpose — the two-pass build keeps JSDoc
+  in `.d.ts` for IDE hover documentation — and stripping comments could never
+  have caught the string literal.
+
+  The cause was a mismatch, not an oversight in review: `lint:no-internal-refs`
+  banned only the hyphenated identifier form, which is what CONTRIBUTING.md
+  gave as its example, while the identifiers in use looked nothing like it. The
+  guide has been corrected, so the convention and the gate no longer contradict
+  each other. 267 references were removed across 109 files. Release records,
+  the changelog and ADRs are exempt: a log that is edited afterwards to look
+  tidier is a log nobody can trust.
+
+### Fixed
+- Documentation that no longer described the software. `doctor` was listed as
+  "coming in v1.0" while shipping since then; `DEPRECATION-POLICY.md` pointed
+  at a module that does not exist; the CI matrix was still described as running
+  `macos-13`, replaced in 1.4.3; `SECURITY.md` claimed the audit gate runs at
+  `--audit-level=high` when it runs at `moderate`, and left a `TBD` where the
+  1.x support window should be.
+- The installation guide recommended Node 20, which reached end-of-life on
+  2026-04-30. It now recommends 22.x or 24.x and says why. Node 20 is still
+  accepted by `engines`; that is a separate decision.
+
 ### Fixed
 - `doctor`'s Chromium check now honours `PLAYWRIGHT_BROWSERS_PATH`. Playwright
   resolves and caches `chromium.executablePath()` at first use, so a value set

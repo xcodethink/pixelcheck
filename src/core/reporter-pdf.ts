@@ -85,7 +85,7 @@ export function renderPdfHtml(
   const personasUsed = uniquePersonas(audit);
   const scenariosUsed = uniqueScenarios(audit);
 
-  // M2-2: WCAG compliance summary appears between top findings and the
+  // WCAG compliance summary appears between top findings and the
   // per-scenario blocks when any accessibility issues are present in
   // the run. Skipped entirely on runs that don't include an
   // assert_a11y step (no a11y issues = no compliance section).

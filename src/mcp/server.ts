@@ -7,7 +7,7 @@
  * Cline, Continue, Zed agent, Claude Desktop, etc.) can give an AI agent
  * real eyes and hands on the web without leaving its workflow.
  *
- * Architecture (M3-6 + M9-1):
+ * Architecture:
  *   server.ts       — transport lifecycle + dispatcher (this file)
  *   registry.ts     — ToolRegistry + ToolDefinition shape
  *   result.ts       — ToolResult helpers (text / error / stamped)
@@ -25,7 +25,7 @@
  *   - diagnose          (preset)    — holistic page-health diagnosis (PR-E / ADR-034)
  *   - list_personas     (meta)      — enumerate installed personas
  *   - list_scenarios    (meta)      — enumerate installed scenarios
- *   - list_capabilities (meta)      — self-describe the MCP server (M9-5)
+ *   - list_capabilities (meta)      — self-describe the MCP server
  *   - calibrate_critic  (meta)      — run the critic calibration gate
  *   - get_last_report   (meta)      — read the most recent audit summary
  *   - doctor            (meta)      — diagnose / self-heal the environment
@@ -169,7 +169,7 @@ export async function runMcpServer(): Promise<void> {
   // List tools. Map down to the spec-compliant subset; `kind` and
   // `resultSchema` live on the registry record but are not part of the
   // MCP `Tool` shape, so we don't leak them to clients that may strict-
-  // validate. M9-5 `list_capabilities` will surface the richer fields.
+  // validate. `list_capabilities` will surface the richer fields.
   server.setRequestHandler(ListToolsRequestSchema, () => ({
     tools: registry.list().map((d) => ({
       name: d.name,
@@ -184,7 +184,7 @@ export async function runMcpServer(): Promise<void> {
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args = {} } = req.params;
     // Cost guard: every MCP tool invocation runs inside its own
-    // AsyncLocalStorage cost scope (M9-3). Two parallel tool calls served
+    // AsyncLocalStorage cost scope. Two parallel tool calls served
     // by this same MCP server process see independent per-run counters,
     // so one call's spend never bleeds into another's run-USD cap. The
     // persistent daily ledger is still shared (and write-locked).
@@ -203,7 +203,7 @@ export async function runMcpServer(): Promise<void> {
     }) as unknown as Promise<Record<string, unknown>>;
   });
 
-  // Lazy prune of stale primitive artifact dirs (T9 — closes R50).
+  // Lazy prune of stale primitive artifact dirs.
   // At-most-once-per-24h via prune-stamp.json so we don't burn CPU on
   // every MCP-server connect. Failures are logged and ignored — prune
   // is a janitor task, never block server start.

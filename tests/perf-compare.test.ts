@@ -1,5 +1,5 @@
 /**
- * Tests for src/perf/compare.ts — the pure-function core of M6-7's
+ * Tests for src/perf/compare.ts — the pure-function core of the
  * regression-detection script. The CLI wrapper in
  * scripts/check-perf.ts just plumbs JSON read/write + exit codes
  * around this module.

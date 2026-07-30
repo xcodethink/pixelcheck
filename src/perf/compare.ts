@@ -1,5 +1,5 @@
 /**
- * Performance regression comparison logic (M6-7).
+ * Performance regression comparison logic.
  *
  * Pure-function module — separated from the CLI script in
  * `scripts/check-perf.ts` so it can be unit-tested without spawning

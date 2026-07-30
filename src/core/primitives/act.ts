@@ -22,7 +22,7 @@
  * Cost-guard: every LLM-bearing step (`act` via Stagehand, `note` via
  * `callVision`) flows through `callVision` / Stagehand's own LLM client.
  * `callVision` is wired to the cost ledger and per-run AsyncLocalStorage
- * (M5-6 + M9-3). MCP-side dispatch wraps every tool call in `withCostRun`
+ *. MCP-side dispatch wraps every tool call in `withCostRun`
  * so two parallel `act` invocations get independent run snapshots.
  *
  * Failure semantics: `stop_on_error: true` (default) breaks the loop on

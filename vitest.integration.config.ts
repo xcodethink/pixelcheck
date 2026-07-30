@@ -1,5 +1,5 @@
 /**
- * Integration test config (M9-3.2).
+ * Integration test config.
  *
  * Runs tests that need stricter process isolation than vitest's default
  * `pool: "threads"` provides. Currently scoped to the cross-process

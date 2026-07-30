@@ -213,7 +213,7 @@ describe("writeSpaReport — escapeHtml on header metadata", () => {
   });
 });
 
-describe("SPA i18n integration (T18 — closes R65 partial)", () => {
+describe("SPA i18n integration", () => {
   it("inlines the 5-locale i18n dictionary as a JSON script tag", () => {
     const html = fs.readFileSync(writeSpaReport(mkAudit(), tmp), "utf8");
     expect(html).toContain('id="__AUDIT_I18N__"');

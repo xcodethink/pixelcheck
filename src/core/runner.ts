@@ -70,7 +70,7 @@ export interface RunnerOptions {
 export async function runAudit(
   opts: RunnerOptions,
 ): Promise<{ audit: AuditRun; eventBus?: AgentEventBus }> {
-  // Each audit gets its own cost-guard run scope (M9-3). Two concurrent
+  // Each audit gets its own cost-guard run scope. Two concurrent
   // runAudit() calls (eg. parallel MCP tool dispatches into the runner)
   // see separate per-run counters and never interfere. The persistent
   // daily ledger is still shared across processes via the file lock
@@ -90,7 +90,7 @@ async function runAuditInner(
     .replace(/[^a-z0-9_-]/gi, "_")
     .toLowerCase()}`;
   const runDir = path.join(opts.outputRoot, runId);
-  // mode 0o700 — owner-only (T22 R36): per-run reports may contain
+  // mode 0o700 — owner-only: per-run reports may contain
   // screenshots / DOM / LLM responses about user-private content.
   fs.mkdirSync(runDir, { recursive: true, mode: 0o700 });
 

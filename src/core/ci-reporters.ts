@@ -373,7 +373,7 @@ export function renderSarif(audit: AuditRun, tool: SarifToolDriver = defaultTool
 }
 
 function ruleIdForIssue(issue: Issue): string {
-  // M2-2: WCAG-attributed accessibility issues route to a per-criterion
+  // WCAG-attributed accessibility issues route to a per-criterion
   // SARIF ruleId (`wcag/1-4-3`, `wcag/2-1-1`, etc) so GitHub Code
   // Scanning groups them under the actual WCAG SC the violation is
   // graded against. ADA / EAA compliance teams can filter by the
@@ -391,7 +391,7 @@ function ruleIdForIssue(issue: Issue): string {
 }
 
 function buildRule(ruleId: string, issue: Issue): SarifRule {
-  // M2-2: when this is a WCAG-attributed rule, embed the SC name +
+  // when this is a WCAG-attributed rule, embed the SC name +
   // canonical W3C Understanding URL so GitHub's rule detail panel
   // shows the human-readable criterion alongside the violation.
   if (issue.wcag_criterion !== undefined) {

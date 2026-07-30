@@ -1,5 +1,5 @@
 /**
- * Cross-process file-lock race tests (M9-3.2).
+ * Cross-process file-lock race tests.
  *
  * Why this file is separate from tests/file-lock.test.ts:
  *

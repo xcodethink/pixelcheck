@@ -64,9 +64,9 @@ Three locations, all on your local filesystem:
 
 | Path | What's there | Permissions | Retention default |
 |---|---|---|---|
-| `<projectDir>/reports/<runId>/` | Per-run artifacts: audit.json, audit.html, audit.pdf, audit.sarif, screenshots, console.log | `0700` (T22 — owner-only) | Forever (manual delete) |
-| `~/.pixelcheck/result-cache.db` | Memoised LLM results to avoid re-burning vision tokens (M9-4) | `0700` | TTL 24h, auto-pruned |
-| `~/.pixelcheck/cost-ledger.json` | Daily cost counter for budget enforcement (M5-6) | `0700` | TTL 30d, auto-pruned |
+| `<projectDir>/reports/<runId>/` | Per-run artifacts: audit.json, audit.html, audit.pdf, audit.sarif, screenshots, console.log | `0700` (owner-only) | Forever (manual delete) |
+| `~/.pixelcheck/result-cache.db` | Memoised LLM results to avoid re-burning vision tokens | `0700` | TTL 24h, auto-pruned |
+| `~/.pixelcheck/cost-ledger.json` | Daily cost counter for budget enforcement | `0700` | TTL 30d, auto-pruned |
 | `~/.pixelcheck/plan-cache.db` | Cached autonomous plans by site host + DOM hash | `0700` | TTL 7d, auto-pruned |
 | `~/.pixelcheck/memory.db` | Per-site facts learned across runs | `0700` | TTL 30d, auto-pruned |
 | `~/.pixelcheck/consent.json` | Records that you acknowledged the first-run consent prompt | `0700` | Forever (delete to re-prompt) |

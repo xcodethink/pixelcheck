@@ -1,5 +1,5 @@
 /**
- * Coverage for the MCP tool registry abstraction (M3-6 + M9-1).
+ * Coverage for the MCP tool registry abstraction.
  *
  * Three layers:
  *   1. ToolRegistry class — register / get / has / list / size / describe;
@@ -173,7 +173,7 @@ describe("ALL_TOOLS catalog invariants", () => {
     }
   });
 
-  // ── M9-5 metadata invariants ─────────────────────────────────────
+  // ── metadata invariants ─────────────────────────────────────
 
   it("every tool declares a boolean cacheable flag", () => {
     for (const t of ALL_TOOLS) {
@@ -226,7 +226,7 @@ describe("ALL_TOOLS catalog invariants", () => {
     }
   });
 
-  it("M9-4 cacheable matrix matches the v1 design (judge / extract / see cache; act / compare / presets / meta do not)", () => {
+  it("cacheable matrix matches the v1 design (judge / extract / see cache; act / compare / presets / meta do not)", () => {
     const expected: Record<string, boolean> = {
       audit_url: false,
       explore_url: false,
