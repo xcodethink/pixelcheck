@@ -27,8 +27,10 @@ import { request } from "node:https";
 import { URL } from "node:url";
 import { pixelcheckHome } from "../core/home-dir.js";
 import {
-  resolveHeadlessShell,
+  browsersRoot,
+  cftPlatformToken,
   ensureHeadlessShell,
+  resolveHeadlessShell,
 } from "../core/browser-install.js";
 
 const esmRequire = createRequire(import.meta.url);
@@ -373,6 +375,46 @@ function checkDiskSpace(): DoctorCheck {
  * to run `npx playwright install chromium` to fix it. Catching it in
  * doctor turns a 30-second debugging session into a 1-line remedy.
  */
+/**
+ * Where full Chromium lives, honouring `PLAYWRIGHT_BROWSERS_PATH`.
+ *
+ * Playwright resolves and caches `chromium.executablePath()` at first use, so
+ * it ignores that variable if it is set later in the process. That matters
+ * beyond tests: relocating the browser cache is Playwright's documented
+ * mechanism, and this project's own air-gapped install guide tells people to
+ * use it. Without this, `doctor` reported on a directory the audit would never
+ * launch from, and disagreed with the headless-shell check right below — which
+ * already resolves through `browsersRoot()`.
+ *
+ * When the cached path already sits under the resolved root, it is used as-is.
+ * Otherwise the newest `chromium-<revision>` directory under that root is
+ * probed, mirroring how `resolveHeadlessShell()` locates its own binary.
+ */
+function resolveFullChromium(cached: string | undefined): string | undefined {
+  if (!cached) return cached;
+  const root = browsersRoot();
+  if (cached.startsWith(root)) return cached;
+
+  let revisions: string[];
+  try {
+    revisions = fs
+      .readdirSync(root, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && /^chromium-\d+$/.test(e.name))
+      .map((e) => e.name)
+      .sort((a, b) => Number(a.slice(9)) - Number(b.slice(9)));
+  } catch {
+    // Root does not exist yet — a fresh machine. Report the path Chromium
+    // would occupy so the existence check below fails honestly.
+    return path.join(root, "chromium", "chrome");
+  }
+  const newest = revisions.at(-1);
+  if (!newest) return path.join(root, "chromium", "chrome");
+
+  const token = cftPlatformToken() ?? `${process.platform}-${process.arch}`;
+  const exeName = process.platform === "win32" ? "chrome.exe" : "chrome";
+  return path.join(root, newest, `chrome-${token}`, exeName);
+}
+
 function checkChromiumBinary(): DoctorCheck {
   // Playwright's chromium download path follows a stable pattern:
   //   ~/Library/Caches/ms-playwright/chromium-* on macOS
@@ -386,7 +428,7 @@ function checkChromiumBinary(): DoctorCheck {
   try {
     type PlaywrightModule = { chromium: { executablePath?: () => string } };
     const playwright = esmRequire("playwright") as PlaywrightModule;
-    const exe = playwright.chromium.executablePath?.();
+    const exe = resolveFullChromium(playwright.chromium.executablePath?.());
     if (!exe) {
       return {
         name: "Chromium binary",

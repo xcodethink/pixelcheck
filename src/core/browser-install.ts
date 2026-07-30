@@ -125,7 +125,7 @@ function readHeadlessShellEntry(): BrowsersJsonEntry | null {
  * root from the full-Chromium executable path Playwright resolves (honors the
  * node_modules layout); failing that, the documented per-OS default.
  */
-function browsersRoot(): string {
+export function browsersRoot(): string {
   const envPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
   if (envPath && envPath !== "0") return envPath;
   try {
