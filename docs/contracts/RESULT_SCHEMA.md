@@ -4,7 +4,7 @@
 > **Source of truth**: [`src/core/result-schema.ts`](../../src/core/result-schema.ts)
 > **Generated artefacts**: [`docs/schemas/`](../schemas/) (Draft-7 JSON Schema files, regenerable via `npm run schemas`)
 > **Related ADRs**: [ADR-007](../decisions/ADR-007-result-schema-versioning.md), [ADR-015](../decisions/ADR-015-result-cache.md), [ADR-034](../decisions/ADR-034-multidimensional-result-envelope.md)
-> **Tasks**: M9-2 (initial), M9-4 (1.1.0 — added optional `cache` field on primitive envelopes), M9-5 (1.2.0 — added `list_capabilities` envelope and supporting schemas), Phase 0 / ADR-034 (1.3.0 — added `diagnostics` envelope on primitive results)
+> **Version history**: 1.0.0 initial · 1.1.0 added the optional `cache` field on primitive envelopes · 1.2.0 added the `list_capabilities` envelope and supporting schemas · 1.3.0 added the `diagnostics` envelope on primitive results (ADR-034)
 
 This document is the long-form spec for the `RESULT_SCHEMA_VERSION` SemVer string and the rules for evolving it. The TL;DR lives in `result-schema.ts`; everything below is binding.
 
@@ -31,9 +31,9 @@ export const RESULT_SCHEMA_VERSION = "1.3.0";
 
 ### Version history
 
-- **1.0.0** — initial release (M9-2). 19 schemas covering audit / critic / gate / benchmark / mutation / MCP envelopes / history.
-- **1.1.0** (additive minor) — added optional `cache?: ResultCacheMeta` field on the five primitive result envelopes (`SeeResult`, `ActResult`, `ExtractResult`, `JudgeResult`, `CompareResult`) so the M9-4 result cache can annotate hits/misses without breaking 1.0.0 consumers. Schema count 19 → 25 (cumulative incl. primitive envelopes added in N-1/2/3/4/8 plus the new `ResultCacheMeta`). See [ADR-015](../decisions/ADR-015-result-cache.md).
-- **1.2.0** (additive minor) — added the M9-5 self-describe envelope and its building blocks: `ListCapabilitiesResult` + `ToolCapability` + `EnvVarDoc` + `CostEstimate` + `CacheInfo`. The new `list_capabilities` MCP tool is the proper exit for fields kept off the spec-level `tools/list` (kind, cacheable, cost band, side-effects, dependencies). No existing envelope changed shape. Schema count 25 → 30. See [ADR-016](../decisions/ADR-016-mcp-self-describe.md).
+- **1.0.0** — initial release. 19 schemas covering audit / critic / gate / benchmark / mutation / MCP envelopes / history.
+- **1.1.0** (additive minor) — added optional `cache?: ResultCacheMeta` field on the five primitive result envelopes (`SeeResult`, `ActResult`, `ExtractResult`, `JudgeResult`, `CompareResult`) so the result cache can annotate hits/misses without breaking 1.0.0 consumers. Schema count 19 → 25 (cumulative incl. primitive envelopes added in N-1/2/3/4/8 plus the new `ResultCacheMeta`). See [ADR-015](../decisions/ADR-015-result-cache.md).
+- **1.2.0** (additive minor) — added the self-describe envelope and its building blocks: `ListCapabilitiesResult` + `ToolCapability` + `EnvVarDoc` + `CostEstimate` + `CacheInfo`. The new `list_capabilities` MCP tool is the proper exit for fields kept off the spec-level `tools/list` (kind, cacheable, cost band, side-effects, dependencies). No existing envelope changed shape. Schema count 25 → 30. See [ADR-016](../decisions/ADR-016-mcp-self-describe.md).
 - **1.3.0** (additive minor) — added optional `diagnostics?: DiagnosticsSchema` field on four primitive result envelopes (`SeeResult`, `ActResult`, `ExtractResult`, `CompareResult`). Carries multi-dimensional audit data: `popups`, `network`, `cookies`, `storage` (PR-B fills), `performance` (PR-C), `visual` (PR-D). Sub-schemas in this release are intentionally permissive placeholders (`passthrough()`); subsequent PRs in Phase 0 fill concrete fields without further version bumps. No existing envelope or field changed shape. See [ADR-034](../decisions/ADR-034-multidimensional-result-envelope.md).
 
 
@@ -111,7 +111,7 @@ When the generated `docs/schemas/*.json` files disagree with `src/core/result-sc
 ## 9. Out of scope (for v1.0.0)
 
 - A registry of historical schemas (`schemas/v1.0.0/`, `schemas/v0.x/`). When the first major bump lands we will keep the previous version's frozen JSON Schemas in a sibling directory.
-- Per-tool schema negotiation (consumer asks the MCP server for a specific version). MCP `list_capabilities` will surface `RESULT_SCHEMA_VERSION` in M9-5; richer negotiation can come later if the need is real.
+- Per-tool schema negotiation (consumer asks the MCP server for a specific version). MCP `list_capabilities` already surfaces `RESULT_SCHEMA_VERSION`; richer negotiation can come later if the need is real.
 - Auto-migration of historical `audit.json` from v0.x to v1.0.0. The SQLite migration backfills `schema_version = '1.0.0'` for existing rows; on-disk JSON files are left as-is.
 
 ## 10. The current contract surface

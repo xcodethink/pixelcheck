@@ -779,9 +779,9 @@ Per-side `viewport` lets you compare e.g. desktop A vs mobile B. Either side may
 
 Returns a `CompareResult` (see [docs/schemas/compare-result.schema.json](./docs/schemas/compare-result.schema.json)) with `mode`, `rubrics`, `criteria`, `side_a` / `side_b` (each carrying the embedded JudgeResult in double_blind mode + per-side screenshot + artefacts dir), `per_criterion[]` (`{ criterion_id, score_a, score_b, winner: "a"|"b"|"tie", rationale }`), `overall_winner`, `summary`, and total `cost_usd`. Artefacts land under `$AUDIT_COMPARES_DIR` or `~/.pixelcheck/compares/<UTC-iso>-<rand6>/` with `a/` and `b/` subdirs and a `compare.json` sidecar.
 
-#### `list_capabilities` — self-describe (M9-5)
+#### `list_capabilities` — self-describe
 
-Call once on first connect to get a structured map of the whole server: every tool with its kind, input schema, result schema title, **cacheability**, **static cost-estimate band**, **side-effects**, and **dependency declarations**; plus the public env-var table and live state of the M9-4 result cache.
+Call once on first connect to get a structured map of the whole server: every tool with its kind, input schema, result schema title, **cacheability**, **static cost-estimate band**, **side-effects**, and **dependency declarations**; plus the public env-var table and live state of the result cache.
 
 ```jsonc
 // MCP tools/call arguments — none required
@@ -1016,7 +1016,7 @@ npm run test:coverage:check    # CI gate — fails on regression below threshold
 
 Coverage is enforced via `vitest.config.ts > coverage.thresholds` (provider `v8`). Entry-points (`cli.ts`, `index.ts`, `mcp/server.ts`) and pure-type contracts (`core/types.ts`, `core/result-schema.ts`) are excluded — they are tested through consumers (CLI smoke + MCP `tools/list` handshake + schema round-trip tests). Counting them would dilute the signal.
 
-The threshold floor sits at or below the current global baseline so the gate catches regression but doesn't block the build. Each new test PR ratchets the floor up after pushing it. Per-module coverage is visible in the text-table report or `coverage/index.html`. See [docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md](docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md) for the M1-2 phase plan.
+The threshold floor sits at or below the current global baseline so the gate catches regression but doesn't block the build. Each new test PR ratchets the floor up after pushing it. Per-module coverage is visible in the text-table report or `coverage/index.html`. See [docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md](docs/decisions/ADR-017-coverage-tooling-and-m1-2-phase-1.md) for the phase plan.
 
 ## Performance regression gate
 

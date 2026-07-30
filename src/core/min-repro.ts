@@ -1,5 +1,5 @@
 /**
- * M6-2: Minimum reproduction generator.
+ * Minimum reproduction generator.
  *
  * Given a failed audit run, produces a minimal scenario that reproduces
  * the failure — stripping all passing steps and unrelated configuration.

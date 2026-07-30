@@ -9,18 +9,18 @@
  *   - lazy-load-page.html — IntersectionObserver fires, content swaps in
  *   - dense-scroll-page.html — page docHeight ≥ 20000 (segment-cap math
  *     downstream)
- *   - a11y-broken-page.html — multiple WCAG violations present (axe will
- *     find them in T6)
- *   - form-page.html — submit button works, form state visible (Stagehand
- *     will exercise these in T5)
+ *   - a11y-broken-page.html — multiple WCAG violations present (the real
+ *     axe run finds them)
+ *   - form-page.html — submit button works, form state visible (the
+ *     Stagehand smoke exercises these)
  *   - history-100-runs.json — fixture has 100 entries with shape
  *     consumed by trends.html
  *
- * Not tested here (downstream task scope):
- *   - real recorder.screenshotSegments capturing browser-only callbacks → T4
- *   - real axe-core scanning → T6
- *   - real Stagehand init + act + extract → T5
- *   - real trends.html SVG render perf → T7d
+ * Not tested here — each has its own suite:
+ *   - real recorder.screenshotSegments capturing browser-only callbacks
+ *   - real axe-core scanning
+ *   - real Stagehand init + act + extract
+ *   - real trends.html SVG render perf
  */
 
 import { test, expect } from "@playwright/test";
@@ -86,7 +86,7 @@ test.describe("integration scaffold smoke", () => {
     await expect(page.getByText("END")).toBeAttached();
   });
 
-  test("a11y-broken fixture: contains the violations T6 will detect", async ({
+  test("a11y-broken fixture: contains the violations will detect", async ({
     page,
   }) => {
     await page.goto(fixtureUrl("a11y-broken-page.html"));

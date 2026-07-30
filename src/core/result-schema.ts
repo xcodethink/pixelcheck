@@ -1,6 +1,6 @@
 /**
  * Result schema — stable contract for every result the auditor emits to AI
- * agents and external consumers (M9-2).
+ * agents and external consumers.
  *
  * What lives here:
  *   - RESULT_SCHEMA_VERSION (SemVer string, single source of truth)
@@ -45,7 +45,7 @@ import { getLogger } from "./logger.js";
  * `user_version` integer for DB migrations.
  *
  * Version history:
- *   1.0.0 — initial release (M9-2)
+ *   1.0.0 — initial release
  *   1.1.0 — added optional `cache` field to primitive result envelopes
  *           (see / act / extract / judge / compare). Additive minor
  *           per ADR-007 SemVer policy. Producers without a cache layer
@@ -53,7 +53,7 @@ import { getLogger } from "./logger.js";
  *   1.2.0 — added the `list_capabilities` self-describe tool envelope
  *           (ListCapabilitiesResult + ToolCapability + EnvVarDoc +
  *           CostEstimate + CacheInfo). Additive minor — no existing
- *           envelope changed. (M9-5 / ADR-016)
+ *           envelope changed. (ADR-016)
  *   1.3.0 — added optional `diagnostics` envelope to See / Act / Extract
  *           / Compare result schemas. Carries multi-dimensional audit
  *           data (popups, network, cookies, storage, performance,
@@ -96,7 +96,7 @@ const SchemaVersionField = z
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Annotation attached by the result cache (M9-4) to primitive result
+ * Annotation attached by the result cache to primitive result
  * envelopes. Always present on cache-aware primitives regardless of
  * whether the call was a hit or miss, so consumers can distinguish
  * "cache disabled / not applicable" (field absent) from "cache miss"
@@ -373,7 +373,7 @@ export const IssueSchema = z.object({
   description: z.string(),
   screenshot: z.string().optional(),
   recommendation: z.string(),
-  // M2-2: WCAG attribution for accessibility issues. Absent on
+  // WCAG attribution for accessibility issues. Absent on
   // vision-critic and other non-a11y issues. See src/core/wcag.ts.
   wcag_level: z.enum(["A", "AA", "AAA"]).optional(),
   wcag_criterion: z.string().optional(),
@@ -749,7 +749,7 @@ export const SeeResultSchema = z.object({
   artifacts_dir: z.string(),
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
-  /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
+  /** Result-cache annotation. Absent when caching is not applicable. */
   cache: ResultCacheMetaSchema.optional(),
   /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). Optional in
    *  v1.3.0; sub-fields populated by PR-B (whitebox) / PR-C (performance)
@@ -867,7 +867,7 @@ export const ActResultSchema = z.object({
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
   /**
-   * Result-cache annotation (M9-4). Always optional and never `hit:true`
+   * Result-cache annotation. Always optional and never `hit:true`
    * for `act` because state-changing steps are not cacheable; the field
    * is included for envelope uniformity across primitives.
    */
@@ -913,7 +913,7 @@ export const ExtractResultSchema = z.object({
   artifacts_dir: z.string(),
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
-  /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
+  /** Result-cache annotation. Absent when caching is not applicable. */
   cache: ResultCacheMetaSchema.optional(),
   /** Multi-dimensional audit diagnostics (ADR-034 / Phase 0). See SeeResult. */
   diagnostics: DiagnosticsSchema.optional(),
@@ -992,7 +992,7 @@ export const JudgeResultSchema = z.object({
   model: z.string(),
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
-  /** Result-cache annotation (M9-4). Absent when caching is not applicable. */
+  /** Result-cache annotation. Absent when caching is not applicable. */
   cache: ResultCacheMetaSchema.optional(),
   /** ADR-034 Phase 0 — multi-dimensional audit envelope. The `judge`
    *  primitive's whole purpose IS visual scoring, so it always emits
@@ -1066,7 +1066,7 @@ export const CompareResultSchema = z.object({
   cost_usd: z.number().nonnegative(),
   duration_ms: z.number().nonnegative(),
   /**
-   * Result-cache annotation (M9-4). Reflects the synthesis call only;
+   * Result-cache annotation. Reflects the synthesis call only;
    * each side's `judge` already carries its own `cache` field.
    */
   cache: ResultCacheMetaSchema.optional(),
@@ -1244,7 +1244,7 @@ export const ListPersonasResultSchema = z.array(PersonaSummarySchema);
 export const ListScenariosResultSchema = z.array(z.string());
 
 // ─────────────────────────────────────────────────────────────
-// `list_capabilities` self-describe tool (M9-5 / ADR-016)
+// `list_capabilities` self-describe tool (ADR-016)
 // ─────────────────────────────────────────────────────────────
 
 /**
@@ -1334,7 +1334,7 @@ export const ToolCapabilitySchema = z.object({
   input_schema: z.record(z.unknown()),
   /** Title of the published JSON Schema in `docs/schemas/`. */
   result_schema: z.string().optional(),
-  /** Whether the M9-4 result cache will key on this tool's inputs. */
+  /** Whether the result cache will key on this tool's inputs. */
   cacheable: z.boolean(),
   /** Static cost band for one invocation. */
   cost_estimate_usd: CostEstimateSchema,
@@ -1373,7 +1373,7 @@ export const EnvVarDocSchema = z.object({
   required: z.boolean(),
 });
 
-/** Live state of the M9-4 result cache. Path is exposed (paths are not secrets); secrets never are. */
+/** Live state of the result cache. Path is exposed (paths are not secrets); secrets never are. */
 export const CacheInfoSchema = z.object({
   enabled: z.boolean(),
   ttl_ms_default: z.number().nonnegative(),
@@ -1395,7 +1395,7 @@ export const ListCapabilitiesResultSchema = z.object({
   tools: z.array(ToolCapabilitySchema),
   /** Public env vars that influence behaviour. Secrets named, never valued. */
   env: z.array(EnvVarDocSchema),
-  /** M9-4 result cache state. */
+  /** result cache state. */
   cache: CacheInfoSchema,
 });
 

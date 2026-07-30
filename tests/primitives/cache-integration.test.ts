@@ -1,5 +1,5 @@
 /**
- * Result-cache integration tests (M9-4).
+ * Result-cache integration tests.
  *
  * Verify that the cache wrapping in see / extract / judge primitives
  * actually round-trips: first call computes, second call hits cache,
@@ -55,7 +55,7 @@ const FIXTURE_BUFFER = Buffer.from(
 // see — caches when goal is set
 // ─────────────────────────────────────────────────────────────
 
-describe("see — cache integration (M9-4)", () => {
+describe("see — cache integration", () => {
   let env: ReturnType<typeof enableCacheWithTmpDb>;
   let artifactsRoot: string;
   beforeEach(() => {
@@ -228,7 +228,7 @@ describe("see — cache integration (M9-4)", () => {
 // extract — caches every call
 // ─────────────────────────────────────────────────────────────
 
-describe("extract — cache integration (M9-4)", () => {
+describe("extract — cache integration", () => {
   let env: ReturnType<typeof enableCacheWithTmpDb>;
   let artifactsRoot: string;
   beforeEach(() => {
@@ -320,7 +320,7 @@ describe("extract — cache integration (M9-4)", () => {
 // judge — caches every call
 // ─────────────────────────────────────────────────────────────
 
-describe("judge — cache integration (M9-4)", () => {
+describe("judge — cache integration", () => {
   let env: ReturnType<typeof enableCacheWithTmpDb>;
   let artifactsRoot: string;
   beforeEach(() => {

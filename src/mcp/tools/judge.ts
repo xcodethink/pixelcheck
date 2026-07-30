@@ -3,7 +3,7 @@
  *
  * MCP-side wrapper for `src/core/primitives/judge.ts`. Translates the
  * incoming JSON arguments into JudgeOptions, runs the primitive, and
- * returns a stamped JSON ToolResult (M9-2 envelope).
+ * returns a stamped JSON ToolResult (envelope).
  *
  * Rubrics: callers may pick built-in rubrics (`aesthetic`,
  * `dark_pattern`) and/or supply a `custom_criteria` array. The
@@ -13,7 +13,7 @@
  *
  * Cost-guard: the single vision call is recorded into the daily ledger
  * by `callVision`. The MCP dispatcher already wraps every tool call in
- * `withCostRun` (M9-3), so two parallel `judge` invocations on this
+ * `withCostRun`, so two parallel `judge` invocations on this
  * server process see independent per-run counters.
  */
 
@@ -102,7 +102,7 @@ const inputSchema = {
     cache: {
       type: "boolean",
       description:
-        "Result cache (M9-4). Default true. Set false to bypass for one call.",
+        "Result cache. Default true. Set false to bypass for one call.",
     },
     cache_bust: {
       type: "boolean",
@@ -246,7 +246,7 @@ export const judgeTool: ToolDefinition = {
     max: 0.06,
     unit: "per_call",
     notes:
-      "1 vision call per invocation regardless of rubric count. M9-4 result cache always engaged (key includes url|capture-bytes + rubrics + criteria + persona + model).",
+      "1 vision call per invocation regardless of rubric count. result cache always engaged (key includes url|capture-bytes + rubrics + criteria + persona + model).",
   },
   sideEffects: ["navigation", "network_egress", "fs_writes_artifacts"],
   requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },

@@ -422,7 +422,7 @@ describe("SARIF 2.1.0 writer", () => {
     ]);
   });
 
-  it("uses wcag/X-Y-Z ruleId for accessibility issues with WCAG attribution (M2-2)", () => {
+  it("uses wcag/X-Y-Z ruleId for accessibility issues with WCAG attribution", () => {
     const audit = makeAudit({
       results: [
         makeScenario({

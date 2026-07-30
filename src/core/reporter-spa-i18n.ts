@@ -1,6 +1,6 @@
 /**
- * Localised UI strings for the audit-explorer.html SPA (T18 — closes
- * R65 partial). The dictionary is exported so the SPA renderer can
+ * Localised UI strings for the audit-explorer.html SPA (closes
+ * partial). The dictionary is exported so the SPA renderer can
  * inline it as JSON; the runtime locale switch happens in the browser
  * via `URLSearchParams("?lang=...")` with `navigator.language` as
  * fallback.
@@ -19,7 +19,7 @@
  * substitution.
  *
  * v1 ships machine-assisted translations + `docs/translation-review-template.md`
- * native-speaker review pass for the static dictionary (T11 — same flow
+ * native-speaker review pass for the static dictionary (same flow
  * applies here when reviewers extend to the SPA).
  */
 

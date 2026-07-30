@@ -3,7 +3,7 @@
  *
  * MCP-side wrapper for `src/core/primitives/extract.ts`. Translates the
  * incoming JSON arguments into ExtractOptions, runs the primitive, and
- * returns a stamped JSON ToolResult (M9-2 envelope).
+ * returns a stamped JSON ToolResult (envelope).
  *
  * Schema input: AI clients hand us a JSON Schema object describing the
  * desired payload shape. The primitive's converter accepts a
@@ -21,7 +21,7 @@
  * Cost-guard: Stagehand-internal LLM cost is captured via metrics
  * snapshots (see primitives/extract.ts) and recorded into the
  * persistent daily ledger. The MCP dispatcher already wraps every
- * tool call in withCostRun (M9-3), so two parallel `extract` calls
+ * tool call in withCostRun, so two parallel `extract` calls
  * served by this server process see independent per-run counters.
  */
 
@@ -95,7 +95,7 @@ const inputSchema = {
     cache: {
       type: "boolean",
       description:
-        "Result cache (M9-4). Default true. Set false to bypass for one call.",
+        "Result cache. Default true. Set false to bypass for one call.",
     },
     cache_bust: {
       type: "boolean",
@@ -203,7 +203,7 @@ export const extractTool: ToolDefinition = {
     max: 0.1,
     unit: "per_call",
     notes:
-      "1 Stagehand extract call. Cost scales with schema complexity and page DOM size. M9-4 result cache always engaged (key includes url + schema + instruction).",
+      "1 Stagehand extract call. Cost scales with schema complexity and page DOM size. result cache always engaged (key includes url + schema + instruction).",
   },
   sideEffects: ["navigation", "network_egress", "fs_writes_artifacts"],
   requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },

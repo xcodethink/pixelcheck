@@ -1,5 +1,5 @@
 /**
- * Performance benchmarks for hot paths (M6-7).
+ * Performance benchmarks for hot paths.
  *
  * Run with: `npm run bench`
  *

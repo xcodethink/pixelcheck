@@ -3,7 +3,7 @@
  *
  * MCP-side wrapper for `src/core/primitives/see.ts`. Translates the JSON
  * argument shape into `SeeOptions`, runs the primitive, and returns a
- * stamped JSON `ToolResult` (M9-2 envelope).
+ * stamped JSON `ToolResult` (envelope).
  *
  * Persona resolution: if `persona` is provided AND the project ships a
  * `./personas/` directory with a matching id, we extract its viewport,
@@ -13,7 +13,7 @@
  *
  * Cost-guard: vision calls inside `see` flow through `callVision`, which
  * is already wired to the cost ledger and the per-run AsyncLocalStorage
- * scope (M5-6 + M9-3). The MCP dispatcher wraps every tool call in
+ * scope. The MCP dispatcher wraps every tool call in
  * `withCostRun`, so this tool inherits run isolation automatically.
  */
 
@@ -80,7 +80,7 @@ const inputSchema = {
     cache: {
       type: "boolean",
       description:
-        "Result cache (M9-4). Default true. Only applied when `goal` is set (a goal-less see has no LLM cost and risks serving a stale snapshot). Set false to bypass.",
+        "Result cache. Default true. Only applied when `goal` is set (a goal-less see has no LLM cost and risks serving a stale snapshot). Set false to bypass.",
     },
     cache_bust: {
       type: "boolean",
@@ -171,7 +171,7 @@ export const seeTool: ToolDefinition = {
     max: 0.01,
     unit: "per_call",
     notes:
-      "Free without `goal`. With `goal`: ~1 vision call (~$0.005 with Sonnet 4.6). M9-4 result cache is engaged only when `goal` is set.",
+      "Free without `goal`. With `goal`: ~1 vision call (~$0.005 with Sonnet 4.6). result cache is engaged only when `goal` is set.",
   },
   sideEffects: ["navigation", "network_egress", "fs_writes_artifacts"],
   requires: { apiKeys: ["ANTHROPIC_API_KEY"], browser: true },

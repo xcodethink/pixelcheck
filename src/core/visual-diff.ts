@@ -43,7 +43,7 @@ export async function diffAgainstBaseline(
 
   // Bootstrap baseline if missing.
   //
-  // Concurrency note (M9-3): two parallel runs that both target a brand-new
+  // Concurrency note: two parallel runs that both target a brand-new
   // baseline must not racily overwrite each other. We copy to a per-process
   // temp file first, then atomically link it into place via fs.linkSync —
   // which fails with EEXIST when the baseline already exists. The first

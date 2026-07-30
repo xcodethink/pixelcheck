@@ -1,5 +1,5 @@
 /**
- * Unit tests for src/core/artifacts-prune.ts (T9 — closes R50).
+ * Unit tests for src/core/artifacts-prune.ts.
  *
  * Coverage:
  *   - Default retention is 30 days

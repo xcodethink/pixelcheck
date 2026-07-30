@@ -1,5 +1,5 @@
 /**
- * M1-5 — Public API contract tests.
+ * Public API contract tests.
  *
  * These tests guard the *external* contract surface of the library:
  *   1. Every schema in `docs/schemas/*.schema.json` is valid Draft-7

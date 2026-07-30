@@ -42,7 +42,7 @@ screenshot. We re-verify when:
 
    ```bash
    cat docs/integration/fixture-sarif.json
-   # 10 KB / 5 rules / 6 results — committed by T6
+   # 10 KB / 5 rules / 6 results — committed with the axe integration test
    ```
 
    Or regenerate from the latest renderSarif:
@@ -117,7 +117,7 @@ screenshot. We re-verify when:
    # Save the screenshot at:
    # docs/screenshots/sarif-ghcs-render.png
    git add docs/screenshots/sarif-ghcs-render.png
-   git commit -m "docs: SARIF GHCS UI render screenshot (T6 manual verification)"
+   git commit -m "docs: SARIF GHCS UI render screenshot (manual verification)"
    ```
 
 7. **Update this doc** with the verification date + reviewer + GHCS
@@ -140,7 +140,7 @@ screenshot. We re-verify when:
 
 | Date | Reviewer | GHCS version | Outcome | Notes |
 |---|---|---|---|---|
-| 2026-05-01 | (pending v1.0-rc1) | — | — | T6 SOP committed; awaits human reviewer |
+| 2026-05-01 | (pending v1.0-rc1) | — | — | SOP committed; awaits human reviewer |
 
 When v1.0-rc1 ships, fill in the row. Subsequent rows are added on
 re-verification triggers (SARIF spec bump / renderSarif logic change /

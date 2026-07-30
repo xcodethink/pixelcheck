@@ -4,7 +4,7 @@
  * What unit tests already cover (tests/cost-guard*.test.ts):
  *   - checkBudget / recordUsage / threshold logic per-method
  *   - Module-level singleton + AsyncLocalStorage scope
- *   - Concurrent recorders via file-lock (M9-3)
+ *   - Concurrent recorders via file-lock
  *
  * What this integration test adds:
  *   - End-to-end: CostGuard with low cap → recordUsage pushes over

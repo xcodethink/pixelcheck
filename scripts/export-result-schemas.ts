@@ -3,7 +3,7 @@
  * Export every public result Zod schema as JSON Schema (Draft 7) to
  * docs/schemas/. Output is checked in so external AI agents and consumers
  * can fetch the contract directly from GitHub raw without running this
- * package. (M9-2 C4)
+ * package.
  *
  * Run:  npm run schemas
  * Output: docs/schemas/<name>.schema.json + docs/schemas/index.json
@@ -227,14 +227,14 @@ const ENTRIES: SchemaEntry[] = [
     slug: "result-cache-meta",
     title: "ResultCacheMeta",
     description:
-      "Annotation attached by the result cache (M9-4) to primitive result envelopes (see / act / extract / judge / compare). Distinguishes cache hit / miss / not-applicable. On hit the original cost moves to `cost_saved_usd` and the envelope's `cost_usd` is zeroed.",
+      "Annotation attached by the result cache to primitive result envelopes (see / act / extract / judge / compare). Distinguishes cache hit / miss / not-applicable. On hit the original cost moves to `cost_saved_usd` and the envelope's `cost_usd` is zeroed.",
     schema: ResultCacheMetaSchema,
   },
   {
     slug: "list-capabilities-result",
     title: "ListCapabilitiesResult",
     description:
-      "MCP tool envelope returned by `list_capabilities` (M9-5). Self-describes the server: every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and M9-4 cache state. Static introspection — no LLM, no browser, no runtime probe of secrets.",
+      "MCP tool envelope returned by `list_capabilities`. Self-describes the server: every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and cache state. Static introspection — no LLM, no browser, no runtime probe of secrets.",
     schema: ListCapabilitiesResultSchema,
   },
   {
@@ -262,7 +262,7 @@ const ENTRIES: SchemaEntry[] = [
     slug: "cache-info",
     title: "CacheInfo",
     description:
-      "Live state of the M9-4 result cache (enabled / ttl_ms_default / path) inside ListCapabilitiesResult.cache. Path is exposed for diagnostics (paths are not secrets); the cache file's contents stay opaque.",
+      "Live state of the result cache (enabled / ttl_ms_default / path) inside ListCapabilitiesResult.cache. Path is exposed for diagnostics (paths are not secrets); the cache file's contents stay opaque.",
     schema: CacheInfoSchema,
   },
 ];

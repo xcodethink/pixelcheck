@@ -1,5 +1,5 @@
 /**
- * Cross-process advisory file lock (M9-3).
+ * Cross-process advisory file lock.
  *
  * Why: several state files in this project are read-modify-write
  * (cost-ledger.json, future shared JSON caches). Atomic temp+rename

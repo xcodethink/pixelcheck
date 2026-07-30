@@ -1,5 +1,5 @@
 /**
- * Configurable retry strategy for PixelCheck operations (M6-4).
+ * Configurable retry strategy for PixelCheck operations.
  *
  * Wraps any async function with exponential backoff + jitter. Integrates
  * with pino structured logging and respects PIXELCHECK_MAX_RETRIES env

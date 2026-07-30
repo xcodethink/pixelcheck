@@ -7,7 +7,7 @@ patches according to the schedule below.
 
 | Version | Status | Patches until |
 |---|---|---|
-| 1.x | ✅ Active | TBD (next major) |
+| 1.x | ✅ Active | 6 months after 2.0 ships (not yet scheduled) |
 | 0.x | ⚠ Pre-release | No patches; upgrade to 1.x |
 
 After a major version (e.g., 2.0) ships, the previous major (1.x) receives
@@ -48,7 +48,7 @@ ships and downstream users have time to upgrade.
 > **Update 2026-05-03**: the Stagehand v3 upgrade was executed earlier
 > than planned — see [ADR-035](docs/decisions/ADR-035-stagehand-v3-migration.md)
 > (originally filed as ADR-029, renumbered 2026-05-05 to resolve a slot
-> conflict with the M9-3.2 file-lock-race ADR).
+> conflict with the file-lock-race ADR).
 > Stagehand v3.3.0 dropped both vulnerable transitive dependencies, so the
 > three waivers below are **closed**. The full text is preserved here as a
 > historical record of v1.0.0's accepted-risk posture.
@@ -99,7 +99,7 @@ findings (different from the v1.0 set listed above):
 | `uuid` | [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) — Missing buffer bounds check in v3/v5/v6 | moderate | **Resolved** via `overrides.uuid: ^14.0.0` |
 | (uuid same finding via second dependency path) | — | moderate | Same override above |
 
-Both overrides are validated at runtime by the T5 Stagehand smoke test
+Both overrides are validated at runtime by the Stagehand smoke test
 (real chromium + Anthropic API exercising act / extract / observe). The
 forced versions are major bumps over what `@browserbasehq/stagehand@3.3.0`
 and `@langchain/core` declare in their `dependencies`, but Stagehand
@@ -160,11 +160,13 @@ Because it is absent from the production tree, the
 
 - **Weekly automated scans**: GitHub Dependabot opens PRs for new vulns
   (see [.github/dependabot.yml](.github/dependabot.yml))
-- **CI gate** (T26+T27): every PR runs `npm audit --audit-level=high` as a
-  required check
-- **License compliance** (T28): every PR runs `license-checker` against an
+- **CI gate**: every PR runs `npm audit --production --audit-level=moderate`
+  as a required check. `moderate` rather than `high` because the production
+  tree currently reports zero findings at that level, so the stricter gate
+  costs nothing; see "Known low advisories" below for what sits beneath it
+- **License compliance**: every PR runs `license-checker` against an
   allowlist (see [docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md))
-- **SBOM** (T29): release artifacts include a CycloneDX SBOM at
+- **SBOM**: release artifacts include a CycloneDX SBOM at
   GitHub Releases
 - **Lockfile**: `package-lock.json` is committed; CI runs `npm ci`
   (lockfile-strict)
@@ -194,9 +196,9 @@ This policy **does not** cover:
 ## Privacy / Data Handling
 
 For data-handling concerns (what data is collected, where it is sent,
-retention), see [PRIVACY.md](PRIVACY.md) (added in T22).
+retention), see [PRIVACY.md](PRIVACY.md).
 
 ---
 
-**Last updated**: 2026-05-01 (T0.6 initial draft)
+**Last updated**: 2026-05-01 (initial draft)
 **Policy owner**: project maintainers

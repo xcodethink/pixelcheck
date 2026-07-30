@@ -89,7 +89,7 @@ test.describe("trends dashboard — 100-run real-browser perf", () => {
       const loadMs = Date.now() - start;
 
       // Performance budget: 1.5s on local machine. CI may be slower
-      // (R-NEW-7 GHA chromium spawn variance) — if this becomes flaky,
+      // (GHA chromium spawn variance) — if this becomes flaky,
       // bump CI-only budget to 3s and keep local <1s as canary.
       //
       // The original target was <500ms but realistic local runs land

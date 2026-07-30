@@ -213,7 +213,7 @@ describe("history", () => {
     expect(diff).toBeNull();
   });
 
-  it("persists audit.schema_version through save/load round-trip (M9-2)", () => {
+  it("persists audit.schema_version through save/load round-trip", () => {
     saveAuditToHistory(
       makeAuditRun({ run_id: "with_version", schema_version: "1.0.0" }),
       tmpDir,

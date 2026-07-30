@@ -1,5 +1,5 @@
 /**
- * LLM Provider abstraction (M4-4) — pluggable LLM backends with fallback chain.
+ * LLM Provider abstraction — pluggable LLM backends with fallback chain.
  *
  * When the Anthropic API is unavailable or too expensive, users can fall back
  * to a local LLM served by Ollama (localhost:11434).

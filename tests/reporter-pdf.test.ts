@@ -415,7 +415,7 @@ describe("renderPdfHtml — scenario results section", () => {
     const html = renderPdfHtml(audit);
     // CSS class still encodes the canonical English status; the visible
     // text is the localised full-form label (default 'en' → "Passed" /
-    // "Passed with issues" / "Failed"). Localised in C2 of M2-4.
+    // "Passed with issues" / "Failed"). Localised alongside the other report strings.
     expect(html).toMatch(/<span class="status pass">Passed<\/span>/);
     expect(html).toMatch(
       /<span class="status pass_with_issues">Passed with issues<\/span>/,
@@ -534,7 +534,7 @@ describe("renderPdfHtml — redaction", () => {
   });
 });
 
-describe("renderPdfHtml — WCAG compliance section (M2-2)", () => {
+describe("renderPdfHtml — WCAG compliance section", () => {
   it("omits the WCAG section when there are no accessibility issues", () => {
     const html = renderPdfHtml(makeAudit());
     // Default fixture has only a non-a11y issue (no wcag fields)
@@ -654,7 +654,7 @@ describe("renderPdfHtml — WCAG compliance section (M2-2)", () => {
   });
 });
 
-describe("renderPdfHtml — i18n integration (M2-4)", () => {
+describe("renderPdfHtml — i18n integration", () => {
   it("renders the cover labels in zh-CN when locale is set", () => {
     const html = renderPdfHtml(makeAudit(), { locale: "zh-CN" });
     expect(html).toContain("AI 浏览器审计报告");

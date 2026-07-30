@@ -1,5 +1,5 @@
 /**
- * Tests for src/core/computer-use.ts (T16 — closes R11 partial).
+ * Tests for src/core/computer-use.ts.
  *
  * The 449-LoC module has 1 export (`runComputerUseTask`) plus a thicket
  * of internal helpers (`getScaleFactor` / `executeAction` /

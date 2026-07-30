@@ -16,7 +16,7 @@
  *     compose new rubrics without prompt-engineering.
  *
  * Cost-guard: the single vision call goes through `callVision`, which
- * wires the daily ledger + AsyncLocalStorage per-run scope (M5-6 + M9-3).
+ * wires the daily ledger + AsyncLocalStorage per-run scope.
  *
  * Test seams: `_see` (replace the upstream capture) + `_callVision` (stub
  * the LLM). Production callers never set these.
@@ -99,7 +99,7 @@ export interface JudgeOptions {
   model?: string;
 
   /**
-   * Result cache (M9-4). Caching is on by default. The cache key
+   * Result cache. Caching is on by default. The cache key
    * covers url (or capture screenshot sha + url_final), rubrics,
    * customCriteria, persona/viewport, and model — anything that
    * would change the verdict.

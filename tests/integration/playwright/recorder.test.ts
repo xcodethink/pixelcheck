@@ -16,7 +16,7 @@
  * What's deliberately NOT tested here:
  *   - Single-process Recorder unit logic — already covered by
  *     tests/recorder.test.ts (vitest mock Page) at 82.82% stmt coverage.
- *   - Vision LLM responses on captured segments — that's T3 (cassettes).
+ *   - Vision LLM responses on captured segments — that's the cassette suite.
  *   - Reporter-pdf HTML rendering — already covered by
  *     tests/reporter-pdf.test.ts pure unit tests.
  *
@@ -283,7 +283,7 @@ test.describe("reporter-pdf — real chromium PDF export", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// T22 — redactSensitiveInputs (real chromium DOM mutation)
+// redactSensitiveInputs (real chromium DOM mutation)
 // ─────────────────────────────────────────────────────────────
 
 import { redactSensitiveInputs } from "../../../src/core/recorder.js";
@@ -372,7 +372,7 @@ test.describe("redactSensitiveInputs — real chromium DOM mutation", () => {
   });
 
   /**
-   * Fixture-with-real-tokens end-to-end test (closes R35 residual).
+   * Fixture-with-real-tokens end-to-end test (closes residual).
    *
    * Mirrors realistic production pages users actually run audits against:
    *   - Stripe-style payment form (CC number, CVV, expiry, name)

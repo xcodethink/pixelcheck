@@ -20,7 +20,7 @@ import pino, { type Logger, type LoggerOptions } from "pino";
  *   const log = getLogger("runner");
  *   log.info({ unitId, durationMs }, "unit completed");
  *
- * Redaction (M1-4): two layers of protection against secret leakage —
+ * Redaction: two layers of protection against secret leakage —
  *   1. Path-based: well-known field names (apiKey, password, token, cookie,
  *      authorization, etc.) get [REDACTED] regardless of value.
  *   2. Value-based: callers register concrete secret strings via
@@ -54,7 +54,7 @@ function isPretty(): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Redaction (M1-4)
+// Redaction
 // ─────────────────────────────────────────────────────────────
 
 const CENSOR = "[REDACTED]";

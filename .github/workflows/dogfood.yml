@@ -1,7 +1,7 @@
 # Tarball dogfood — install the packed npm tarball into a fresh dir
 # and exercise the binaries.
 #
-# Why this exists (T31.5 follow-up; closes the gap that let R-NEW-V1-SHIP-1
+# Why this exists (closes the gap that let a broken tarball
 # slip through — package.json had a `file:` dep that worked locally but
 # broke fresh installs):
 #

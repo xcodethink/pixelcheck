@@ -77,7 +77,7 @@ npm test                        # full vitest unit suite (2200+ tests)
 npm run test:watch              # vitest in watch mode for active dev
 npm run test:coverage           # generate coverage HTML report
 npm run test:coverage:check     # enforce thresholds (74/62/75/75 per ADR-017)
-npm run test:integration        # vitest forks pool (file-lock-race, M9-3.2)
+npm run test:integration        # vitest forks pool (file-lock-race)
 npm run test:integration:playwright  # real chromium e2e (recorder/wcag/trends/...)
 npm run bench                   # vitest bench → docs/perf-current.json
 npm run bench:check             # compare current vs baseline (50% tolerance)
@@ -174,7 +174,7 @@ Style consistency comes from:
   self-documenting; comments are for non-obvious constraints, hidden
   invariants, or workarounds.
 - **No "TODO" markers without an issue link** — `// TODO: fix later` rots;
-  `// TODO(#123): implement after M3-1 lands` is acceptable.
+  `// TODO(#123): implement once the registry lands` is acceptable.
 
 ### Test files
 
@@ -216,8 +216,11 @@ chore(deps): bump Anthropic SDK 0.39 → 0.92
 
 - Subject ≤ 80 chars, present tense ("add", not "added")
 - Body wraps at ~80 chars, explains **why** not what
-- Reference task IDs (`T19`, `M5-7`) and risk IDs (`R23`, `R-NEW-11`)
-  when relevant — links to the issue or ADR it addresses
+- Link the issue or ADR the change addresses. Do **not** put internal
+  task, milestone or risk identifiers in commits, comments or docs: this
+  repository is public and its comments compile into the published
+  package, and a number nobody outside the project can look up explains
+  nothing. `npm run lint:no-internal-refs` enforces this
 
 ### Co-author trailer (when AI-assisted)
 

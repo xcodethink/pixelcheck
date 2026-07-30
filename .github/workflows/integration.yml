@@ -1,12 +1,12 @@
 # Integration tests — Playwright Test (real chromium) + vitest forks pool
 # (file-lock cross-process race tests).
 #
-# Why a separate workflow (T26 follows T2 + T1):
+# Why a separate workflow:
 # - Playwright Test needs `npx playwright install chromium` ~150 MB binary
 #   download; doing this on every ci.yml matrix config (12 platforms)
 #   would 12x the install time. Instead we run it ONCE on Ubuntu (where
 #   chromium is most reliable in CI) on every PR.
-# - vitest.integration.config.ts (M9-3.2) uses pool=forks for the
+# - vitest.integration.config.ts uses pool=forks for the
 #   cross-process file-lock race test; this needs `npm run build`
 #   first (the test's child Node processes require dist/core/file-lock.js).
 # - Weekly cron picks up axe-core / chromium upstream changes that
@@ -65,7 +65,7 @@ jobs:
         run: npm run test:integration:playwright
 
       - name: vitest forks-pool integration (file-lock-race)
-        # M9-3.2 cross-process race tests — pool=forks + isolate=true +
+        # Cross-process race tests — pool=forks + isolate=true +
         # singleFork=true via vitest.integration.config.ts. 20-iteration
         # local soak test; ubuntu-latest historically passes 100/100.
         run: npm run test:integration

@@ -1,6 +1,6 @@
 /**
  * Tests for src/core/llm-provider.ts — LLM provider abstraction with
- * Anthropic / Ollama backends and fallback chain (M4-4).
+ * Anthropic / Ollama backends and fallback chain.
  *
  * Mocks @anthropic-ai/sdk, ./cost-guard.js, and global fetch for Ollama.
  */

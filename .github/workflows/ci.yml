@@ -138,7 +138,7 @@ jobs:
         # moderate waivers. Stagehand v3.3.0 introduced 5 new transitive
         # moderate findings (langsmith / uuid family); we resolve them
         # via `package.json#overrides` (`langsmith ^0.6.0`, `uuid
-        # ^14.0.0`) — verified by T5 Stagehand smoke at runtime. Result:
+        # ^14.0.0`) — verified by the Stagehand smoke test at runtime. Result:
         # `npm audit --production` reports 0 MODERATE-or-higher findings, so
         # this gate runs at `--audit-level=moderate` (not `high`).
         #

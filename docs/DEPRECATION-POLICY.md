@@ -117,8 +117,9 @@ the next major release; users see explicit `schema_version` change
 
 ## Warning emission patterns
 
-We use four warning levels (least → most aggressive). The actual code
-path is in `src/core/deprecation.ts` (T-NEW — coming in v1.1):
+We use four warning levels (least → most aggressive). These describe the
+intended shape; there is no shared helper module yet, so each site emits
+its own warning:
 
 ### Level 1 — Inline annotation only (no runtime cost)
 

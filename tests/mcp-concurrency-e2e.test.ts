@@ -1,5 +1,5 @@
 /**
- * End-to-end concurrency proofs for the MCP server (M9-3 follow-up).
+ * End-to-end concurrency proofs for the MCP server (follow-up).
  *
  * Two angles:
  *
