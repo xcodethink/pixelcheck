@@ -240,21 +240,21 @@ function pdfStylesheet(brand: string): string {
     .methodology { font-size: 11pt; }
     .methodology ul { margin: 4pt 0 8pt 18pt; padding: 0; }
     .methodology li { margin-bottom: 2pt; }
-    .disclaimer { font-size: 9pt; color: #777; margin-top: 18pt; border-top: 0.5pt solid #ccc; padding-top: 8pt; }
+    .disclaimer { font-size: 9pt; color: #666; margin-top: 18pt; border-top: 0.5pt solid #ccc; padding-top: 8pt; }
   `;
 }
 
 function pdfHeaderTemplate(audit: AuditRun, locale: Locale): string {
   // Chromium's headerTemplate runs in print context; it can use only a
   // subset of CSS (no external resources). Inline minimal styling.
-  return `<div style="font-size: 8pt; color: #888; padding: 0 1.5cm; width: 100%; display: flex; justify-content: space-between;">
+  return `<div style="font-size: 8pt; color: #666; padding: 0 1.5cm; width: 100%; display: flex; justify-content: space-between;">
     <span>${escapeHtml(audit.project_name)} — ${escapeHtml(t("audit_report_title", locale))}</span>
     <span>${escapeHtml(audit.started_at.split("T")[0] ?? audit.started_at)}</span>
   </div>`;
 }
 
 function pdfFooterTemplate(audit: AuditRun): string {
-  return `<div style="font-size: 8pt; color: #888; padding: 0 1.5cm; width: 100%; display: flex; justify-content: space-between;">
+  return `<div style="font-size: 8pt; color: #666; padding: 0 1.5cm; width: 100%; display: flex; justify-content: space-between;">
     <span>${escapeHtml(audit.run_id)}</span>
     <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
   </div>`;

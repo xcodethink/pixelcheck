@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- Page-derived text no longer reaches a model prompt undelimited. Every agent
+  prompt carries a DOM summary of the page under audit; that page is chosen by
+  the user but written by someone else, and the summary includes `aria-label`
+  and `placeholder`, which are invisible both to a person looking at the page
+  and to a screenshot.
+
+  Measured rather than assumed. Payloads phrased as commands were refused by
+  every model tested — "ignore all previous instructions", an authority-claiming
+  system-override block, a fake accessibility note naming a different control.
+  One shape worked on the first attempt: a page asserting that the planned step
+  had already run and that repeating it would double-charge the customer got
+  the navigator to return `needs_replan=true, confidence=0.0`, exactly as
+  instructed. That is not a model obeying an order — it is an unverifiable
+  claim about state aimed at an output field that is a control-flow switch.
+
+  Page content is now wrapped in a per-call random fence, and the system
+  prompts say that fenced content is data, that its claims about what has
+  already happened are unverifiable, and that they must not flip `needs_replan`.
+  Applied at all three sites that embed a DOM summary: the navigator and both
+  planner paths.
+
+### Fixed
+- The reports this tool generates now pass the accessibility engine this tool
+  ships. Scanning the trends dashboard with its own axe-core returned one
+  serious violation — `#888` text on the `#fafafa` page background, 3.40:1
+  against a 4.5:1 requirement — alongside nine passing checks. The greys are
+  now `#666`, a value already used elsewhere in the same palette.
+
+  `npm run lint:report-a11y` renders the report and scans it on every
+  Playwright integration run, so this is now enforced rather than noticed.
+
+### Security
 - Internal project-tracking identifiers no longer ship in the published
   package, and the gate that was supposed to prevent that now matches the
   identifiers this repository actually uses.

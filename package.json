@@ -58,7 +58,7 @@
     "test:coverage": "vitest run --coverage",
     "test:coverage:check": "vitest run --coverage --coverage.thresholdAutoUpdate=false",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:integration:playwright": "playwright test",
+    "test:integration:playwright": "playwright test && npm run lint:report-a11y",
     "test:e2e:replay": "AUDIT_E2E_REPLAY=1 vitest run tests/integration/llm-cassettes.test.ts --no-file-parallelism",
     "test:e2e:record": "AUDIT_E2E_RECORD=1 vitest run tests/integration/llm-cassettes.test.ts --no-file-parallelism",
     "bench": "vitest bench --run --outputJson=docs/perf-current.json",
@@ -77,7 +77,8 @@
     "sync:vendor": "bash scripts/sync-vendor.sh",
     "check:vendor-drift": "tsx scripts/check-vendor-drift.ts",
     "check:vendor-integrity": "tsx scripts/check-vendor-integrity.ts",
-    "clean": "rm -rf dist sbom.json docs/api"
+    "clean": "rm -rf dist sbom.json docs/api",
+    "lint:report-a11y": "tsx scripts/check-report-a11y.ts"
   },
   "keywords": [
     "mcp",

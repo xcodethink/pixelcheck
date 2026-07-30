@@ -15,6 +15,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getAnthropicClient, estimateCost, extractJson } from "../core/llm.js";
 import { getCostGuard } from "../core/cost-guard.js";
 import type { Persona, SuccessCriterion, Hint } from "../core/types.js";
+import { fenceUntrusted, UNTRUSTED_CONTENT_RULES } from "./untrusted-content.js";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -93,7 +94,8 @@ OUTPUT FORMAT: Return a JSON object with this exact structure:
       "targets_criteria": ["criterion-id-1"]
     }
   ]
-}`;
+}
+${UNTRUSTED_CONTENT_RULES}`;
 }
 
 function buildUserPrompt(input: PlannerInput): string {
@@ -115,7 +117,7 @@ function buildUserPrompt(input: PlannerInput): string {
 
   parts.push(`\n## Current State`);
   parts.push(`URL: ${input.current_url}`);
-  parts.push(`\n## Page DOM Summary\n${input.dom_summary.slice(0, 3000)}`);
+  parts.push(fenceUntrusted("Page DOM Summary", input.dom_summary.slice(0, 3000)).block);
 
   if (input.history.length > 0) {
     parts.push(`\n## Action History (${input.history.length} actions taken so far)`);
@@ -262,7 +264,8 @@ Only return "rewrite" when you are confident a tweaked instruction will succeed.
 OUTPUT FORMAT (strict JSON):
 { "kind": "rewrite", "replacement": { "action_type": "...", "instruction": "...", "reasoning": "..." } }
 { "kind": "skip", "reason": "..." }
-{ "kind": "escalate", "reason": "..." }`;
+{ "kind": "escalate", "reason": "..." }
+${UNTRUSTED_CONTENT_RULES}`;
 
 /**
  * Attempt a cheap single-step recovery. Called BEFORE a full replan.
@@ -287,7 +290,7 @@ export async function microReplan(
   parts.push(`Reasoning: ${input.failed_step.reasoning}`);
   parts.push(`\n## Failure Reason\n${input.failure_reason}`);
   parts.push(`\n## Current Page\nURL: ${input.current_url}`);
-  parts.push(`\n## DOM Summary\n${input.dom_summary.slice(0, 2000)}`);
+  parts.push(fenceUntrusted("DOM Summary", input.dom_summary.slice(0, 2000)).block);
   if (input.hints.length > 0) {
     parts.push(`\n## Hints`);
     for (const h of input.hints) {
