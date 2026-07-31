@@ -45,19 +45,32 @@ jobs:
   test:
     name: Test (${{ matrix.os }} · Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
-    # Windows: most known platform-specific issues fixed in fix/ci-baseline-recovery
-    # (line-ending CRLF: addressed via .gitattributes; logger.test.ts ENOTEMPTY:
-    # addressed by tracking + closing pino destinations in _resetLoggerForTests).
-    # Remaining flaky cross-process tests (mcp-stdio-e2e, mcp-concurrency-e2e)
-    # surface as warnings rather than gates while the underlying child-process
-    # initialization races are investigated. package.json `os` still lists
-    # win32 as supported.
+    # Windows runs non-blocking. `package.json` lists win32 in `os`, so this is
+    # a support claim backed by a gate that cannot fail — the one gap between
+    # what this package promises and what CI enforces. It is kept here with an
+    # explicit exit condition rather than left open-ended.
     #
-    # Consequence worth stating: because these jobs always report success, they
-    # cannot be branch-protection required checks — requiring one would be
-    # theatre. Every other configuration in this matrix IS required, so the
-    # gate matches `package.json`'s os/cpu claims except for win32. Fixing the
-    # underlying races and dropping this flag is what would close that gap.
+    # The reason recorded here until 2026-07-31 was cross-process races in
+    # mcp-stdio-e2e and mcp-concurrency-e2e. That was measured and found to be
+    # out of date. Across the 40 most recent CI runs, every Windows failure was
+    # one of:
+    #
+    #   12x  Test timed out in 5000ms
+    #    8x  EPERM during npm cleanup (install layer, co-occurring with below)
+    #    2x  "Could not find any Visual Studio installation to use"
+    #
+    # Not one was a cross-process race. The third is gone: better-sqlite3
+    # stopped shipping Node 20 binaries at 12.10.0, so installs fell back to
+    # compiling from source and Windows has no MSVC; the `~12.9.0` pin closed
+    # it. The first is addressed in vitest.config.ts, which now sets timeouts
+    # for the slowest supported environment instead of a maintainer's machine —
+    # the tests hitting the limit take 57ms locally.
+    #
+    # Exit condition, so this does not become permanent by default: once
+    # Windows has been green for 20 consecutive runs on main with those two
+    # changes in place, delete this line and add both Windows jobs to branch
+    # protection. Until then the flag stays, because a required check that
+    # flakes trains people to re-run rather than to read.
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
     strategy:
       # Don't fail the entire matrix when one config fails — surface ALL
