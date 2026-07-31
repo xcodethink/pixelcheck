@@ -125,13 +125,22 @@ export class SessionStore {
    */
   close(): Promise<void> {
     return new Promise<void>((resolve) => {
-      if (this._writeStream) {
-        const stream = this._writeStream;
-        this._writeStream = null;
-        stream.end(() => resolve());
-      } else {
+      const stream = this._writeStream;
+      if (!stream) {
         resolve();
+        return;
       }
+      this._writeStream = null;
+      // Resolve on "close", not on the end() callback. That callback fires on
+      // "finish", which means the data reached the OS — the file descriptor is
+      // still open at that point and closes a tick later.
+      //
+      // On POSIX the difference is invisible: a file can be unlinked while a
+      // descriptor is open. On Windows it cannot, so a caller that awaited
+      // close() and then removed the directory got
+      // "ENOTEMPTY: directory not empty", which is how CI found this.
+      stream.once("close", () => resolve());
+      stream.end();
     });
   }
 }

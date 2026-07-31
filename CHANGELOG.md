@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `SessionStore.close()` now resolves once the file descriptor is released
+  rather than once the data is flushed. `stream.end(cb)` fires its callback on
+  "finish", when the write has reached the OS but the descriptor is still open
+  and closes a tick later. On POSIX that difference is invisible, since a file
+  can be unlinked while a descriptor is open; on Windows a caller that awaited
+  `close()` and then removed the directory got "ENOTEMPTY: directory not
+  empty". Anyone persisting a session and then cleaning up its directory on
+  Windows was affected, not only the tests that found it.
+
 - The observer server's WebSocket tests wait for the condition they care about
   instead of for a duration. Three of them slept a fixed 50-120ms and then
   asserted; on a loaded runner the assertion fired first. Reproduced by adding
