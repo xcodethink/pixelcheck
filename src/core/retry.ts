@@ -45,7 +45,60 @@ export const DEFAULT_RETRY_STRATEGY: Readonly<RetryStrategy> = Object.freeze({
 const NON_RETRYABLE_NAMES = new Set([
   "BudgetExceededError",
   "ConsentDeclinedError",
+  // Anthropic SDK error classes. A bad or revoked key does not become valid
+  // on the second attempt, and hammering an endpoint that just rejected the
+  // credential is how a key gets rate-limited.
+  "AuthenticationError",
+  "PermissionDeniedError",
 ]);
+
+/**
+ * Conditions that cannot succeed on a retry, matched on the error message
+ * because they arrive from Node, Playwright and HTTP clients as plain errors
+ * with no shared class.
+ *
+ * Why this exists. `retryableErrors` is an allow-list, it defaults to empty,
+ * and nothing in this repository has ever set it — so every error except the
+ * two named classes above was retried. The single production call site wraps a
+ * whole step: navigate, screenshot, LLM call. A full disk or a dead browser
+ * therefore re-ran that entire cascade, twice, with backoff, to fail the same
+ * way and take longer doing it. The comment at that call site already notes
+ * that re-running the cascade multiplies spend, which is why `act` was capped
+ * at zero outer retries; every other step type still paid.
+ *
+ * The rule for adding to this list is that a retry must be incapable of
+ * succeeding, not merely unlikely to. Deliberately absent: TypeError and
+ * friends. Retrying a programming error is close to useless and hides the bug,
+ * but a library can surface a genuinely transient failure that way, and losing
+ * a retry that would have worked is the worse trade.
+ */
+const TERMINAL_ERROR_PATTERNS: ReadonlyArray<{ label: string; re: RegExp }> = [
+  // Storage. Retrying a write that failed for want of space makes it worse:
+  // each attempt writes again, including the screenshots taken along the way.
+  { label: "no space left on device", re: /\bENOSPC\b/ },
+  { label: "disk quota exceeded", re: /\bEDQUOT\b/ },
+  { label: "read-only file system", re: /\bEROFS\b/ },
+  // Permission. Not transient, and on Windows EPERM on a directory is the
+  // usual shape of "something still holds this open".
+  { label: "permission denied", re: /\bEACCES\b/ },
+  { label: "operation not permitted", re: /\bEPERM\b/ },
+  // The browser is gone. Every subsequent action targets a dead handle.
+  {
+    label: "browser or page closed",
+    re: /Target (?:page, context or browser has been )?closed|Browser has been closed|Session closed|browserContext\.close|Protocol error.*Target closed/i,
+  },
+  // Credentials rejected, for clients that surface status rather than a class.
+  { label: "authentication rejected", re: /\b(?:401|403)\b.*(?:unauthor|forbidden|invalid[_ -]?api[_ -]?key)|invalid[_ -]?api[_ -]?key/i },
+];
+
+/** Returns the label of the terminal condition an error matches, if any. */
+export function terminalErrorReason(err: unknown): string | null {
+  const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  for (const { label, re } of TERMINAL_ERROR_PATTERNS) {
+    if (re.test(msg)) return label;
+  }
+  return null;
+}
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -64,6 +117,7 @@ function isNonRetryable(err: unknown): boolean {
   if (err instanceof BudgetExceededError) return true;
   if (err instanceof ConsentDeclinedError) return true;
   if (err instanceof Error && NON_RETRYABLE_NAMES.has(err.name)) return true;
+  if (terminalErrorReason(err) !== null) return true;
   return false;
 }
 
@@ -150,6 +204,9 @@ export async function withRetry<T>(
             attempt: attempt + 1,
             error: err instanceof Error ? err.message : String(err),
             errorName: err instanceof Error ? err.name : undefined,
+            // Which terminal condition, so the log answers "why did this not
+            // retry" without someone re-reading the classifier.
+            terminalReason: terminalErrorReason(err) ?? undefined,
           },
           "non-retryable error — aborting immediately",
         );
