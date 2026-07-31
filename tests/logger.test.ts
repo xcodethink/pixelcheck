@@ -83,35 +83,30 @@ describe("logger", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "logger-test-"));
     const logFile = path.join(tmpDir, "log.ndjson");
     try {
-      await new Promise<void>((resolve, reject) => {
-        withEnv(
-          { LOG_LEVEL: "warn", LOG_PRETTY: undefined, LOG_FILE: logFile },
-          () => {
-            _resetLoggerForTests();
-            const log = getLogger("levelcheck");
-            log.info({ a: 1 }, "should-be-dropped");
-            log.warn({ b: 2 }, "should-appear");
-            // Allow async flush.
-            setTimeout(() => {
-              try {
-                const text = fs.readFileSync(logFile, "utf-8");
-                expect(text).not.toContain("should-be-dropped");
-                expect(text).toContain("should-appear");
-                const lines = text.trim().split("\n").filter(Boolean);
-                const last = JSON.parse(lines[lines.length - 1]!);
-                expect(last.level).toBe("warn");
-                expect(last.module).toBe("levelcheck");
-                expect(last.b).toBe(2);
-                expect(last.msg).toBe("should-appear");
-                expect(typeof last.time).toBe("string");
-                resolve();
-              } catch (err) {
-                reject(err);
-              }
-            }, 200);
-          }
-        );
-      });
+      withEnv(
+        { LOG_LEVEL: "warn", LOG_PRETTY: undefined, LOG_FILE: logFile },
+        () => {
+          _resetLoggerForTests();
+          const log = getLogger("levelcheck");
+          log.info({ a: 1 }, "should-be-dropped");
+          log.warn({ b: 2 }, "should-appear");
+        }
+      );
+      // Flush rather than sleep: the write is asynchronous, and a fixed delay
+      // is a guess at how long it takes on the slowest machine that will ever
+      // run this.
+      await _closeLoggerStreamsForTests();
+
+      const text = fs.readFileSync(logFile, "utf-8");
+      expect(text).not.toContain("should-be-dropped");
+      expect(text).toContain("should-appear");
+      const lines = text.trim().split("\n").filter(Boolean);
+      const last = JSON.parse(lines[lines.length - 1]!);
+      expect(last.level).toBe("warn");
+      expect(last.module).toBe("levelcheck");
+      expect(last.b).toBe(2);
+      expect(last.msg).toBe("should-appear");
+      expect(typeof last.time).toBe("string");
     } finally {
       // Await actual FD close — SonicBoom's end() is async on Windows.
       await _closeLoggerStreamsForTests();
@@ -123,25 +118,16 @@ describe("logger", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "logger-test-"));
     const logFile = path.join(tmpDir, "log.ndjson");
     try {
-      await new Promise<void>((resolve, reject) => {
-        withEnv(
-          { LOG_LEVEL: "bogus", LOG_PRETTY: undefined, LOG_FILE: logFile },
-          () => {
-            _resetLoggerForTests();
-            const log = getLogger("invalidlevel");
-            log.info("hello");
-            setTimeout(() => {
-              try {
-                const text = fs.readFileSync(logFile, "utf-8");
-                expect(text).toContain("hello");
-                resolve();
-              } catch (err) {
-                reject(err);
-              }
-            }, 200);
-          }
-        );
-      });
+      withEnv(
+        { LOG_LEVEL: "bogus", LOG_PRETTY: undefined, LOG_FILE: logFile },
+        () => {
+          _resetLoggerForTests();
+          const log = getLogger("invalidlevel");
+          log.info("hello");
+        }
+      );
+      await _closeLoggerStreamsForTests();
+      expect(fs.readFileSync(logFile, "utf-8")).toContain("hello");
     } finally {
       // Await actual FD close — SonicBoom's end() is async on Windows.
       await _closeLoggerStreamsForTests();
@@ -160,7 +146,7 @@ function logToFile(
 ): Promise<{ raw: string; lines: Array<Record<string, unknown>> }> {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "logger-redact-"));
   const logFile = path.join(tmpDir, "log.ndjson");
-  return new Promise((resolve, reject) => {
+  return (async () => {
     withEnv(
       {
         LOG_LEVEL: options.level ?? "info",
@@ -171,27 +157,30 @@ function logToFile(
         _resetLoggerForTests();
         const log = getLogger(options.module ?? "redact-test");
         fn(log);
-        setTimeout(async () => {
-          try {
-            const raw = fs.readFileSync(logFile, "utf-8");
-            const lines = raw
-              .trim()
-              .split("\n")
-              .filter(Boolean)
-              .map((l) => JSON.parse(l) as Record<string, unknown>);
-            // Await actual FD close — SonicBoom's end() is async on Windows.
-            await _closeLoggerStreamsForTests();
-            rmRecursiveWithRetry(tmpDir);
-            resolve({ raw, lines });
-          } catch (err) {
-            try { await _closeLoggerStreamsForTests(); } catch { /* best effort */ }
-            try { rmRecursiveWithRetry(tmpDir); } catch { /* best effort */ }
-            reject(err);
-          }
-        }, 200);
       },
     );
-  });
+
+    // Flush, then read. This used to sleep 200ms first and close the stream
+    // afterwards — a guess at how long SonicBoom takes, followed by the
+    // operation that would have made the guess unnecessary. Closing first is
+    // deterministic and does not get slower on a loaded runner.
+    try {
+      await _closeLoggerStreamsForTests();
+      const raw = fs.readFileSync(logFile, "utf-8");
+      const lines = raw
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map((l) => JSON.parse(l) as Record<string, unknown>);
+      return { raw, lines };
+    } finally {
+      try {
+        rmRecursiveWithRetry(tmpDir);
+      } catch {
+        /* best effort */
+      }
+    }
+  })();
 }
 
 describe("logger redaction", () => {

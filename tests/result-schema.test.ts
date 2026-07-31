@@ -663,65 +663,56 @@ describe("result-schema — validateResult (warn-not-throw)", () => {
   it("returns input unchanged when value matches schema and emits no warn line", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "result-schema-test-"));
     const logFile = path.join(tmpDir, "log.ndjson");
-    await new Promise<void>((resolve, reject) => {
-      withEnv(
-        { LOG_LEVEL: "warn", LOG_PRETTY: undefined, LOG_FILE: logFile },
-        () => {
-          _resetLoggerForTests();
-          const value = { type: "rephrase" as const, instructions: ["a"] };
-          const out = validateResult("MutationResult", MutationResultSchema, value);
-          expect(out).toBe(value);
-          setTimeout(() => {
-            try {
-              const text = fs.existsSync(logFile)
-                ? fs.readFileSync(logFile, "utf-8")
-                : "";
-              expect(text).not.toMatch(/result schema mismatch/);
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
-          }, 200);
-        },
-      );
-    });
-    // Await actual FD close — SonicBoom's end() is async on Windows.
+    const value = { type: "rephrase" as const, instructions: ["a"] };
+    let out: unknown;
+    withEnv(
+      { LOG_LEVEL: "warn", LOG_PRETTY: undefined, LOG_FILE: logFile },
+      () => {
+        _resetLoggerForTests();
+        out = validateResult("MutationResult", MutationResultSchema, value);
+      },
+    );
+    expect(out).toBe(value);
+
+    // Flush before reading. pino writes through SonicBoom asynchronously, so
+    // the log file is not necessarily on disk when validateResult returns.
+    // This used to sleep 200ms and hope; closing the stream waits for the
+    // actual descriptor, which is both deterministic and faster.
     await _closeLoggerStreamsForTests();
+
+    const text = fs.existsSync(logFile) ? fs.readFileSync(logFile, "utf-8") : "";
+    expect(text).not.toMatch(/result schema mismatch/);
     fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
   it("returns input unchanged on mismatch and emits a structured warn line", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "result-schema-test-"));
     const logFile = path.join(tmpDir, "log.ndjson");
-    await new Promise<void>((resolve, reject) => {
-      withEnv(
-        { LOG_LEVEL: "warn", LOG_PRETTY: undefined, LOG_FILE: logFile },
-        () => {
-          _resetLoggerForTests();
-          const broken = { type: "wrong-type", instructions: ["a"] };
-          const out = validateResult("MutationResult", MutationResultSchema, broken);
-          expect(out).toBe(broken);
-          setTimeout(() => {
-            try {
-              const text = fs.readFileSync(logFile, "utf-8");
-              expect(text).toMatch(/result schema mismatch/);
-              expect(text).toMatch(/MutationResult/);
-              const lines = text.trim().split("\n").filter(Boolean);
-              const last = JSON.parse(lines[lines.length - 1]!);
-              expect(last.level).toBe("warn");
-              expect(last.result).toBe("MutationResult");
-              expect(last.schema_version).toBe(RESULT_SCHEMA_VERSION);
-              expect(Array.isArray(last.issues)).toBe(true);
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
-          }, 200);
-        },
-      );
-    });
-    // Await actual FD close — SonicBoom's end() is async on Windows.
+    const broken = { type: "wrong-type", instructions: ["a"] };
+    let out: unknown;
+    withEnv(
+      { LOG_LEVEL: "warn", LOG_PRETTY: undefined, LOG_FILE: logFile },
+      () => {
+        _resetLoggerForTests();
+        out = validateResult("MutationResult", MutationResultSchema, broken);
+      },
+    );
+    expect(out).toBe(broken);
+
+    // See the sibling test: flush rather than sleep. The 200ms this replaces
+    // was enough on a developer machine and not on a Windows CI runner, where
+    // it read an empty file and failed with "expected '' to match".
     await _closeLoggerStreamsForTests();
+
+    const text = fs.readFileSync(logFile, "utf-8");
+    expect(text).toMatch(/result schema mismatch/);
+    expect(text).toMatch(/MutationResult/);
+    const lines = text.trim().split("\n").filter(Boolean);
+    const last = JSON.parse(lines[lines.length - 1]!);
+    expect(last.level).toBe("warn");
+    expect(last.result).toBe("MutationResult");
+    expect(last.schema_version).toBe(RESULT_SCHEMA_VERSION);
+    expect(Array.isArray(last.issues)).toBe(true);
     fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
