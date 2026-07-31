@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The untrusted-content fence now has a number attached to it. A red-team
+  corpus of thirteen cases — organised by technique rather than by volume —
+  runs through the navigator and reports an attack-success-rate:
+
+  | | fence removed | fence in place |
+  |---|---|---|
+  | attack-success-rate | 18.2% (6/33 trials) | 0.0% (0/33 trials) |
+  | forged state | 3/9 | 0/9 |
+  | delimiter escape | 3/3 | 0/3 |
+  | baseline integrity | 6/6 | 6/6 |
+
+  Two things this measurement taught while being built. Each case runs three
+  times, because one sample is not a rate: the forged-state payload that
+  steered the navigator during manual testing held on the very next single-shot
+  run of the same payload, same model, defence removed. At three trials it is
+  3/3. And the corpus carries clean pages that also gate — a fence tuned until
+  the navigator distrusts every page would score a perfect zero while breaking
+  the product.
+
+  Zero is not proof of safety. It is thirteen cases against one model on one
+  day. What it buys is that a regression becomes visible instead of silent.
+
+  Runs weekly and on demand (`npm run measure:injection`), not on every pull
+  request: the result depends on a model, so it would fail the gate for reasons
+  unrelated to the change under review.
+
 ### Changed
 - The release rehearsal publishes a dry run under a version that does not
   exist yet. Its first run failed with "You cannot publish over the previously

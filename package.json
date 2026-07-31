@@ -78,7 +78,8 @@
     "check:vendor-drift": "tsx scripts/check-vendor-drift.ts",
     "check:vendor-integrity": "tsx scripts/check-vendor-integrity.ts",
     "clean": "rm -rf dist sbom.json docs/api",
-    "lint:report-a11y": "tsx scripts/check-report-a11y.ts"
+    "lint:report-a11y": "tsx scripts/check-report-a11y.ts",
+    "measure:injection": "tsx scripts/measure-injection-asr.ts"
   },
   "keywords": [
     "mcp",

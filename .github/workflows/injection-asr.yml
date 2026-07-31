@@ -1,0 +1,74 @@
+# Red-team measurement for the navigator's untrusted-content fence.
+#
+# Not part of pull-request CI, deliberately. The result depends on a model, so
+# it is a measurement rather than an assertion: pinning it to every PR would
+# fail the gate for reasons unrelated to the change under review, and would
+# spend money on every push. It runs weekly and on demand, and the number is
+# meant to be compared across runs.
+#
+# What the number means, and what it does not. With the fence removed the
+# corpus scored 18.2% (6 of 33 trials), concentrated in two techniques —
+# forged state, and a guess at the delimiter. With it in place, 0%. Zero is not
+# proof of safety: it is thirteen cases against one model on one day. The value
+# is that a regression becomes visible instead of silent.
+#
+# The corpus also carries clean pages, and those gate too. A fence tuned until
+# the navigator distrusts every page would score a perfect zero while breaking
+# the product.
+
+name: Injection ASR
+
+on:
+  schedule:
+    # Mondays, after the Dependabot window so a dependency bump that changes
+    # model behaviour shows up in the same week it landed.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model id to measure"
+        required: false
+        default: "claude-sonnet-4-6"
+      trials:
+        description: "Trials per case (1 is a coin flip, not a rate)"
+        required: false
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: injection-asr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: Measure attack-success-rate
+    runs-on: ubuntu-latest
+    # Without a key the measurement cannot run at all. Skipping loudly beats a
+    # job that reports success having measured nothing.
+    if: github.repository == 'xcodethink/pixelcheck'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Measure
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY is not configured; nothing was measured."
+            exit 1
+          fi
+          npm run measure:injection -- \
+            --model "${{ inputs.model || 'claude-sonnet-4-6' }}" \
+            --trials "${{ inputs.trials || '3' }}"
