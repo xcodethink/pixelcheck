@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The retry policy no longer retries failures that cannot succeed. A full disk,
+  a browser that has closed, a read-only filesystem, a permission error or a
+  rejected API key now abort on the first attempt instead of being re-run with
+  exponential backoff.
+
+  `retryableErrors` is an allow-list, it defaults to empty, and nothing in this
+  repository has ever set it — so every error except `BudgetExceededError` and
+  `ConsentDeclinedError` was retried. The one production call site wraps a
+  whole step: navigate, screenshot, LLM call. A dead browser therefore re-ran
+  that entire cascade, twice, with backoff, to fail the same way and take
+  longer doing it. On a full disk each attempt also wrote more, so retrying
+  made the condition worse rather than merely wasting time.
+
+  The comment at that call site already observed that re-running the cascade
+  multiplies spend — which is why `act` was capped at zero outer retries. Every
+  other step type still paid.
+
+  Transient failures are unaffected and are tested as explicitly as the
+  terminal ones: connection resets, upstream 503s, navigation timeouts and
+  missing elements still get their retries. Programming errors are deliberately
+  left retryable — retrying one is close to useless, but a library can surface
+  a genuinely transient failure as a `TypeError`, and losing a retry that would
+  have worked is the worse trade.
+
+  The abort log now names which terminal condition fired.
+
 ### Changed
 - The accessibility gate now covers every HTML report this project produces —
   the audit report and the SPA explorer as well as the trends dashboard. It had
