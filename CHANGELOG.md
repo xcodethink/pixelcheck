@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Three log-reading tests flush the logger before reading it instead of
+  sleeping and hoping. `result-schema.test.ts` failed on a Windows runner with
+  `expected '' to match /result schema mismatch/` — it slept 200ms for pino to
+  reach disk, which is a guess at a duration, and the file was still empty.
+
+  The fix was already present in the same file: `_closeLoggerStreamsForTests()`
+  waits for the descriptor and carries a comment saying SonicBoom's `end()` is
+  async on Windows. It was being called after the read rather than before it.
+  Both cases here and the three in `logger.test.ts` now flush first.
+
+  Honest about verification: this one could not be red-verified locally. The
+  machine flushes within a millisecond, so a shortened sleep still passes —
+  the same reason the defect only ever appeared on CI. The justification is the
+  mechanism and the CI failure, not a local reproduction.
+
 ### Added
 - The untrusted-content fence now has a number attached to it. A red-team
   corpus of thirteen cases — organised by technique rather than by volume —
