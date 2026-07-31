@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `actions/checkout` and `actions/setup-node` move to v7 in the eight workflows
+  that pull-request CI actually runs. `setup-node@v7` stops exporting a dummy
+  `NODE_AUTH_TOKEN`, which matters here now that publishing is OIDC-only and
+  no token exists to fall back on. Neither v7 major affects this repository:
+  `checkout`'s breaking change blocks fork checkouts under `pull_request_target`
+  and `workflow_run`, and neither trigger is used.
+
+  `release.yml` deliberately stays on v6. It runs only on a tag, so no pull
+  request can exercise it, and the next publish is a security patch with no
+  token fallback — an unverifiable change does not belong in it. Publishing
+  already works on v6, so the benefit is theoretical and can wait for its own
+  change.
+
+- Every declined dependency major is now written into `dependabot.yml` with the
+  condition that would change the answer. Closing a Dependabot PR for a single
+  dependency is not neutral: the bot suppresses that version until the next one
+  ships. Nine had been closed that way, so the backlog was invisible to the
+  automation and had to be rediscovered with `npm outdated`. A refusal held
+  only in the bot's memory is a refusal nobody can review.
+
+### Fixed
+- `estimateCost` now says so when a model has no published price. The table
+  covers three model ids; the API offers more, and picking a current model
+  silently billed the estimate at the highest known rate, tripping budget
+  limits several times early with nothing on screen to explain it. The fallback
+  direction is unchanged — under-counting an unknown model would weaken every
+  cap — but it is no longer silent. Found by measurement: the same five
+  calibration fixtures reported $0.09 on a priced model and $0.47 on an
+  unpriced one, a gap that was entirely this fallback.
+
 ### Security
 - Page-derived text no longer reaches a model prompt undelimited. Every agent
   prompt carries a DOM summary of the page under audit; that page is chosen by

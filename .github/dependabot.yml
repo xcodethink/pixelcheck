@@ -44,6 +44,21 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # Why every declined major is written down here.
+    #
+    # Closing a Dependabot PR for a single dependency is not a neutral act. The
+    # bot replies "OK, I won't notify you again about this release, but will
+    # get in touch when a new version is available" and means it — that version
+    # is suppressed until the next one ships. Nine majors had been closed that
+    # way (typescript 7, chalk 6, commander 15, better-sqlite3 13, cyclonedx 6,
+    # the Anthropic SDK, dotenv, yaml, and both Actions v7 bumps), so the
+    # backlog they represented was invisible to the automation and had to be
+    # rediscovered by hand with `npm outdated`.
+    #
+    # A refusal recorded only in the bot's memory is a refusal nobody can
+    # review. Everything declined belongs below, with the condition that would
+    # change the answer. Group PRs are exempt from that failure mode — the bot
+    # states plainly that closing one ignores nothing — so they are left alone.
     ignore:
       # Stagehand v3 is a dedicated migration task, so don't auto-PR
       - dependency-name: "@browserbasehq/stagehand"
@@ -54,6 +69,29 @@ updates:
       # @types/node major bumps follow Node LTS upgrades (rare + manual)
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # Blocked by `engines.node: >=20`, not by the packages themselves. Each
+      # of these requires Node 22+, so none can be taken until that floor
+      # moves. Node 20 reached end-of-life on 2026-04-30, so it will.
+      - dependency-name: "chalk"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "commander"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "better-sqlite3"
+        update-types: ["version-update:semver-major"]
+      # TypeScript 7 is the native rewrite, shipped 2026-07-08. `tsc --noEmit`
+      # already passes clean on this repository, so the type checker is not the
+      # question. The build runs two passes (--removeComments for the JS,
+      # --emitDeclarationOnly for the declarations) and depends on emit detail,
+      # so equivalence of the emitted output has to be proved before switching.
+      # Until that comparison is done and recorded, a green PR here would be
+      # misleading.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # The Anthropic SDK is 0.x, where every minor may break. It sits on the
+      # scoring path (llm / planner / navigator), so it is reviewed as a task
+      # rather than merged from a diff.
+      - dependency-name: "@anthropic-ai/sdk"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
