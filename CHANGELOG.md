@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Unit-test timeouts are now set for the slowest environment this package
+  supports rather than for a maintainer's machine: 20s on Windows, 5s
+  elsewhere. `tests/reporter-trends.test.ts` runs its 51 cases in 57ms locally
+  and was timing out at the 5000ms default on a Windows runner, roughly ninety
+  times slower — the cost of writing files on a GitHub Windows image with a
+  virus scanner in the path. Raising the limit only changes behaviour for a
+  test that would otherwise have failed.
+
+  Measured across the 40 most recent CI runs: every Windows failure was a
+  5000ms timeout (12), an install-layer EPERM (8), or the missing MSVC
+  toolchain that the `better-sqlite3` pin has since fixed (2). The reason
+  `ci.yml` had been giving for Windows not gating merges — cross-process races
+  in two MCP tests — did not appear once, and has been replaced with the
+  measurement and an explicit exit condition.
+
 ### Changed
 - `actions/checkout` and `actions/setup-node` move to v7 in the eight workflows
   that pull-request CI actually runs. `setup-node@v7` stops exporting a dummy
