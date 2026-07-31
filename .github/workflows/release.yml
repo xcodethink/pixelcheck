@@ -39,6 +39,18 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # Rehearsal. Everything below runs exactly as it would for a release except
+  # the publish itself, which becomes `npm publish --dry-run`.
+  #
+  # The mode is decided by the trigger and nothing else. An input defaulting to
+  # "dry run" would be one mis-set field away from publishing by accident, and
+  # the whole point of a rehearsal is that it cannot become the real thing.
+  #
+  # Run it from the Actions tab before tagging, and after any edit to this file.
+  # Until it existed, this workflow had no way to be exercised at all: it fires
+  # on a tag, so a pull request never touches it, and the first time anything
+  # here was known to work was during a release that could not be taken back.
+  workflow_dispatch:
 
 # Least privilege: read the repo, and mint an OIDC token so `npm publish
 # --provenance` can attest the build. No write scope on repo contents.
@@ -50,16 +62,20 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  # A tag push publishes. Anything else rehearses.
+  DRY_RUN: ${{ github.event_name != 'push' }}
+
 jobs:
   publish:
-    name: Publish to npm
+    name: Publish to npm (or rehearse)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           # Trusted publishing needs Node >= 22.14. This is the publishing
           # runtime only — `engines.node` still declares >= 20 and CI still
@@ -80,10 +96,21 @@ jobs:
 
       - name: Verify tag matches package.json version
         # Guard against a mistyped or stale tag publishing the wrong version.
+        # A rehearsal has no tag, so it reports what a release would publish
+        # and checks that version is not already on the registry.
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
           PKG="$(node -p "require('./package.json').version")"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Rehearsing release of version $PKG (no tag)"
+            if npm view "pixelcheck@$PKG" version >/dev/null 2>&1; then
+              echo "::warning::$PKG is already published. A real release would need a version bump first."
+            else
+              echo "$PKG is not yet on the registry — a release from here would be new."
+            fi
+            exit 0
+          fi
+          TAG="${GITHUB_REF_NAME#v}"
           if [ "$TAG" != "$PKG" ]; then
             echo "::error::Tag v$TAG does not match package.json version $PKG"
             exit 1
@@ -108,7 +135,55 @@ jobs:
             exit 1
           fi
 
+      - name: Inspect the tarball that would be published
+        # The last gate before something becomes permanent. npm tarballs cannot
+        # be unpublished after 72 hours, so anything that reaches this point and
+        # should not have is a fix-forward problem for good.
+        #
+        # This exists because 1.4.4 shipped internal task identifiers in a
+        # .d.ts file, in a string literal, and in SECURITY.md. lint:no-internal-refs
+        # now covers the source, but it scans the repository, not the artefact —
+        # and the artefact is what consumers receive. Scanning the packed tarball
+        # closes the gap between "the tree is clean" and "what we ship is clean".
+        shell: bash
+        run: |
+          npm pack --silent >/dev/null
+          TARBALL="$(ls -1 pixelcheck-*.tgz | head -1)"
+          echo "Packed $TARBALL ($(du -h "$TARBALL" | cut -f1))"
+          mkdir -p .pack-inspect
+          tar xzf "$TARBALL" -C .pack-inspect
+
+          echo "--- file count ---"
+          find .pack-inspect/package -type f | wc -l
+
+          echo "--- internal identifiers in the artefact ---"
+          # CHANGELOG.md is excluded, matching scripts/check-no-internal-refs.ts.
+          # It is a historical record: entries from 2026-05 legitimately mention
+          # the identifiers in use then, and editing them afterwards to look
+          # tidier is what makes a log untrustworthy. Referencing ticket ids in
+          # changelog history is also ordinary practice — the defect this gate
+          # exists for was identifiers in .d.ts comments and string literals,
+          # which explain nothing to a reader outside the project.
+          if grep -rlEI '(^|[^A-Za-z0-9_-])(T[0-9]{1,3}(\.[0-9]+)?|R[0-9]{1,3}|M[0-9]{1,2}-[0-9]{1,2})([^A-Za-z0-9_:.-]|$)' \
+               .pack-inspect/package --include='*.js' --include='*.d.ts' --include='*.md' \
+               --exclude='CHANGELOG.md' 2>/dev/null; then
+            echo "::error::Internal project-tracking identifiers found in the packed tarball."
+            echo "::error::These reach every consumer. Fix the source and re-pack."
+            exit 1
+          fi
+          echo "none found"
+
+          echo "--- source maps (must be absent) ---"
+          if find .pack-inspect/package -name '*.map' | grep -q .; then
+            echo "::error::Source maps in the tarball; package.json files should exclude them."
+            exit 1
+          fi
+          echo "none found"
+
+          rm -rf .pack-inspect "$TARBALL"
+
       - name: Publish (with provenance)
+        if: env.DRY_RUN != 'true'
         # publishConfig.access is already "public". Provenance is generated
         # automatically under trusted publishing; --provenance is kept explicit
         # so the intent survives if the publish path ever changes again.
@@ -117,3 +192,33 @@ jobs:
         # authentication error, the trusted publisher configuration on npmjs.com
         # no longer matches this file — check the workflow filename first.
         run: npm publish --provenance
+
+      - name: Rehearsal — publish dry run
+        if: env.DRY_RUN == 'true'
+        # `--dry-run` performs every step of a publish except the upload, so it
+        # exercises packing, the files list and publishConfig.
+        #
+        # Stated plainly, because a rehearsal that overstates what it proves is
+        # worse than none: this does NOT verify the trusted-publisher
+        # configuration on npmjs.com. A dry run never authenticates, and npm
+        # offers no way to validate that configuration without publishing. The
+        # check below reads the registry to confirm the most recent published
+        # version went out over OIDC, which shows the configuration was valid
+        # as of that release — not that it still is.
+        shell: bash
+        run: |
+          npm publish --dry-run
+          echo "--- authentication path of the most recent published version ---"
+          curl -fsSL https://registry.npmjs.org/pixelcheck \
+            | node -e "
+              let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+                const p=JSON.parse(s);
+                const latest=p['dist-tags'].latest;
+                const u=p.versions[latest]._npmUser||{};
+                const oidc=u.trustedPublisher?.id;
+                console.log('latest published: '+latest);
+                console.log('published by:     '+(u.name||'unknown'));
+                console.log('trusted publisher:'+(oidc?' '+oidc:' none — that release used a token'));
+              });"
+          echo
+          echo '::notice::Rehearsal complete. Nothing was published.'

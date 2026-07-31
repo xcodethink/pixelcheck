@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The release workflow can be rehearsed. `workflow_dispatch` runs every step a
+  release runs — checkout, npm upgrade, install, build, the quality gate,
+  schema idempotence, packing and inspection — and stops short of the upload,
+  ending in `npm publish --dry-run`. Until now the workflow fired only on a
+  tag, so no pull request could touch it and the first evidence that any edit
+  worked came from a release that could not be taken back.
+
+  The mode is decided by the trigger alone. An input defaulting to "dry run"
+  would be one mis-set field away from publishing by accident.
+
+  Stated because a rehearsal that overstates itself is worse than none: this
+  does not verify the trusted-publisher configuration on npmjs.com. A dry run
+  never authenticates, and npm offers no way to validate that configuration
+  short of publishing. The rehearsal instead reads the registry and reports
+  whether the most recent published version went out over OIDC — evidence the
+  configuration was valid then, not that it still is.
+
+- `release.yml` moves to `actions/checkout@v7` and `actions/setup-node@v7`,
+  now that a rehearsal can exercise it. It was deliberately left behind when
+  the other eight workflows were bumped, precisely because nothing could
+  verify it before a release.
+
+### Added
+- The release workflow inspects the packed tarball before publishing: it fails
+  on internal project-tracking identifiers and on any source map. `1.4.4`
+  shipped identifiers in a `.d.ts` file, in a string literal and in
+  `SECURITY.md`; `lint:no-internal-refs` now covers the source, but it scans
+  the repository rather than the artefact, and the artefact is what consumers
+  receive. `CHANGELOG.md` is excluded, matching the repository gate — a
+  historical record edited afterwards to look tidier is one nobody can trust.
+
 ### Fixed
 - `SessionStore.close()` now resolves once the file descriptor is released
   rather than once the data is flushed. `stream.end(cb)` fires its callback on
