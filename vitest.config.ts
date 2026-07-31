@@ -2,6 +2,27 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    // Timeouts are set for the slowest environment this package supports, not
+    // for a maintainer's machine.
+    //
+    // Measured across 40 CI runs before this was added: every Windows failure
+    // in that window was "Test timed out in 5000ms" (12 occurrences), an
+    // install-layer EPERM during npm cleanup (8), or the missing MSVC
+    // toolchain that the better-sqlite3 pin has since fixed (2). Not one was a
+    // cross-process race, which is what ci.yml had been citing as the reason
+    // Windows could not gate a merge.
+    //
+    // The tests hitting that limit are not slow. tests/reporter-trends.test.ts
+    // runs its 51 cases in 57ms locally and timed out at 5000ms on a Windows
+    // runner — roughly ninety times slower, which is what writing files on a
+    // GitHub Windows image with a virus scanner in the path costs.
+    //
+    // Raising this only changes behaviour for a test that would otherwise have
+    // failed, so the cost is bounded to how long a genuinely hung test takes to
+    // report. Keeping the limit tight elsewhere preserves that signal where the
+    // filesystem is not the bottleneck.
+    testTimeout: process.platform === "win32" ? 20_000 : 5_000,
+    hookTimeout: process.platform === "win32" ? 20_000 : 10_000,
     // Exclude nested git worktrees so `npm test` doesn't double-count their
     // test files. Worktrees live under .claude/worktrees/ by convention.
     //
