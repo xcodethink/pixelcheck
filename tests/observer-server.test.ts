@@ -136,7 +136,11 @@ describe("observer HTTP/WS server (G3 follow-up)", () => {
     try {
       ws.send(JSON.stringify({ command: "nonsense" }));
       ws.send(JSON.stringify({ command: "pause" }));
-      await new Promise((r) => setTimeout(r, 120));
+      // Wait for the dispatch to land, not for a duration. The 120ms sleep
+      // this replaces was the single most frequent CI flake: the assertion
+      // fired before a loaded runner had processed the frame.
+      await vi.waitFor(() => expect(pauseSpy).toHaveBeenCalledTimes(1));
+      // ...and the unknown command still must not have reached the bus.
       expect(pauseSpy).toHaveBeenCalledTimes(1);
     } finally {
       ws.close();
@@ -153,8 +157,10 @@ describe("observer HTTP/WS server (G3 follow-up)", () => {
           if (isBinary) resolve(d as Buffer);
         });
       });
-      // give the server a tick to register the client before broadcasting
-      await new Promise((r) => setTimeout(r, 50));
+      // A broadcast to zero clients is a silent no-op, so wait for the server
+      // to have actually registered this connection rather than assuming a
+      // tick is enough.
+      await vi.waitFor(() => expect(server.connectedClientCount).toBe(1));
       server.broadcastFrame(Buffer.from("frame-bytes").toString("base64"));
       expect((await binary).toString()).toBe("frame-bytes");
     } finally {
@@ -172,7 +178,7 @@ describe("observer HTTP/WS server (G3 follow-up)", () => {
           if (m.type === "event") resolve(m);
         });
       });
-      await new Promise((r) => setTimeout(r, 50));
+      await vi.waitFor(() => expect(server.connectedClientCount).toBe(1));
       // emitEvent does the dual-emit (type + "*"); the server listens on "*".
       bus.emitEvent("session:start", {});
       const m = await eventMsg;

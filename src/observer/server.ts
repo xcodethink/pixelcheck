@@ -98,6 +98,19 @@ export class ObserverServer {
   }
 
   /**
+   * How many dashboard clients are currently attached.
+   *
+   * A broadcast to zero clients is silently a no-op, which makes "did the
+   * client connect yet" and "did the broadcast work" indistinguishable from
+   * the outside. Tests were bridging that with a fixed sleep before
+   * broadcasting, which is a guess at a duration rather than a check of the
+   * condition, and it failed on a loaded CI runner.
+   */
+  get connectedClientCount(): number {
+    return this._clients.size;
+  }
+
+  /**
    * Send a screencast frame to all connected clients.
    */
   broadcastFrame(base64Data: string): void {

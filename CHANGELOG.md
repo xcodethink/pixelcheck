@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The observer server's WebSocket tests wait for the condition they care about
+  instead of for a duration. Three of them slept a fixed 50-120ms and then
+  asserted; on a loaded runner the assertion fired first. Reproduced by adding
+  a 300ms delay to the server's message handler, where the old test fails with
+  exactly the error CI reported and the new one passes.
+
+  `ObserverServer` gained a read-only `connectedClientCount`. A broadcast to
+  zero clients is a silent no-op, so "has the client connected yet" and "did
+  the broadcast work" were indistinguishable from outside, and the tests were
+  bridging that gap with a guess at a duration.
+
 - Unit-test timeouts are now set for the slowest environment this package
   supports rather than for a maintainer's machine: 20s on Windows, 5s
   elsewhere. `tests/reporter-trends.test.ts` runs its 51 cases in 57ms locally
