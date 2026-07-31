@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The accessibility gate now covers every HTML report this project produces —
+  the audit report and the SPA explorer as well as the trends dashboard. It had
+  covered one of three, recording the other two as needing "a completed run" to
+  render. That was an assumption nobody had checked: `writeHtmlReport` and
+  `writeSpaReport` take a plain `AuditRun` and a directory, as their own unit
+  tests already showed, so a fixture is enough. Recording a limitation without
+  testing it is how a gate quietly covers a third of what it appears to.
+
+  All three are clean, and the two newly covered ones were confirmed to fail
+  when low-contrast text is planted in them.
+
+  What it still does not cover, stated in the script: axe sees the DOM as
+  rendered. The SPA's filters and expandable rows are never entered, and no
+  report is checked after a theme toggle.
+
 ### Fixed
 - Three log-reading tests flush the logger before reading it instead of
   sleeping and hoping. `result-schema.test.ts` failed on a Windows runner with
