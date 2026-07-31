@@ -195,19 +195,62 @@ jobs:
 
       - name: Rehearsal — publish dry run
         if: env.DRY_RUN == 'true'
-        # `--dry-run` performs every step of a publish except the upload, so it
-        # exercises packing, the files list and publishConfig.
+        env:
+          # Never published, and strict semver so the contract tests accept it.
+          REHEARSAL_VERSION: "999.0.0"
+        # `--dry-run` performs every step of a publish except the upload, and
+        # it reaches the registry: the first run of this rehearsal failed with
+        # "You cannot publish over the previously published versions: 1.4.4",
+        # which is the state between every pair of releases. Left alone, this
+        # step would have been red on every rehearsal until someone silenced it.
+        #
+        # So the rehearsal does what a real release does and carries a version
+        # that has not been published. The working tree is restored afterwards;
+        # the runner is ephemeral either way, but leaving a mutated
+        # package.json behind would make anything added after this step lie
+        # about what it inspected.
         #
         # Stated plainly, because a rehearsal that overstates what it proves is
         # worse than none: this does NOT verify the trusted-publisher
-        # configuration on npmjs.com. A dry run never authenticates, and npm
+        # configuration on npmjs.com. A dry run does not authenticate, and npm
         # offers no way to validate that configuration without publishing. The
         # check below reads the registry to confirm the most recent published
         # version went out over OIDC, which shows the configuration was valid
         # as of that release — not that it still is.
         shell: bash
         run: |
+          PKG="$(node -p "require('./package.json').version")"
+          # 999.0.0 rather than a prerelease suffix, and server.json moves with
+          # it. Both are forced by the repository's own contract tests, which
+          # `npm publish` re-runs through prepublishOnly: one asserts the
+          # advertised version matches /^\d+\.\d+\.\d+$/, so a
+          # "-rehearsal.N" suffix fails it, and another asserts server.json and
+          # package.json agree. A version this far ahead is strict semver and
+          # will never collide with something real.
+          cp package.json package.json.orig
+          cp server.json server.json.orig
+          npm pkg set "version=${REHEARSAL_VERSION}" >/dev/null
+          node -e "
+            const fs = require('fs');
+            const d = JSON.parse(fs.readFileSync('server.json', 'utf8'));
+            d.version = process.env.REHEARSAL_VERSION;
+            if (Array.isArray(d.packages)) {
+              for (const p of d.packages) if (p.version) p.version = process.env.REHEARSAL_VERSION;
+            }
+            fs.writeFileSync('server.json', JSON.stringify(d, null, 2) + '\n');
+          "
+          echo "Dry-running a publish as ${REHEARSAL_VERSION} (real version is ${PKG})"
+          set +e
           npm publish --dry-run
+          STATUS=$?
+          set -e
+          mv package.json.orig package.json
+          mv server.json.orig server.json
+          if [ "$STATUS" -ne 0 ]; then
+            echo "::error::npm publish --dry-run failed. A real release would fail the same way."
+            exit "$STATUS"
+          fi
+          echo "Restored package.json and server.json to ${PKG}"
           echo "--- authentication path of the most recent published version ---"
           curl -fsSL https://registry.npmjs.org/pixelcheck \
             | node -e "

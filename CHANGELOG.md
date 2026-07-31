@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The release rehearsal publishes a dry run under a version that does not
+  exist yet. Its first run failed with "You cannot publish over the previously
+  published versions: 1.4.4" — `npm publish --dry-run` reaches the registry, so
+  the step would have been red between every pair of releases until someone
+  silenced it. It now moves `package.json` and `server.json` to `999.0.0` for
+  the duration and restores both afterwards. A prerelease suffix does not work:
+  `npm publish` re-runs the suite through `prepublishOnly`, and this repository
+  asserts the advertised version matches `/^\d+\.\d+\.\d+$/` and that
+  `server.json` agrees with `package.json`.
+
 - The release workflow can be rehearsed. `workflow_dispatch` runs every step a
   release runs — checkout, npm upgrade, install, build, the quality gate,
   schema idempotence, packing and inspection — and stops short of the upload,
