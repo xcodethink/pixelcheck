@@ -17,10 +17,18 @@
  * the only way to know, and this gate does it on the rendered page rather than
  * on the stylesheet.
  *
- * Scope: the reports that can be rendered from fixtures without a network or
- * an API key. `audit.html` and the SPA explorer need a completed run, so they
- * are not covered here — see the TODO at the bottom rather than assuming they
- * are clean.
+ * Scope: every HTML report this project produces. An earlier version of this
+ * gate covered only the trends dashboard and recorded the other two as needing
+ * "a completed run" — which turned out to be an assumption nobody had checked.
+ * `writeHtmlReport` and `writeSpaReport` take a plain `AuditRun` object and a
+ * directory, exactly as their unit tests already demonstrated, so a fixture is
+ * enough. Recording a limitation without testing it is how a gate quietly
+ * covers a third of what it appears to.
+ *
+ * What this still does not cover, so the number is not read as more than it
+ * is: axe sees the DOM as rendered. The SPA explorer has filters and expandable
+ * rows whose states are never entered here, and no report is checked after a
+ * theme toggle. A clean run means the initial render of three reports is clean.
  *
  * Exits 0 (no violations) / 1 (violations found).
  */
@@ -30,6 +38,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { chromium } from "playwright";
 import { renderTrendsHtml } from "../src/core/reporter-trends.js";
+import { writeHtmlReport } from "../src/core/reporter.js";
+import { writeSpaReport } from "../src/core/reporter-spa.js";
+import type { AuditRun } from "../src/core/types.js";
 
 const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 
@@ -46,6 +57,61 @@ interface AxeViolation {
   impact: string | null;
   help: string;
   nodes: AxeNode[];
+}
+
+/**
+ * A minimal but representative run: one passing scenario with scores, one
+ * issue, and a step list. Enough for every report to render its tables,
+ * badges and status colours, which is where contrast problems live.
+ */
+function sampleAudit(): AuditRun {
+  const now = new Date("2026-07-31T00:00:00.000Z").toISOString();
+  return {
+    run_id: "a11y-gate",
+    project_name: "sample-project",
+    base_url: "https://sample.example",
+    started_at: now,
+    finished_at: now,
+    duration_ms: 1000,
+    results: [
+      {
+        scenario_id: "s1",
+        scenario_name: "Signup",
+        persona_id: "p1",
+        persona_display_name: "US Desktop",
+        started_at: now,
+        finished_at: now,
+        duration_ms: 500,
+        status: "pass_with_issues",
+        fingerprint_id: "fp-1",
+        steps: [
+          { step_id: "s1-visit", step_type: "visit", status: "pass", duration_ms: 200, retries_used: 0 },
+          { step_id: "s1-act", step_type: "act", status: "fail", duration_ms: 300, retries_used: 1 },
+        ],
+        scores: [
+          { dimension: "completion", score: 9.0, justification: "reached the goal" },
+          { dimension: "visual_polish", score: 6.5, justification: "spacing is uneven" },
+        ],
+        overall_score: 7.8,
+        issues: [
+          { severity: "critical", description: "Payment button unreachable on mobile", recommendation: "raise the tap target" },
+          { severity: "medium", description: "Button alignment off", recommendation: "fix CSS" },
+        ],
+        artifacts: {},
+        cost_usd: 0.02,
+      },
+    ],
+    summary: {
+      total: 1,
+      pass: 0,
+      pass_with_issues: 1,
+      fail: 0,
+      total_cost_usd: 0.02,
+      total_issues: 2,
+      critical_issues: 1,
+    },
+    config: {} as AuditRun["config"],
+  } as AuditRun;
 }
 
 async function buildPages(dir: string): Promise<Array<{ name: string; file: string }>> {
@@ -65,6 +131,10 @@ async function buildPages(dir: string): Promise<Array<{ name: string; file: stri
     "utf8",
   );
   pages.push({ name: "trends dashboard", file: trends });
+
+  const audit = sampleAudit();
+  pages.push({ name: "audit report", file: writeHtmlReport(audit, dir) });
+  pages.push({ name: "audit explorer (SPA)", file: writeSpaReport(audit, dir) });
 
   return pages;
 }
@@ -130,6 +200,4 @@ async function main(): Promise<void> {
   process.stdout.write("report-a11y check: ok\n");
 }
 
-// TODO: audit.html and the SPA explorer need a completed run to render, so
-// they are outside this gate. They are unscanned, not known-clean.
 await main();
