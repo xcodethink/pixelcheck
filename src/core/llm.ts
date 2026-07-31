@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getCostGuard } from "./cost-guard.js";
+import { getLogger } from "./logger.js";
 
 let client: Anthropic | null = null;
 
@@ -145,12 +146,42 @@ const HIGHEST_RATE = Object.values(PRICING).reduce((hi, x) =>
   x.in + x.out > hi.in + hi.out ? x : hi,
 );
 
+/**
+ * Models already reported as unpriced, so the warning fires once per model
+ * rather than once per call.
+ */
+const warnedUnpricedModels = new Set<string>();
+
+/** Test seam: the warn-once state is process-global otherwise. */
+export function _resetUnpricedWarningsForTests(): void {
+  warnedUnpricedModels.clear();
+}
+
 export function estimateCost(
   model: string,
   inputTokens: number,
   outputTokens: number,
 ): number {
-  const p = PRICING[model] ?? HIGHEST_RATE;
+  const known = PRICING[model];
+  if (!known && !warnedUnpricedModels.has(model)) {
+    warnedUnpricedModels.add(model);
+    // The fallback direction is deliberate and stays — under-counting an
+    // unknown model would quietly weaken every budget cap. But silently
+    // charging the most expensive known rate is its own problem: the table
+    // covers three model ids while the API offers more, so picking a current
+    // model can bill the estimate at Opus rates and trip the budget several
+    // times early, with nothing on screen to explain why the audit stopped.
+    //
+    // Measured while comparing critic calibration across models: the same five
+    // fixtures reported $0.09 on a priced model and $0.47 on an unpriced one,
+    // a difference that was entirely this fallback and not the model.
+    getLogger("llm").warn(
+      { model, fallbackRateUsdPerMTokIn: HIGHEST_RATE.in },
+      "no published price for this model; estimating at the highest known rate. " +
+        "Spend figures and budget limits will over-count until it is added to PRICING.",
+    );
+  }
+  const p = known ?? HIGHEST_RATE;
   return (inputTokens * p.in + outputTokens * p.out) / 1_000_000;
 }
 
