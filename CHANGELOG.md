@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- `redact_patterns` given as a prefix now removes the whole credential rather
+  than just the prefix. The config `init` scaffolds for every new project sets
+  prefixes — `sk-ant-`, `pk_test_`, `pk_live_` — and a plain substring replace
+  turned `sk-ant-api03-REALKEY` into `[REDACTED]api03-REALKEY`.
+
+  That is worse than leaving it alone. The entropy survives intact while the
+  marker a secret scanner greps for is gone, so the leak stops being detectable
+  without becoming any less usable: anyone who finds it knows exactly what to
+  put back on the front. It applies to any credential visible on an audited
+  page, which reports and CI artefacts then carry.
+
+  Redaction had tested clean throughout because the tests and the product used
+  different configurations. `tests/ci-reporters.test.ts` sets
+  `redact_patterns: ["sk-ant-secret-9999"]` — the complete value — so the
+  substring replace removed all of it. The suite never exercised the prefixes
+  the product ships.
+
+  A match now also consumes the trailing run of token characters. Whole-value
+  patterns, which is what the environment-variable path adds, are unchanged.
+
+  **Behaviour change**: redaction is greedier. A pattern that opens a longer
+  token now takes the rest of that token with it — `redact("a-secret-a", ["a"])`
+  returns `[REDACTED]` where it used to return `[REDACTED]-secret-[REDACTED]`.
+  That is the safe direction for something whose job is to not leak, and real
+  patterns are whole secrets or scheme prefixes rather than single letters.
+
 ### Fixed
 - `history` and `trends` accept a project directory as well as a project name,
   and say something useful when a filter matches nothing. `run` and `init` take
