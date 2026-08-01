@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `doctor` reported the wrong minimum Node version. It accepted Node 18 and
+  printed "(>= 18 required)" while `engines.node` has said `>=20.0.0` since the
+  toolchain moved past 18 — so the check whose entire job is to answer "will
+  this machine run it" answered yes on a runtime the package does not support
+  and CI does not test. A user on 18 got a green line and then failures with no
+  connection to it.
+
+  The drift was invisible to every other gate: both numbers were internally
+  consistent, so nothing failed. A contract test now pins `doctor`'s floor to
+  `engines.node`.
+
+### Fixed
 - The retry policy no longer retries failures that cannot succeed. A full disk,
   a browser that has closed, a read-only filesystem, a permission error or a
   rejected API key now abort on the first attempt instead of being re-run with

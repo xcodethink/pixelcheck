@@ -77,24 +77,45 @@ export interface DoctorOptions {
 // Individual checks
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * The floor `package.json` actually declares.
+ *
+ * This check used to accept Node 18 and print "(>= 18 required)", which is a
+ * doctor telling a user their environment is fine when the package they just
+ * installed disagrees. `engines.node` has said `>=20.0.0` since the toolchain
+ * moved past 18, and CI dropped 18 at the same time because vitest 4 imports
+ * `util.styleText`. A user on 18 got a green line here and then failures with
+ * no connection to it.
+ *
+ * Kept as a literal rather than read from package.json at runtime: the file is
+ * not reliably resolvable from a globally installed bin, and a health check
+ * that can itself fail to load is worse than one that repeats a number. The
+ * contract test below pins the two together.
+ */
+const MIN_NODE_MAJOR = 20;
+
 function checkNodeVersion(): DoctorCheck {
   const v = process.versions.node;
   const major = parseInt(v.split(".")[0]!, 10);
-  if (major >= 18) {
+  if (major >= MIN_NODE_MAJOR) {
     return {
       name: "Node.js version",
       status: "ok",
-      message: `v${v} (>= 18 required)`,
+      message: `v${v} (>= ${MIN_NODE_MAJOR} required)`,
     };
   }
   return {
     name: "Node.js version",
     status: "fail",
-    message: `v${v} is unsupported`,
+    message: `v${v} is below the supported floor of ${MIN_NODE_MAJOR}`,
     remedy:
-      "Upgrade to Node.js 18+ (LTS recommended). See docs/INSTALLATION.md.",
+      `Upgrade to Node.js ${MIN_NODE_MAJOR}+. Node 20 reached end-of-life on ` +
+      "2026-04-30, so 22 or 24 is the better target. See docs/INSTALLATION.md.",
   };
 }
+
+/** Exported so a test can pin it against `engines.node`. */
+export const _MIN_NODE_MAJOR_FOR_TESTS = MIN_NODE_MAJOR;
 
 function checkPlatform(): DoctorCheck {
   const supported = ["darwin", "linux", "win32"];
