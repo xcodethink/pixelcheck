@@ -76,15 +76,58 @@ export function buildRedactPatterns(configPatterns: string[]): string[] {
   return Array.from(patterns);
 }
 
+/** Characters that can belong to a credential token. */
+const TOKEN_TAIL = /^[A-Za-z0-9_-]*/;
+
 /**
- * Apply redaction to a string by replacing each pattern with [REDACTED].
+ * Apply redaction to a string by replacing each pattern, and whatever token
+ * characters follow it, with [REDACTED].
+ *
+ * The tail is the part that matters. Patterns come from two places: the full
+ * values of known secret environment variables, and `redact_patterns` in the
+ * project config — and the config `init` scaffolds for every new project is
+ * prefixes:
+ *
+ *   redact_patterns:
+ *     - sk-ant-
+ *     - pk_test_
+ *     - pk_live_
+ *
+ * A plain substring replace turns `sk-ant-api03-REALKEY` into
+ * `[REDACTED]api03-REALKEY`. That is worse than leaving it alone: the entropy
+ * survives intact while the prefix a secret scanner greps for is gone, so the
+ * leak stops being detectable without becoming any less usable. Anyone who
+ * finds it knows exactly what to put back on the front.
+ *
+ * Consuming the trailing token run makes a prefix pattern redact the whole
+ * credential. A full-value pattern is unaffected — the run after it is empty —
+ * so the existing behaviour for environment-variable secrets is unchanged.
+ *
+ * The trade is a little over-redaction: a short pattern that happens to open a
+ * longer word now takes the rest of the word with it. That is the safe
+ * direction for something whose job is to not leak.
  */
 export function redact(input: string, patterns: string[]): string {
   let out = input;
   for (const p of patterns) {
     if (!p) continue;
-    // Case-sensitive substring replace
-    out = out.split(p).join("[REDACTED]");
+    // Case-sensitive, and scanning by index rather than by regex so the
+    // pattern itself is never interpreted — a config value may contain any
+    // character.
+    let result = "";
+    let from = 0;
+    for (;;) {
+      const hit = out.indexOf(p, from);
+      if (hit === -1) {
+        result += out.slice(from);
+        break;
+      }
+      const afterPattern = hit + p.length;
+      const tail = TOKEN_TAIL.exec(out.slice(afterPattern))?.[0] ?? "";
+      result += out.slice(from, hit) + "[REDACTED]";
+      from = afterPattern + tail.length;
+    }
+    out = result;
   }
   return out;
 }
