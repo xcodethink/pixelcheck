@@ -33,7 +33,12 @@ import { notifySlack, notifyTelegram } from "./core/notify.js";
 import { preflightUrls } from "./core/url-preflight.js";
 import { resolvePersonaSecrets } from "./core/persona.js";
 import { buildRedactPatterns, getStripeSecrets, redact } from "./core/secrets.js";
-import { saveAuditToHistory, loadHistory, diffRuns } from "./core/history.js";
+import {
+  saveAuditToHistory,
+  loadHistory,
+  diffRuns,
+  listHistoryProjects,
+} from "./core/history.js";
 import { writeTrendsDashboard } from "./core/reporter-trends.js";
 import {
   renderDiffHtml,
@@ -269,20 +274,102 @@ program
     }
   });
 
+/**
+ * Accept a run directory where a run id is expected.
+ *
+ * Every completed audit prints absolute paths to its reports, so a path is what
+ * the user has to hand. `diff` wants the id — which is the directory's own
+ * basename, making the two trivially interchangeable and the failure needlessly
+ * confusing.
+ */
+function resolveRunId(value: string): string {
+  const asPath = path.resolve(value);
+  if (fs.existsSync(asPath) && fs.statSync(asPath).isDirectory()) {
+    return path.basename(asPath);
+  }
+  return value;
+}
+
+/**
+ * Accept either form of `--project` on the history-reading commands.
+ *
+ * `run` and `init` take a project *directory*; `history` and `trends` filter by
+ * project *name*. Both are documented correctly in isolation, which is exactly
+ * why the mismatch is easy to walk into: the natural next command after
+ * `pixelcheck run --project projects/demo` is
+ * `pixelcheck history --project projects/demo`, and that reported no history at
+ * all while seven runs sat in the database.
+ *
+ * When the value points at a project directory, read the name out of its
+ * config. Otherwise treat it as a name, as before.
+ */
+function resolveProjectFilter(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const asDir = path.resolve(value);
+  if (!fs.existsSync(asDir) || !fs.statSync(asDir).isDirectory()) return value;
+  for (const candidate of ["config.yaml", "config.yml"]) {
+    const configPath = path.join(asDir, candidate);
+    if (!fs.existsSync(configPath)) continue;
+    try {
+      const name = loadProjectConfig(configPath).project_name;
+      if (name) return name;
+    } catch {
+      // An unreadable config is not this command's problem to report; fall
+      // through and use the value as typed.
+    }
+  }
+  return value;
+}
+
+/**
+ * Explain an empty result instead of stating it.
+ *
+ * A filter that matches nothing looks identical to having no history, and the
+ * two need completely different responses from the reader.
+ */
+function reportNoHistory(reportsDir: string, filter: string | undefined): void {
+  const known = listHistoryProjects(reportsDir);
+  if (known.length === 0) {
+    console.log(
+      chalk.yellow(`No audit history found in ${reportsDir}.`),
+    );
+    console.log(
+      chalk.gray("  Run an audit first: pixelcheck run --project <dir>"),
+    );
+    return;
+  }
+  if (filter && !known.includes(filter)) {
+    console.log(
+      chalk.yellow(`No runs recorded for project "${filter}".`),
+    );
+    console.log(
+      chalk.gray(`  Projects in ${reportsDir}: ${known.join(", ")}`),
+    );
+    console.log(
+      chalk.gray(
+        "  --project takes a project name here, or a project directory.",
+      ),
+    );
+    return;
+  }
+  console.log(chalk.yellow("No audit history found."));
+}
+
 program
   .command("history")
   .description("Show audit history and quality trends")
   .option("-o, --out <dir>", "Reports directory", "reports")
   .option("-n, --limit <n>", "Number of recent runs to show", parseIntOpt)
-  .option("--project <name>", "Filter by project name")
+  .option("--project <nameOrDir>", "Filter by project name, or a project directory")
   .action((histOpts: { out: string; limit?: number; project?: string }) => {
     const reportsDir = path.resolve(histOpts.out);
+    const project = resolveProjectFilter(histOpts.project);
     const entries = loadHistory(reportsDir, {
       limit: histOpts.limit ?? 20,
-      project: histOpts.project,
+      project,
     });
     if (entries.length === 0) {
-      console.log(chalk.yellow("No audit history found."));
+      reportNoHistory(reportsDir, project);
       return;
     }
     console.log(
@@ -319,7 +406,7 @@ program
   .option("-o, --out <dir>", "Reports directory containing history.db", "reports")
   .option("--dashboard <path>", "Output path for the HTML file (default: <reports>/trends.html)")
   .option("-n, --limit <n>", "Cap on history rows used for charts", parseIntOpt)
-  .option("--project <name>", "Filter by project name")
+  .option("--project <nameOrDir>", "Filter by project name, or a project directory")
   .option(
     "--locale <code>",
     "Dashboard language: en | zh-CN | ja | es | de (default: en)",
@@ -333,12 +420,18 @@ program
       locale?: string;
     }) => {
       const reportsDir = path.resolve(trendsOpts.out);
+      const project = resolveProjectFilter(trendsOpts.project);
+      // A dashboard reporting "0 runs" looks like a finished artefact, so say
+      // so on the way out rather than letting the file be the only signal.
+      if (loadHistory(reportsDir, { limit: 1, project }).length === 0) {
+        reportNoHistory(reportsDir, project);
+      }
       const outPath = writeTrendsDashboard(reportsDir, {
         outPath: trendsOpts.dashboard
           ? path.resolve(trendsOpts.dashboard)
           : undefined,
         limit: trendsOpts.limit,
-        project: trendsOpts.project,
+        project,
         locale: trendsOpts.locale ? normaliseLocale(trendsOpts.locale) : undefined,
       });
       console.log(
@@ -381,9 +474,19 @@ program
       },
     ) => {
       const reportsDir = path.resolve(diffOpts.out);
-      const result = diffRuns(reportsDir, runA, runB);
+      const idA = resolveRunId(runA);
+      const idB = resolveRunId(runB);
+      const result = diffRuns(reportsDir, idA, idB);
       if (!result) {
-        console.log(chalk.red("One or both runs not found in history."));
+        console.log(chalk.red(`No history for run "${idA}" or "${idB}".`));
+        // Naming what is available turns a dead end into the next command.
+        const known = loadHistory(reportsDir, { limit: 10 }).map((e) => e.id);
+        if (known.length > 0) {
+          console.log(chalk.gray(`  Recent runs in ${reportsDir}:`));
+          for (const id of known) console.log(chalk.gray(`    ${id}`));
+        } else {
+          console.log(chalk.gray(`  No runs recorded in ${reportsDir} at all.`));
+        }
         process.exit(1);
       }
 
