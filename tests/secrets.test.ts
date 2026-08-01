@@ -152,7 +152,24 @@ describe("redact", () => {
   });
 
   it("replaces every occurrence of each pattern", () => {
-    expect(redact("a-secret-a", ["a"])).toBe("[REDACTED]-secret-[REDACTED]");
+    expect(redact("token=A1 and token=A2", ["A1", "A2"])).toBe(
+      "token=[REDACTED] and token=[REDACTED]",
+    );
+  });
+
+  it("consumes the token that follows a pattern, not just the pattern", () => {
+    // Contract change, 2026-08-01. A match now takes the trailing run of
+    // token characters with it. The config `init` scaffolds uses prefixes
+    // (`sk-ant-`, `pk_test_`, `pk_live_`), and a plain substring replace
+    // turned `sk-ant-api03-REALKEY` into `[REDACTED]api03-REALKEY` — the
+    // entropy intact, the marker a scanner greps for gone.
+    //
+    // The cost is greediness: a pattern that opens a longer token now takes
+    // the rest of it. The previous case here, redact("a-secret-a", ["a"]),
+    // now returns "[REDACTED]" rather than "[REDACTED]-secret-[REDACTED]".
+    // That is the safe direction for something whose job is to not leak, and
+    // real patterns are whole secrets or scheme prefixes, not single letters.
+    expect(redact("a-secret-a", ["a"])).toBe("[REDACTED]");
   });
 
   it("applies multiple patterns sequentially", () => {
@@ -162,7 +179,11 @@ describe("redact", () => {
   });
 
   it("ignores empty pattern entries", () => {
-    expect(redact("hello", ["", "h"])).toBe("[REDACTED]ello");
+    // "h" now carries "ello" with it — see the contract note above.
+    expect(redact("hello", ["", "h"])).toBe("[REDACTED]");
+    // The empty entry itself must still be skipped rather than matching
+    // everywhere, which would redact the whole string character by character.
+    expect(redact("hello", [""])).toBe("hello");
   });
 
   it("is case-sensitive", () => {
