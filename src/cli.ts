@@ -39,6 +39,7 @@ import {
   diffRuns,
   listHistoryProjects,
 } from "./core/history.js";
+import { terminalErrorReason } from "./core/retry.js";
 import { writeTrendsDashboard } from "./core/reporter-trends.js";
 import {
   renderDiffHtml,
@@ -273,6 +274,51 @@ program
       process.exit(1);
     }
   });
+
+/**
+ * Say when a run failed for environmental reasons rather than because the site
+ * is bad.
+ *
+ * With the browser missing, every unit fails at launch and the summary reads
+ * "FAIL 3 (3 critical issues), Cost: $0.000" — a verdict about the audited
+ * site. The real cause reaches the JSON report ("Executable doesn't exist at
+ * ...") but nobody reads that first, and $0.000 is the only thing on screen
+ * suggesting nothing was audited at all. The product ships `install` and
+ * `doctor --fix` for exactly this case and neither summary mentioned them.
+ */
+function reportEnvironmentFailures(audit: {
+  results: Array<{
+    issues: Array<{ description: string }>;
+    steps: Array<{ error?: string }>;
+  }>;
+}): void {
+  const counts = new Map<string, number>();
+  for (const r of audit.results) {
+    for (const text of [
+      ...r.issues.map((i) => i.description),
+      ...r.steps.map((s) => s.error ?? ""),
+    ]) {
+      const reason = terminalErrorReason(text);
+      if (reason) counts.set(reason, (counts.get(reason) ?? 0) + 1);
+    }
+  }
+  if (counts.size === 0) return;
+
+  console.log("");
+  console.log(
+    chalk.yellow("  These results describe this machine, not the audited site."),
+  );
+  for (const [reason, count] of counts) {
+    console.log(chalk.gray(`    ${reason} — ${count} occurrence(s)`));
+  }
+  console.log(
+    chalk.gray(
+      counts.has("browser executable missing")
+        ? "    Fix: pixelcheck install   (or: pixelcheck doctor --fix)"
+        : "    Run `pixelcheck doctor` to check the environment.",
+    ),
+  );
+}
 
 /**
  * Accept a run directory where a run id is expected.
@@ -994,6 +1040,7 @@ program
       console.log(chalk.cyan("\n[explore] Complete"));
       console.log(`  Score: ${audit.results[0]?.overall_score.toFixed(1) ?? "N/A"}`);
       console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
+      reportEnvironmentFailures(audit);
       if (audit.results[0]?.agent_summary) {
         const as = audit.results[0].agent_summary;
         console.log(`  Actions: ${as.total_actions}, Plans: ${as.plan_count}`);
@@ -1638,6 +1685,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
       `(${audit.summary.critical_issues} critical issues)`,
   );
   console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
+  reportEnvironmentFailures(audit);
 
   // Show reliability stack breakdown if any fallbacks were used
   if (totalActSteps > 0) {
