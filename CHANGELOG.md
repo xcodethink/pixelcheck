@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- A report that cannot be written no longer discards the audit. On a full disk
+  `writeJsonReport` threw and the process died with a bare
+  `[FATAL] ENOSPC: no space left on device` — after fifty seconds of browser
+  launches and LLM calls, with real money spent. The user saw no verdict, no
+  counts and no cost, only a raw filesystem error.
+
+  Measured on a three-unit matrix pointed at a 2 MB volume: $0.067 spent and
+  nothing to show for it. The PDF writer had worked correctly all along, with a
+  comment saying the audit remains complete when it fails; the other five did
+  not follow it.
+
+  The counts and cost now print first, then the list of reports that could not
+  be written and why. A run whose artefacts never reached disk exits non-zero
+  even when every scenario passed, so CI cannot read "nothing was written" as
+  "everything is fine".
+
+### Fixed
 - A run that fails because this machine is broken no longer reads as a verdict
   about the audited site. With the browser missing, every unit failed at launch
   and the summary said `FAIL 3 (3 critical issues), Cost: $0.000` — which sends
