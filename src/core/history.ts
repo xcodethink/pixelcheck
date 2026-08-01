@@ -289,6 +289,30 @@ export interface RunDiff {
   resolvedIssues: Array<{ severity: string; description: string }>;
 }
 
+/**
+ * Distinct project names that appear in the history database.
+ *
+ * Used to turn "no history" into a useful message. `--project` on `history`
+ * and `trends` filters by project *name*, while `run` and `init` take a project
+ * *directory* — so the natural sequence of copying the path from one command to
+ * the next produces an empty result with nothing to suggest why.
+ */
+export function listHistoryProjects(reportsDir: string): string[] {
+  const dbPath = path.join(reportsDir, "history.db");
+  if (!fs.existsSync(dbPath)) return [];
+  const db = openDb(dbPath);
+  try {
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT project_name FROM audit_runs ORDER BY project_name`,
+      )
+      .all() as Array<{ project_name: string }>;
+    return rows.map((r) => r.project_name);
+  } finally {
+    db.close();
+  }
+}
+
 export function diffRuns(
   reportsDir: string,
   runIdA: string,
