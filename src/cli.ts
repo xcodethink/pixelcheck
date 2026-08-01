@@ -1599,10 +1599,37 @@ async function runCommand(opts: RunOpts): Promise<void> {
     );
   }
 
-  const jsonPath = writeJsonReport(audit, runDir);
-  const htmlPath = writeHtmlReport(audit, runDir, reportsDir);
-  const mdPath = writeMarkdownSummary(audit, runDir);
-  const spaPath = writeSpaReport(audit, runDir);
+  // Persisting the reports must not throw away the audit.
+  //
+  // The PDF writer below already works this way, with a comment saying the
+  // audit remains complete when it fails. The same is true of the other four,
+  // and they did not: on a full disk, `writeJsonReport` threw and the process
+  // died with a raw ENOSPC. Measured on a three-unit matrix pointed at a 2 MB
+  // volume — fifty seconds of browser launches and LLM calls, real money spent,
+  // and the user saw no verdict, no counts and no cost. Only the write failed;
+  // the audit had finished.
+  const writeFailures: string[] = [];
+  const tryWrite = (label: string, fn: () => string): string | null => {
+    try {
+      return fn();
+    } catch (err) {
+      writeFailures.push(
+        `${label}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    }
+  };
+
+  const jsonPath = tryWrite("audit.json", () => writeJsonReport(audit, runDir));
+  const htmlPath = tryWrite("audit.html", () =>
+    writeHtmlReport(audit, runDir, reportsDir),
+  );
+  const mdPath = tryWrite("summary.md", () =>
+    writeMarkdownSummary(audit, runDir),
+  );
+  const spaPath = tryWrite("audit-explorer.html", () =>
+    writeSpaReport(audit, runDir),
+  );
 
   // Resolve locale: --locale CLI arg overrides config.default_locale,
   // which itself defaults to 'en'. Unknown codes fall back to 'en' via
@@ -1638,10 +1665,18 @@ async function runCommand(opts: RunOpts): Promise<void> {
   //   "junit,sarif,..": comma-separated subset
   const ciSet = resolveCiFormats(opts.ciFormat);
   const ciOutputs: Record<string, string> = {};
-  if (ciSet.has("junit")) ciOutputs.junit = writeJunitXmlReport(audit, runDir);
-  if (ciSet.has("sarif")) ciOutputs.sarif = writeSarifReport(audit, runDir);
-  if (ciSet.has("jsonl")) ciOutputs.jsonl = writeJsonLinesReport(audit, runDir);
-  if (ciSet.has("gha")) ciOutputs.gha = writeGithubAnnotationsReport(audit, runDir);
+  // Same treatment as the four above: a CI artefact that cannot be written is
+  // worth reporting, not worth losing the run over.
+  for (const [name, on, write] of [
+    ["junit", ciSet.has("junit"), () => writeJunitXmlReport(audit, runDir)],
+    ["sarif", ciSet.has("sarif"), () => writeSarifReport(audit, runDir)],
+    ["jsonl", ciSet.has("jsonl"), () => writeJsonLinesReport(audit, runDir)],
+    ["gha", ciSet.has("gha"), () => writeGithubAnnotationsReport(audit, runDir)],
+  ] as Array<[string, boolean, () => string]>) {
+    if (!on) continue;
+    const written = tryWrite(name, write);
+    if (written) ciOutputs[name] = written;
+  }
 
   // When running inside GitHub Actions, also stream the annotations to
   // stderr so they attach inline to PR diffs without the user needing to
@@ -1669,10 +1704,10 @@ async function runCommand(opts: RunOpts): Promise<void> {
 
   console.log("");
   console.log(chalk.cyan("[pixelcheck] Complete"));
-  console.log(`  JSON:    ${jsonPath}`);
-  console.log(`  HTML:    ${htmlPath}`);
-  console.log(`  SPA:     ${spaPath}`);
-  console.log(`  Summary: ${mdPath}`);
+  if (jsonPath) console.log(`  JSON:    ${jsonPath}`);
+  if (htmlPath) console.log(`  HTML:    ${htmlPath}`);
+  if (spaPath) console.log(`  SPA:     ${spaPath}`);
+  if (mdPath) console.log(`  Summary: ${mdPath}`);
   if (pdfPath) console.log(`  PDF:     ${pdfPath}`);
   for (const [name, p] of Object.entries(ciOutputs)) {
     console.log(`  ${name.toUpperCase().padEnd(7)} ${p}`);
@@ -1686,6 +1721,22 @@ async function runCommand(opts: RunOpts): Promise<void> {
   );
   console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
   reportEnvironmentFailures(audit);
+
+  // Say what could not be saved, after the verdict rather than instead of it.
+  if (writeFailures.length > 0) {
+    console.log("");
+    console.log(
+      chalk.red(
+        `  The audit finished, but ${writeFailures.length} report(s) could not be written:`,
+      ),
+    );
+    for (const f of writeFailures) console.log(chalk.gray(`    ${f}`));
+    console.log(
+      chalk.gray(
+        "    The counts and cost above are real. Free space or use --out to write elsewhere.",
+      ),
+    );
+  }
 
   // Show reliability stack breakdown if any fallbacks were used
   if (totalActSteps > 0) {
@@ -1722,6 +1773,9 @@ async function runCommand(opts: RunOpts): Promise<void> {
   // failure; before, both were 1 and a warn=2 was masked whenever the gate
   // tripped. Precedence: a hard failure (1) dominates a gate regression (3),
   // which dominates warnings (2). (Audit 2026-06-02 H4.)
+  // A run whose artefacts never reached disk must not report success, or CI
+  // treats "nothing was written" as "everything passed".
+  if (writeFailures.length > 0) process.exit(1);
   if (audit.summary.fail > 0) process.exit(1);
 
   if (opts.minScore !== undefined && overallScore < opts.minScore) {
