@@ -28,16 +28,23 @@ import type { AuditRun } from "../src/core/types.js";
 
 let tmp: string;
 
+/**
+ * A directory path that cannot be created on any platform, because its parent
+ * is a regular file. Stands in for a full disk: both surface as a failed
+ * open/mkdir, and a writer that swallowed either would hand the CLI a path to
+ * a file that does not exist — worse than the crash it replaces.
+ */
+function unwritableDir(): string {
+  const blocker = path.join(tmp, `blocker-${Math.random().toString(36).slice(2)}`);
+  fs.writeFileSync(blocker, "not a directory");
+  return path.join(blocker, "reports");
+}
+
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "report-write-"));
 });
 
 afterEach(() => {
-  try {
-    fs.chmodSync(tmp, 0o700);
-  } catch {
-    /* best effort */
-  }
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -94,14 +101,12 @@ describe("report writers under an unwritable destination", () => {
     ["writeMarkdownSummary", (a: AuditRun, d: string) => writeMarkdownSummary(a, d)],
     ["writeSpaReport", (a: AuditRun, d: string) => writeSpaReport(a, d)],
   ])("%s throws rather than reporting success", (_name, write) => {
-    // Read-only stands in for a full disk: both surface as a failed open, and
-    // a writer that swallowed it would hand the CLI a path to a file that does
-    // not exist — worse than the crash it replaces.
-    const readOnly = path.join(tmp, "ro");
-    fs.mkdirSync(readOnly);
-    fs.chmodSync(readOnly, 0o500);
-
-    expect(() => write(sampleAudit(), readOnly)).toThrow();
+    // A destination whose parent is a regular file. Every platform refuses to
+    // create a directory there, which a chmod-based version of this test did
+    // not achieve: `chmod 0o500` does not restrict directory writes on
+    // Windows, so all three writers succeeded and the assertions failed on the
+    // Windows matrix while passing everywhere they were written.
+    expect(() => write(sampleAudit(), unwritableDir())).toThrow();
   });
 
   it("writes normally when the destination is writable", () => {
@@ -115,9 +120,7 @@ describe("report writers under an unwritable destination", () => {
   it("keeps each writer independent, so one failure does not hide the others", () => {
     // The CLI reports failures per file. That is only useful if a writer's
     // failure is confined to itself rather than aborting the group.
-    const readOnly = path.join(tmp, "ro2");
-    fs.mkdirSync(readOnly);
-    fs.chmodSync(readOnly, 0o500);
+    const dest = unwritableDir();
 
     const failures: string[] = [];
     for (const [name, write] of [
@@ -125,7 +128,7 @@ describe("report writers under an unwritable destination", () => {
       ["summary.md", writeMarkdownSummary],
     ] as Array<[string, (a: AuditRun, d: string) => string]>) {
       try {
-        write(sampleAudit(), readOnly);
+        write(sampleAudit(), dest);
       } catch {
         failures.push(name);
       }
