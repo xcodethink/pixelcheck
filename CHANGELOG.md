@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `history` and `trends` accept a project directory as well as a project name,
+  and say something useful when a filter matches nothing. `run` and `init` take
+  `--project <dir>`; these two took `--project <name>`. Each was documented
+  correctly on its own, which is exactly why the mismatch was easy to walk into:
+  the obvious command after `pixelcheck run --project projects/demo` is
+  `pixelcheck history --project projects/demo`, and that printed "No audit
+  history found" with seven runs in the database. `trends` was worse — it wrote
+  a dashboard reading "0 runs", an artefact that looks finished.
+
+  A filter matching nothing now names the projects that do exist, so an empty
+  result is distinguishable from having no data.
+
+- `diff` accepts run directories as well as run ids, and lists recent ids when
+  neither is found. Every completed audit prints absolute report paths, so a
+  path is what the user has; the id is that directory's basename, which made
+  the two needlessly non-interchangeable.
+
+### Fixed
 - `doctor` reported the wrong minimum Node version. It accepted Node 18 and
   printed "(>= 18 required)" while `engines.node` has said `>=20.0.0` since the
   toolchain moved past 18 — so the check whose entire job is to answer "will
