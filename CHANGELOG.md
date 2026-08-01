@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A run that fails because this machine is broken no longer reads as a verdict
+  about the audited site. With the browser missing, every unit failed at launch
+  and the summary said `FAIL 3 (3 critical issues), Cost: $0.000` — which sends
+  the reader to look at their website. The real cause reached the JSON report
+  ("Executable doesn't exist at ...") but nobody reads that first, and `$0.000`
+  was the only thing on screen suggesting nothing had been audited at all.
+
+  Both `run` and `explore` now name the environment failure and point at
+  `pixelcheck install` / `doctor --fix`, which the product ships for exactly
+  this case and neither summary mentioned.
+
+- A missing browser executable is treated as terminal rather than retried. The
+  earlier classifier covered a browser that had been alive and closed and
+  missed one that was never there — no amount of retrying installs it. Measured
+  on a three-unit matrix with the browser made unavailable: 11s before, 1s
+  after.
+
 ### Security
 - `redact_patterns` given as a prefix now removes the whole credential rather
   than just the prefix. The config `init` scaffolds for every new project sets

@@ -87,6 +87,15 @@ const TERMINAL_ERROR_PATTERNS: ReadonlyArray<{ label: string; re: RegExp }> = [
     label: "browser or page closed",
     re: /Target (?:page, context or browser has been )?closed|Browser has been closed|Session closed|browserContext\.close|Protocol error.*Target closed/i,
   },
+  // The browser was never there. Playwright reports this identically whether
+  // the download never ran, the cache was cleared, or PLAYWRIGHT_BROWSERS_PATH
+  // points somewhere empty — and no amount of retrying installs it. Missed on
+  // the first pass because the earlier pattern only covered a browser that had
+  // been alive and died.
+  {
+    label: "browser executable missing",
+    re: /Executable doesn't exist|Failed to launch \w+ because executable doesn't exist|please run the following command to download new browsers/i,
+  },
   // Credentials rejected, for clients that surface status rather than a class.
   { label: "authentication rejected", re: /\b(?:401|403)\b.*(?:unauthor|forbidden|invalid[_ -]?api[_ -]?key)|invalid[_ -]?api[_ -]?key/i },
 ];
