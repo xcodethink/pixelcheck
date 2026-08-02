@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- A run where the AI never reached the model no longer reports a near-clean
+  verdict. With the API unreachable, the vision step failed, each step was
+  recorded as a warning, and the summary read
+  `PASS 0  WARN 3  FAIL 0  (0 critical issues)` with exit code 2 — "passed with
+  warnings", which lets CI move on. Nothing had been looked at.
+
+  That is worse than the disk-full and missing-browser cases, which at least
+  look bad; this one looks like good news. The recorded data was already
+  correct — `scores: []`, `overall_score: 0` — only the summary's reading of it
+  was wrong.
+
+  Units that produced no scores are now named as unevaluated, with the
+  underlying error, and a run where nothing at all was evaluated exits 1 rather
+  than 2. A low score is still a score: genuinely bad results remain verdicts.
+
+### Fixed
 - A report that cannot be written no longer discards the audit. On a full disk
   `writeJsonReport` threw and the process died with a bare
   `[FATAL] ENOSPC: no space left on device` — after fifty seconds of browser
