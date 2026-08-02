@@ -1722,6 +1722,42 @@ async function runCommand(opts: RunOpts): Promise<void> {
   console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
   reportEnvironmentFailures(audit);
 
+  // A unit that produced no scores was never evaluated, and must not be
+  // summarised as though it had been.
+  //
+  // With the API unreachable, the vision step fails, the step is recorded as a
+  // warning, and the unit becomes `pass_with_issues`. The run then prints
+  // "PASS 0  WARN 3  FAIL 0  (0 critical issues)" — a near-clean bill of health
+  // for a site nothing ever looked at. Worse than the disk-full and
+  // missing-browser cases, which at least look bad; this one looks like good
+  // news, and CI sees exit 2 and moves on.
+  //
+  // The data was already right: `scores: []` and `overall_score: 0`. Only the
+  // reading was wrong.
+  const unevaluated = audit.results.filter((r) => r.scores.length === 0);
+  if (unevaluated.length > 0) {
+    console.log("");
+    console.log(
+      chalk.red(
+        `  ${unevaluated.length} of ${audit.results.length} unit(s) produced no scores — they were not evaluated.`,
+      ),
+    );
+    const reasons = new Set<string>();
+    for (const r of unevaluated) {
+      for (const s of r.steps) {
+        if (s.status !== "pass" && s.error) reasons.add(s.error.split("\n")[0]!.slice(0, 90));
+      }
+    }
+    for (const reason of [...reasons].slice(0, 3)) {
+      console.log(chalk.gray(`    ${reason}`));
+    }
+    console.log(
+      chalk.gray(
+        "    The counts above describe steps that ran, not a verdict on the site.",
+      ),
+    );
+  }
+
   // Say what could not be saved, after the verdict rather than instead of it.
   if (writeFailures.length > 0) {
     console.log("");
@@ -1775,6 +1811,11 @@ async function runCommand(opts: RunOpts): Promise<void> {
   // which dominates warnings (2). (Audit 2026-06-02 H4.)
   // A run whose artefacts never reached disk must not report success, or CI
   // treats "nothing was written" as "everything passed".
+  // Nothing evaluated is not a pass. Without this the run exits 2 ("passed
+  // with warnings") and CI treats an outage as a green build.
+  if (unevaluated.length === audit.results.length && audit.results.length > 0) {
+    process.exit(1);
+  }
   if (writeFailures.length > 0) process.exit(1);
   if (audit.summary.fail > 0) process.exit(1);
 
