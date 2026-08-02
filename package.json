@@ -53,7 +53,7 @@
     "prepublishOnly": "npm run build && npm test",
     "typecheck": "tsc --noEmit",
     "audit": "tsx src/cli.ts",
-    "test": "npm run lint:no-console && npm run lint:english-only && npm run lint:no-internal-refs && vitest run",
+    "test": "npm run lint:no-console && npm run lint:english-only && npm run lint:no-internal-refs && npm run typecheck:scripts && vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:coverage:check": "vitest run --coverage --coverage.thresholdAutoUpdate=false",
@@ -79,7 +79,9 @@
     "check:vendor-integrity": "tsx scripts/check-vendor-integrity.ts",
     "clean": "rm -rf dist sbom.json docs/api",
     "lint:report-a11y": "tsx scripts/check-report-a11y.ts",
-    "measure:injection": "tsx scripts/measure-injection-asr.ts"
+    "measure:injection": "tsx scripts/measure-injection-asr.ts",
+    "compare:critics": "tsx scripts/compare-critic-models.ts",
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json"
   },
   "keywords": [
     "mcp",
