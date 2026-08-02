@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The PDF report declares the language it is written in. `<html lang="en">` was
+  hardcoded for every locale, so a Japanese or Chinese report announced itself
+  as English — which both font selection and assistive technology read.
+
+- The PDF font stack names faces that can render the script. It was
+  `-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif` for
+  all five locales, with no CJK entry at all; somewhere with no CJK fonts
+  installed, which is the normal state of a Linux CI container, the zh-CN and
+  ja reports are boxes. Japanese and Chinese get separate stacks, because one
+  combined list renders each in the other's face wherever both are installed.
+  The running header repeats the stack, since Chromium renders header and
+  footer templates outside the page stylesheet and the header carries a
+  translated title.
+
+  Stated because it was measured and is not what one would assume: this does
+  **not** change which glyphs macOS produces. Chromium's PDF backend still
+  substitutes STSongti-SC — a Simplified Chinese face — for Japanese text on
+  this platform whatever the stylesheet asks for. The stack matters where the
+  named faces resolve; the `lang` attribute is correct everywhere.
+
+### Fixed
 - A run where the AI never reached the model no longer reports a near-clean
   verdict. With the API unreachable, the vision step failed, each step was
   recorded as a warning, and the summary read
