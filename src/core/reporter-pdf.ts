@@ -93,8 +93,8 @@ export function renderPdfHtml(
   const wcagSummary = summarizeWcag(allIssues);
 
   return [
-    PDF_HEADER_OPEN,
-    `<style>${pdfStylesheet(brand)}</style>`,
+    pdfHeaderOpen(locale),
+    `<style>${pdfStylesheet(brand, locale)}</style>`,
     PDF_HEADER_CLOSE,
     coverSection(audit, overall, scoreColor, locale, opts.logoDataUri),
     findingsSection(topFindings, brand, locale),
@@ -165,18 +165,54 @@ async function launchChromium(): Promise<NonNullable<Awaited<ReturnType<NonNulla
 // HTML composition helpers (pure)
 // ─────────────────────────────────────────────────────────────
 
-const PDF_HEADER_OPEN = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Audit Report</title>`;
+/**
+ * Fonts that carry the script each locale is written in, most specific first.
+ *
+ * The stack was `-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial,
+ * sans-serif` for every locale, with no CJK entry at all. On macOS that looked
+ * fine because the OS substitutes silently — a Japanese report came back set in
+ * STSongti-SC, a *Simplified Chinese* face, whose glyph shapes are wrong for
+ * Japanese readers. Somewhere with no CJK fonts installed, which is the normal
+ * state of a Linux CI container, the same report is boxes.
+ *
+ * That matters more here than in the HTML reports: the PDF is the artefact this
+ * product tells people to hand to stakeholders.
+ *
+ * Per-locale rather than one combined list, because order decides the outcome:
+ * a single stack with Japanese faces ahead of Chinese ones renders Chinese text
+ * in a Japanese face wherever both are installed.
+ */
+const LOCALE_FONT_STACKS: Record<string, string> = {
+  "zh-CN":
+    '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", "Heiti SC"',
+  ja: '"Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans JP", "Source Han Sans JP"',
+};
+
+/** Base stack, appended after any script-specific faces. */
+const PDF_BASE_FONTS =
+  '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+
+function fontStackFor(locale: string): string {
+  const script = LOCALE_FONT_STACKS[locale];
+  return script ? `${script}, ${PDF_BASE_FONTS}` : PDF_BASE_FONTS;
+}
+
+function pdfHeaderOpen(locale: string): string {
+  // `lang` was hardcoded to "en" for every report. Both font selection and
+  // assistive technology read it, so a Japanese PDF announcing itself as
+  // English is wrong twice over.
+  return `<!doctype html>
+<html lang="${locale}">
+<head>`;
+}
+
 
 const PDF_HEADER_CLOSE = `</head>
 <body>`;
 
 const PDF_FOOTER = `</body></html>`;
 
-function pdfStylesheet(brand: string): string {
+function pdfStylesheet(brand: string, locale: string): string {
   // Print-optimised: 12pt body, Helvetica fallback chain (every PDF
   // reader has these), high contrast (passes 4.5:1), strict page-break
   // controls so sections never split awkwardly.
@@ -184,7 +220,7 @@ function pdfStylesheet(brand: string): string {
     @page { size: A4 portrait; }
     * { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      font-family: ${fontStackFor(locale)};
       font-size: 12pt;
       line-height: 1.5;
       color: #111;
@@ -247,7 +283,12 @@ function pdfStylesheet(brand: string): string {
 function pdfHeaderTemplate(audit: AuditRun, locale: Locale): string {
   // Chromium's headerTemplate runs in print context; it can use only a
   // subset of CSS (no external resources). Inline minimal styling.
-  return `<div style="font-size: 8pt; color: #666; padding: 0 1.5cm; width: 100%; display: flex; justify-content: space-between;">
+  //
+  // The font stack has to be repeated here rather than inherited: header and
+  // footer templates are rendered in their own context and do not see the
+  // page stylesheet. The header carries a translated title, so without this it
+  // is the one piece of the document with no script-appropriate font at all.
+  return `<div style="font-family: ${fontStackFor(locale)}; font-size: 8pt; color: #666; padding: 0 1.5cm; width: 100%; display: flex; justify-content: space-between;">
     <span>${escapeHtml(audit.project_name)} — ${escapeHtml(t("audit_report_title", locale))}</span>
     <span>${escapeHtml(audit.started_at.split("T")[0] ?? audit.started_at)}</span>
   </div>`;
