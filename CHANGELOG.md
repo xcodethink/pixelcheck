@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `npm run compare:critics` reports what critic models actually score, dimension
+  by dimension, across repeated trials.
+
+  The calibration gate answers "did every dimension land inside its labelled
+  band". Those bands average 4.4 points wide on a 0-10 scale — the widest
+  accepts 0-6 — and anything inside collapses to distance 0. Two models three
+  points apart therefore both reported agreement 1.000, max distance 0.000,
+  fully aligned. That is what "the fixtures are saturated" turned out to mean:
+  the raw scores were measured all along and thrown away by the summary.
+
+  On the same runs where the pass/fail view reports 1.000 (±0.000) for both
+  models, the comparison shows a mean between-model difference of 0.81 against
+  a mean within-model spread of 0.75, with 6 of 12 dimensions differing by more
+  than either model's own run-to-run noise. On five of those six the newer model
+  scores higher — more lenient — which for an auditing tool is a regression risk
+  rather than an improvement. Suggestive at three trials, not conclusive.
+
+- `scripts/` is type-checked. `tsconfig.json` scopes to `src/**/*`, so nothing
+  ever checked the gates and measurement tools — the code that decides whether a
+  release is sound was the least-checked in the repository. Turning the check on
+  immediately found two live errors in the memory benchmark: it passed an
+  options object where a project name was expected, so the locale it meant to
+  measure was never applied, and it imported `HistoryEntry` from a module that
+  does not export it.
+
+### Fixed
+- The accessibility gate no longer casts away the argument types it passes to
+  `renderTrendsHtml`, which was hiding the same misuse.
+
 ### Fixed
 - The PDF report declares the language it is written in. `<html lang="en">` was
   hardcoded for every locale, so a Japanese or Chinese report announced itself
