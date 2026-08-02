@@ -95,7 +95,7 @@ async function main(): Promise<void> {
   const history = makeInlineHistory(100);
   samples.push(
     await measure("renderTrendsHtml — 100 history rows + 5 charts", () => {
-      renderTrendsHtml(history, { locale: "en" });
+      renderTrendsHtml(history, undefined, "en");
     }),
   );
 
@@ -215,7 +215,7 @@ function makeInlineAudit(units: number): import("../src/core/types.js").AuditRun
   };
 }
 
-function makeInlineHistory(n: number): import("../src/core/types.js").HistoryEntry[] {
+function makeInlineHistory(n: number): import("../src/core/history.js").HistoryEntry[] {
   return Array.from({ length: n }, (_, i) => ({
     id: `run-${i}`,
     tag: `tag-${i}`,

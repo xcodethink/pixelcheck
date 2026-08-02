@@ -127,7 +127,7 @@ async function buildPages(dir: string): Promise<Array<{ name: string; file: stri
   const trends = path.join(dir, "trends.html");
   fs.writeFileSync(
     trends,
-    renderTrendsHtml(runs.slice(0, 30) as never, {} as never),
+    renderTrendsHtml(runs.slice(0, 30) as never),
     "utf8",
   );
   pages.push({ name: "trends dashboard", file: trends });

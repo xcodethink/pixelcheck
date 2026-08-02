@@ -1,0 +1,20 @@
+{
+  // Type-check the build and audit scripts.
+  //
+  // `tsconfig.json` scopes to `src/**/*` because that is what gets compiled into
+  // `dist/`. The side effect was that nothing type-checked `scripts/` at all: a
+  // comparison script shipped calling a function that did not exist, `tsc`
+  // reported success, and the error only surfaced at runtime. These files are
+  // gates and measurement tools — the things that decide whether a release is
+  // sound — so they should not be the least-checked code in the repository.
+  //
+  // Separate config rather than widening `include`: adding `scripts/**/*` to the
+  // main config would place their output under `dist/` and ship them in the
+  // published package.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["scripts/**/*.ts", "src/**/*"]
+}
