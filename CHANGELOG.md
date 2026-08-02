@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `explore` no longer writes its internal LLM traffic to stdout. Stagehand's
+  logging now goes through this project's structured logger, which writes to
+  stderr, matching what `run` already did.
+
+  `disablePino: true` had left Stagehand on a console.log-based logger, and
+  console.log is stdout. A real run produced 92 lines there — accessibility-tree
+  dumps, raw response objects, token counts — around a six-line summary, against
+  4 lines of stderr. Redirecting to a file captured the noise and buried the
+  result. The same run now produces 9 lines of stdout and no response objects.
+
+  The detail is not lost: it goes to debug level, and to `LOG_FILE` if set.
+  Only Stagehand's own error level is promoted to warn, so an ordinary audit
+  stops looking alarming.
+
 ### Added
 - `npm run compare:critics` reports what critic models actually score, dimension
   by dimension, across repeated trials.
