@@ -17,6 +17,20 @@ import {
 } from "playwright";
 import type { Persona } from "./types.js";
 import { getLogger } from "./logger.js";
+
+/**
+ * Shape of the log records Stagehand hands to a host-supplied logger.
+ *
+ * Declared locally rather than imported: the package exports this type only
+ * from a deep internal path, and pinning to that path would break on any
+ * upstream reorganisation.
+ */
+interface StagehandLogLine {
+  message: string;
+  category?: string;
+  level?: number;
+  auxiliary?: Record<string, { value: string; type: string }>;
+}
 import { launchWithBrowserAutoInstall } from "./browser-install.js";
 
 const log = getLogger("stagehand-wrapper");
@@ -400,6 +414,35 @@ export async function createStagehandWrapper(
     },
     verbose: process.env.AUDIT_DEBUG === "1" ? 2 : 1,
     disablePino: true,
+    // Route Stagehand's own logging into ours.
+    //
+    // `disablePino: true` makes Stagehand fall back to a console.log-based
+    // logger, and console.log is stdout. In `explore` that meant 92 lines of
+    // internal LLM traffic — accessibility-tree dumps, raw response objects,
+    // token counts — landing in the result stream next to a six-line summary.
+    // Anyone redirecting to a file got the former and had to find the latter
+    // inside it.
+    //
+    // `run` was already correct: structured logs to stderr, summary to stdout.
+    // This makes `explore` behave the same way rather than inverting it, and
+    // the detail is still available at debug level or in LOG_FILE.
+    logger: (line: StagehandLogLine) => {
+      const log = getLogger("stagehand");
+      const context = {
+        category: line.category,
+        ...(line.auxiliary
+          ? {
+              auxiliary: Object.fromEntries(
+                Object.entries(line.auxiliary).map(([k, v]) => [k, v.value]),
+              ),
+            }
+          : {}),
+      };
+      // Stagehand's own chatter is not a problem report; only its level 0 is.
+      // Mapping everything to warn would make every audit look alarming.
+      if (line.level === 0) log.warn(context, line.message);
+      else log.debug(context, line.message);
+    },
   });
 
   try {
