@@ -196,7 +196,11 @@ program
   .option("--scenario <id>", "Run only this scenario id (repeatable)", collect, [])
   .option("--persona <id>", "Run only this persona id (repeatable)", collect, [])
   .option("-j, --concurrency <n>", "Parallel units", parseIntOpt)
-  .option("--budget <usd>", "Max USD budget", parseFloatOpt)
+  .option("--budget <usd>",
+    "Soft cap: no new unit starts once spend reaches this. Units already " +
+      "running finish, so the total can exceed it by up to one batch.",
+    parseFloatOpt,
+  )
   .option("--headed", "Visible browser (debug)", false)
   .option("--tag <tag>", "Tag for this run", "manual")
   .option("--baseline <dir>", "Visual regression baseline directory", "baselines")
@@ -1041,6 +1045,7 @@ program
       console.log(`  Score: ${audit.results[0]?.overall_score.toFixed(1) ?? "N/A"}`);
       console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
       reportEnvironmentFailures(audit);
+
       if (audit.results[0]?.agent_summary) {
         const as = audit.results[0].agent_summary;
         console.log(`  Actions: ${as.total_actions}, Plans: ${as.plan_count}`);
@@ -1721,6 +1726,34 @@ async function runCommand(opts: RunOpts): Promise<void> {
   );
   console.log(`  Cost: $${audit.summary.total_cost_usd.toFixed(3)}`);
   reportEnvironmentFailures(audit);
+
+  // Say when the run covered less of the matrix than it planned to.
+  //
+  // Units skipped for budget, or dropped because their persona was missing,
+  // return from the runner without pushing a result — so `summary.total` is
+  // the executed count, not the planned one. A three-unit matrix truncated
+  // after the first reports `total: 1` and "FAIL 1", which is indistinguishable
+  // from a one-unit matrix that ran to completion. Had that unit passed, it
+  // would have read as a clean audit of the whole matrix.
+  //
+  // Measured: matrix of 3, --budget 0.02, -j 1 → 2 "unit skipped" events, and
+  // nothing in the summary or the JSON report mentioning them.
+  const planned = matrix.length;
+  const executed = audit.results.length;
+  if (executed < planned) {
+    console.log("");
+    console.log(
+      chalk.yellow(
+        `  ${planned - executed} of ${planned} planned unit(s) did not run.`,
+      ),
+    );
+    console.log(
+      chalk.gray(
+        "    The counts above cover the " +
+          `${executed} that did. Common cause: the budget cap stopped new units.`,
+      ),
+    );
+  }
 
   // A unit that produced no scores was never evaluated, and must not be
   // summarised as though it had been.
