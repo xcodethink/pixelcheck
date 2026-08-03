@@ -22,7 +22,7 @@ function lastOpts() {
   return mockSee.mock.calls.at(-1)![0] as Record<string, unknown>;
 }
 
-describe("MCP see — arg mapping + persona resolution (G3)", () => {
+describe("MCP see — arg mapping + persona resolution", () => {
   beforeEach(() => {
     mockSee.mockClear();
     mockLoadPersonas.mockReset();

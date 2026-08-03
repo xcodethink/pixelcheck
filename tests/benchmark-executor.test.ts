@@ -12,7 +12,7 @@ function task(overrides: Partial<BenchmarkTask> = {}): BenchmarkTask {
   });
 }
 
-describe("benchmark executor — taskToScenario (G3)", () => {
+describe("benchmark executor — taskToScenario", () => {
   it("produces a valid autonomous scenario carrying the task intent", () => {
     const s = taskToScenario(task());
     expect(s.id).toBe("bench_0001");

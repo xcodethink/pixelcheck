@@ -11,7 +11,7 @@ import { compareTool } from "../src/mcp/tools/compare.js";
 import type { ToolDefinition } from "../src/mcp/registry.js";
 
 /**
- * B2 regression: every URL-taking MCP tool must run the SSRF guard at the
+ * Regression: every URL-taking MCP tool must run the SSRF guard at the
  * handler boundary, BEFORE launching a browser or calling an LLM. An MCP
  * client is untrusted; without this it could point a tool at 169.254.169.254
  * (cloud IMDS), localhost, or an internal panel. The audit found the guard
@@ -43,7 +43,7 @@ const BLOCKED = [
   "http://127.0.0.1/",
 ];
 
-describe("MCP URL tools — SSRF guard (G3 / B2)", () => {
+describe("MCP URL tools — SSRF guard", () => {
   beforeEach(() => {
     delete process.env.PIXELCHECK_ALLOW_PRIVATE;
   });

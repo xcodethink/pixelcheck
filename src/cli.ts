@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console -- CLI output layer: console IS the user-facing
    product here, not a stray debug leak. Library code (src/core, src/agent)
-   keeps no-console as an error and routes through the logger. (Audit G2) */
+   keeps no-console as an error and routes through the logger. */
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -134,7 +134,7 @@ function resolveBundledPersonas(): string | null {
 /**
  * Count YAML files in a directory. Returns 0 if dir is missing.
  * Used by `pixelcheck init` to surface the actual number of bundled
- * personas in its post-scaffold message (B5 fix: was hardcoded "(6)").
+ * personas in its post-scaffold message; the count used to be hardcoded.
  */
 function countYamlFiles(dir: string | null): number {
   if (!dir) return 0;
@@ -153,7 +153,7 @@ function countYamlFiles(dir: string | null): number {
  * absolute path; if neither exists, returns the resolved user path so the
  * downstream loadPersonas() throws its standard "directory not found" error.
  *
- * B1 fix (v1.0.1): every loadPersonas() call site goes through this so a
+ * Since v1.0.1, every loadPersonas() call site goes through this so a
  * fresh `npm install pixelcheck` user without a project-local personas/ dir
  * still gets the 18 bundled personas instead of [FATAL] crashing.
  */
@@ -1441,7 +1441,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
     opts.config = projectConfig;
     opts.scenarios = path.join(projectDir, "scenarios");
     // Use project personas if they exist, otherwise fall back to built-in
-    // shared personas bundled with the package (B1 fix: v1.0.0 shipped no
+    // shared personas bundled with the package (v1.0.0 shipped no
     // personas at all and `pixelcheck run` would crash with "Personas
     // directory not found" for every fresh install — see ADR-034).
     const projectPersonas = path.join(projectDir, "personas");
