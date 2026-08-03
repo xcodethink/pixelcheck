@@ -133,6 +133,21 @@ export const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> 
  */
 const EXEMPT_PREFIXES = ["docs/releases/", "docs/decisions/"];
 
+/**
+ * This gate's own test, which has to contain the identifiers it detects — a
+ * gate with no test is how the G and B shapes went unnoticed through two
+ * rounds of fixing this file.
+ *
+ * Exempt by exact path, never by prefix: a prefix would quietly cover any
+ * future file dropped beside it, and `internal-refs-gate.test.ts` asserts this
+ * list stays the length it is.
+ *
+ * Worth knowing when adding to that test: the scan is `git ls-files`, so a new
+ * file is invisible to this check until it is staged. `npm test` can pass on a
+ * working tree that CI then rejects — which is exactly what happened here.
+ */
+export const EXEMPT_SELF_TEST = ["tests/internal-refs-gate.test.ts"];
+
 /** This file necessarily contains the patterns it bans. */
 const EXEMPT_EXACT = new Set([
   "scripts/check-no-internal-refs.ts",
@@ -142,7 +157,9 @@ const EXEMPT_EXACT = new Set([
 export function isExempt(relPath: string): boolean {
   const norm = relPath.split(path.sep).join("/");
   return (
-    EXEMPT_EXACT.has(norm) || EXEMPT_PREFIXES.some((p) => norm.startsWith(p))
+    EXEMPT_EXACT.has(norm) ||
+    EXEMPT_SELF_TEST.includes(norm) ||
+    EXEMPT_PREFIXES.some((p) => norm.startsWith(p))
   );
 }
 

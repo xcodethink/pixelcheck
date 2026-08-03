@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BANNED } from "../scripts/check-no-internal-refs.js";
+import { BANNED, EXEMPT_SELF_TEST } from "../scripts/check-no-internal-refs.js";
 
 /**
  * The gate that keeps internal identifiers out of a public repository, tested
@@ -92,6 +92,14 @@ describe("the repository itself", () => {
     // A pattern that matches everything would make the gate report every file
     // and be switched off, which is worse than the gap it was meant to close.
     for (const b of BANNED) expect(b.pattern.test("")).toBe(false);
+  });
+
+  it("exempts exactly this file, and nothing else", () => {
+    // This file has to contain the identifiers it tests for, so the gate
+    // skips it. That is a hole, and a hole that grows stops being a gate —
+    // hence an exact path rather than a prefix, and this assertion on the
+    // length. A second entry here needs its own reason.
+    expect(EXEMPT_SELF_TEST).toEqual(["tests/internal-refs-gate.test.ts"]);
   });
 
   it("gives every rule a replacement to use instead", () => {
