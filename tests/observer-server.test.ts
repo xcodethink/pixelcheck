@@ -22,7 +22,7 @@ function openWs(url: string): Promise<WebSocket> {
   });
 }
 
-describe("observer HTTP/WS server (G3 follow-up)", () => {
+describe("observer HTTP/WS server", () => {
   let bus: AgentEventBus;
   let store: SessionStore;
   let server: ObserverServer;

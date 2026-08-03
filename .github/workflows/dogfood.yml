@@ -133,9 +133,9 @@ jobs:
         run: |
           OUTPUT=$(npx pixelcheck run --dry-run 2>&1) || EXIT=$?
           echo "$OUTPUT"
-          # The fatal we want to NEVER see again (B1 in v1.0.0)
+          # The fatal we want to NEVER see again (v1.0.0 shipped no bundled personas)
           if echo "$OUTPUT" | grep -q "Personas directory not found"; then
-            echo "::error::REGRESSION: bundled personas not loading (B1 in v1.0.0)"
+            echo "::error::REGRESSION: bundled personas not loading"
             exit 1
           fi
           # dry-run should print the persona × scenario matrix it would run

@@ -6,7 +6,7 @@ import { getGridHtml } from "../src/observer/grid-dashboard.js";
 // Typographic glyphs like ▸ × … are NOT emoji and are allowed.
 const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/u;
 
-describe("observer dashboards (G3)", () => {
+describe("observer dashboards", () => {
   describe("getDashboardHtml (live single-session observer)", () => {
     const html = getDashboardHtml();
 

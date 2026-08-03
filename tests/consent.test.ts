@@ -176,7 +176,7 @@ describe("ensureConsent — env / flag bypass", () => {
   });
 });
 
-describe("ensureConsent — non-TTY requires explicit consent (Audit 2026-06-02 B1)", () => {
+describe("ensureConsent — non-TTY requires explicit consent", () => {
   it("non-TTY with NO consent signal refuses (does not silently auto-grant)", async () => {
     // Previously this auto-consented; that let an MCP server (always non-TTY)
     // send page data to Anthropic with no human in the loop.

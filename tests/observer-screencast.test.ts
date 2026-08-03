@@ -28,7 +28,7 @@ function makePage(cdp: ReturnType<typeof makeFakeCdp> | null): Page {
   } as unknown as Page;
 }
 
-describe("observer screencast (G3 follow-up)", () => {
+describe("observer screencast", () => {
   it("starts the CDP screencast with documented defaults", async () => {
     const cdp = makeFakeCdp();
     await startScreencast(makePage(cdp), () => {});

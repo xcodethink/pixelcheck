@@ -125,7 +125,7 @@ unnecessary once upstream catches up).
 
 ## Known low advisories (2026-06-02 audit)
 
-The 2026-06-02 production-grade audit (G4) flagged that the CI comment
+A production-grade audit flagged that the CI comment
 overclaimed "0 vulnerabilities" when `npm audit` actually reports LOW
 advisories. For honesty, here is the full current state. Reproduce with
 `npm audit` (full tree) and `npm audit --production` (shipped tree).

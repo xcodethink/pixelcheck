@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- CLI command output layer (Audit G2) */
+/* eslint-disable no-console -- CLI command output layer */
 /**
  * `pixelcheck init` (no args) — interactive wizard for first-run setup.
  *

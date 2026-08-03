@@ -91,6 +91,24 @@ export const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> 
     instead: "name the capability, not the milestone it landed in",
   },
   {
+    // `G3`, `G4`, `B2`, `B3` — the two workstream prefixes this repository
+    // actually used, alongside the `T` ones. They were missed for the same
+    // reason the header describes: the gate was written against the shapes
+    // someone expected rather than the shapes in the files. Nine test names
+    // carried them past it, in a public repository.
+    //
+    // One digit, not two: the ids in use are all single-digit, and `\d{1,2}`
+    // additionally matched the literal `B64` in a vision test, where it means
+    // base64. Widening a gate until it flags real content, then editing the
+    // content to quieten it, is the wrong way round.
+    //
+    // The trailing exclusion keeps `B2B` and colours like `#B3D9FF` out, and
+    // the leading one keeps this off any longer token ending in G or B.
+    label: "internal workstream id",
+    pattern: /(?<![\w-])[GB]\d(?![\w:.-])/,
+    instead: "describe the change, or link an issue / ADR",
+  },
+  {
     label: "iteration label",
     pattern: /\bWave \d+/,
     instead: "name what shipped, not which batch it was in",
@@ -115,6 +133,21 @@ export const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> 
  */
 const EXEMPT_PREFIXES = ["docs/releases/", "docs/decisions/"];
 
+/**
+ * This gate's own test, which has to contain the identifiers it detects — a
+ * gate with no test is how the G and B shapes went unnoticed through two
+ * rounds of fixing this file.
+ *
+ * Exempt by exact path, never by prefix: a prefix would quietly cover any
+ * future file dropped beside it, and `internal-refs-gate.test.ts` asserts this
+ * list stays the length it is.
+ *
+ * Worth knowing when adding to that test: the scan is `git ls-files`, so a new
+ * file is invisible to this check until it is staged. `npm test` can pass on a
+ * working tree that CI then rejects — which is exactly what happened here.
+ */
+export const EXEMPT_SELF_TEST = ["tests/internal-refs-gate.test.ts"];
+
 /** This file necessarily contains the patterns it bans. */
 const EXEMPT_EXACT = new Set([
   "scripts/check-no-internal-refs.ts",
@@ -124,7 +157,9 @@ const EXEMPT_EXACT = new Set([
 export function isExempt(relPath: string): boolean {
   const norm = relPath.split(path.sep).join("/");
   return (
-    EXEMPT_EXACT.has(norm) || EXEMPT_PREFIXES.some((p) => norm.startsWith(p))
+    EXEMPT_EXACT.has(norm) ||
+    EXEMPT_SELF_TEST.includes(norm) ||
+    EXEMPT_PREFIXES.some((p) => norm.startsWith(p))
   );
 }
 
