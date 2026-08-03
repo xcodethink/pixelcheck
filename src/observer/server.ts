@@ -39,6 +39,21 @@ export class ObserverServer {
   /** The bearer token required for API/WS access. Printed at startup. */
   get token(): string { return this._token; }
 
+  /** The port actually bound. Differs from the requested one when that was 0. */
+  get boundPort(): number {
+    const addr = this._httpServer.address();
+    return addr && typeof addr === "object" ? addr.port : this._port;
+  }
+
+  /**
+   * The address to open, token included. The pages read the token from their
+   * own query string, so an address without it loads a dashboard that cannot
+   * open its WebSocket or read any route.
+   */
+  get url(): string {
+    return `http://localhost:${this.boundPort}/?token=${this._token}`;
+  }
+
   constructor(opts: ObserverServerOptions) {
     this._eventBus = opts.eventBus;
     this._sessionStore = opts.sessionStore;
@@ -66,9 +81,20 @@ export class ObserverServer {
     return new Promise<void>((resolve, reject) => {
       this._httpServer.listen(this._port, "127.0.0.1", () => {
         log.info(
-          { port: this._port, url: `http://localhost:${this._port}`, token: this._token },
+          {
+            port: this.boundPort,
+            // Without the token, deliberately. The logger redacts a field
+            // named `token`, and putting the same value inside a URL here
+            // would route around that for anyone who shares a log file.
+            url: `http://localhost:${this.boundPort}/`,
+            token: this._token,
+          },
           `observer dashboard listening`,
         );
+        // The user needs the whole address, token and all, or the feature is
+        // unusable. Kept out of the structured log above and written here as
+        // human-facing output instead.
+        process.stderr.write(`  Observer dashboard: ${this.url}\n`);
         resolve();
       });
       this._httpServer.on("error", (err: NodeJS.ErrnoException) => {
@@ -151,6 +177,21 @@ export class ObserverServer {
       return;
     }
 
+    // Every /api/* route requires auth, and this has to come before the
+    // route table rather than partway down it. `/api/grid` and
+    // `/api/session/:id` used to be matched above the check and returned
+    // early, so both answered unauthenticated — `/api/session/:id` with the
+    // session's state and its last 200 events, which carry the URLs visited
+    // and the instructions given. Measured: a request with no token returned
+    // an event containing `Type hunter2-REAL-PASSWORD into the password
+    // field`. Those two routes were exempted because the grid page called
+    // them without a token; the token now reaches the page instead.
+    if (pathname.startsWith("/api/") && !this._checkAuth(req)) {
+      res.writeHead(401, { "Content-Type": "text/plain" });
+      res.end("Unauthorized — pass ?token=<token> or Authorization: Bearer <token>");
+      return;
+    }
+
     // Multi-session grid dashboard (only enabled when registry is attached)
     if ((pathname === "/grid" || pathname === "/grid/") && this._registry) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -180,13 +221,6 @@ export class ObserverServer {
           events: entry.store.events.slice(-200),
         }),
       );
-      return;
-    }
-
-    // All /api/* routes require auth
-    if (pathname.startsWith("/api/") && !this._checkAuth(req)) {
-      res.writeHead(401, { "Content-Type": "text/plain" });
-      res.end("Unauthorized — pass ?token=<token> or Authorization: Bearer <token>");
       return;
     }
 

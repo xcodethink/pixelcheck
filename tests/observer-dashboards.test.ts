@@ -18,7 +18,11 @@ describe("observer dashboards (G3)", () => {
     });
 
     it("wires the WebSocket feed + control commands", () => {
-      expect(html).toContain("ws://' + location.host + '/ws");
+      // The WebSocket URL carries the token the page was opened with. Without
+      // it the server closes the connection with 4001 and the dashboard sits
+      // on "Disconnected" forever, which is what it used to do on every run.
+      expect(html).toContain("ws://' + location.host + auth('/ws')");
+      expect(html).toContain("new URLSearchParams(location.search).get('token')");
       for (const cmd of ["pause", "resume", "takeover", "release"]) {
         expect(html).toContain(`send('${cmd}')`);
       }

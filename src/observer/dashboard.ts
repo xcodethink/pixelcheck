@@ -318,7 +318,7 @@ export function getDashboardHtml(): string {
   <button class="btn" id="btnResume" onclick="send('resume')" disabled>Resume</button>
   <button class="btn btn-warn" id="btnTakeover" onclick="send('takeover')">Take Over</button>
   <button class="btn btn-danger" id="btnRelease" onclick="send('release')" disabled>Release</button>
-  <a class="btn" style="text-decoration:none" href="/grid" target="_blank">Grid ▸</a>
+  <a class="btn" style="text-decoration:none" href="/grid" id="gridLink" target="_blank">Grid ▸</a>
 </div>
 
 <div class="main">
@@ -363,7 +363,29 @@ export function getDashboardHtml(): string {
 </div>
 
 <script>
-const wsUrl = 'ws://' + location.host + '/ws';
+// The token comes from this page's own query string. The server prints a URL
+// that carries it; a page opened at the bare origin has none, and every
+// request below is refused outright rather than failing silently.
+const token = new URLSearchParams(location.search).get('token') || '';
+const auth = (p) => p + (p.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+if (!token) {
+  // Opened at the bare origin. Every request is about to be refused, and
+  // a page that just reads Disconnected does not say why.
+  document.addEventListener('DOMContentLoaded', () => {
+    const b = document.createElement('div');
+    b.style.cssText = 'padding:12px 16px;background:#7f1d1d;color:#fecaca;font:14px system-ui;';
+    b.textContent = 'No access token in this URL. Open the address the run printed, '
+      + 'which ends in ?token=... — without it the dashboard cannot read anything.';
+    document.body.prepend(b);
+  });
+}
+const wsUrl = 'ws://' + location.host + auth('/ws');
+// The grid is a separate page and needs the token too, so the link carries
+// the one this page was opened with.
+document.addEventListener('DOMContentLoaded', () => {
+  const gl = document.getElementById('gridLink');
+  if (gl) gl.href = auth('/grid');
+});
 let ws;
 let actionCount = 0;
 
@@ -548,8 +570,8 @@ let _eventsCache = [];
 async function refreshTimeline() {
   try {
     const [tRes, eRes] = await Promise.all([
-      fetch('/api/timeline'),
-      fetch('/api/events/all?start=0'),
+      fetch(auth('/api/timeline')),
+      fetch(auth('/api/events/all?start=0')),
     ]);
     _timelineCache = await tRes.json();
     _eventsCache = await eRes.json();
