@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- A run that covered less of its matrix than planned now says so. Units skipped
+  because the budget cap tripped, or dropped because their persona was missing,
+  return without pushing a result — so `summary.total` is the executed count,
+  not the planned one, and nothing compared the two.
+
+  Measured: a three-unit matrix with `--budget 0.02 -j 1` logged two "unit
+  skipped" events and reported `total: 1`, `PASS 0 WARN 0 FAIL 1`. That is
+  indistinguishable from a one-unit matrix that ran to completion — and had the
+  single unit passed, it would have read as a clean audit of all three.
+
+- `--budget` is described as what it is. It read "Max USD budget"; the check
+  runs after a unit finishes and only stops units that have not started, so
+  spend can exceed it by up to one concurrent batch. With concurrency at or
+  above the matrix size it does not constrain the run at all: a $0.02 budget on
+  a three-unit matrix at `-j 3` spent $0.074.
+
+### Fixed
 - `explore` no longer writes its internal LLM traffic to stdout. Stagehand's
   logging now goes through this project's structured logger, which writes to
   stderr, matching what `run` already did.
