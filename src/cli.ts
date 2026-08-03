@@ -1097,6 +1097,12 @@ program
     });
 
     await server.start();
+    // Print the URL, with the token in it. Replay used to print nothing at
+    // all, so the dashboard it had just started was unreachable unless the
+    // port was guessed — and a page opened without the token cannot connect.
+    console.log(
+      chalk.cyan(`  Dashboard: ${server.url}`),
+    );
     console.log(chalk.gray("  Replaying events... (Ctrl+C to stop)"));
 
     // Replay events with relative timing between consecutive events

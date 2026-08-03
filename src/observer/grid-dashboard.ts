@@ -133,11 +133,29 @@ export function getGridHtml(): string {
 </div>
 
 <script>
+// Same as the single-session dashboard: the token arrives in this page's own
+// query string. The two grid routes used to be exempt from auth so that this
+// poll would work without one, which left both answering unauthenticated to
+// anything on the machine. No backticks in this comment: the whole page is a
+// TypeScript template literal, and one would end it here.
+const token = new URLSearchParams(location.search).get('token') || '';
+const auth = (p) => p + (p.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+if (!token) {
+  // Opened at the bare origin. Every request is about to be refused, and
+  // a page that just reads Disconnected does not say why.
+  document.addEventListener('DOMContentLoaded', () => {
+    const b = document.createElement('div');
+    b.style.cssText = 'padding:12px 16px;background:#7f1d1d;color:#fecaca;font:14px system-ui;';
+    b.textContent = 'No access token in this URL. Open the address the run printed, '
+      + 'which ends in ?token=... — without it the dashboard cannot read anything.';
+    document.body.prepend(b);
+  });
+}
 const POLL_MS = 2000;
 
 async function poll() {
   try {
-    const res = await fetch('/api/grid');
+    const res = await fetch(auth('/api/grid'));
     const data = await res.json();
     render(data);
     document.getElementById('metaSessions').textContent = data.length + ' session' + (data.length === 1 ? '' : 's');

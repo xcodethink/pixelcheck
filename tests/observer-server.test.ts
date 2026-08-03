@@ -57,18 +57,45 @@ describe("observer HTTP/WS server (G3 follow-up)", () => {
     expect(await res.text()).toContain("<!DOCTYPE html>");
   });
 
-  it("serves the grid dashboard + /api/grid snapshot (registry attached, no auth)", async () => {
+  it("serves the grid page itself without a token — it is only a shell", async () => {
+    // The HTML carries no data. It reads the token out of its own query
+    // string and every request it then makes is authenticated.
     const grid = await fetch(`${base}/grid`);
     expect(grid.status).toBe(200);
     expect(await grid.text()).toContain("PixelCheck");
+  });
 
-    const snap = await fetch(`${base}/api/grid`);
+  it("refuses /api/grid without a token", async () => {
+    // This route, and /api/session/:id below, used to be matched above the
+    // auth check and returned early, so both answered unauthenticated. They
+    // were exempted because the grid page polled them without a token; the
+    // token now reaches the page instead.
+    expect((await fetch(`${base}/api/grid`)).status).toBe(401);
+  });
+
+  it("serves /api/grid with a token", async () => {
+    const snap = await fetch(`${base}/api/grid?token=${token}`);
     expect(snap.status).toBe(200);
     expect(Array.isArray(await snap.json())).toBe(true);
   });
 
-  it("404s an unknown session id", async () => {
-    expect((await fetch(`${base}/api/session/nope`)).status).toBe(404);
+  it("refuses an unknown session id without a token, rather than 404ing it", async () => {
+    // Answering 404 unauthenticated is already an answer: it tells a caller
+    // with no token which session ids exist.
+    expect((await fetch(`${base}/api/session/nope`)).status).toBe(401);
+  });
+
+  it("404s an unknown session id once authenticated", async () => {
+    expect((await fetch(`${base}/api/session/nope?token=${token}`)).status).toBe(404);
+  });
+
+  it("refuses a known session id without a token", async () => {
+    // The measured leak: this route returns the session state and its last
+    // 200 events, which carry the URLs visited and the instructions given.
+    // A request with no token returned an event containing
+    // "Type hunter2-REAL-PASSWORD into the password field".
+    bus.emitEvent("session:start", { persona_id: "p", scenario_id: "s" });
+    expect((await fetch(`${base}/api/session/test-session`)).status).toBe(401);
   });
 
   it("requires a token for /api/* data routes", async () => {
