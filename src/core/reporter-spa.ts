@@ -306,13 +306,13 @@ function renderUnit(r, globalMax) {
     const cls = s.status === 'pass' ? '' : s.status;
     return '<tr><td>' + esc(s.step_id) + '</td>' +
       '<td>' + esc(s.step_type) + '</td>' +
-      '<td class="status-' + s.status + '">' + s.status + '</td>' +
+      '<td class="status-' + esc(s.status) + '">' + esc(s.status) + '</td>' +
       '<td>' + (s.duration_ms || 0) + 'ms</td>' +
-      '<td class="bar-cell"><div class="bar"><div class="bar-fill ' + cls + '" style="width:' + width + '%"></div></div></td>' +
+      '<td class="bar-cell"><div class="bar"><div class="bar-fill ' + esc(cls) + '" style="width:' + width + '%"></div></div></td>' +
       '<td>' + esc(s.execution_method || '') + '</td></tr>';
   }).join('');
   const issues = r.issues.map(i =>
-    '<div class="issue ' + i.severity + '"><span class="sev">' + i.severity + '</span>' + esc(i.description) +
+    '<div class="issue ' + esc(i.severity) + '"><span class="sev">' + esc(i.severity) + '</span>' + esc(i.description) +
     (i.recommendation ? '<div class="rec">→ ' + esc(i.recommendation) + '</div>' : '') + '</div>'
   ).join('');
 
@@ -328,7 +328,7 @@ function renderUnit(r, globalMax) {
     '<div class="unit-hdr">' +
       '<h3>' + esc(r.scenario_name) + ' × ' + esc(r.persona_display_name) + '</h3>' +
       '<span class="score-pill">' + r.overall_score.toFixed(1) + '/10 · $' + r.cost_usd.toFixed(3) + ' · ' + (r.duration_ms/1000).toFixed(1) + 's</span>' +
-      '<span class="status-badge status-' + status + '">' + esc(status.replace(/_/g, ' ')) + '</span>' +
+      '<span class="status-badge status-' + esc(status) + '">' + esc(status.replace(/_/g, ' ')) + '</span>' +
     '</div>' +
     '<div class="unit-body">' +
       (dims ? '<h4>' + esc(t('section_dimensions')) + '</h4><div class="dims">' + dims + '</div>' : '') +
@@ -340,7 +340,10 @@ function renderUnit(r, globalMax) {
   '</div>';
 }
 
-function esc(s) { return String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// Single quote included: three of this repository's eight escapeHtml copies
+// escaped it and three did not, and the same name meaning different things in
+// different files is how the gap survived.
+function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function expandAll() { for (const u of document.querySelectorAll('.unit')) u.classList.add('expanded'); }
 function collapseAll() { for (const u of document.querySelectorAll('.unit')) u.classList.remove('expanded'); }
@@ -359,10 +362,19 @@ renderUnits();
 </html>`;
 }
 
+/**
+ * Server-side escaping for the parts of the page rendered before it is
+ * written — the title, mainly. Separate from the client-side `esc` further
+ * down, which escapes what the page builds at runtime.
+ *
+ * Both needed the single quote adding, and only one of them got it first
+ * time. Two escapers in one file with the same job is how that happens.
+ */
 function escapeHtml(s: string): string {
-  return String(s).replace(/[&<>"]/g, (c) => {
+  return String(s).replace(/[&<>"']/g, (c) => {
     switch (c) {
       case "&": return "&amp;";
+      case "'": return "&#39;";
       case "<": return "&lt;";
       case ">": return "&gt;";
       case "\"": return "&quot;";

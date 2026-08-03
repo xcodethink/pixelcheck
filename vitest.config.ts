@@ -40,6 +40,12 @@ export default defineConfig({
     // `npx playwright install` × 12 would 12x the install cost. They run
     // via `npm run test:integration` from integration.yml, which already
     // installs chromium once on Ubuntu. See vitest.integration.config.ts.
+    //
+    // This exclude list and the include list in vitest.integration.config.ts
+    // are both maintained by name. A new chromium-launching file has to be
+    // added to both: leave it out of this one and the twelve-config matrix
+    // tries to launch a browser it has no binary for, which passes locally
+    // on any machine that has one installed.
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
@@ -50,6 +56,7 @@ export default defineConfig({
       "tests/integration/signals-e2e.test.ts",
       "tests/integration/whitebox-collector.test.ts",
       "tests/integration/performance-collector-integration.test.ts",
+      "tests/integration/report-xss.test.ts",
     ],
     // cassette tests (tests/integration/llm-cassettes.test.ts) self-
     // skip when neither AUDIT_E2E_REPLAY=1 nor AUDIT_E2E_RECORD=1 is
