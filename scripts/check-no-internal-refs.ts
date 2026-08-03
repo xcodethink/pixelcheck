@@ -91,6 +91,24 @@ export const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> 
     instead: "name the capability, not the milestone it landed in",
   },
   {
+    // `G3`, `G4`, `B2`, `B3` — the two workstream prefixes this repository
+    // actually used, alongside the `T` ones. They were missed for the same
+    // reason the header describes: the gate was written against the shapes
+    // someone expected rather than the shapes in the files. Nine test names
+    // carried them past it, in a public repository.
+    //
+    // One digit, not two: the ids in use are all single-digit, and `\d{1,2}`
+    // additionally matched the literal `B64` in a vision test, where it means
+    // base64. Widening a gate until it flags real content, then editing the
+    // content to quieten it, is the wrong way round.
+    //
+    // The trailing exclusion keeps `B2B` and colours like `#B3D9FF` out, and
+    // the leading one keeps this off any longer token ending in G or B.
+    label: "internal workstream id",
+    pattern: /(?<![\w-])[GB]\d(?![\w:.-])/,
+    instead: "describe the change, or link an issue / ADR",
+  },
+  {
     label: "iteration label",
     pattern: /\bWave \d+/,
     instead: "name what shipped, not which batch it was in",

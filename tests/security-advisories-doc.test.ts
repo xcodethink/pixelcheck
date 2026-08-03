@@ -7,11 +7,11 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const read = (rel: string) => fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
 
 /**
- * G4 regression: the CI comment used to claim "0 vulnerabilities" while
+ * Regression: the CI comment used to claim "0 vulnerabilities" while
  * `npm audit` actually reports 17 LOW advisories. These guards keep the docs
  * honest so that claim can't silently return.
  */
-describe("security advisories documentation (G4)", () => {
+describe("security advisories documentation", () => {
   it("SECURITY.md documents the known low advisories + their single root cause", () => {
     const sec = read("SECURITY.md");
     expect(sec).toMatch(/Known low advisories/);

@@ -16,7 +16,7 @@ import { runDoctor, renderDoctorReport } from "../src/commands/doctor.js";
 const mockRunDoctor = vi.mocked(runDoctor);
 const mockRender = vi.mocked(renderDoctorReport);
 
-describe("MCP meta tool: get_last_report (G3 / B3 path sandbox)", () => {
+describe("MCP meta tool: get_last_report — path sandbox", () => {
   const created: string[] = [];
 
   afterEach(() => {
@@ -52,7 +52,7 @@ describe("MCP meta tool: get_last_report (G3 / B3 path sandbox)", () => {
   });
 });
 
-describe("MCP meta tool: doctor (G3)", () => {
+describe("MCP meta tool: doctor", () => {
   beforeEach(() => {
     mockRunDoctor.mockReset();
     mockRender.mockReset();
