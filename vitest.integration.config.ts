@@ -36,6 +36,9 @@ export default defineConfig({
       "tests/integration/signals-e2e.test.ts",
       "tests/integration/whitebox-collector.test.ts",
       "tests/integration/performance-collector-integration.test.ts",
+        // This list is an allowlist, not a glob: a new file added under
+        // tests/integration/ is silently not run until it appears here.
+        "tests/integration/report-xss.test.ts",
     ],
     // Forks pool — fresh Node process per file.
     // vitest 4+ moved poolOptions to top-level `forks` / `threads` keys.

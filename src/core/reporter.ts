@@ -359,8 +359,8 @@ function renderUnit(r: ScenarioRunResult, runDir: string): string {
     .join("");
   const issues = r.issues
     .map(
-      (i: Issue) => `<div class="issue ${i.severity}">
-        <strong>[${i.severity.toUpperCase()}]</strong> ${escapeHtml(i.description)}
+      (i: Issue) => `<div class="issue ${escapeHtml(i.severity)}">
+        <strong>[${escapeHtml(i.severity.toUpperCase())}]</strong> ${escapeHtml(i.description)}
         <div class="rec">→ ${escapeHtml(i.recommendation)}</div>
       </div>`,
     )
@@ -368,7 +368,7 @@ function renderUnit(r: ScenarioRunResult, runDir: string): string {
   const steps = r.steps
     .map(
       (s) =>
-        `<li><span class="st">${s.status.toUpperCase()}</span> ${escapeHtml(s.step_id)} (${s.step_type}, ${s.duration_ms}ms${s.retries_used ? `, retries=${s.retries_used}` : ""}${s.execution_method && s.execution_method !== "stagehand" ? `, via=${s.execution_method}` : ""})${s.error ? ` — ${escapeHtml(s.error)}` : ""}</li>`,
+        `<li><span class="st">${escapeHtml(s.status.toUpperCase())}</span> ${escapeHtml(s.step_id)} (${escapeHtml(s.step_type)}, ${s.duration_ms}ms${s.retries_used ? `, retries=${s.retries_used}` : ""}${s.execution_method && s.execution_method !== "stagehand" ? `, via=${escapeHtml(s.execution_method)}` : ""})${s.error ? ` — ${escapeHtml(s.error)}` : ""}</li>`,
     )
     .join("");
   const screenshots = r.steps
@@ -384,7 +384,7 @@ function renderUnit(r: ScenarioRunResult, runDir: string): string {
     .join("");
 
   return `<div class="unit">
-    <h2><span class="badge ${badgeClass}">${r.status}</span> ${escapeHtml(r.scenario_name)}</h2>
+    <h2><span class="badge ${escapeHtml(badgeClass)}">${escapeHtml(r.status)}</span> ${escapeHtml(r.scenario_name)}</h2>
     <div class="meta-row">
       Persona: <strong>${escapeHtml(r.persona_display_name)}</strong> &middot;
       Score: <strong>${r.overall_score.toFixed(1)}/10</strong> &middot;
@@ -540,6 +540,17 @@ function renderReliabilityStats(latest?: HistoryEntry): string {
   </div>`;
 }
 
+/**
+ * Escape for HTML text and attribute content.
+ *
+ * Applied to the enum-typed fields as well as the free-text ones. They were
+ * left raw because the Zod boundary constrains them — `severity` really is
+ * `z.enum([...])` — but `writeHtmlReport` is exported from the package index
+ * and `loadAuditReport` casts parsed JSON with no schema, so a report rendered
+ * from an audit.json that did not come through that boundary reaches these
+ * fields directly. Verified in Chromium: a payload in `status` and `severity`
+ * executed three times.
+ */
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
