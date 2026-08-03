@@ -17,6 +17,7 @@ import type {
 import { createStagehandWrapper } from "./stagehand-wrapper.js";
 import { Recorder } from "./recorder.js";
 import { executeStep, type StepContext } from "../handlers/index.js";
+import { readInterpolatedEnvKeys } from "./scenario.js";
 import { resolvePersonaSecrets } from "./persona.js";
 import { createTempInbox } from "./email.js";
 import { OriginThrottle, originOf } from "./throttle.js";
@@ -251,6 +252,32 @@ async function runAuditInner(
         },
         `repro hint for failed unit`,
       );
+    }
+  }
+
+  // Scenarios reach `process.env` through `${env.X}` with no allowlist, so a
+  // scenario can place any variable this process can read into a URL, an act
+  // instruction or a computer-use task. Only nine specific keys are redacted by
+  // default; AWS_SECRET_ACCESS_KEY and GITHUB_TOKEN are not among them.
+  //
+  // Name the variables that were actually read, so an operator running a
+  // scenario they did not write can see what it reached for, and redact their
+  // values so they at least do not survive into the reports. Neither prevents a
+  // scenario from sending a value to a host it names; narrowing that would
+  // break existing scenarios and is a decision for the project, not a patch.
+  const envKeysRead = readInterpolatedEnvKeys();
+  if (envKeysRead.length > 0) {
+    log.info(
+      { variables: [...envKeysRead].sort() },
+      `scenario read ${envKeysRead.length} environment variable(s)`,
+    );
+    for (const key of envKeysRead) {
+      const value = process.env[key];
+      // Short values are skipped: redacting a two-character value would blank
+      // unrelated text across the whole report.
+      if (value && value.length >= 8 && !redactPatterns.includes(value)) {
+        redactPatterns.push(value);
+      }
     }
   }
 
