@@ -347,7 +347,13 @@ test.describe("redactSensitiveInputs — real chromium DOM mutation", () => {
     try {
       const recorder = new Recorder(page, dir);
       await recorder.screenshotSegments("with-redact");
-      expect(await page.locator("#password").inputValue()).toBe("********");
+      // The value is restored once the shots are taken. This used to assert
+      // it stayed "********", which pinned a defect: a scenario that filled a
+      // password, screenshotted, then submitted, submitted "********" — and
+      // the audit recorded a login failure against the site for a fault in
+      // this tool. That the screenshot itself is taken redacted is asserted
+      // on pixels in tests/integration/input-redaction.test.ts.
+      expect(await page.locator("#password").inputValue()).toBe("should-not-leak");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -504,9 +510,12 @@ test.describe("redactSensitiveInputs — real chromium DOM mutation", () => {
       await page.fill("#password", "another-secret");
       await page.fill("#stripe_live_key", "sk_live_test_fresh");
       await recorder.screenshotSegments("realistic-form");
-      expect(await page.locator("#password").inputValue()).toBe("********");
+      // Restored, for the same reason as above. The direct-call assertions
+      // earlier in this test are what pin that the values are replaced while
+      // the shot is taken.
+      expect(await page.locator("#password").inputValue()).toBe("another-secret");
       expect(await page.locator("#stripe_live_key").inputValue()).toBe(
-        "********",
+        "sk_live_test_fresh",
       );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

@@ -57,6 +57,7 @@ export default defineConfig({
       "tests/integration/whitebox-collector.test.ts",
       "tests/integration/performance-collector-integration.test.ts",
       "tests/integration/report-xss.test.ts",
+      "tests/integration/input-redaction.test.ts",
     ],
     // cassette tests (tests/integration/llm-cassettes.test.ts) self-
     // skip when neither AUDIT_E2E_REPLAY=1 nor AUDIT_E2E_RECORD=1 is
