@@ -143,15 +143,35 @@ These are transitive and low severity, so they do not block the build.
 Tracked here so the "0 vulnerabilities" claim is never made again without
 qualification.
 
-**`npm audit` reports `fixAvailable: true` for all seventeen. It is wrong,
-and this was measured rather than assumed.** The advisory's fixed range is
-`>3.0.97`, and the only published versions above it are `5.x` — two majors
-up. `@browserbasehq/stagehand`, which brings the whole family in, is on its
-latest release and still resolves `3.0.30`.
+**`npm audit` reports `fixAvailable: true` for all seventeen. It is wrong.**
 
-Forcing `"@ai-sdk/provider-utils": "^5.0.20"` through `overrides` installs
-cleanly, builds, and passes **2569 unit tests, 49 integration tests, and
-`npm audit` goes to zero findings**. The product is dead:
+### Why nothing can move
+
+The chain is `pixelcheck` -> `@browserbasehq/stagehand@^3` -> `ai@5.x` ->
+`@ai-sdk/provider-utils`.
+
+`stagehand@3.7.1` declares `ai: ^5.0.185`, and **the AI SDK pins its own
+internal packages to exact versions**: `ai@5.0.222` depends on
+`@ai-sdk/provider-utils@3.0.30`, not a range. The resolved version is
+whatever that `ai` release chose, so overriding one package cannot change it
+without breaking the version agreement the whole family is built on.
+
+Taking the newest `ai` inside stagehand's range does not help. Every 5.x
+release up to 5.0.226 pins 3.0.30 or 3.0.31:
+
+| `ai` | pins `provider-utils` |
+|---|---|
+| 5.0.222 | 3.0.30 |
+| 5.0.223 - 5.0.226 | 3.0.31 |
+
+And **the stable 3.x line ends at 3.0.31**. Everything above it in that line
+is `3.1.0-beta`. The advisory's `<=3.0.97` is a generous ceiling over a line
+abandoned before it ever got a fix: the fix landed in the 4.x and 5.x lines,
+which belong to the newer `ai` generations that stagehand does not accept.
+
+Forcing `@ai-sdk/provider-utils@^5` through `overrides` installs cleanly,
+builds, and passes **2569 unit tests, 49 integration tests, and `npm audit`
+goes to zero findings**. The product is dead:
 
 ```
 SyntaxError: The requested module '@ai-sdk/provider-utils'
@@ -159,18 +179,44 @@ SyntaxError: The requested module '@ai-sdk/provider-utils'
     at @ai-sdk/gateway/src/errors/gateway-forbidden-error.ts:3
 ```
 
-`@ai-sdk/gateway` is compiled against 3.x and imports a symbol 5.x no longer
-exports, so the module graph fails to load and no LLM call can be made at
-all. Nothing in the suite covers that path — there is no cassette replay for
-it — so every gate stayed green while the thing the product exists to do was
-broken. Confirmed by making one real API call before and after the revert:
-`"ok"` on the reverted tree, the SyntaxError above with the override in
-place.
+`@ai-sdk/gateway` is compiled against the older generation and imports a
+symbol the newer one no longer exports, so the module graph fails to load and
+no LLM call can be made at all. Nothing in the suite covers that path — there
+is no cassette replay for it — so every gate stayed green while the thing the
+product exists to do was broken. Confirmed with one real API call either side
+of the revert: `"ok"` on the reverted tree, the SyntaxError above with the
+override in place.
 
-So the honest status is not "no fix published". It is: a fix exists, it
-cannot be taken from here, and it arrives when the AI SDK family moves
-together — which is upstream's release, not ours. Do not re-attempt the
-override on the strength of `fixAvailable`.
+**Do not re-attempt the override on the strength of `fixAvailable`.**
+
+### What the advisory actually reaches
+
+[GHSA-866g-f22w-33x8](https://github.com/advisories/GHSA-866g-f22w-33x8),
+CVSS 4.3. The affected element is `createJsonResponseHandler` /
+`createJsonErrorResponseHandler` in
+`packages/provider-utils/src/response-handler.ts`; the effect is resource
+consumption.
+
+That function parses the **HTTP response from the model provider**. It is on
+this product's path — every LLM call goes through it — but what it handles
+comes from the provider endpoint, not from the site being audited. Page
+content reaches the model as prompt text and does not reach this parser.
+Triggering the issue therefore means being the provider, or terminating its
+TLS.
+
+An assessment of reach, not a claim that the advisory is wrong. Recorded so
+the residual risk is stated rather than implied by the word "accepted".
+
+### When it clears, and how that will surface
+
+When stagehand moves to the `ai` generation carrying a fixed
+`provider-utils`. A `4.0.0-alpha` is published, so the move is underway
+upstream.
+
+No manual watch is needed: `.github/dependabot.yml` gives major updates their
+own pull requests, so a stable stagehand 4.x arrives as a PR to review.
+Taking it means checking that the audit clears at the same time — that is the
+point of the upgrade, not a side effect of it.
 
 ### Dev-only tree — 1 moderate (NOT shipped)
 
