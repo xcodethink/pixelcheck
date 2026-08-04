@@ -18,7 +18,7 @@ import {
   _setEnsureHeadlessShellForTests,
 } from "../src/core/browser-install.js";
 
-describe("assertTrustedDownloadUrl (Audit 2026-06-02 A1/A2 — supply chain)", () => {
+describe("assertTrustedDownloadUrl (— supply chain)", () => {
   it("accepts the real Chrome-for-Testing download hosts over HTTPS", () => {
     for (const u of [
       "https://cdn.playwright.dev/builds/cft/1234/chrome-headless-shell-mac-arm64.zip",

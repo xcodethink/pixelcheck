@@ -216,7 +216,7 @@ export async function ensureConsent(
   // consented on the user's behalf, so an MCP server (always non-TTY) sent page
   // data to Anthropic with no human ever in the loop. Consent must be explicit:
   // a prior persisted consent (step 1), AUDIT_AUTO_CONSENT=1 (step 2), or
-  // --auto-consent (step 3) — all handled above. (Audit 2026-06-02 B1.)
+  // --auto-consent (step 3) — all handled above.
   const isTTY = opts.isTTY ?? Boolean(process.stdin.isTTY);
   if (!isTTY) {
     log.warn(

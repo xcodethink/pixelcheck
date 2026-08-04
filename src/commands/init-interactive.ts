@@ -161,7 +161,7 @@ export function sampleSmokeScenarioYaml(baseUrl: string): string {
   // needs applies_to + scoring_dimensions, and only real step types are
   // allowed. The previous sample used `- type: see` (an MCP primitive, NOT a
   // scenario step) and omitted step ids / applies_to, so the single guided
-  // first-run path failed Zod parse on the very first `run`. (Audit 2026-06-02 H1.)
+  // first-run path failed Zod parse on the very first `run`.
   return [
     "id: homepage-smoke",
     "name: Homepage smoke audit",

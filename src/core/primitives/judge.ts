@@ -664,7 +664,7 @@ export function parseJudgeRawJson(
  * only over the verdicts it *did* return spuriously raises the overall score.
  * Dividing by the expected criteria count instead treats a missing verdict as
  * an implicit 0 — incomplete judgment can never inflate the score, only drag
- * it down. (Audit 2026-06-02 E6/D3-M2.) Omit `criteriaCount` (or pass 0) to
+ * it down. Omit `criteriaCount` (or pass 0) to
  * keep the legacy "average over present verdicts" behavior.
  */
 export function computeOverallScore(

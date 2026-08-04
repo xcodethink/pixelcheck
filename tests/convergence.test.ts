@@ -48,7 +48,7 @@ describe("ConvergenceTracker", () => {
     }
   });
 
-  it("detects no_progress when the page never advances despite varied instructions (Audit 2026-06-02 D2-C1)", () => {
+  it("detects no_progress when the page never advances despite varied instructions", () => {
     // The 26-step login-wall loop: every action 'succeeds' (fill passes) and
     // every instruction differs, but url + dom_fingerprint never change.
     // Default no-progress threshold is 8.

@@ -547,7 +547,7 @@ async function runStep(ctx: RunStepCtx): Promise<ActStepResult> {
         if (ctx.step.selector) {
           // Honour the per-step timeout while waiting for the target element,
           // same as click/fill — a slow-to-appear target shouldn't hang on
-          // Playwright's default. (Audit 2026-06-02 E9.)
+          // Playwright's default.
           await ctx.page
             .locator(ctx.step.selector)
             .first()
@@ -581,7 +581,7 @@ async function runStep(ctx: RunStepCtx): Promise<ActStepResult> {
         } else {
           // No to_bottom / selector / delta_y → there is nothing to scroll.
           // Reporting success would mask a misconfigured step; fail loudly
-          // instead. (Audit 2026-06-02 E9.)
+          // instead.
           throw new Error(
             "scroll step is a no-op: set one of to_bottom, selector, or delta_y",
           );

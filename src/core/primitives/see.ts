@@ -407,7 +407,7 @@ async function computeSee(opts: SeeOptions): Promise<SeeResult> {
       // so it must only run when a goal is set — otherwise a goal-less `see`
       // (documented as 0 LLM cost, and snapshot-cacheable) would silently pay
       // for a Sonnet call on every snapshot. Gating on goal restores the
-      // "0 cost without goal" contract and the goal-less cache. (Audit 2026-06-02 E1.)
+      // "0 cost without goal" contract and the goal-less cache.
       const hasGoalForVisualState =
         typeof opts.goal === "string" && opts.goal.length > 0;
       if (buf && !opts._open && hasGoalForVisualState) {

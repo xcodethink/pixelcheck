@@ -1018,7 +1018,7 @@ program
 
       // Persist to the history DB too — without this an `explore` run never
       // entered history, so trends/diff were silently empty for the
-      // documented quick-start workflow. (Audit 2026-06-02 H3.)
+      // documented quick-start workflow.
       try {
         saveAuditToHistory(audit, reportsDir);
         console.log(chalk.gray("  [history] Saved to history.db"));
@@ -1847,7 +1847,7 @@ async function runCommand(opts: RunOpts): Promise<void> {
   // Distinct codes let CI tell a score regression apart from a functional
   // failure; before, both were 1 and a warn=2 was masked whenever the gate
   // tripped. Precedence: a hard failure (1) dominates a gate regression (3),
-  // which dominates warnings (2). (Audit 2026-06-02 H4.)
+  // which dominates warnings (2).
   // A run whose artefacts never reached disk must not report success, or CI
   // treats "nothing was written" as "everything passed".
   // Nothing evaluated is not a pass. Without this the run exits 2 ("passed

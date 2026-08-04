@@ -201,7 +201,7 @@ export function resolveHeadlessShell(): HeadlessShellInfo | null {
  * cryptographic hashes that we could pin against, so we cannot do a true
  * checksum verification here. The guarantee is therefore "HTTPS + pinned
  * trusted origin + no third-party redirect + expected-size check" — the same
- * trust model Playwright's own installer relies on. (Audit 2026-06-02 A1/A2.)
+ * trust model Playwright's own installer relies on.
  */
 const TRUSTED_DOWNLOAD_HOSTS: ReadonlySet<string> = new Set([
   "cdn.playwright.dev",
@@ -312,7 +312,7 @@ function downloadToFile(url: string, dest: string): Promise<void> {
  * traversal paths; combined with the pinned trusted download origin
  * ({@link assertTrustedDownloadUrl}) the archive content is from Chrome-for-Testing,
  * not attacker-controlled, so path-traversal is not a reachable vector here.
- * (Audit 2026-06-02 A3/A4.)
+ *
  */
 function extractZip(zipPath: string, destDir: string): void {
   fs.mkdirSync(destDir, { recursive: true });

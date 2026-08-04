@@ -160,7 +160,7 @@ describe("estimateCost", () => {
     expect(estimateCost("claude-haiku-4-5-20251001", 0, 1_000_000)).toBe(4);
   });
 
-  it("falls back to the HIGHEST known rate for an unknown model (Audit 2026-06-02 E5)", async () => {
+  it("falls back to the HIGHEST known rate for an unknown model", async () => {
     // Conservative fallback: an unknown/typo'd model must not be under-priced
     // (previously fell back to the cheaper sonnet rate, silently under-counting
     // the budget guard). Highest current rate is opus (15 in / 75 out).

@@ -433,7 +433,7 @@ export class CostGuard {
       // was not persisted. Leaving dayUsdAfter at 0 would silently BYPASS the
       // daily cap (it reads "0 spent today" → never fires). Best-effort re-read
       // the ledger (lockless) and add this call's delta so the cap still tracks
-      // approximately rather than fail-open on contention. (Audit 2026-06-02 E4.)
+      // approximately rather than fail-open on contention.
       try {
         const today = this.readToday();
         dayUsdAfter = today.usd + usd;

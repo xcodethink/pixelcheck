@@ -49,6 +49,20 @@ describe("identifiers the gate must catch", () => {
       .toContain("internal task id");
   });
 
+  it("flags an audit attribution, which is how the identifiers actually appear", () => {
+    // The form four rounds of prefix-adding never caught. Measured across the
+    // repository: 43 occurrences, 34 of them in src/, which compiles into dist
+    // and ships. Every hit was genuine.
+    for (const line of [
+      "// can't complete. Record a critical issue so it fails. (Audit 2026-06-02 E2.)",
+      " * stated label. (Audit 2026-06-02 E6/D3-M3.)",
+      "/* eslint-disable no-console -- CLI output layer (Audit G2) */",
+      "# ESLint was configured but never enforced in CI (Audit 2026-06-02 F3 / D6-H3).",
+    ]) {
+      expect(offenders(line), line).toContain("audit attribution");
+    }
+  });
+
   it("still flags the shapes it already knew about", () => {
     // The G/B pattern was added alongside these; a mistake in it must not
     // quietly disable the others.
@@ -99,6 +113,30 @@ describe("things that only look like identifiers", () => {
     // followed by prose, a clock time by more digits.
     expect(offenders('`2026-04-${String(i)}T12:00:00Z`')).toEqual([]);
     expect(offenders("duration T5:30 elapsed")).toEqual([]);
+  });
+
+  it("does not flag the tokens that only look like identifiers in bulk", () => {
+    // Matching the token shape instead of the attribution was tried and
+    // rejected on the numbers: `[A-Z]` plus one or two digits matches 57
+    // distinct tokens in this repository, and the great majority are real
+    // content. These are the ones that would have been flagged.
+    for (const line of [
+      "priority: P0",
+      "an H1 heading",
+      "the L2 cache layer",
+      "printed on A4",
+      "decoded from B64",
+      "running under X11",
+      "screen_class: S24",
+    ]) {
+      expect(offenders(line), line).toEqual([]);
+    }
+  });
+
+  it("does not flag the word audit on its own", () => {
+    // "audit" is this product's subject matter and appears constantly.
+    expect(offenders("Run the audit and read the report")).toEqual([]);
+    expect(offenders("(Audit results are written to reports/)")).toEqual([]);
   });
 
   it("leaves CVE and version identifiers alone", () => {

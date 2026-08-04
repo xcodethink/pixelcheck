@@ -148,7 +148,7 @@ describe("writeJsonReport", () => {
     expect(html).toContain("secret-not-redacted");
   });
 
-  it("always redacts known env secrets even with empty redact_patterns (Audit 2026-06-02 C2)", () => {
+  it("always redacts known env secrets even with empty redact_patterns", () => {
     const prev = process.env.ADMIN_COOKIE;
     process.env.ADMIN_COOKIE = "session-token=supersecretvalue123";
     try {
