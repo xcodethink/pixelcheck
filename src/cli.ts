@@ -1407,18 +1407,18 @@ interface RunOpts {
 }
 
 async function runCommand(opts: RunOpts): Promise<void> {
-  // T22: validate API key before consent — if no API key, no point prompting.
+  // Validate the API key before consent — if there is none, there is no point prompting.
   // The friendly error catcher above will surface the ANTHROPIC_API_KEY guidance.
   validateEnv(["ANTHROPIC_API_KEY"]);
 
-  // T22: consent gate — first run prompts the operator (or auto-consents in
+  // Consent gate — first run prompts the operator (or auto-consents in
   // CI / non-TTY / via env / via flag). See PRIVACY.md and ADR-031 (TBD).
   // Only consent here, NOT before --dry-run (no data leaves the machine).
   if (!opts.dryRun) {
     await ensureConsent({ cliAutoConsent: opts.autoConsent });
   }
 
-  // T22: surface --no-redact-inputs as an env var so deeply-nested handlers
+  // Surface --no-redact-inputs as an env var so deeply-nested handlers
   // (recorder.screenshot / recorder.screenshotSegments) can read it without
   // threading it through every signature. Default is ON; setting "0"
   // explicitly disables.

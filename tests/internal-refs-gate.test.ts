@@ -38,6 +38,17 @@ describe("identifiers the gate must catch", () => {
     expect(offenders(line)).toContain("internal workstream id");
   });
 
+  it("flags a task id that opens a comment", () => {
+    // `T22:` was invisible: the trailing exclusion listed `:` as a second
+    // guard against ISO timestamps, on top of the leading one that already
+    // handles them. Six were sitting in src/, where comments compile into
+    // dist and ship — including one in the recorder, three in the CLI.
+    expect(offenders("// T22: replace password / secret / token / api-key field"))
+      .toContain("internal task id");
+    expect(offenders(" * Also enforces the disk-quota caps from T17:"))
+      .toContain("internal task id");
+  });
+
   it("still flags the shapes it already knew about", () => {
     // The G/B pattern was added alongside these; a mistake in it must not
     // quietly disable the others.
@@ -80,6 +91,14 @@ describe("things that only look like identifiers", () => {
     // The date/time separator would otherwise read as task T04, which is in
     // every release record.
     expect(offenders("2026-07-29T04:43:43Z")).toEqual([]);
+  });
+
+  it("leaves a timestamp assembled by interpolation alone", () => {
+    // Here the `T` follows `}`, not a digit, so the leading exclusion does
+    // not help. What separates the two is what comes after: a task id is
+    // followed by prose, a clock time by more digits.
+    expect(offenders('`2026-04-${String(i)}T12:00:00Z`')).toEqual([]);
+    expect(offenders("duration T5:30 elapsed")).toEqual([]);
   });
 
   it("leaves CVE and version identifiers alone", () => {

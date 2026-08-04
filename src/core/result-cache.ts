@@ -276,7 +276,7 @@ function shouldPrune(handle: DbHandle, now: number): boolean {
  * stricter schema version mismatch. Cheap; runs opportunistically when
  * the DB is opened (or via {@link pruneCache}).
  *
- * Also enforces the disk-quota caps from T17:
+ * Also enforces the disk-quota caps:
  *   - AUDIT_RESULT_CACHE_MAX_ROWS  (default 10000)
  *   - AUDIT_RESULT_CACHE_MAX_DISK_MB (default 500)
  *

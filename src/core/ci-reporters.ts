@@ -407,7 +407,7 @@ function buildRule(ruleId: string, issue: Issue): SarifRule {
         fullDescription: {
           text: `Web Content Accessibility Guidelines ${sc.id} — ${sc.name}. Conformance level ${sc.level} under the ${sc.principle} principle. See ${helpUri}.`,
         },
-        // T6: top-level helpUri + help.markdown render in GitHub Code
+        // Top-level helpUri + help.markdown render in GitHub Code
         // Scanning's issue detail panel as a "View documentation" link +
         // an inline expandable help section. Verified manually via
         // docs/integration/sarif-upload-verified.md.
