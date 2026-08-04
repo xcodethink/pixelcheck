@@ -25,6 +25,10 @@ import * as path from "node:path";
 import type { HistoryEntry } from "./history.js";
 import { loadHistory } from "./history.js";
 import { DEFAULT_LOCALE, formatRunsCount, t, type Locale } from "./i18n.js";
+import { escapeHtml } from "./html-escape.js";
+
+// Re-exported because this module used to own the definition.
+export { escapeHtml };
 
 // ─────────────────────────────────────────────────────────────
 // Public API
@@ -636,25 +640,6 @@ function formatDate(iso: string): string {
   if (!m) return iso;
   return `${m[1]} ${m[2]}`;
 }
-
-export function escapeHtml(s: string): string {
-  return String(s).replace(/[&<>"']/g, (c) => {
-    switch (c) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      case "'":
-        return "&#39;";
-    }
-    return c;
-  });
-}
-
 function escapeAttr(s: string): string {
   return escapeHtml(s);
 }

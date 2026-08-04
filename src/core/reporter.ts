@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { AuditRun, ScenarioRunResult, Issue } from "./types.js";
 import { redactDeep, buildRedactPatterns } from "./secrets.js";
 import { loadHistory, type HistoryEntry } from "./history.js";
+import { escapeHtml } from "./html-escape.js";
 
 /**
  * Write JSON report (machine-readable, primary source of truth).
@@ -538,24 +539,4 @@ function renderReliabilityStats(latest?: HistoryEntry): string {
       <div class="label">Overall Score</div>
     </div>
   </div>`;
-}
-
-/**
- * Escape for HTML text and attribute content.
- *
- * Applied to the enum-typed fields as well as the free-text ones. They were
- * left raw because the Zod boundary constrains them — `severity` really is
- * `z.enum([...])` — but `writeHtmlReport` is exported from the package index
- * and `loadAuditReport` casts parsed JSON with no schema, so a report rendered
- * from an audit.json that did not come through that boundary reaches these
- * fields directly. Verified in Chromium: a payload in `status` and `severity`
- * executed three times.
- */
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
