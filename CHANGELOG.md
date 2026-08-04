@@ -165,6 +165,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `--observe` dashboard works. The auth token was added to the observer
+  server and never delivered to the pages that call it, so the single-session
+  dashboard opened `ws://host/ws` with no token and the server closed it with
+  4001, while `/api/timeline` and `/api/events/all` both 401'd inside a
+  `catch (e) { /* offline, ignore */ }`. Confirmed in Chromium: the page read
+  "Disconnected", with two failed requests and no explanation.
+
+  The server now prints an address containing the token and each page reads it
+  from its own query string. `replay` prints its address at all, which it did
+  not before. A page opened at the bare origin says why it is empty.
+
+- A screenshot no longer breaks the steps that follow it. Sensitive input
+  values were replaced with `********` and never put back, so a scenario that
+  filled a password, took a screenshot and submitted, submitted `********` —
+  measured end to end. The site rejects the login and the audit records a
+  finding against the site for a fault in this tool. Values are restored in a
+  `finally` once the shots are taken.
+
+
 - A run that covered less of its matrix than planned now says so. Units skipped
   because the budget cap tripped, or dropped because their persona was missing,
   return without pushing a result — so `summary.total` is the executed count,
@@ -407,6 +426,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headless-shell check beside it, which already resolved through the same root.
 
 ### Security
+
+- Every `/api/*` route on the observer requires the token. `/api/grid` and
+  `/api/session/:id` were matched above the auth check and returned early, so
+  both answered unauthenticated to anything on the machine — the latter with a
+  session's state and its last 200 events. Measured: a request with no token
+  returned an event reading `Type hunter2-REAL-PASSWORD into the password
+  field`, and the URL visited with its session parameter. The exemption had
+  been recorded in the test suite as intended behaviour.
+
+- The HTML and SPA reports escape every field, not only the ones that look
+  dangerous. Free text was escaped throughout; the enum-typed fields —
+  `status`, `severity`, `step_type`, `execution_method` and the class names
+  derived from them — were not, which holds only while the object comes
+  through the Zod boundary. `writeHtmlReport` and `writeSpaReport` are both
+  exported from the package index and `loadAuditReport` casts parsed JSON with
+  no schema, so a report rendered from an audit.json that did not come from
+  this process reached those fields directly. Measured in Chromium: three
+  executions in `audit.html`, six in `audit-explorer.html`, now zero across
+  four payload shapes.
+
+- Input redaction reaches every frame and every open shadow root. It walked
+  only the main frame's light DOM, so a card number inside an iframe kept its
+  value — while the function's own documentation named Stripe, which renders
+  its fields in exactly such a frame. Failures are reported rather than
+  swallowed; they had been discarded by a bare `catch` under a comment saying
+  the caller should log them, and no caller did.
+
+- Internal project identifiers no longer ship. Twenty-eight were in the tree,
+  eleven of them in `src/`, where comments compile into `dist`. The gate had
+  been written from what someone expected the identifiers to look like rather
+  than from the files, and missed two whole prefixes and, separately, the
+  commonest form of all — a task id at the start of a comment, which is
+  followed by a colon. It has tests now, in both directions.
+
+- Cleared the outstanding high advisories: `fast-uri` (host confusion via a
+  backslash authority introducer, reached through ajv's `$ref` resolution
+  rather than the network), `@cyclonedx/cyclonedx-npm`, and a moderate in
+  `hono` that an override added for an earlier advisory was holding below the
+  version fixing the newer one.
+
 
 - A scenario that reads the environment now says which variables it read.
   `${env.X}` resolves against the whole of `process.env` with no allowlist, and
