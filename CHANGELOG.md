@@ -427,6 +427,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- The observer dashboard escapes what it renders. `getTagLabel(evt.type)`
+  returns `type.split(':')[1].toUpperCase()` and was interpolated unescaped; a
+  payload in the event type produced a real `<img onerror=...>` element in the
+  DOM. Nothing ran, but only because that `toUpperCase()` had mangled the
+  handler into invalid JavaScript, which is an accident rather than a defence.
+
+  Two further sinks in the detail drawer are escaped as well, though neither
+  is reachable today: `step.status` is computed as one of three literals and
+  `step.timestamp` comes from `toISOString()`. Leaving fields raw because
+  something upstream constrains them is the reasoning that failed for the
+  reports.
+
+- Escaping now has one definition. There were seven copies of `escapeHtml` and
+  they disagreed: four escaped `& < > " '`, one omitted the single quote, one
+  used a different shape, and one — sharing a script scope with another of the
+  same name, so silently shadowed — escaped only `& < >` while reading as
+  though it did the work.
+
+  Two of the gaps were live. Three of the copies are browser code embedded in
+  a page and cannot import, so the source is exported both as a function and
+  as a string the pages carry, and a test runs the two over the same inputs so
+  they cannot drift apart.
+
+
 - Every `/api/*` route on the observer requires the token. `/api/grid` and
   `/api/session/:id` were matched above the auth check and returned early, so
   both answered unauthenticated to anything on the machine — the latter with a
