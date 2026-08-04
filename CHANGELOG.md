@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-08-04 — Node 20 dropped; observer, reports and recorder hardened
+
+### Breaking
+
+- **Node 20 is no longer supported.** `engines.node` moves from `>=20.0.0` to
+  `>=22.0.0`.
+
+  Node 20 reached end-of-life on 2026-04-30, so it no longer receives security
+  patches. The concrete forcing function was `better-sqlite3`: 12.9.0 ships a
+  prebuilt binary for Node 20's ABI and 12.11.1 does not, so staying on Node 20
+  meant either staying on an old dependency or compiling from source on every
+  install.
+
+  **To upgrade:** move to Node 22 (Active LTS) or 24. `pixelcheck doctor`
+  reports the floor and fails below it; the floor and `engines.node` are pinned
+  to each other by a test, so they cannot drift apart.
+
+  The CI matrix is now Node 22 and 24 across the same four platforms.
+
 
 ### Added
 

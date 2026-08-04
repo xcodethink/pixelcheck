@@ -30,7 +30,7 @@ For **troubleshooting**, jump to the [Common errors](#common-install-errors--fix
 
 | Resource | Minimum | Recommended | Why |
 |---|---|---|---|
-| **Node.js** | 20.0.0 | **22.x or 24.x** | declared in `package.json > engines.node`. Node 20 reached end-of-life on 2026-04-30 and is still accepted, but it no longer receives security patches and some dependencies have begun dropping their prebuilt binaries for it — prefer an Active LTS release |
+| **Node.js** | 22.0.0 | **22.x or 24.x** | declared in `package.json > engines.node`. Node 20 reached end-of-life on 2026-04-30 and was dropped in v2.0.0: it no longer receives security patches, and `better-sqlite3` stopped shipping a prebuilt binary for it after 12.9.0, so installing on Node 20 meant compiling from source |
 | **npm** | 9.0.0 | latest bundled with Node 22+ | `package.json > engines.npm` |
 | **OS** | macOS 13 / Ubuntu 20.04 / Windows 10 / Alpine 3.18 | latest stable | Chromium prebuilt binaries available |
 | **CPU** | x64 or arm64 | — | `package.json > cpu: ["x64", "arm64"]` |
@@ -40,10 +40,10 @@ For **troubleshooting**, jump to the [Common errors](#common-install-errors--fix
 
 **Tier-1 platforms** (CI-tested every PR via the 8-config matrix):
 
-- ubuntu-latest × Node 20 / 22
-- macos-15-intel (Intel x64) × Node 20 / 22
-- macos-14 (Apple Silicon arm64) × Node 20 / 22
-- windows-latest × Node 20 / 22 — **non-blocking** (`continue-on-error`):
+- ubuntu-latest × Node 22 / 24
+- macos-15-intel (Intel x64) × Node 22 / 24
+- macos-14 (Apple Silicon arm64) × Node 22 / 24
+- windows-latest × Node 22 / 24 — **non-blocking** (`continue-on-error`):
   the Windows configs run every PR and results are visible, but a Windows
   failure does not gate merges while a few cross-process test races
   (`mcp-stdio-e2e`, `mcp-concurrency-e2e`) are investigated. `package.json`
