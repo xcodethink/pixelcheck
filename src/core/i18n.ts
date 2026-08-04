@@ -91,7 +91,7 @@ export function normaliseLocale(raw: string | undefined): Locale {
   // single Chinese dictionary (zh-CN). Traditional-script variants
   // (zh-Hant, zh-TW, zh-HK, zh-MO) read differently — serving them
   // Simplified is a silent mistranslation, so they fall back to en until a
-  // Traditional dictionary exists. (Audit 2026-06-02 E8.)
+  // Traditional dictionary exists.
   if (lower.startsWith("zh")) {
     const isTraditional =
       lower.startsWith("zh-hant") ||

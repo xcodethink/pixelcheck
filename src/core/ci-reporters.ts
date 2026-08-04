@@ -53,7 +53,7 @@ function applyRedaction(audit: AuditRun): AuditRun {
   // Always redact + always seed from buildRedactPatterns so known env secrets
   // (API key, ADMIN_COOKIE, STRIPE_TEST_*) are stripped from SARIF /
   // JUnit / JSONL / GHA output even when the runner attached no patterns —
-  // matching the reporter.ts C2 fix. (Audit 2026-06-02 C2.)
+  // matching the reporter.ts C2 fix.
   return redactDeep(audit, buildRedactPatterns(audit.redact_patterns ?? []));
 }
 
@@ -535,7 +535,7 @@ export function renderGithubAnnotations(audit: AuditRun): string[] {
       // Use a real newline; encodeWorkflowCommandValue turns it into %0A once.
       // Embedding a literal "%0A" here double-encoded to "%250A" (the % got
       // escaped to %25), so annotations showed a stray "%0A" instead of a line
-      // break. (Audit 2026-06-02 H2.)
+      // break.
       const message = encodeWorkflowCommandValue(
         `${issue.description}\n→ ${issue.recommendation}`,
       );
@@ -600,7 +600,7 @@ export const CI_FORMATS = ["junit", "sarif", "jsonl", "gha"] as const;
  *
  * Throws on an unknown token. Silently dropping it meant
  * `--ci-format saraf` produced zero CI output and the build still passed
- * green — the worst kind of CI misconfiguration. (Audit 2026-06-02 H7.)
+ * green — the worst kind of CI misconfiguration.
  */
 export function resolveCiFormats(
   raw: string | undefined,

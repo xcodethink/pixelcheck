@@ -123,7 +123,7 @@ function resolveFingerprintForPersona(persona: Persona): DeviceFingerprint {
  * returns and the wrapper — which has ALREADY launched Chromium — hangs
  * forever, leaking the browser + CDP port past the runner's per-unit
  * deadline (which can't reach into a never-resolved wrapper promise to
- * tear it down). Configurable; default 60s. (Audit 2026-06-02 D2-M3.)
+ * tear it down). Configurable; default 60s.
  */
 function stagehandInitTimeoutMs(): number {
   const raw = Number(process.env.PIXELCHECK_STAGEHAND_INIT_TIMEOUT_MS);
@@ -162,7 +162,7 @@ async function raceWithTimeout<T>(
  * probe listener the freed ephemeral port can be re-handed to another
  * unit's getFreePort() before this unit's Chromium binds it — and the
  * tool fans units out in parallel. Reserving here lets concurrent callers
- * skip a port that's mid-handoff. (Audit 2026-06-02 D2-M4.)
+ * skip a port that's mid-handoff.
  */
 const reservedCdpPorts = new Set<number>();
 

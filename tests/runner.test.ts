@@ -345,7 +345,7 @@ describe("runAudit — status determination", () => {
     expect(audit.results[0].status).toBe("fail");
   });
 
-  it("a SKIPPED critical step fails the scenario (Audit 2026-06-02 E2)", async () => {
+  it("a SKIPPED critical step fails the scenario", async () => {
     // act fallback:skip on a critical step returns status=skip — the action
     // could not be performed, so the journey cannot complete. Previously this
     // reported PASS (aggregation only counted fail/warn).

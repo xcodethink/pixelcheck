@@ -336,7 +336,7 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
   // still hang a unit forever — leaking the browser and blocking the whole
   // matrix `Promise.all`. Race the unit work against a deadline; on timeout
   // force-close the browser (which makes any in-flight op reject) so the unit
-  // ends cleanly with a recorded failure. (Audit 2026-06-02 D2-C3.)
+  // ends cleanly with a recorded failure.
   const unitDeadlineMs =
     Number(process.env.PIXELCHECK_UNIT_DEADLINE_MS) > 0
       ? Number(process.env.PIXELCHECK_UNIT_DEADLINE_MS)
@@ -353,7 +353,7 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
     // Never inject a (possibly global, ADMIN_COOKIE) session cookie
     // into an unrelated origin just because a URL or scenario id contains
     // "/admin" — that would leak the cookie to whatever site is being audited.
-    // (Audit 2026-06-02 C4.)
+    //
     const steps = opts.scenario.steps ?? [];
     const targetsAdmin = steps.some(
       (s) =>
@@ -499,7 +499,7 @@ async function runOne(opts: RunOneOpts): Promise<ScenarioRunResult> {
         // (all `act` layers exhausted, fallback: skip). Status aggregation only
         // looks at fail/warn, so without this a scenario whose critical journey
         // step was skipped would report PASS — "looks green but the journey
-        // can't complete". Record a critical issue so it fails. (Audit 2026-06-02 E2.)
+        // can't complete". Record a critical issue so it fails.
         if (result.status === "skip" && step.critical) {
           log.error(
             { scenarioId: opts.scenario.id, stepId: step.id },

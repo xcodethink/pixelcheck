@@ -16,7 +16,7 @@ export function writeJsonReport(audit: AuditRun, runDir: string): string {
   // Always redact, and always seed from buildRedactPatterns so known env
   // secrets (ANTHROPIC_API_KEY, ADMIN_COOKIE, STRIPE_TEST_*, …) are
   // stripped even when the runner attached no patterns — a report on disk must
-  // never carry a secret that reached the audit tree. (Audit 2026-06-02 C2.)
+  // never carry a secret that reached the audit tree.
   const patterns = buildRedactPatterns(audit.redact_patterns ?? []);
   const safe = redactDeep(audit, patterns);
   fs.writeFileSync(filePath, JSON.stringify(safe, null, 2));
@@ -31,7 +31,7 @@ export function writeJsonReport(audit: AuditRun, runDir: string): string {
  * context. `|` ends a table column, a backtick opens a code span, and a
  * newline ends the row — all of which corrupt the rendered report when the
  * value is audit-target-controlled (issue text, dimension/scenario names a
- * page can influence). (Audit 2026-06-02 H9.)
+ * page can influence).
  */
 export function escapeMdCell(s: string): string {
   return s

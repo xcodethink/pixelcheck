@@ -627,7 +627,7 @@ export function parseCompareRawJson(
  * "a" the winner while scoring a:3 b:8). Derive the winner from the scores so
  * the verdict is internally coherent. When a score is missing (fast mode can
  * emit labels only) there's nothing to cross-check against, so keep the
- * stated label. (Audit 2026-06-02 E6/D3-M3.)
+ * stated label.
  */
 function reconcileWinner(
   scoreA: number | null,

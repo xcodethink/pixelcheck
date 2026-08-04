@@ -621,7 +621,7 @@ function parseFinding(
   // this, any non-empty string passed — so a model could cite
   // `/diagnostics/accessibility/contrast` (no such collector) and the finding
   // sailed through. Keep only refs whose path is grounded in the real
-  // serialized diagnostics. (Audit 2026-06-02 E7/D3-M5.)
+  // serialized diagnostics.
   const validPaths = collectDiagnosticsPaths(diagnostics);
   const evidenceRefs = allRefs.filter((r) => isGroundedPath(r.path, validPaths));
 

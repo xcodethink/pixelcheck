@@ -66,7 +66,7 @@ export async function extractDomSummary(
         // Redact sensitive field values before they leave the machine for the
         // LLM. The screenshot path masks password/secret/card inputs; this text
         // path must too, or a typed password/OTP/token/server-reflected secret
-        // leaks even with --redact-inputs on. (Audit 2026-06-02 C1.)
+        // leaks even with --redact-inputs on.
         const SENSITIVE_HINT =
           /pass|pwd|otp|2fa|mfa|cvc|cvv|card|ssn|secret|token|auth|session|\bpin\b|bearer|csrf|xsrf|credential|security[-_]?code|account[-_]?number/i;
         const fieldName = (el.getAttribute("name") ?? "").toLowerCase();
