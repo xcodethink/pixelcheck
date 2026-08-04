@@ -480,7 +480,7 @@ function addEventEntry(evt) {
   const text = getEventText(evt);
 
   el.innerHTML = '<span class="event-time">' + time + '</span> '
-    + '<span class="event-tag ' + tagClass + '">' + tagLabel + '</span>'
+    + '<span class="event-tag ' + escapeHtml(tagClass) + '">' + escapeHtml(tagLabel) + '</span>'
     + '<span class="event-text">' + escapeHtml(text) + '</span>';
 
   container.appendChild(el);
@@ -502,7 +502,7 @@ function addActionRow(evt) {
 
   tr.innerHTML = '<td>' + actionCount + '</td>'
     + '<td>' + escapeHtml(String(evt.data.step_type || evt.data.action_type || '?')) + '</td>'
-    + '<td class="' + stClass + '">' + escapeHtml(status) + '</td>'
+    + '<td class="' + escapeHtml(stClass) + '">' + escapeHtml(status) + '</td>'
     + '<td>' + (evt.data.duration_ms || 0) + 'ms</td>';
 
   tbody.appendChild(tr);
@@ -559,9 +559,11 @@ function getEventText(evt) {
   }
 }
 
-function escapeHtml(text) {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+// There used to be a second escapeHtml here, escaping only & < > — not even
+// the double quote. Both were declared in the same script scope, so the
+// later one silently won and this was dead code that read as if it were
+// doing the escaping. Two functions of the same name in one scope is how a
+// weaker one gets read as the live one.
 
 // ─── Timeline + step detail drawer ────────────────────────────
 let _timelineCache = [];
@@ -611,9 +613,9 @@ function showDetail(step) {
 
   const sections = [];
   sections.push('<div class="detail-row"><div class="detail-label">status</div><b class="st-' +
-    (step.status === 'ok' ? 'pass' : step.status) + '">' + step.status + '</b></div>');
+    escapeHtml(step.status === 'ok' ? 'pass' : step.status) + '">' + escapeHtml(step.status) + '</b></div>');
   if (step.timestamp) {
-    sections.push('<div class="detail-row"><div class="detail-label">timestamp</div>' + step.timestamp + '</div>');
+    sections.push('<div class="detail-row"><div class="detail-label">timestamp</div>' + escapeHtml(step.timestamp) + '</div>');
   }
   if (step.meta && Object.keys(step.meta).length) {
     sections.push('<div class="detail-row"><div class="detail-label">meta</div><pre>' +
@@ -631,8 +633,11 @@ function closeDetail() {
   document.getElementById('detailDrawer').classList.remove('open');
 }
 
+// The single quote is in here because an unescaped one breaks out of any
+// single-quoted attribute. Three of this repository's escapeHtml copies had
+// it and three did not.
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 function truncate(s, n) {
   return s.length > n ? s.slice(0, n) + '…' : s;
