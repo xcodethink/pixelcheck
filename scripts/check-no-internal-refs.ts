@@ -77,11 +77,24 @@ export const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> 
     instead: "describe the risk itself, or link an issue",
   },
   {
-    // `T22`, `T0.6`, `T-NEW`, `T-NEW-4`. The trailing exclusion of `:` is what
-    // keeps ISO timestamps out — `2026-07-29T04:43:43Z` would otherwise read
-    // as task `T04`, and the leading exclusion catches it as well.
+    // `T22`, `T0.6`, `T-NEW`, `T-NEW-4`.
+    //
+    // ISO timestamps are kept out by the LEADING exclusion: in
+    // `2026-07-29T04:43:43Z` the `T` follows a digit. The trailing exclusion
+    // used to list `:` as well, as a second line of defence against the same
+    // case — and that made `T22:` invisible, which is the form a task id takes
+    // at the start of a comment. One was found in `src/core/recorder.ts`,
+    // where it compiled into `dist` and shipped.
+    //
+    // Belt and braces is not free when the braces also hold the gate open.
+    //
+    // What replaces it distinguishes the two by what follows: a task id is
+    // followed by prose (`T22: replace …`), a clock time by more digits
+    // (`T12:00:00Z`). That also covers a timestamp assembled by interpolation,
+    // where the `T` follows `}` rather than a digit and the leading exclusion
+    // does not help.
     label: "internal task id",
-    pattern: /(?<![\w-])T(?:-NEW(?:-\d+)?|\d{1,3}(?:\.\d+)?)(?![\w:.-])/,
+    pattern: /(?<![\w-])T(?:-NEW(?:-\d+)?|\d{1,3}(?:\.\d+)?)(?![\w.-])(?!:\d)/,
     instead: "describe the change, or link an issue / ADR",
   },
   {
