@@ -17,6 +17,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuditRun } from "./types.js";
 import { redactDeep } from "./secrets.js";
+import { escapeHtml, ESCAPE_HTML_BROWSER_SOURCE } from "./html-escape.js";
 import {
   SPA_I18N,
   SPA_DEFAULT_LOCALE,
@@ -340,10 +341,12 @@ function renderUnit(r, globalMax) {
   '</div>';
 }
 
-// Single quote included: three of this repository's eight escapeHtml copies
-// escaped it and three did not, and the same name meaning different things in
-// different files is how the gap survived.
-function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// The page's escaper is the same source the server side imports, injected
+// here rather than written again; esc is the name this file's call sites
+// use. No backticks in this comment: the whole page is a template literal
+// and one would end it here.
+${ESCAPE_HTML_BROWSER_SOURCE}
+const esc = escapeHtml;
 
 function expandAll() { for (const u of document.querySelectorAll('.unit')) u.classList.add('expanded'); }
 function collapseAll() { for (const u of document.querySelectorAll('.unit')) u.classList.remove('expanded'); }
@@ -360,25 +363,4 @@ renderUnits();
 </script>
 </body>
 </html>`;
-}
-
-/**
- * Server-side escaping for the parts of the page rendered before it is
- * written — the title, mainly. Separate from the client-side `esc` further
- * down, which escapes what the page builds at runtime.
- *
- * Both needed the single quote adding, and only one of them got it first
- * time. Two escapers in one file with the same job is how that happens.
- */
-function escapeHtml(s: string): string {
-  return String(s).replace(/[&<>"']/g, (c) => {
-    switch (c) {
-      case "&": return "&amp;";
-      case "'": return "&#39;";
-      case "<": return "&lt;";
-      case ">": return "&gt;";
-      case "\"": return "&quot;";
-    }
-    return c;
-  });
 }

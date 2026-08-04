@@ -1,3 +1,4 @@
+import { ESCAPE_HTML_BROWSER_SOURCE } from "../core/html-escape.js";
 /**
  * Dashboard — Single-file HTML dashboard for live agent observation.
  * No build step — everything is inline CSS/JS.
@@ -633,12 +634,7 @@ function closeDetail() {
   document.getElementById('detailDrawer').classList.remove('open');
 }
 
-// The single quote is in here because an unescaped one breaks out of any
-// single-quoted attribute. Three of this repository's escapeHtml copies had
-// it and three did not.
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
+${ESCAPE_HTML_BROWSER_SOURCE}
 function truncate(s, n) {
   return s.length > n ? s.slice(0, n) + '…' : s;
 }

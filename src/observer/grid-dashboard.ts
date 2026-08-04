@@ -1,3 +1,4 @@
+import { ESCAPE_HTML_BROWSER_SOURCE } from "../core/html-escape.js";
 /**
  * Grid Dashboard — Multi-session overview.
  *
@@ -216,9 +217,7 @@ function openSession(sid) {
   // In future: deep-link to a per-session detail view. For now, open the root dashboard.
   window.open('/?session=' + encodeURIComponent(sid), '_blank');
 }
-function escapeHtml(s) {
-  return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
+${ESCAPE_HTML_BROWSER_SOURCE}
 
 poll();
 </script>

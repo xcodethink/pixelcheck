@@ -29,6 +29,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { RunDiff } from "./history.js";
 import { DEFAULT_LOCALE, t, type Locale, type TranslationKey } from "./i18n.js";
+import { escapeHtml } from "./html-escape.js";
+
+// Re-exported because this module used to own the definition.
+export { escapeHtml };
 
 export type DiffReportFormat = "markdown" | "html" | "json" | "text";
 
@@ -506,25 +510,6 @@ function diffStylesheet(): string {
     code { background: #f1f5f9; padding: 1px 4px; border-radius: 2px; font-size: 12px; }
   `;
 }
-
-export function escapeHtml(s: string): string {
-  return String(s).replace(/[&<>"']/g, (c) => {
-    switch (c) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      case "'":
-        return "&#39;";
-    }
-    return c;
-  });
-}
-
 function escapeAttr(s: string): string {
   return escapeHtml(s);
 }
