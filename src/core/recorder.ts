@@ -1,8 +1,16 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Page } from "playwright";
+import type { Page, Frame } from "playwright";
 import type { ConsoleError } from "./types.js";
+// The previous version of the redaction pass swallowed its failures under a
+// comment saying the caller should log them, to avoid coupling this file to
+// the logger. No caller did, so a security control could fail for the life of
+// the code without saying so. runner.ts and stagehand-wrapper.ts both import
+// this; the coupling is the house style and costs less than the silence.
+import { getLogger } from "./logger.js";
+
+const log = getLogger("recorder");
 
 /**
  * Recorder: attaches listeners to a Page and accumulates artifacts.
@@ -78,21 +86,33 @@ export class Recorder {
       await this.settleAnimations();
     }
 
-    if (shouldRedactInputs(opts.redactInputs)) {
-      await redactSensitiveInputs(this.page);
+    const pass = shouldRedactInputs(opts.redactInputs)
+      ? await redactSensitiveInputs(this.page)
+      : undefined;
+    if (pass && pass.unreachableFrames > 0) {
+      log.warn(
+        { unreachable: pass.unreachableFrames, redacted: pass.redacted },
+        `input redaction could not reach every frame`,
+      );
     }
-    const buffer = await this.page.screenshot({ fullPage, type: "png" });
-    fs.writeFileSync(filepath, buffer);
+    try {
+      const buffer = await this.page.screenshot({ fullPage, type: "png" });
+      fs.writeFileSync(filepath, buffer);
 
-    const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
-    fs.writeFileSync(`${filepath}.sha256`, sha256 + "\n");
+      const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+      fs.writeFileSync(`${filepath}.sha256`, sha256 + "\n");
 
-    return {
-      filepath,
-      sha256,
-      base64: buffer.toString("base64"),
-      buffer,
-    };
+      return {
+        filepath,
+        sha256,
+        base64: buffer.toString("base64"),
+        buffer,
+      };
+    } finally {
+      // Restore before returning, not after the caller is done: the next
+      // step may type into or submit this very form.
+      await pass?.restore();
+    }
   }
 
   /**
@@ -152,9 +172,20 @@ export class Recorder {
     // contents with **** so they don't leak via screenshot → Claude API.
     // Off only if caller explicitly opts out (e.g., a fixture page where
     // redaction would interfere with the audit) OR env AUDIT_REDACT_INPUTS=0.
-    if (shouldRedactInputs(opts.redactInputs)) {
-      await redactSensitiveInputs(this.page);
+    // Redact, shoot everything, then put the values back. Every screenshot
+    // in this method has to be taken inside the same pass, and the restore has
+    // to happen even if one of them throws — a page left holding ******** in
+    // its password field breaks the steps that come after it.
+    const pass = shouldRedactInputs(opts.redactInputs)
+      ? await redactSensitiveInputs(this.page)
+      : undefined;
+    if (pass && pass.unreachableFrames > 0) {
+      log.warn(
+        { unreachable: pass.unreachableFrames, redacted: pass.redacted },
+        `input redaction could not reach every frame`,
+      );
     }
+    try {
 
     // ─── 2. Save full-page composite for archival ─────────────────────
     const fullName = `${idx}-${safeLabel}.png`;
@@ -227,6 +258,9 @@ export class Recorder {
       segments,
       segmentPaths,
     };
+    } finally {
+      await pass?.restore();
+    }
   }
 
   /**
@@ -477,59 +511,170 @@ function shouldRedactInputs(callerOpt: boolean | undefined): boolean {
  * redacted field's content in the screenshot"; the cost of a false
  * negative is "user secret leaks to LLM". We pick the safer side.
  */
-async function redactSensitiveInputs(page: Page): Promise<void> {
+/** What a redaction pass did, so the caller can restore and can log. */
+export interface RedactionPass {
+  /** Fields whose value was replaced. */
+  redacted: number;
+  /** Frames that could not be reached — a cross-origin frame that detached. */
+  unreachableFrames: number;
+  /** Put the original values back. Safe to call once. */
+  restore(): Promise<void>;
+}
+
+/** Marks a redacted field so restore can find it again without a selector. */
+const REDACT_MARKER = "data-pixelcheck-redacted";
+
+/**
+ * Replace sensitive field values with `********` everywhere in the page,
+ * returning a handle that puts them back.
+ *
+ * Three things this had to learn, all measured in Chromium:
+ *
+ * 1. It only walked the main frame's light DOM. A card number inside an
+ *    iframe kept its value (`4111111111111111`), as did a password inside
+ *    an open shadow root — while the comment above named Stripe, which
+ *    renders its fields in exactly such a frame. Every frame and every open
+ *    shadow root is walked now. Closed shadow roots remain unreachable, and
+ *    nothing can change that from outside the page.
+ *
+ * 2. The replacement was permanent. A scenario that fills a password, takes
+ *    a screenshot, then submits, submitted `********` — measured end to end.
+ *    The site rejects the login and the audit records a finding against the
+ *    site for a fault in this tool, which is the worst shape a bug can take
+ *    in an auditing product. Hence restore().
+ *
+ * 3. Failures were swallowed by a bare catch, under a comment saying the
+ *    caller should log them. No caller did. The counts come back so the
+ *    recorder can say what happened.
+ *
+ * The original values stay in this process and are never written into the
+ * DOM — an attribute holding the secret would simply move the leak from the
+ * screenshot to any DOM dump.
+ */
+async function redactSensitiveInputs(page: Page): Promise<RedactionPass> {
+  const perFrame: Array<{ frame: Frame; values: string[] }> = [];
+  let unreachableFrames = 0;
+
+  // Enumerating the frames can itself fail — a page that has been closed, or
+  // a test double standing in for one. A screenshot is forensic evidence and
+  // losing it is worse than not redacting, so this degrades rather than
+  // throwing; it is counted so the recorder can say the pass was incomplete
+  // instead of reporting a clean zero.
+  let frames: Frame[] = [];
   try {
-    await page.evaluate(() => {
-      // Combined sensitive-name regex — 12 patterns.
-      // Anchor-friendly so substring matches inside longer names work
-      // (e.g. `user_password_field` → match via `password`).
-      const SENSITIVE_NAME_RE =
-        /password|secret|token|api[_-]?key|otp|pin|recovery[_-]?code|backup[_-]?code|mfa|2fa|aws[_-]?(?:access|secret)|access[_-]?key|private[_-]?key|passphrase|ssn|social[_-]?security|card[_-]?number|cardnumber|cc[_-]?number|cvv|cvc/i;
+    frames = typeof page.frames === "function" ? page.frames() : [];
+    if (frames.length === 0) unreachableFrames++;
+  } catch {
+    unreachableFrames++;
+  }
 
-      const SENSITIVE_AUTOCOMPLETE = new Set([
-        "current-password",
-        "new-password",
-        "one-time-code",
-        // HTML autocomplete spec credit-card values
-        "cc-number",
-        "cc-csc",
-        "cc-exp",
-        "cc-exp-month",
-        "cc-exp-year",
-      ]);
+  for (const frame of frames) {
+    try {
+      const values = await frame.evaluate((marker) => {
+        const SENSITIVE_NAME_RE =
+          /password|secret|token|api[_-]?key|otp|pin|recovery[_-]?code|backup[_-]?code|mfa|2fa|aws[_-]?(?:access|secret)|access[_-]?key|private[_-]?key|passphrase|ssn|social[_-]?security|card[_-]?number|cardnumber|cc[_-]?number|cvv|cvc/i;
 
-      const inputs = document.querySelectorAll("input, textarea");
-      for (const el of Array.from(inputs)) {
-        const input = el as HTMLInputElement | HTMLTextAreaElement;
-        const type =
-          (input.getAttribute("type") || "").toLowerCase() || "text";
-        const autocomplete = (
-          input.getAttribute("autocomplete") || ""
-        ).toLowerCase();
-        const name = input.getAttribute("name") || "";
-        const id = input.getAttribute("id") || "";
-        const ariaLabel = input.getAttribute("aria-label") || "";
-        const placeholder = input.getAttribute("placeholder") || "";
-        const sensitive =
-          type === "password" ||
-          SENSITIVE_AUTOCOMPLETE.has(autocomplete) ||
-          SENSITIVE_NAME_RE.test(name) ||
-          SENSITIVE_NAME_RE.test(id) ||
-          SENSITIVE_NAME_RE.test(ariaLabel) ||
-          SENSITIVE_NAME_RE.test(placeholder);
-        if (sensitive && input.value && input.value.length > 0) {
-          input.value = "********";
+        const SENSITIVE_AUTOCOMPLETE = new Set([
+          "current-password",
+          "new-password",
+          "one-time-code",
+          "cc-number",
+          "cc-csc",
+          "cc-exp",
+          "cc-exp-month",
+          "cc-exp-year",
+        ]);
+
+        // Walked with an explicit stack rather than a recursive helper.
+        // esbuild wraps named functions in `__name(...)` to preserve
+        // Function.name, and that helper does not exist inside the page —
+        // the whole pass throws `ReferenceError: __name is not defined` and
+        // redacts nothing. It fails only on the tsx path, so a build would
+        // have hidden it.
+        const found: Element[] = [];
+        const roots: Array<Document | ShadowRoot> = [document];
+        while (roots.length > 0) {
+          const root = roots.pop() as Document | ShadowRoot;
+          found.push(...Array.from(root.querySelectorAll("input, textarea")));
+          for (const el of Array.from(root.querySelectorAll("*"))) {
+            const sr = (el as Element & { shadowRoot?: ShadowRoot | null })
+              .shadowRoot;
+            if (sr) roots.push(sr);
+          }
+        }
+
+        const originals: string[] = [];
+        for (const el of found) {
+          const input = el as HTMLInputElement | HTMLTextAreaElement;
+          const type =
+            (input.getAttribute("type") || "").toLowerCase() || "text";
+          const sensitive =
+            type === "password" ||
+            SENSITIVE_AUTOCOMPLETE.has(
+              (input.getAttribute("autocomplete") || "").toLowerCase(),
+            ) ||
+            SENSITIVE_NAME_RE.test(input.getAttribute("name") || "") ||
+            SENSITIVE_NAME_RE.test(input.getAttribute("id") || "") ||
+            SENSITIVE_NAME_RE.test(input.getAttribute("aria-label") || "") ||
+            SENSITIVE_NAME_RE.test(input.getAttribute("placeholder") || "");
+          if (sensitive && input.value && input.value.length > 0) {
+            input.setAttribute(marker, String(originals.length));
+            originals.push(input.value);
+            input.value = "********";
+          }
+        }
+        return originals;
+      }, REDACT_MARKER);
+      if (values.length > 0) perFrame.push({ frame, values });
+    } catch {
+      // A frame that navigated or detached mid-pass. Counted rather than
+      // swallowed: an operator running with redaction on needs to know a
+      // frame went unchecked.
+      unreachableFrames++;
+    }
+  }
+
+  let restored = false;
+  return {
+    redacted: perFrame.reduce((n, f) => n + f.values.length, 0),
+    unreachableFrames,
+    async restore(): Promise<void> {
+      if (restored) return;
+      restored = true;
+      for (const { frame, values } of perFrame) {
+        try {
+          await frame.evaluate(
+            ([marker, vals]) => {
+              // Same explicit stack, same reason.
+              const found: Element[] = [];
+              const roots: Array<Document | ShadowRoot> = [document];
+              while (roots.length > 0) {
+                const root = roots.pop() as Document | ShadowRoot;
+                found.push(
+                  ...Array.from(root.querySelectorAll(`[${marker}]`)),
+                );
+                for (const el of Array.from(root.querySelectorAll("*"))) {
+                  const sr = (el as Element & { shadowRoot?: ShadowRoot | null })
+                    .shadowRoot;
+                  if (sr) roots.push(sr);
+                }
+              }
+              for (const el of found) {
+                const input = el as HTMLInputElement | HTMLTextAreaElement;
+                const i = Number(input.getAttribute(marker as string));
+                const original = (vals as string[])[i];
+                if (original !== undefined) input.value = original;
+                input.removeAttribute(marker as string);
+              }
+            },
+            [REDACT_MARKER, values] as [string, string[]],
+          );
+        } catch {
+          // The frame is gone, so there is nothing left to restore in it.
         }
       }
-    });
-  } catch {
-    // Page may have closed mid-redact; recorder errors are non-fatal so
-    // don't block the screenshot. Worst case: we screenshot the original
-    // (unredacted) content. The caller (handler) will log the artifact
-    // path; an operator running with --redact-inputs ON would expect
-    // redaction so we should at least surface the failure in logs.
-    // (Logging deferred to caller to avoid coupling recorder to logger.)
-  }
+    },
+  };
 }
 
 export { redactSensitiveInputs };
