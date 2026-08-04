@@ -148,7 +148,7 @@ export class Recorder {
     await this.settleAnimations();
 
     // ─── 1.5. Redact sensitive inputs before any screenshot ──────────
-    // T22: replace password / secret / token / api-key field
+    // Replace password / secret / token / api-key field
     // contents with **** so they don't leak via screenshot → Claude API.
     // Off only if caller explicitly opts out (e.g., a fixture page where
     // redaction would interfere with the audit) OR env AUDIT_REDACT_INPUTS=0.
