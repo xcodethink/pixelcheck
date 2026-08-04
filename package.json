@@ -1,6 +1,6 @@
 {
   "name": "pixelcheck",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "mcpName": "io.github.xcodethink/pixelcheck",
   "description": "MCP-first browser primitives for AI agents — real eyes and hands on the web. Local-first. Vendor-agnostic. Yours to own.",
   "type": "module",

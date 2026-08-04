@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-08-04 — the report says how much of the matrix ran
+
+### Added
+
+- `summary.planned` on `AuditRun`: the number of units the matrix asked for,
+  alongside `summary.total`, which counts the ones that produced a result.
+
+  A unit skipped on budget, or dropped because its persona was missing, never
+  reaches `results`. So a three-unit matrix truncated after the first recorded
+  `total: 1` — indistinguishable, in the artefact, from a one-unit matrix that
+  ran to completion, and if that unit passed, from a clean audit of all three.
+  The CLI could print the gap because it holds the matrix in memory; a CI job
+  reading `audit.json` could not see it at all.
+
+  `RESULT_SCHEMA_VERSION` 1.3.0 -> 1.4.0, additive. The field is optional in
+  the schema so every report written up to v2.0.0 still parses, and required
+  in the TypeScript type so the runner cannot omit it. Absent means unknown,
+  not zero: a consumer computing a shortfall from an older report should say
+  unknown rather than report a complete run.
+
+  The Markdown report prints the planned count only when it differs from the
+  executed one.
+
+### Fixed
+
+- Internal project identifiers no longer ship. Forty-three were still in the
+  tree at v2.0.0, thirty-four of them in `src/`, which compiles into `dist` —
+  so v2.0.0 carries them. They all take one form, an attribution phrase with
+  the identifier hanging off it, and the gate now matches that phrase rather
+  than enumerating prefixes, which four previous rounds had done.
+
+  Matching the token shape instead was measured and rejected: it flags 57
+  distinct tokens in this repository, and most are real content — issue
+  priorities, heading levels, architecture layers, paper sizes, `X11`.
+
+### Changed
+
+- The file-lock contention test keeps the reason when a child process dies.
+  It collected exit codes and discarded stderr, so a crash reduced to
+  `expected false to be true` with no way back to a cause.
+
+- `SECURITY.md` records why the seventeen low advisories cannot be cleared.
+  `npm audit` reports `fixAvailable: true` for all of them and is wrong: the
+  fix is two majors up, and taking it passes every gate — install, build,
+  2569 unit tests, 49 integration tests, `npm audit` itself — while breaking
+  the module graph so that no LLM call can be made at all. Verified with a
+  real API call either side of the revert.
+
+
 ## [2.0.0] - 2026-08-04 — Node 20 dropped; observer, reports and recorder hardened
 
 ### Breaking

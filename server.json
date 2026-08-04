@@ -6,12 +6,12 @@
     "url": "https://github.com/xcodethink/pixelcheck",
     "source": "github"
   },
-  "version": "2.0.0",
+  "version": "2.1.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "pixelcheck",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "runtimeHint": "npx",
       "runtimeArguments": [
         { "type": "named", "name": "-p", "value": "pixelcheck" },
