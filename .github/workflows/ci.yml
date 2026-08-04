@@ -103,7 +103,16 @@ jobs:
         # follow-up): claiming `>=18` was false since the toolchain never
         # ran there. npm treats engines as a warning by default, so this
         # corrects the claim without hard-breaking any install.
-        node: [20, 22]
+        # Node 20 reached end-of-life on 2026-04-30 and was dropped in v2.0.0;
+        # engines.node declares >=22.0.0 and doctor's floor is pinned to it by
+        # tests/doctor-node-floor.test.ts.
+        #
+        # Four steps below run once per push rather than once per cell, and
+        # they say so by naming the lowest version in this list: lint,
+        # license:check, check:vendor-integrity and check:vendor-drift. Change
+        # this list without re-anchoring them and all four stop running, with
+        # nothing failing to say so.
+        node: [22, 24]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -124,7 +133,7 @@ jobs:
         # ESLint was configured but never enforced in CI.
         # Run once on Ubuntu x Node 20 — lint results are platform-independent.
         # Fails on errors; the no-console policy allows the CLI output layer.
-        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
         run: npm run lint
 
       - name: Unit tests (vitest)
@@ -168,7 +177,7 @@ jobs:
         # across platforms; running on every matrix config is wasteful.
         # Allowlist + rationale lives in
         # docs/THIRD_PARTY_LICENSES.md.
-        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
         run: npm run license:check
 
       - name: Vendor integrity check (stealth-core)
@@ -178,7 +187,7 @@ jobs:
         # upstream source, so unlike the drift check below it is never a
         # no-op — it catches in-place edits, corruption, or added/removed
         # vendored files. See ADR-032 + src/vendor/stealth-core/PROVENANCE.md (F4).
-        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
         run: npm run check:vendor-integrity
 
       - name: Vendor drift check (stealth-core)
@@ -190,7 +199,7 @@ jobs:
         # Integrity (above) is the enforceable runner gate; this is the
         # canonical-equivalence gate for environments that have upstream.
         # See ADR-032 for the vendor model and intended drift workflow.
-        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
         env:
           AUDIT_VENDOR_DRIFT_SKIP_IF_MISSING: "1"
         run: npm run check:vendor-drift

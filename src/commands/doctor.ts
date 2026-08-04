@@ -82,7 +82,7 @@ export interface DoctorOptions {
  *
  * This check used to accept Node 18 and print "(>= 18 required)", which is a
  * doctor telling a user their environment is fine when the package they just
- * installed disagrees. `engines.node` has said `>=20.0.0` since the toolchain
+ * installed disagrees. `engines.node` has said `>=22.0.0` since v2.0.0, and `>=20.0.0` before that;
  * moved past 18, and CI dropped 18 at the same time because vitest 4 imports
  * `util.styleText`. A user on 18 got a green line here and then failures with
  * no connection to it.
@@ -92,7 +92,7 @@ export interface DoctorOptions {
  * that can itself fail to load is worse than one that repeats a number. The
  * contract test below pins the two together.
  */
-const MIN_NODE_MAJOR = 20;
+const MIN_NODE_MAJOR = 22;
 
 function checkNodeVersion(): DoctorCheck {
   const v = process.versions.node;
@@ -110,7 +110,7 @@ function checkNodeVersion(): DoctorCheck {
     message: `v${v} is below the supported floor of ${MIN_NODE_MAJOR}`,
     remedy:
       `Upgrade to Node.js ${MIN_NODE_MAJOR}+. Node 20 reached end-of-life on ` +
-      "2026-04-30, so 22 or 24 is the better target. See docs/INSTALLATION.md.",
+      "2026-04-30 and is no longer supported as of v2.0.0. See docs/INSTALLATION.md.",
   };
 }
 
