@@ -5,6 +5,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { writeHtmlReport } from "../../src/core/reporter.js";
 import { writeSpaReport } from "../../src/core/reporter-spa.js";
+import { ObserverServer } from "../../src/observer/server.js";
+import { SessionStore } from "../../src/observer/session-store.js";
+import { AgentEventBus } from "../../src/agent/events.js";
 import type { AuditRun } from "../../src/core/types.js";
 
 /**
@@ -154,6 +157,82 @@ describe.each(PAYLOADS)("a %s payload", (_label, payload) => {
     // unit and its issue.
     for (const name of ["audit.html", "audit-explorer.html"]) {
       expect((await executionsIn(path.join(dir, name))).units).toBeGreaterThan(0);
+    }
+  });
+});
+
+/**
+ * The observer dashboard renders live event data into the page, so it belongs
+ * to the same question as the reports above: can what it displays execute.
+ *
+ * It could. `getTagLabel(evt.type)` returns `type.split(':')[1].toUpperCase()`
+ * and was interpolated unescaped, and a payload in the event type produced a
+ * real `<img onerror=…>` element in the DOM. Nothing ran, but only because
+ * that `.toUpperCase()` had mangled `window.__XSS` into `WINDOW.__XSS`. An
+ * accident is not a defence.
+ *
+ * Two other sinks were unescaped and are not reachable today: the detail
+ * drawer's `step.status`, which `deriveTimeline` computes as one of "fail",
+ * "warn" or "ok", and `step.timestamp`, which `emitEvent` sets from
+ * `toISOString()`. They are escaped anyway — the reachability argument is
+ * what failed in the reports.
+ *
+ * The page also had two functions called `escapeHtml` in one script scope.
+ * The later declaration wins, so the earlier one — which escaped only
+ * `&`, `<` and `>`, not even the double quote — was dead code that read like
+ * it was doing the work. It is gone.
+ */
+describe("the observer dashboard", () => {
+  it("does not execute a payload carried in an event type", async () => {
+    // Both quote styles, because the escaper's replacement map has to cover
+    // every character in its own character class. A class listing `'` with no
+    // `'` entry in the map substitutes the string "undefined" — verified by
+    // removing that entry, which a double-quote-only payload does not catch.
+    const payload = `"'><img src=x onerror="window.__XSS=(window.__XSS||0)+1">`;
+    const bus = new AgentEventBus("s");
+    const store = new SessionStore("s");
+    store.attach(bus);
+    const server = new ObserverServer({ eventBus: bus, sessionStore: store, port: 0 });
+    await server.start();
+
+    bus.emitEvent((`step:${payload}`) as never, {
+      step_id: "a",
+      step_type: payload,
+      status: payload,
+      instruction: payload,
+      duration_ms: 1,
+    });
+    bus.emitEvent("step:complete" as never, { step_id: "a", status: payload });
+
+    const page = await browser.newPage();
+    try {
+      await page.goto(server.url, { waitUntil: "networkidle" });
+      await page.waitForTimeout(1500);
+      // Open the detail drawer, which is where the other two sinks live.
+      await page.evaluate(() =>
+        document.querySelector<HTMLElement>(".tl-step, [class*=tl-]")?.click(),
+      );
+      await page.waitForTimeout(800);
+
+      expect(
+        await page.evaluate(() => document.querySelectorAll("img[onerror]").length),
+      ).toBe(0);
+      expect(
+        await page.evaluate(() => (window as unknown as { __XSS?: number }).__XSS ?? 0),
+      ).toBe(0);
+      // The page must still show its events; escaping that dropped the
+      // content would satisfy both assertions above.
+      expect(
+        await page.evaluate(() => document.querySelectorAll("[class*=event-]").length),
+      ).toBeGreaterThan(0);
+      // The escaper's replacement map must cover every character in its own
+      // character class, or it substitutes the string "undefined".
+      expect(await page.evaluate(() => document.body.innerText)).not.toContain(
+        "undefined",
+      );
+    } finally {
+      await page.close();
+      await (server as unknown as { stop?: () => Promise<void> }).stop?.();
     }
   });
 });
