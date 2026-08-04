@@ -13,7 +13,7 @@ import type { ToolDefinition } from "../registry.js";
  * Confine a caller-supplied reports root to the current project (cwd) or the
  * pixelcheck home dir. An MCP client is untrusted; without this it could point
  * `reports_root` at any directory and read prior audits (which may contain
- * unredacted page content) across projects on a shared host. (Audit 2026-06-02 B3.)
+ * unredacted page content) across projects on a shared host.
  */
 function resolveSafeReportsRoot(raw: string): string {
   const resolved = path.resolve(raw);

@@ -746,7 +746,7 @@ describe("GitHub Actions annotations writer", () => {
     expect(line).toContain("Login button not visible");
   });
 
-  it("encodes the description→recommendation newline as %0A, not double-encoded %250A (Audit 2026-06-02 H2)", () => {
+  it("encodes the description→recommendation newline as %0A, not double-encoded %250A", () => {
     const line = renderGithubAnnotations(makeAudit())[0]!;
     expect(line).toContain("%0A"); // a real newline, encoded once
     expect(line).not.toContain("%250A"); // never the double-encoded form

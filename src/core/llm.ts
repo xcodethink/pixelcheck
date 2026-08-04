@@ -9,7 +9,7 @@ let client: Anthropic | null = null;
  * black-holed connection stalls the whole agent loop for that long before it
  * even retries — the loop has no other wall-clock guard. Bound it to a
  * configurable default (120s) so a hung request fails fast and the run can
- * proceed/abort instead of wedging. (Audit 2026-06-02 D2-C2.)
+ * proceed/abort instead of wedging.
  */
 export function llmTimeoutMs(): number {
   const raw = Number(process.env.PIXELCHECK_LLM_TIMEOUT_MS);
@@ -141,7 +141,7 @@ const PRICING: Record<string, { in: number; out: number }> = {
 // Most-expensive known rate — the conservative fallback for unknown model ids.
 // Falling back to a cheap rate (previously Sonnet) silently UNDER-counts spend
 // for a typo'd/new model, weakening every budget cap. Over-estimating an
-// unknown model is the safe direction for a guard. (Audit 2026-06-02 E5.)
+// unknown model is the safe direction for a guard.
 const HIGHEST_RATE = Object.values(PRICING).reduce((hi, x) =>
   x.in + x.out > hi.in + hi.out ? x : hi,
 );

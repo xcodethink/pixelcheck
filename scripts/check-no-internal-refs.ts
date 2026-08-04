@@ -64,6 +64,26 @@ const REPO_ROOT = path.resolve(path.dirname(__filename), "..");
  */
 export const BANNED: Array<{ label: string; pattern: RegExp; instead: string }> = [
   {
+    // `(Audit 2026-06-02 E2.)`, `(Audit G2)`, `(Audit 2026-06-02 E6/D3-M3.)`.
+    //
+    // This is the form that mattered, and the one that four rounds of adding
+    // prefixes never caught: the identifiers hang off an attribution phrase,
+    // and the phrase is what makes them findable. Measured across the
+    // repository it matched 43 occurrences and nothing else, 34 of them in
+    // src/, which compiles into dist and ships. Every hit was genuine.
+    //
+    // Matching the token shape instead was tried and rejected on the numbers.
+    // `[A-Z]` followed by one or two digits matches 57 distinct tokens here
+    // and the great majority are legitimate: P0/P1/P2 issue priorities,
+    // H1/H2 heading levels, L1-L4 architecture layers, A4 paper, B64 base64,
+    // X11, and device identifiers inside personas. A gate that is wrong nine
+    // times in ten gets switched off, or drowned in exemptions until it is.
+    label: "audit attribution",
+    pattern: /\(Audit(?:\s+\d{4}-\d{2}-\d{2})?\s+[A-Z][\w./-]*[^)]*\)/,
+    instead: "say what the change does; provenance belongs in the commit",
+  },
+
+  {
     label: "risk-register reference",
     pattern: /RISK[- ]REGISTER|risk-register/i,
     instead: "describe the risk itself, or link an issue",

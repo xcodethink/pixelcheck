@@ -18,7 +18,7 @@ import {
 } from "../src/commands/init-interactive.js";
 import { ScenarioSchema } from "../src/core/types.js";
 
-describe("sampleSmokeScenarioYaml is a schema-valid scenario (Audit 2026-06-02 H1)", () => {
+describe("sampleSmokeScenarioYaml is a schema-valid scenario", () => {
   it("parses cleanly through ScenarioSchema — the guided first-run must not be broken", () => {
     const yaml = sampleSmokeScenarioYaml("https://example.com");
     const parsed = parseYaml(yaml);

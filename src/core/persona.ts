@@ -26,7 +26,7 @@ export function resolveBundledPersonasDir(): string | null {
  * fall back to the bundled personas/. Without this, MCP tools resolved a
  * CWD-relative "./personas" that almost never exists for a global/MCP install,
  * so the persona feature silently no-op'd for every MCP user — the same class
- * of bug fixed for the CLI in v1.0.1 but never wired into MCP. (Audit 2026-06-02 F1.)
+ * of bug fixed for the CLI in v1.0.1 but never wired into MCP.
  */
 export function resolvePersonasDir(userPath?: string): string {
   if (userPath) {

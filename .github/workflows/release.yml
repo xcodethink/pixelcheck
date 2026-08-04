@@ -1,4 +1,4 @@
-# Automated npm publish (Audit 2026-06-02 F3 / D6-H3).
+# Automated npm publish.
 #
 # Before this, `npm publish` was a fully manual step from a developer box —
 # no guarantee the published tarball matched a clean, tested tree, and no

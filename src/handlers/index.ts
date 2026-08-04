@@ -70,13 +70,13 @@ export async function executeStep(
     // mechanism. Re-running it via the outer retry re-executes the whole
     // expensive cascade — including the Opus CU layer — multiplying spend on
     // every attempt. Cap act at zero outer retries; the cascade handles
-    // recovery. Other step types keep step.retry. (Audit 2026-06-02 E3.)
+    // recovery. Other step types keep step.retry.
     //
     // Uses the canonical core retry (maxRetries = retries, NOT total attempts)
     // so step execution shares one retry contract with the rest of the tool —
     // including its non-retryable guard, which refuses to retry
     // BudgetExceeded/ConsentDeclined (the vendored variant would have burned
-    // spend retrying a budget error). (Audit 2026-06-02 D2-H1.)
+    // spend retrying a budget error).
     const maxRetries = step.type === "act" ? 0 : step.retry;
     result = await withRetry(
       runOnce,

@@ -18,7 +18,7 @@ import {
 } from "../src/core/persona.js";
 import type { Persona } from "../src/core/types.js";
 
-describe("resolvePersonasDir (Audit 2026-06-02 F1 — MCP/global fallback)", () => {
+describe("resolvePersonasDir (— MCP/global fallback)", () => {
   it("falls back to the bundled personas/ when no userPath exists", () => {
     const dir = resolvePersonasDir();
     expect(dir).toBe(resolveBundledPersonasDir());

@@ -52,7 +52,7 @@ export type ConvergenceSignal =
   // consecutive actions regardless of per-action success — the agent is stuck
   // (e.g. fill→click→fill→click on a login wall that never navigates). Distinct
   // from loop_detected (which replans); this ends the unit so we stop burning
-  // budget. (Audit 2026-06-02 D2-C1.)
+  // budget.
   | { type: "no_progress"; actions: number };
 
 // ─────────────────────────────────────────────────────────────
