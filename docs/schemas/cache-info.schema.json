@@ -3,7 +3,7 @@
   "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/cache-info.schema.json",
   "title": "CacheInfo",
   "description": "Live state of the result cache (enabled / ttl_ms_default / path) inside ListCapabilitiesResult.cache. Path is exposed for diagnostics (paths are not secrets); the cache file's contents stay opaque.",
-  "x-result-schema-version": "1.3.0",
+  "x-result-schema-version": "1.4.0",
   "$ref": "#/definitions/CacheInfo",
   "definitions": {
     "CacheInfo": {

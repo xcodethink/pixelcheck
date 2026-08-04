@@ -566,6 +566,8 @@ export interface AuditRun {
   duration_ms: number;
   results: ScenarioRunResult[];
   summary: {
+    /** Units the matrix asked for. `total` is how many produced a result. */
+    planned: number;
     total: number;
     pass: number;
     pass_with_issues: number;

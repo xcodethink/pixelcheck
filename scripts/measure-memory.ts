@@ -203,6 +203,7 @@ function makeInlineAudit(units: number): import("../src/core/types.js").AuditRun
     duration_ms: 60_000,
     results,
     summary: {
+      planned: 1,
       total: units,
       pass: results.filter((r) => r.status === "pass").length,
       pass_with_issues: results.filter((r) => r.status === "pass_with_issues").length,

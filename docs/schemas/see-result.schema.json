@@ -3,7 +3,7 @@
   "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/see-result.schema.json",
   "title": "SeeResult",
   "description": "MCP tool envelope returned by `see` (N-1 primitive). One-shot navigation snapshot: DOM summary, console errors, screenshot, and an optional vision note.",
-  "x-result-schema-version": "1.3.0",
+  "x-result-schema-version": "1.4.0",
   "$ref": "#/definitions/SeeResult",
   "definitions": {
     "SeeResult": {
