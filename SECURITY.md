@@ -137,11 +137,40 @@ upstream issue and fan out across the AI-SDK family:
 
 | Advisory | Severity | Affected | Status |
 |---|---|---|---|
-| `@ai-sdk/provider-utils` — Uncontrolled Resource Consumption | low | `@ai-sdk/provider-utils` and every `@ai-sdk/*` provider + `ai` that depends on it (17 packages) | Accepted for now: below the moderate CI gate; no fix published upstream yet. Picks up automatically when the AI SDK ships a patched `provider-utils`. |
+| [`@ai-sdk/provider-utils`](https://github.com/advisories/GHSA-866g-f22w-33x8) — Uncontrolled Resource Consumption | low | `@ai-sdk/provider-utils` and every `@ai-sdk/*` provider + `ai` that depends on it (17 packages) | Accepted, with the fix attempted and reverted — see below |
 
-These are transitive (we do not call the affected code path directly)
-and low severity, so they do not block the build. Tracked here so the
-"0 vulnerabilities" claim is never made again without qualification.
+These are transitive and low severity, so they do not block the build.
+Tracked here so the "0 vulnerabilities" claim is never made again without
+qualification.
+
+**`npm audit` reports `fixAvailable: true` for all seventeen. It is wrong,
+and this was measured rather than assumed.** The advisory's fixed range is
+`>3.0.97`, and the only published versions above it are `5.x` — two majors
+up. `@browserbasehq/stagehand`, which brings the whole family in, is on its
+latest release and still resolves `3.0.30`.
+
+Forcing `"@ai-sdk/provider-utils": "^5.0.20"` through `overrides` installs
+cleanly, builds, and passes **2569 unit tests, 49 integration tests, and
+`npm audit` goes to zero findings**. The product is dead:
+
+```
+SyntaxError: The requested module '@ai-sdk/provider-utils'
+             does not provide an export named 'lazyValidator'
+    at @ai-sdk/gateway/src/errors/gateway-forbidden-error.ts:3
+```
+
+`@ai-sdk/gateway` is compiled against 3.x and imports a symbol 5.x no longer
+exports, so the module graph fails to load and no LLM call can be made at
+all. Nothing in the suite covers that path — there is no cassette replay for
+it — so every gate stayed green while the thing the product exists to do was
+broken. Confirmed by making one real API call before and after the revert:
+`"ok"` on the reverted tree, the SyntaxError above with the override in
+place.
+
+So the honest status is not "no fix published". It is: a fix exists, it
+cannot be taken from here, and it arrives when the AI SDK family moves
+together — which is upstream's release, not ours. Do not re-attempt the
+override on the strength of `fixAvailable`.
 
 ### Dev-only tree — 1 moderate (NOT shipped)
 
