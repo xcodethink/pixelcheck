@@ -3,7 +3,7 @@
   "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/list-capabilities-result.schema.json",
   "title": "ListCapabilitiesResult",
   "description": "MCP tool envelope returned by `list_capabilities`. Self-describes the server: every shipped tool with its kind, input schema, result schema title, cacheability, static cost-estimate band, side-effects, and dependency declarations; plus the public env-var table and cache state. Static introspection — no LLM, no browser, no runtime probe of secrets.",
-  "x-result-schema-version": "1.3.0",
+  "x-result-schema-version": "1.4.0",
   "$ref": "#/definitions/ListCapabilitiesResult",
   "definitions": {
     "ListCapabilitiesResult": {

@@ -1744,7 +1744,10 @@ async function runCommand(opts: RunOpts): Promise<void> {
   //
   // Measured: matrix of 3, --budget 0.02, -j 1 → 2 "unit skipped" events, and
   // nothing in the summary or the JSON report mentioning them.
-  const planned = matrix.length;
+  // Prefer what the run recorded over what this process happens to hold.
+  // They agree here, but `summary.planned` is what a consumer reading
+  // audit.json sees, and the two must not be able to disagree unnoticed.
+  const planned = audit.summary.planned ?? matrix.length;
   const executed = audit.results.length;
   if (executed < planned) {
     console.log("");

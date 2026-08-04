@@ -3,7 +3,7 @@
   "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/gate-result.schema.json",
   "title": "GateResult",
   "description": "Calibration gate verdict (passed + violations + computed metrics).",
-  "x-result-schema-version": "1.3.0",
+  "x-result-schema-version": "1.4.0",
   "$ref": "#/definitions/GateResult",
   "definitions": {
     "GateResult": {

@@ -84,7 +84,7 @@ import { getLogger } from "./logger.js";
  *           ADR-007 — pre-1.3.0 consumers see the field as unknown and
  *           ignore it. (Phase 0 / ADR-034)
  */
-export const RESULT_SCHEMA_VERSION = "1.3.0";
+export const RESULT_SCHEMA_VERSION = "1.4.0";
 
 const SchemaVersionField = z
   .string()
@@ -469,6 +469,10 @@ export const AuditRunSchema = z.object({
   duration_ms: z.number().nonnegative(),
   results: z.array(ScenarioRunResultSchema),
   summary: z.object({
+    // Optional, not required: reports written before schema 1.4.0 do not
+    // carry it, and a required field would make every one of them fail to
+    // parse. Absent means unknown, not zero.
+    planned: z.number().int().nonnegative().optional(),
     total: z.number().int().nonnegative(),
     pass: z.number().int().nonnegative(),
     pass_with_issues: z.number().int().nonnegative(),

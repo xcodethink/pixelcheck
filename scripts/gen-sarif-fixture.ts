@@ -85,6 +85,7 @@ const audit: AuditRun = {
   duration_ms: 30_000,
   results: [scenario],
   summary: {
+    planned: 1,
     total: 1,
     pass: 0,
     pass_with_issues: 0,

@@ -3,7 +3,7 @@
   "$id": "https://github.com/xcodethink/pixelcheck/blob/main/docs/schemas/compare-result.schema.json",
   "title": "CompareResult",
   "description": "MCP tool envelope returned by `compare` (N-3 primitive). A/B comparison primitive. Default mode is `double_blind`: judges each side independently with the same rubric, then runs a synthesis vision call that sees both screenshots and emits per-criterion winners. `fast` mode collapses to a single side-by-side call (cheaper but susceptible to anchoring bias).",
-  "x-result-schema-version": "1.3.0",
+  "x-result-schema-version": "1.4.0",
   "$ref": "#/definitions/CompareResult",
   "definitions": {
     "CompareResult": {
