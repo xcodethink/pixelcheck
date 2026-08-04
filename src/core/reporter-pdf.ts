@@ -27,6 +27,10 @@ import type { AuditRun, Issue, ScenarioRunResult } from "./types.js";
 import { redactDeep } from "./secrets.js";
 import { DEFAULT_LOCALE, t, type Locale } from "./i18n.js";
 import { summarizeWcag, wcagHelpUrl, type WcagSummary } from "./wcag.js";
+import { escapeHtml } from "./html-escape.js";
+
+// Re-exported because this module used to own the definition.
+export { escapeHtml };
 
 // ─────────────────────────────────────────────────────────────
 // Public API
@@ -602,29 +606,6 @@ function applyRedaction(audit: AuditRun): AuditRun {
   const patterns = audit.redact_patterns ?? [];
   return patterns.length > 0 ? redactDeep(audit, patterns) : audit;
 }
-
-/**
- * Escape a string for safe inclusion in HTML body or attribute. Same
- * five-character set used by reporter-spa (& < > " ').
- */
-export function escapeHtml(s: string): string {
-  return String(s).replace(/[&<>"']/g, (c) => {
-    switch (c) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      case "'":
-        return "&#39;";
-    }
-    return c;
-  });
-}
-
 /**
  * Whether reporter-pdf can run in this environment. Always true today;
  * reserved for future opts (e.g. node-pdfkit fallback).
