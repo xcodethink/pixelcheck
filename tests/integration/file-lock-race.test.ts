@@ -188,21 +188,57 @@ process.exit(0);
 `;
 
       const { spawn } = await import("node:child_process");
-      const codes = await Promise.all(
+      // stderr is captured, not discarded. When a child dies, its exit code
+      // alone reduces the failure to `expected false to be true` and the
+      // reason is unrecoverable — which is what this test did the one time it
+      // failed in CI and passed 6/6 locally. The two assertions below fail for
+      // completely different reasons: a non-zero code means a child crashed, a
+      // short count means the lock lost an update. Only one of them is the
+      // race this file exists for, and they must not look alike.
+      const results = await Promise.all(
         Array.from(
           { length: PROCS },
           () =>
-            new Promise<number>((resolve, reject) => {
+            new Promise<{ code: number; stderr: string }>((resolve, reject) => {
               const p = spawn(process.execPath, ["-e", child], {
                 cwd: process.cwd(),
               });
-              p.on("exit", (code) => resolve(code ?? -1));
+              let stderr = "";
+              p.stderr?.on("data", (b: Buffer) => {
+                stderr += b.toString();
+              });
+              p.on("exit", (code) => resolve({ code: code ?? -1, stderr }));
               p.on("error", reject);
             }),
         ),
       );
 
-      expect(codes.every((c) => c === 0)).toBe(true);
+      const codes = results.map((r) => r.code);
+      const failed = results.filter((r) => r.code !== 0);
+      expect(
+        codes.every((c) => c === 0),
+        failed.length === 0
+          ? ""
+          : `${failed.length}/${PROCS} child process(es) exited non-zero.\n` +
+            // Deduplicated, and the message rather than the stack tail. Twelve
+            // identical copies of the same trace is not twelve times the
+            // information, and a Node uncaught exception puts the line that
+            // says what happened above the frames, not below them.
+            [
+              ...new Set(
+                failed.map(
+                  (r) =>
+                    `  code ${r.code}: ` +
+                    (r.stderr
+                      .split("\n")
+                      .find((l) => /Error|error:|Cannot|ENOENT|EACCES/.test(l))
+                      ?.trim() ??
+                      r.stderr.trim().split("\n")[0] ??
+                      "(no stderr)"),
+                ),
+              ),
+            ].join("\n"),
+      ).toBe(true);
       const final = JSON.parse(fs.readFileSync(counterPath, "utf-8")).n as number;
       expect(final).toBe(PROCS * ITERATIONS);
       fs.rmSync(dir, { recursive: true, force: true });
