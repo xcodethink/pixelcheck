@@ -39,6 +39,7 @@ export default defineConfig({
         // This list is an allowlist, not a glob: a new file added under
         // tests/integration/ is silently not run until it appears here.
         "tests/integration/report-xss.test.ts",
+        "tests/integration/input-redaction.test.ts",
     ],
     // Forks pool — fresh Node process per file.
     // vitest 4+ moved poolOptions to top-level `forks` / `threads` keys.
