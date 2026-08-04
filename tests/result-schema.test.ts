@@ -67,8 +67,12 @@ describe("result-schema — version constant", () => {
     expect(RESULT_SCHEMA_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("RESULT_SCHEMA_VERSION is 1.3.0 (ADR-034: added diagnostics envelope to primitive results)", () => {
-    expect(RESULT_SCHEMA_VERSION).toBe("1.3.0");
+  it("RESULT_SCHEMA_VERSION is 1.4.0 (added the optional summary.planned count)", () => {
+    // Pinned on purpose: bumping the constant has to be a decision, and the
+    // published schemas, the contract document and this line all have to move
+    // together. They did not, the first time — the contract tests caught the
+    // three documents still on the old number.
+    expect(RESULT_SCHEMA_VERSION).toBe("1.4.0");
   });
 });
 

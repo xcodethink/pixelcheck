@@ -216,6 +216,18 @@ async function runAuditInner(
 
   const finishedAt = new Date().toISOString();
   const summary = {
+    // What the matrix asked for, alongside what came back.
+    //
+    // A unit skipped on budget, or dropped because its persona was missing,
+    // returns without pushing a result, so `total` is the executed count. A
+    // three-unit matrix truncated after the first records `total: 1`, which
+    // is indistinguishable from a one-unit matrix that ran to completion —
+    // and if that unit passed, from a clean audit of all three.
+    //
+    // The CLI has printed the shortfall since it could compute it from the
+    // matrix it holds. Nothing in the artefact carried it, so a CI job
+    // reading audit.json rather than the terminal could not see it at all.
+    planned: opts.matrix.length,
     total: results.length,
     pass: results.filter((r) => r.status === "pass").length,
     pass_with_issues: results.filter((r) => r.status === "pass_with_issues").length,

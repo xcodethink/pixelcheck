@@ -64,6 +64,17 @@ export function writeMarkdownSummary(
   lines.push(`| Metric | Count |`);
   lines.push(`|---|---|`);
   lines.push(`| Total | ${audit.summary.total} |`);
+  // Only when they differ: a line reading "Planned 3 / 3" on every clean run
+  // is noise, and noise is what stops the exceptional line being read.
+  if (
+    audit.summary.planned !== undefined &&
+    audit.summary.planned > audit.summary.total
+  ) {
+    lines.push(
+      `| Planned | ${audit.summary.planned} — ` +
+        `${audit.summary.planned - audit.summary.total} unit(s) did not run |`,
+    );
+  }
   lines.push(`| Pass | ${audit.summary.pass} |`);
   lines.push(`| Pass with issues | ${audit.summary.pass_with_issues} |`);
   lines.push(`| Fail | ${audit.summary.fail} |`);
