@@ -35,6 +35,27 @@ async function newSession(): Promise<{
   collector: WhiteboxCollector;
 }> {
   const context = await browser.newContext();
+
+  // Answer example.org / .com / .net from here rather than from the internet.
+  //
+  // These tests navigate to those hosts fourteen times and none of them cares
+  // what comes back — they assert on popup tracking, the network log, cookies
+  // and storage. What they were quietly asserting as well was that the public
+  // internet is reachable and fast: "captures a single popup opened via
+  // window.open" waits a flat 1500 ms after the click, and failed once in CI
+  // with `expected [] to have a length of 1` while passing 8/8 locally, which
+  // is the signature of a timing dependency on somebody else's server rather
+  // than a defect in the collector.
+  //
+  // The URLs are unchanged, so every assertion still means what it meant.
+  await context.route(/https:\/\/example\.(org|com|net)/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<html><head><title>Example Domain</title></head><body><h1>Example Domain</h1></body></html>",
+    }),
+  );
+
   const page = await context.newPage();
   const collector = new WhiteboxCollector(context, page);
   collector.attach();
